@@ -1,12 +1,47 @@
 # yanote
 
-`yanote` — инструмент для определения покрытия REST API из OpenAPI через реальные вызовы сервиса в интеграционных тестах.
+Инструмент для сбора покрытия REST API тестами по OpenAPI и событийным файлам (`events.jsonl`), с поддержкой режима регрессий.
 
-## Модули
+## Основное
 
-- `yanote-core` — модель событий, чтение/запись JSONL, загрузка OpenAPI и расчёт покрытия.
-- `yanote-recorder-spring-mvc` — Spring MVC стартер для записи фактов вызовов в `events.jsonl`.
-- `yanote-test-tags-restassured` — добавление заголовков `X-Test-Run-Id` и `X-Test-Suite` в RestAssured.
-- `yanote-test-tags-cucumber` — интеграция названия suite для Cucumber.
-- `yanote-cli` — генерация отчётов покрытия и проверка регрессии.
+- `yanote-core`: события и загрузка OpenAPI.
+- `yanote-cli`: расчёт покрытия и отчётов.
+- `yanote-recorder-spring-mvc`: стартер для записи вызовов в `events.jsonl`.
+- `yanote-test-tags-restassured`: фильтр для автоподстановки заголовков `X-Test-Run-Id` и `X-Test-Suite`.
+- `yanote-test-tags-cucumber`: плагин для определения suite и передачи её в заголовки через системное свойство `yanote.suite`.
 
+## Быстрый запуск
+
+```bash
+./gradlew test
+```
+
+## Генерация отчёта из собранных событий
+
+```bash
+./gradlew :yanote-cli:run -- report \
+  --openapi /path/to/openapi.yaml \
+  --events /path/to/events.jsonl \
+  --out ./out
+```
+
+## E2E пример (Spring MVC + RestAssured)
+
+В директории `examples/` есть runnable-сборка:
+
+- `examples/springmvc-service/` — demo Spring MVC сервис с включённым `yanote-recorder-spring-mvc`
+- `examples/tests-restassured/` — demo RestAssured тесты с `YanoteRestAssuredFilter`
+- `examples/openapi/demo-openapi.yaml` — пример спецификации API
+- `examples/docker-compose.yml` — поднимает сервис, выполняет тесты, строит отчёт
+- В `examples/docker-compose.yml` для демо установлен порог покрытия `--min-coverage 100` для демонстрации fail-fast поведения.
+
+Запуск:
+
+```bash
+docker compose -f examples/docker-compose.yml up --build --exit-code-from tests
+```
+
+После выполнения команда создаст файл отчёта:
+
+- `examples/` → общий volume `./yanote-events:/data/yanote` (в контейнерах)
+- `yanote-summary.txt` и `yanote-report.json` в директории `/data/yanote/out`
