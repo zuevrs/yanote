@@ -1,12 +1,22 @@
-package dev.yanote.cli;
+package dev.yanote.cli.commands;
 
 import dev.yanote.cli.config.ConfigLoader;
 import dev.yanote.cli.config.YanoteConfig;
-import picocli.CommandLine.Command;
-import picocli.CommandLine.Option;
+import dev.yanote.cli.output.ReportWriters;
+import dev.yanote.core.coverage.CoverageCalculator;
+import dev.yanote.core.events.EventJsonlReader;
+import dev.yanote.core.events.HttpEvent;
+import dev.yanote.core.openapi.OpenApiLoader;
+import dev.yanote.core.openapi.OpenApiOperations;
+import java.io.IOException;
+import java.io.UncheckedIOException;
+import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.stream.Stream;
+import picocli.CommandLine.Command;
+import picocli.CommandLine.Option;
 
 @Command(
         name = "report",
@@ -33,12 +43,6 @@ public class ReportCommand implements Runnable {
     @Option(names = "--min-coverage", description = "Fail if total coverage lower than this percent")
     private Double minCoverage;
 
-    @Option(names = "--baseline", description = "Baseline report JSON file")
-    private Path baselinePath;
-
-    @Option(names = "--fail-on-regression", description = "Fail on any regression comparing with baseline")
-    private boolean failOnRegression;
-
     @Override
     public void run() {
         YanoteConfig config = new ConfigLoader().load(configPath);
@@ -55,24 +59,57 @@ public class ReportCommand implements Runnable {
             if (minCoverage == null && config.minCoveragePercent() != null) {
                 minCoverage = config.minCoveragePercent();
             }
-            if (baselinePath == null && config.baselinePath() != null) {
-                baselinePath = Path.of(config.baselinePath());
-            }
             if (excludePatterns.isEmpty() && !config.excludePatterns().isEmpty()) {
                 excludePatterns = new ArrayList<>(config.excludePatterns());
             }
-            if (!failOnRegression) {
-                failOnRegression = config.failOnRegression();
-            }
         }
 
-        System.out.println("OpenAPI:");
-        System.out.println("  openapiPath=" + openapiPath);
-        System.out.println("  eventsPath=" + eventsPath);
-        System.out.println("  outputDir=" + outputDir);
-        System.out.println("  minCoverage=" + minCoverage);
-        System.out.println("  baselinePath=" + baselinePath);
-        System.out.println("  failOnRegression=" + failOnRegression);
-        System.out.println("  exclude=" + excludePatterns);
+        if (openapiPath == null || eventsPath == null || outputDir == null) {
+            throw new IllegalArgumentException("--openapi, --events and --out are required unless provided through config");
+        }
+
+        List<HttpEvent> events;
+        try {
+            events = readEvents(eventsPath);
+        } catch (IOException ex) {
+            throw new UncheckedIOException("Unable to read events", ex);
+        } catch (UncheckedIOException ex) {
+            throw ex;
+        }
+
+        var operations = new OpenApiOperations().extract(new OpenApiLoader().load(openapiPath.toString()));
+        var report = new CoverageCalculator().calculate(operations, events, excludePatterns);
+
+        var summary = report.summary();
+        System.out.println("Coverage " + summary.coveredOperations() + "/" + summary.totalOperations() + " (" + summary.coveragePercent() + "%)");
+
+        try {
+            new ReportWriters().writeSummary(report, outputDir);
+        } catch (IOException ex) {
+            throw new UncheckedIOException("Unable to write report", ex);
+        }
+
+        if (minCoverage != null && summary.coveragePercent() + 0.0001 < minCoverage) {
+            throw new IllegalStateException("Coverage regression detected: " + summary.coveragePercent() + " < " + minCoverage);
+        }
+    }
+
+    private List<HttpEvent> readEvents(Path eventsPath) throws IOException {
+        if (Files.isDirectory(eventsPath)) {
+            List<HttpEvent> result = new ArrayList<>();
+            try (Stream<Path> pathStream = Files.list(eventsPath)) {
+                pathStream.filter(path -> path.toString().endsWith(".jsonl"))
+                        .sorted()
+                        .forEach(path -> {
+                            try {
+                                result.addAll(new EventJsonlReader().read(path));
+                            } catch (IOException ex) {
+                                throw new UncheckedIOException(ex);
+                            }
+                        });
+            }
+            return result;
+        }
+        return new EventJsonlReader().read(eventsPath);
     }
 }
