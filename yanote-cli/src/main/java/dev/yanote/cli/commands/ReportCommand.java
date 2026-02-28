@@ -2,18 +2,25 @@ package dev.yanote.cli.commands;
 
 import dev.yanote.cli.config.ConfigLoader;
 import dev.yanote.cli.config.YanoteConfig;
+import dev.yanote.cli.baseline.Baseline;
+import dev.yanote.cli.baseline.BaselineComparator;
 import dev.yanote.cli.output.ReportWriters;
+import dev.yanote.core.coverage.CoverageReport;
 import dev.yanote.core.coverage.CoverageCalculator;
 import dev.yanote.core.events.EventJsonlReader;
 import dev.yanote.core.events.HttpEvent;
 import dev.yanote.core.openapi.OpenApiLoader;
 import dev.yanote.core.openapi.OpenApiOperations;
+import dev.yanote.core.openapi.OperationKey;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import java.io.IOException;
 import java.io.UncheckedIOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.ArrayList;
+import java.util.LinkedHashSet;
 import java.util.List;
+import java.util.Set;
 import java.util.stream.Stream;
 import picocli.CommandLine.Command;
 import picocli.CommandLine.Option;
@@ -43,6 +50,12 @@ public class ReportCommand implements Runnable {
     @Option(names = "--min-coverage", description = "Fail if total coverage lower than this percent")
     private Double minCoverage;
 
+    @Option(names = "--baseline", description = "Baseline report JSON file")
+    private Path baselinePath;
+
+    @Option(names = "--fail-on-regression", description = "Fail if current run lost baseline coverage")
+    private boolean failOnRegression;
+
     @Override
     public void run() {
         YanoteConfig config = new ConfigLoader().load(configPath);
@@ -61,6 +74,12 @@ public class ReportCommand implements Runnable {
             }
             if (excludePatterns.isEmpty() && !config.excludePatterns().isEmpty()) {
                 excludePatterns = new ArrayList<>(config.excludePatterns());
+            }
+            if (baselinePath == null && config.baselinePath() != null) {
+                baselinePath = Path.of(config.baselinePath());
+            }
+            if (!failOnRegression) {
+                failOnRegression = config.failOnRegression();
             }
         }
 
@@ -83,6 +102,16 @@ public class ReportCommand implements Runnable {
         var summary = report.summary();
         System.out.println("Coverage " + summary.coveredOperations() + "/" + summary.totalOperations() + " (" + summary.coveragePercent() + "%)");
 
+        if (baselinePath != null) {
+            Set<OperationKey> regressions = checkBaseline(report, baselinePath);
+            if (failOnRegression && !regressions.isEmpty()) {
+                throw new IllegalStateException(new BaselineComparator().formatRegressions(regressions));
+            }
+            if (!regressions.isEmpty()) {
+                System.out.println(new BaselineComparator().formatRegressions(regressions));
+            }
+        }
+
         try {
             new ReportWriters().writeSummary(report, outputDir);
         } catch (IOException ex) {
@@ -91,6 +120,20 @@ public class ReportCommand implements Runnable {
 
         if (minCoverage != null && summary.coveragePercent() + 0.0001 < minCoverage) {
             throw new IllegalStateException("Coverage regression detected: " + summary.coveragePercent() + " < " + minCoverage);
+        }
+    }
+
+    private Set<OperationKey> checkBaseline(CoverageReport report, Path baselinePath) {
+        try {
+            ObjectMapper mapper = new ObjectMapper();
+            List<OperationKey> covered = mapper.readValue(
+                    baselinePath.toFile(),
+                    mapper.getTypeFactory().constructCollectionType(List.class, OperationKey.class)
+            );
+            Set<OperationKey> baselineCovered = new LinkedHashSet<>(covered);
+            return new BaselineComparator().findRegressions(new Baseline(List.copyOf(baselineCovered)), report.coveredOperations());
+        } catch (IOException ex) {
+            throw new UncheckedIOException("Unable to read baseline", ex);
         }
     }
 
