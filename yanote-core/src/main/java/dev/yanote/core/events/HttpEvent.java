@@ -1,7 +1,9 @@
 package dev.yanote.core.events;
 
+import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import java.util.Objects;
+import java.util.Locale;
 
 public final class HttpEvent implements YanoteEvent {
     private final long ts;
@@ -17,20 +19,22 @@ public final class HttpEvent implements YanoteEvent {
     private final String instance;
     private final Boolean error;
 
+    @JsonCreator
     public HttpEvent(
-            long ts,
-            String method,
-            String route,
-            String testRunId,
-            String testSuite,
-            Integer status,
-            String service,
-            String instance,
-            Boolean error
+            @JsonProperty("ts") long ts,
+            @JsonProperty("kind") String kind,
+            @JsonProperty("method") String method,
+            @JsonProperty("route") String route,
+            @JsonProperty("test.run_id") String testRunId,
+            @JsonProperty("test.suite") String testSuite,
+            @JsonProperty("status") Integer status,
+            @JsonProperty("service") String service,
+            @JsonProperty("instance") String instance,
+            @JsonProperty("error") Boolean error
     ) {
         this.ts = ts;
-        this.kind = "http";
-        this.method = method;
+        this.kind = kind == null ? "http" : kind;
+        this.method = method == null ? null : method.toUpperCase(Locale.ROOT);
         this.route = route;
         this.testRunId = testRunId;
         this.testSuite = testSuite;
@@ -87,11 +91,11 @@ public final class HttpEvent implements YanoteEvent {
     }
 
     public static HttpEvent of(String method, String route, String testRunId, String testSuite, Integer status, String service, String instance) {
-        return new HttpEvent(System.currentTimeMillis(), method, route, testRunId, testSuite, status, service, instance, false);
+        return new HttpEvent(System.currentTimeMillis(), "http", method.toUpperCase(Locale.ROOT), route, testRunId, testSuite, status, service, instance, false);
     }
 
     public static HttpEvent of(long ts, String method, String route, String testRunId, String testSuite, Integer status) {
-        return new HttpEvent(ts, method, route, testRunId, testSuite, status, null, null, false);
+        return new HttpEvent(ts, "http", method.toUpperCase(Locale.ROOT), route, testRunId, testSuite, status, null, null, false);
     }
 
     @Override
