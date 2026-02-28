@@ -1,5 +1,6 @@
 package dev.yanote.cli;
 
+import dev.yanote.cli.commands.ReportCommand;
 import picocli.CommandLine;
 import picocli.CommandLine.Command;
 
