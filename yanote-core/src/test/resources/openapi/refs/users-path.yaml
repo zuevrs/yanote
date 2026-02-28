@@ -1,0 +1,9 @@
+UsersPath:
+  get:
+    responses:
+      '200':
+        description: list users
+  post:
+    responses:
+      '201':
+        description: create user

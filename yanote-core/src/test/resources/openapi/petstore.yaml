@@ -1,0 +1,14 @@
+openapi: 3.0.3
+info:
+  title: yanote test
+  version: 1.0.0
+paths:
+  /v1/users:
+    $ref: ./refs/users-path.yaml#/UsersPath
+  /v1/users/{id}:
+    get:
+      parameters:
+        - $ref: './refs/common-params.yaml#/components/parameters/UserId'
+      responses:
+        '200':
+          description: ok
