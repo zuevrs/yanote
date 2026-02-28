@@ -1,0 +1,45 @@
+services:
+  api:
+    image: eclipse-temurin:21-jdk
+    container_name: yanote-demo-api
+    working_dir: /workspace-api
+    volumes:
+      - ../:/workspace-api
+      - yanote-events:/data/yanote
+    command: sh -c './gradlew --no-daemon -g /tmp/gradle-api --project-cache-dir /tmp/gradle-api-project-cache :examples:springmvc-service:bootJar && java -Dyanote.recorder.events-path=/data/yanote/events.jsonl -Dyanote.recorder.enabled=true -jar examples/springmvc-service/build/libs/*.jar'
+    environment:
+      YANOTE_EVENTS_PATH: /data/yanote/events.jsonl
+    ports:
+      - '8080:8080'
+
+  tests:
+    image: eclipse-temurin:21-jdk
+    container_name: yanote-demo-tests
+    depends_on:
+      - api
+    working_dir: /workspace-tests
+    volumes:
+      - ../:/workspace-tests
+      - yanote-events:/data/yanote
+    environment:
+      YANOTE_RUN_ID: compose-run-1
+      YANOTE_SUITE: restassured-suite
+      YANOTE_BASE_URI: http://api:8080
+      YANOTE_EVENTS_PATH: /data/yanote/events.jsonl
+    command: >
+      sh -c '
+        set -e;
+        for i in $(seq 1 180); do
+          if curl -fsS "$${YANOTE_BASE_URI}/health" >/dev/null; then
+            break;
+          fi;
+          sleep 2;
+        done;
+        ./gradlew --no-daemon -g /tmp/gradle-tests --project-cache-dir /tmp/gradle-tests-project-cache :examples:tests-restassured:test;
+        ./gradlew --no-daemon -g /tmp/gradle-tests --project-cache-dir /tmp/gradle-tests-project-cache :yanote-cli:run --args="report --openapi /workspace-tests/examples/openapi/demo-openapi.yaml --events /data/yanote/events.jsonl --out /data/yanote/out --min-coverage 100";
+        echo "Generated report:";
+        cat /data/yanote/out/yanote-summary.txt;
+      '
+
+volumes:
+  yanote-events:
