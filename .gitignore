@@ -1,0 +1,6 @@
+.worktrees/
+.cursor/
+.idea/
+.gradle/
+build/
+*.iml
