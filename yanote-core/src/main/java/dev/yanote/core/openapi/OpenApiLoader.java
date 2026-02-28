@@ -1,7 +1,7 @@
 package dev.yanote.core.openapi;
 
 import io.swagger.parser.OpenAPIParser;
-import io.swagger.parser.core.models.SwaggerParseResult;
+import io.swagger.v3.parser.core.models.SwaggerParseResult;
 import io.swagger.v3.oas.models.OpenAPI;
 import io.swagger.v3.parser.core.models.ParseOptions;
 import java.util.List;

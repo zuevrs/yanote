@@ -2,6 +2,8 @@ package dev.yanote.core.openapi;
 
 import io.swagger.v3.oas.models.OpenAPI;
 import java.net.URI;
+import java.net.URL;
+import java.net.URISyntaxException;
 import java.nio.file.Paths;
 import java.util.Set;
 import org.junit.jupiter.api.Test;
@@ -12,7 +14,7 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 class OpenApiOperationsTest {
 
     @Test
-    void shouldExtractOperationsFromOpenApiWithRefs() {
+    void shouldExtractOperationsFromOpenApiWithRefs() throws URISyntaxException {
         URL resource = OpenApiOperationsTest.class.getClassLoader().getResource("openapi/petstore.yaml");
         assertNotNull(resource);
 
@@ -27,4 +29,3 @@ class OpenApiOperationsTest {
         assertTrue(operations.contains(new OperationKey("GET", "/v1/users/{id}")));
     }
 }
-

@@ -10,8 +10,8 @@ class EventJsonlRoundTripTest {
 
     @Test
     void shouldWriteAndReadEventRoundTrip() throws Exception {
-        HttpEvent first = HttpEvent.of("GET", "/v1/users/{id}", "run-1", "suite-a", 200, "users-service", "instance-1");
-        HttpEvent second = HttpEvent.of(1690000000000L, "POST", "/v1/users", "run-1", "suite-a", 201);
+        HttpEvent first = HttpEvent.of(1689000000000L, "GET", "/v1/users/{id}", "run-1", "suite-a", 200);
+        HttpEvent second = HttpEvent.of(1689000000100L, "POST", "/v1/users", "run-1", "suite-a", 201);
 
         Path tempFile = Files.createTempFile("yanote-events-", ".jsonl");
 
