@@ -6,10 +6,12 @@ import jakarta.servlet.ServletException;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import java.io.IOException;
-import java.io.UncheckedIOException;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.web.filter.OncePerRequestFilter;
 
 public class HttpEventRecordingFilter extends OncePerRequestFilter {
+    private static final Logger log = LoggerFactory.getLogger(HttpEventRecordingFilter.class);
     private static final String RUN_ID_HEADER = "X-Test-Run-Id";
     private static final String SUITE_HEADER = "X-Test-Suite";
 
@@ -47,7 +49,7 @@ public class HttpEventRecordingFilter extends OncePerRequestFilter {
                     )
             );
         } catch (IOException ex) {
-            throw new UncheckedIOException(ex);
+            log.warn("Failed to write yanote event to {} (dropping event)", eventsPath, ex);
         }
     }
 }

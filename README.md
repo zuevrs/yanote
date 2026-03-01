@@ -10,6 +10,16 @@
 - `yanote-test-tags-restassured`: фильтр для автоподстановки заголовков `X-Test-Run-Id` и `X-Test-Suite`.
 - `yanote-test-tags-cucumber`: плагин для определения suite и передачи её в заголовки через системное свойство `yanote.suite`.
 
+## Настройка рекордера (Spring MVC)
+
+По умолчанию `yanote-recorder-spring-mvc` **выключен**. Это сделано специально, чтобы подключение стартера в production не начинало записывать прод-трафик “само собой”.
+
+Чтобы включить запись событий:
+
+- `yanote.recorder.enabled=true`
+- `yanote.recorder.events-path=/path/to/events.jsonl` (по умолчанию `events.jsonl`)
+- `yanote.recorder.service-name=...` (опционально)
+
 ## Быстрый запуск
 
 ```bash

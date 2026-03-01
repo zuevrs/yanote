@@ -9,7 +9,7 @@ import org.springframework.core.Ordered;
 
 @AutoConfiguration
 @EnableConfigurationProperties(YanoteRecorderProperties.class)
-@ConditionalOnProperty(prefix = "yanote.recorder", name = "enabled", havingValue = "true", matchIfMissing = true)
+@ConditionalOnProperty(prefix = "yanote.recorder", name = "enabled", havingValue = "true", matchIfMissing = false)
 public class YanoteRecorderAutoConfiguration {
 
     @Bean
