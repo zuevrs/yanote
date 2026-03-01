@@ -133,29 +133,6 @@ Please set the JAVA_HOME variable in your environment to match the
 location of your Java installation."
     fi
 else
-    # On macOS, `java` might be a stub and `JAVA_HOME` may be unset in non-login shells (e.g. SSH automation).
-    # Try to discover a Java 21 installation before failing.
-    if "$darwin" && [ -z "$JAVA_HOME" ] ; then
-        if command -v /usr/libexec/java_home >/dev/null 2>&1 ; then
-            JAVA_HOME=$(/usr/libexec/java_home -v 21 2>/dev/null) || true
-        fi
-        if [ -z "$JAVA_HOME" ] && command -v brew >/dev/null 2>&1 ; then
-            brew_prefix=$(brew --prefix openjdk@21 2>/dev/null) || true
-            if [ -n "$brew_prefix" ] && [ -x "$brew_prefix/libexec/openjdk.jdk/Contents/Home/bin/java" ] ; then
-                JAVA_HOME="$brew_prefix/libexec/openjdk.jdk/Contents/Home"
-            fi
-        fi
-    fi
-
-    if [ -n "$JAVA_HOME" ] ; then
-        JAVACMD=$JAVA_HOME/bin/java
-        if [ ! -x "$JAVACMD" ] ; then
-            die "ERROR: JAVA_HOME is set to an invalid directory: $JAVA_HOME
-
-Please set the JAVA_HOME variable in your environment to match the
-location of your Java installation."
-        fi
-    else
     JAVACMD=java
     if ! command -v java >/dev/null 2>&1
     then
@@ -163,7 +140,6 @@ location of your Java installation."
 
 Please set the JAVA_HOME variable in your environment to match the
 location of your Java installation."
-    fi
     fi
 fi
 
