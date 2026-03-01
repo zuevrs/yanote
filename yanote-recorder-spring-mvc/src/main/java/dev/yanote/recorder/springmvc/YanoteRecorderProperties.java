@@ -4,7 +4,7 @@ import org.springframework.boot.context.properties.ConfigurationProperties;
 
 @ConfigurationProperties(prefix = "yanote.recorder")
 public class YanoteRecorderProperties {
-    private boolean enabled = true;
+    private boolean enabled = false;
     private String eventsPath = "events.jsonl";
     private String serviceName;
 
