@@ -1,0 +1,8 @@
+{
+  "format": 1,
+  "covered": [
+    { "kind": "http", "method": "GET", "route": "/users/{id}" },
+    { "kind": "http", "method": "POST", "route": "/users" }
+  ]
+}
+

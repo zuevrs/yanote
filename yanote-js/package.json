@@ -1,0 +1,30 @@
+{
+  "name": "yanote-js",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "bin": {
+    "yanote": "./dist/cli.js"
+  },
+  "scripts": {
+    "build": "node esbuild.config.mjs",
+    "test": "vitest run",
+    "test:watch": "vitest"
+  },
+  "dependencies": {
+    "@apidevtools/swagger-parser": "^10.1.1",
+    "@asyncapi/parser": "^3.6.0",
+    "commander": "^12.1.0",
+    "openapi-types": "^12.1.3"
+  },
+  "devDependencies": {
+    "@types/node": "^22.13.10",
+    "esbuild": "^0.25.1",
+    "typescript": "^5.8.2",
+    "vitest": "^2.1.9"
+  },
+  "engines": {
+    "node": ">=20"
+  }
+}
+
