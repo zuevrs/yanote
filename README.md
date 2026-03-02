@@ -4,8 +4,8 @@
 
 ## Основное
 
-- `yanote-core`: события и загрузка OpenAPI.
-- `yanote-cli`: расчёт покрытия и отчётов.
+- `yanote-core`: модель событий (для рекордеров).
+- `yanote-js`: Node CLI для расчёта покрытия и отчётов (OpenAPI сейчас, AsyncAPI далее).
 - `yanote-recorder-spring-mvc`: стартер для записи вызовов в `events.jsonl`.
 - `yanote-test-tags-restassured`: фильтр для автоподстановки заголовков `X-Test-Run-Id` и `X-Test-Suite`.
 - `yanote-test-tags-cucumber`: плагин для определения suite и передачи её в заголовки через системное свойство `yanote.suite`.
@@ -38,8 +38,10 @@
 ## Генерация отчёта из собранных событий
 
 ```bash
-./gradlew :yanote-cli:run -- report \
-  --openapi /path/to/openapi.yaml \
+npm -C yanote-js install
+npm -C yanote-js run build
+node yanote-js/dist/cli.js report \
+  --spec /path/to/openapi.yaml \
   --events /path/to/events.jsonl \
   --out ./out
 ```
@@ -57,10 +59,10 @@
 Запуск:
 
 ```bash
-docker compose -f examples/docker-compose.yml up --build --exit-code-from tests
+docker compose -f examples/docker-compose.yml up --build --exit-code-from report
 ```
 
 После выполнения команда создаст файл отчёта:
 
 - `examples/` → общий volume `./yanote-events:/data/yanote` (в контейнерах)
-- `yanote-summary.txt` и `yanote-report.json` в директории `/data/yanote/out`
+- `yanote-report.json` в директории `/data/yanote/out`
