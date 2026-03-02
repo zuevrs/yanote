@@ -40,7 +40,7 @@
 ```bash
 npm -C yanote-js install
 npm -C yanote-js run build
-node yanote-js/dist/cli.js report \
+node yanote-js/dist/yanote.cjs report \
   --spec /path/to/openapi.yaml \
   --events /path/to/events.jsonl \
   --out ./out

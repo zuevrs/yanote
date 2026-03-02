@@ -85,7 +85,7 @@ services:
         fi;
         npm -C yanote-js install;
         npm -C yanote-js run build;
-        node yanote-js/dist/cli.js report --spec /workspace/examples/openapi/demo-openapi.yaml --events /data/yanote/events.jsonl --out /data/yanote/out --min-coverage 100 --exclude /health;
+        node yanote-js/dist/yanote.cjs report --spec /workspace/examples/openapi/demo-openapi.yaml --events /data/yanote/events.jsonl --out /data/yanote/out --min-coverage 100 --exclude /health;
         echo "Generated report:";
         cat /data/yanote/out/yanote-report.json;
         echo "done" > "$${YANOTE_REPORT_MARKER}";

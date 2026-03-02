@@ -8,6 +8,6 @@ Node-based analyzer for `yanote`.
 npm -C yanote-js install
 npm -C yanote-js test
 npm -C yanote-js run build
-node yanote-js/dist/cli.js --help
+node yanote-js/dist/yanote.cjs --help
 ```
 
