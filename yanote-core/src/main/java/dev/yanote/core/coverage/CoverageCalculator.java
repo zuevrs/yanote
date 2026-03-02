@@ -43,7 +43,7 @@ public final class CoverageCalculator {
     private Map<OperationKey, Set<String>> buildSuiteMapping(Set<OperationKey> allOperations, List<HttpEvent> events) {
         Map<OperationKey, Set<String>> result = new LinkedHashMap<>();
         for (HttpEvent event : events) {
-            if (event == null || !"http".equals(event.kind()) || event.method() == null || event.route() == null) {
+            if (event == null || event.method() == null || event.route() == null) {
                 continue;
             }
             OperationKey current = new OperationKey(event.method(), event.route());
