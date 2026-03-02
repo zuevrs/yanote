@@ -6,7 +6,8 @@ services:
     volumes:
       - ../:/workspace-api
       - yanote-events:/data/yanote
-    command: sh -c './gradlew --no-daemon -g /tmp/gradle-api --project-cache-dir /tmp/gradle-api-project-cache :examples:springmvc-service:bootJar && java -Dyanote.recorder.events-path=/data/yanote/events.jsonl -Dyanote.recorder.enabled=true -jar examples/springmvc-service/build/libs/*.jar'
+      - gradle-cache:/data/gradle
+    command: sh -c './gradlew --no-daemon -g /data/gradle --project-cache-dir /data/gradle/project-cache :examples:springmvc-service:bootJar && java -Dyanote.recorder.events-path=/data/yanote/events.jsonl -Dyanote.recorder.enabled=true -jar examples/springmvc-service/build/libs/*.jar'
     environment:
       YANOTE_EVENTS_PATH: /data/yanote/events.jsonl
     ports:
@@ -21,11 +22,14 @@ services:
     volumes:
       - ../:/workspace-tests
       - yanote-events:/data/yanote
+      - gradle-cache:/data/gradle
     environment:
       YANOTE_RUN_ID: compose-run-1
       YANOTE_SUITE: restassured-suite
       YANOTE_BASE_URI: http://api:8080
       YANOTE_EVENTS_PATH: /data/yanote/events.jsonl
+      YANOTE_READY_MARKER: /data/yanote/tests-done.marker
+      YANOTE_REPORT_MARKER: /data/yanote/report-done.marker
     command: >
       sh -c '
         set -e;
@@ -35,11 +39,58 @@ services:
           fi;
           sleep 2;
         done;
-        ./gradlew --no-daemon -g /tmp/gradle-tests --project-cache-dir /tmp/gradle-tests-project-cache :examples:tests-restassured:test;
-        ./gradlew --no-daemon -g /tmp/gradle-tests --project-cache-dir /tmp/gradle-tests-project-cache :yanote-cli:run --args="report --openapi /workspace-tests/examples/openapi/demo-openapi.yaml --events /data/yanote/events.jsonl --out /data/yanote/out --min-coverage 100";
+        ./gradlew --no-daemon -g /data/gradle --project-cache-dir /data/gradle/project-cache :examples:tests-restassured:test;
+        echo "done" > "$${YANOTE_READY_MARKER}";
+        found=0;
+        for i in $(seq 1 180); do
+          if test -f "$${YANOTE_REPORT_MARKER}"; then
+            found=1;
+            break;
+          fi;
+          sleep 2;
+        done;
+        if test "$${found}" -ne 1; then
+          echo "ERROR: report marker not found at $${YANOTE_REPORT_MARKER}";
+          exit 1;
+        fi;
+      '
+
+  report:
+    image: node:22
+    container_name: yanote-demo-report
+    depends_on:
+      - tests
+    working_dir: /workspace
+    volumes:
+      - ../:/workspace
+      - yanote-events:/data/yanote
+    environment:
+      YANOTE_READY_MARKER: /data/yanote/tests-done.marker
+      YANOTE_REPORT_MARKER: /data/yanote/report-done.marker
+    command: >
+      sh -c '
+        set -e;
+        cd /workspace;
+        found=0;
+        for i in $(seq 1 180); do
+          if test -f "$${YANOTE_READY_MARKER}"; then
+            found=1;
+            break;
+          fi;
+          sleep 2;
+        done;
+        if test "$${found}" -ne 1; then
+          echo "ERROR: tests marker not found at $${YANOTE_READY_MARKER}";
+          exit 1;
+        fi;
+        npm -C yanote-js install;
+        npm -C yanote-js run build;
+        node yanote-js/dist/cli.js report --spec /workspace/examples/openapi/demo-openapi.yaml --events /data/yanote/events.jsonl --out /data/yanote/out --min-coverage 100 --exclude /health;
         echo "Generated report:";
-        cat /data/yanote/out/yanote-summary.txt;
+        cat /data/yanote/out/yanote-report.json;
+        echo "done" > "$${YANOTE_REPORT_MARKER}";
       '
 
 volumes:
   yanote-events:
+  gradle-cache:
