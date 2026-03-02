@@ -139,7 +139,7 @@ Output:
 ## Packaging
 
 - В репо добавляем `yanote-js/` с `package.json`.
-- Сборка в single-file CLI:
+- Сборка CLI (bundle):
   - `esbuild`/`tsup` → `yanote-js/dist/cli.js`
   - запуск: `node yanote-js/dist/cli.js report ...`
 - (опционально позже) self-contained binary через `pkg`/`nexe`, если потребуется “без Node”.

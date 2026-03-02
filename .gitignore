@@ -6,6 +6,10 @@ build/
 *.iml
 .DS_Store
 
+# node
+node_modules/
+yanote-js/dist/
+
 # local flatDir bundle output (binary artifacts)
 dist/flatdir-recorder/libs/
 dist/flatdir-recorder.zip
