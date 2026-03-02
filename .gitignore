@@ -21,4 +21,4 @@ dist/node-analyzer/package.json
 dist/node-analyzer/package-lock.json
 
 # default recorder output (if generated during local runs)
-events.jsonl
+/events.jsonl

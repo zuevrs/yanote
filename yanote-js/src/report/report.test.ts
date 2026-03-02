@@ -7,7 +7,7 @@ import { buildReport } from "./report.js";
 describe("report", () => {
   it("builds report with summary and uncovered list", async () => {
     const operations = await loadOpenApiOperations("test/fixtures/openapi/simple.yaml");
-    const events = await readHttpEventsJsonl("test/fixtures/events/events.jsonl");
+    const events = await readHttpEventsJsonl("test/fixtures/events/events.fixture.jsonl");
 
     const coverage = computeCoverage(operations, events.items, ["/health"]);
     const report = buildReport(coverage, { toolVersion: "test" });

@@ -84,6 +84,7 @@ tasks.register<Exec>("buildDistNodeAnalyzer") {
         "-lc",
         listOf(
             "set -euo pipefail",
+            "rm -rf yanote-js/node_modules",
             "npm -C yanote-js ci",
             "npm -C yanote-js run build",
             "rm -rf dist/node-analyzer/node_modules dist/node-analyzer/package.json dist/node-analyzer/package-lock.json",
