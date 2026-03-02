@@ -18,19 +18,15 @@ public class YanoteRecorderAutoConfiguration {
     }
 
     @Bean
-    public HttpEventRecordingFilter yanoteHttpEventRecordingFilter(
+    public FilterRegistrationBean<HttpEventRecordingFilter> yanoteHttpEventRecordingFilterRegistration(
             YanoteRecorderProperties properties,
             RouteTemplateResolver routeTemplateResolver
     ) {
-        return new HttpEventRecordingFilter(
+        HttpEventRecordingFilter filter = new HttpEventRecordingFilter(
                 properties.getEventsPath(),
                 properties.getServiceName(),
                 routeTemplateResolver
         );
-    }
-
-    @Bean
-    public FilterRegistrationBean<HttpEventRecordingFilter> yanoteHttpEventRecordingFilterRegistration(HttpEventRecordingFilter filter) {
         FilterRegistrationBean<HttpEventRecordingFilter> registration = new FilterRegistrationBean<>(filter);
         registration.addUrlPatterns("/*");
         registration.setOrder(Ordered.HIGHEST_PRECEDENCE);

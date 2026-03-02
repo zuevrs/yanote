@@ -74,7 +74,7 @@ class RecorderAutoConfigurationTest {
         assertEquals("run-1", event.testRunId());
         assertEquals("suite-a", event.testSuite());
         assertEquals("auto-config-service", event.service());
-        assertTrue(context.containsBean("yanoteHttpEventRecordingFilter"));
+        assertTrue(context.containsBean("yanoteHttpEventRecordingFilterRegistration"));
     }
 
     @SpringBootApplication
