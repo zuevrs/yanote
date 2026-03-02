@@ -20,6 +20,15 @@
 - `yanote.recorder.events-path=/path/to/events.jsonl` (по умолчанию `events.jsonl`)
 - `yanote.recorder.service-name=...` (опционально)
 
+## Быстрый офлайн-тест в закрытой сети (временный вариант)
+
+Если нужно **максимально быстро** проверить, что рекордер пишет `events.jsonl` в вашем Spring Boot 3.x сервисе в закрытом контуре, можно использовать **временный** способ подключения через Gradle `flatDir` (локальные JAR’ы).
+
+- Инструкция: `dist/flatdir-recorder/README.md`
+- Сборка bundle JAR’ов в этом репо: `./gradlew distFlatdirRecorder`
+
+> Этот способ удобен для smoke-проверок, но не рекомендуется как долгосрочная интеграция (лучше внутренняя публикация в Maven-репозиторий или `mavenLocal()`).
+
 ## Быстрый запуск
 
 ```bash

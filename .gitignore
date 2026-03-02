@@ -4,3 +4,9 @@
 .gradle/
 build/
 *.iml
+
+# local flatDir bundle output (binary artifacts)
+dist/flatdir-recorder/libs/
+
+# default recorder output (if generated during local runs)
+events.jsonl
