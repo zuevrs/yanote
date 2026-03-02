@@ -4,7 +4,7 @@
   "private": true,
   "type": "module",
   "bin": {
-    "yanote": "./dist/cli.js"
+    "yanote": "./dist/yanote.cjs"
   },
   "scripts": {
     "build": "node esbuild.config.mjs",

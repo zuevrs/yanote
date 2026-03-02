@@ -77,3 +77,11 @@ test -s /data/yanote/events.jsonl && echo "OK: events.jsonl is not empty"
 
 Если хотите автоматизировать — используйте `dist/flatdir-recorder/verify.sh`.
 
+---
+
+## Дальше: посчитать coverage (OpenAPI/AsyncAPI) по `events.jsonl`
+
+После того, как `events.jsonl` появился и пополняется, можно запустить Node analyzer и получить `yanote-report.json`.
+
+- Bundle/инструкция: `dist/node-analyzer/README.md`
+

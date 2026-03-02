@@ -1,15 +1,16 @@
 import esbuild from "esbuild";
 
 await esbuild.build({
-  entryPoints: ["src/cli.ts"],
-  outfile: "dist/cli.js",
+  entryPoints: ["src/bin.ts"],
+  outfile: "dist/yanote.cjs",
   bundle: true,
   packages: "external",
   platform: "node",
-  format: "esm",
+  format: "cjs",
   sourcemap: false,
   banner: {
     js: "#!/usr/bin/env node"
-  }
+  },
+  target: "node22"
 });
 

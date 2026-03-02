@@ -14,5 +14,11 @@ yanote-js/dist/
 dist/flatdir-recorder/libs/
 dist/flatdir-recorder.zip
 
+# node analyzer bundle output (binary artifact)
+dist/node-analyzer/bin/
+dist/node-analyzer/node_modules/
+dist/node-analyzer/package.json
+dist/node-analyzer/package-lock.json
+
 # default recorder output (if generated during local runs)
 events.jsonl
