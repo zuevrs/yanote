@@ -4,9 +4,35 @@ on:
   pull_request:
   merge_group:
     types: [checks_requested]
+  workflow_dispatch:
+    inputs:
+      policy_path:
+        description: Optional policy file path override
+        required: false
+        type: string
+      min_coverage:
+        description: Optional minimum operations coverage percent (0-100)
+        required: false
+        type: string
+      min_aggregate:
+        description: Optional minimum aggregate coverage percent (0-100)
+        required: false
+        type: string
+      critical_operations:
+        description: Optional comma-separated critical operation keys
+        required: false
+        type: string
+      exclude_patterns:
+        description: Optional comma-separated exclusion route patterns
+        required: false
+        type: string
 
 permissions:
   contents: read
+
+env:
+  YANOTE_OUT_DIR: build/yanote/aggregate/check
+  YANOTE_ARTIFACT_DIR: .yanote-ci/artifacts
 
 jobs:
   build-and-test:
@@ -48,3 +74,104 @@ jobs:
 
       - name: Run Yanote Gradle check contract path
         run: ./gradlew :yanote-gradle-plugin:test --tests "*YanoteTaskExecutionContractTest*yanoteCheck*"
+
+      - name: Build analyzer runtime
+        run: npm -C yanote-js ci && npm -C yanote-js run build
+
+      - name: Run Yanote validation
+        id: run-yanote
+        env:
+          INPUT_POLICY_PATH: ${{ github.event.inputs.policy_path }}
+          INPUT_MIN_COVERAGE: ${{ github.event.inputs.min_coverage }}
+          INPUT_MIN_AGGREGATE: ${{ github.event.inputs.min_aggregate }}
+          INPUT_CRITICAL_OPERATIONS: ${{ github.event.inputs.critical_operations }}
+          INPUT_EXCLUDE_PATTERNS: ${{ github.event.inputs.exclude_patterns }}
+        run: |
+          set -euo pipefail
+          mkdir -p "${YANOTE_OUT_DIR}" ".yanote-ci"
+
+          CMD=(
+            node
+            yanote-js/dist/yanote.cjs
+            report
+            --spec
+            yanote-js/test/fixtures/openapi/simple.yaml
+            --events
+            yanote-js/test/fixtures/events/events.valid.fixture.jsonl
+            --out
+            "${YANOTE_OUT_DIR}"
+            --profile
+            ci
+          )
+
+          if [[ "${GITHUB_EVENT_NAME}" == "workflow_dispatch" ]]; then
+            if [[ -n "${INPUT_POLICY_PATH:-}" ]]; then
+              CMD+=(--policy "${INPUT_POLICY_PATH}")
+            fi
+            if [[ -n "${INPUT_MIN_COVERAGE:-}" ]]; then
+              CMD+=(--min-coverage "${INPUT_MIN_COVERAGE}")
+            fi
+            if [[ -n "${INPUT_MIN_AGGREGATE:-}" ]]; then
+              CMD+=(--min-aggregate "${INPUT_MIN_AGGREGATE}")
+            fi
+
+            if [[ -n "${INPUT_CRITICAL_OPERATIONS:-}" ]]; then
+              IFS=',' read -r -a critical_ops <<< "${INPUT_CRITICAL_OPERATIONS}"
+              for op in "${critical_ops[@]}"; do
+                trimmed="${op#"${op%%[![:space:]]*}"}"
+                trimmed="${trimmed%"${trimmed##*[![:space:]]}"}"
+                if [[ -n "${trimmed}" ]]; then
+                  CMD+=(--critical-operation "${trimmed}")
+                fi
+              done
+            fi
+
+            if [[ -n "${INPUT_EXCLUDE_PATTERNS:-}" ]]; then
+              IFS=',' read -r -a excludes <<< "${INPUT_EXCLUDE_PATTERNS}"
+              for pattern in "${excludes[@]}"; do
+                trimmed="${pattern#"${pattern%%[![:space:]]*}"}"
+                trimmed="${trimmed%"${trimmed##*[![:space:]]}"}"
+                if [[ -n "${trimmed}" ]]; then
+                  CMD+=(--exclude "${trimmed}")
+                fi
+              done
+            fi
+          fi
+
+          printf '%q ' "${CMD[@]}" > .yanote-ci/yanote-command.txt
+          set +e
+          "${CMD[@]}" > .yanote-ci/yanote-validation.stdout.log 2> .yanote-ci/yanote-validation.stderr.log
+          exit_code=$?
+          set -e
+
+          printf '%s\n' "${exit_code}" > .yanote-ci/yanote-exit-code.txt
+          echo "exit_code=${exit_code}" >> "${GITHUB_OUTPUT}"
+
+      - name: Collect Yanote artifacts
+        if: ${{ always() }}
+        run: bash scripts/ci/collect-yanote-artifacts.sh "${YANOTE_ARTIFACT_DIR}"
+
+      - name: Render Yanote GitHub summary
+        if: ${{ always() }}
+        run: >
+          node scripts/ci/render-yanote-summary.mjs
+          --report "${YANOTE_ARTIFACT_DIR}/yanote-report.json"
+          --stderr "${YANOTE_ARTIFACT_DIR}/yanote-validation.stderr.log"
+          --artifacts-dir "${YANOTE_ARTIFACT_DIR}"
+          --output "${GITHUB_STEP_SUMMARY}"
+          --exit-code "${{ steps.run-yanote.outputs.exit_code }}"
+
+      - name: Upload Yanote artifacts
+        if: ${{ always() }}
+        uses: actions/upload-artifact@v4
+        with:
+          name: yanote-validation-artifacts
+          path: ${{ env.YANOTE_ARTIFACT_DIR }}
+          if-no-files-found: error
+          retention-days: 14
+
+      - name: Enforce Yanote validation result
+        if: ${{ always() && steps.run-yanote.outputs.exit_code != '0' }}
+        run: |
+          echo "Yanote validation failed with exit code ${{ steps.run-yanote.outputs.exit_code }}" >&2
+          exit "${{ steps.run-yanote.outputs.exit_code }}"
