@@ -30,7 +30,7 @@ Deliver a Java-first OpenAPI coverage governance workflow that teams can trust i
 Plans:
 - [x] 01-01-PLAN.md - Implement TypeScript canonical extraction and invalid diagnostics contract.
 - [x] 01-02-PLAN.md - Implement Java canonical extraction and invalid diagnostics contract.
-- [ ] 01-03-PLAN.md - Implement TypeScript deterministic matcher and fail-closed CLI semantics.
+- [x] 01-03-PLAN.md - Implement TypeScript deterministic matcher and fail-closed CLI semantics.
 - [ ] 01-04-PLAN.md - Implement Java deterministic matcher and coverage diagnostics integration.
 - [ ] 01-05-PLAN.md - Enforce cross-runtime parity with shared semantic fixtures and adapter tests.
 
@@ -82,7 +82,7 @@ Plans:
 
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
-| 1. Specification Semantics Contract | 2/5 | In Progress | - |
+| 1. Specification Semantics Contract | 3/5 | In Progress | - |
 | 2. Coverage Metrics and CLI Reporting | 0/TBD | Not started | - |
 | 3. Governance Gates | 0/TBD | Not started | - |
 | 4. Java Build and CI Delivery Surfaces | 0/TBD | Not started | - |
