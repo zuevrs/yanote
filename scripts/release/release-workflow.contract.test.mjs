@@ -23,6 +23,10 @@ test("release workflow runs preflight before publish and requires approval gate"
   const source = await loadReleaseWorkflowSource();
   assert.match(source, /^\s*preflight:\s*$/m);
   assert.match(source, /preflight\.sh/);
+  assert.match(source, /RELEASE_TAG_SIGNING_PUBLIC_KEY:\s*\$\{\{\s*secrets\.RELEASE_TAG_SIGNING_PUBLIC_KEY\s*\}\}/);
+  assert.match(source, /set \+e/);
+  assert.match(source, /PREFLIGHT_EXIT_CODE=\$\?/);
+  assert.match(source, /if \[\[ "\$\{PREFLIGHT_EXIT_CODE\}" -ne 0 \]\]/);
   assert.match(source, /verify-traceability\.mjs/);
   assert.match(source, /^\s*publish:\s*$/m);
   assert.match(source, /needs:\s*(\[\s*preflight\s*\]|preflight)/);

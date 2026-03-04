@@ -50,6 +50,7 @@ jobs:
           RELEASE_TAG: ${{ github.ref_name }}
           PROJECT_VERSION: ${{ github.ref_name }}
           PREVIOUS_RELEASE_TAG: ${{ steps.previous-tag.outputs.previous_release_tag }}
+          RELEASE_TAG_SIGNING_PUBLIC_KEY: ${{ secrets.RELEASE_TAG_SIGNING_PUBLIC_KEY }}
           RELEASE_FREEZE_APPROVED: "true"
           JRELEASER_MAVENCENTRAL_USERNAME: preflight-placeholder
           JRELEASER_MAVENCENTRAL_PASSWORD: preflight-placeholder
@@ -58,13 +59,19 @@ jobs:
           JRELEASER_GPG_PASSPHRASE: preflight-placeholder
         run: |
           set -euo pipefail
+          set +e
           OUTPUT="$(bash scripts/release/preflight.sh)"
+          PREFLIGHT_EXIT_CODE=$?
+          set -e
           printf '%s\n' "${OUTPUT}"
           RETRY_ELIGIBLE="$(printf '%s\n' "${OUTPUT}" | awk -F= '/^retry-eligible=/{print $2}' | tail -n 1)"
           RETRY_REASON="$(printf '%s\n' "${OUTPUT}" | awk -F= '/^retry_reason=/{print $2}' | tail -n 1)"
           echo "release_tag=${GITHUB_REF_NAME}" >> "${GITHUB_OUTPUT}"
           echo "retry_eligible=${RETRY_ELIGIBLE:-false}" >> "${GITHUB_OUTPUT}"
           echo "retry_reason=${RETRY_REASON:-no-failure}" >> "${GITHUB_OUTPUT}"
+          if [[ "${PREFLIGHT_EXIT_CODE}" -ne 0 ]]; then
+            exit "${PREFLIGHT_EXIT_CODE}"
+          fi
 
       - name: Verify strict requirement traceability gate
         run: >

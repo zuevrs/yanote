@@ -35,7 +35,9 @@ fail_with_diagnostic() {
 }
 
 is_truthy() {
-  case "${1,,}" in
+  local normalized
+  normalized="$(printf '%s' "${1:-}" | tr '[:upper:]' '[:lower:]')"
+  case "$normalized" in
     1|true|yes|y) return 0 ;;
     *) return 1 ;;
   esac
@@ -115,6 +117,37 @@ join_sorted() {
     fi
   done <<< "$sorted_values"
   printf '%s' "$joined"
+}
+
+verify_release_tag_signature() {
+  local release_tag="$1"
+
+  if git verify-tag "$release_tag" >/dev/null 2>&1; then
+    return 0
+  fi
+
+  local signing_public_key="${RELEASE_TAG_SIGNING_PUBLIC_KEY:-}"
+  if [[ -n "$signing_public_key" ]]; then
+    if ! command -v gpg >/dev/null 2>&1; then
+      fail_with_diagnostic "input" "missing-gpg-binary" "gpg is required to verify signed release tags." "false" "gpg-missing"
+      return 1
+    fi
+
+    if ! printf '%s\n' "$signing_public_key" | gpg --batch --import >/dev/null 2>&1; then
+      fail_with_diagnostic "input" "invalid-signing-public-key" "RELEASE_TAG_SIGNING_PUBLIC_KEY could not be imported by gpg." "false" "invalid-signing-key"
+      return 1
+    fi
+
+    if git verify-tag "$release_tag" >/dev/null 2>&1; then
+      return 0
+    fi
+
+    fail_with_diagnostic "policy" "unverifiable-tag-signature" "Release tag '${release_tag}' signature could not be verified after importing RELEASE_TAG_SIGNING_PUBLIC_KEY." "false" "signature-verification-failed"
+    return 1
+  fi
+
+  fail_with_diagnostic "policy" "unsigned-tag" "Release tag '${release_tag}' must be a signed git tag." "false" "tag-not-signed"
+  return 1
 }
 
 main() {
@@ -211,8 +244,8 @@ main() {
 
   if [[ -n "$release_tag" ]]; then
     if git rev-parse --verify --quiet "refs/tags/${release_tag}" >/dev/null; then
-      if ! git verify-tag "$release_tag" >/dev/null 2>&1; then
-        fail_with_diagnostic "policy" "unsigned-tag" "Release tag '${release_tag}' must be a signed git tag." "false" "tag-not-signed"
+      if ! verify_release_tag_signature "$release_tag"; then
+        :
       fi
 
       if [[ -n "$main_ref" ]]; then
