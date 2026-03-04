@@ -1,34 +1,18 @@
----
-gsd_state_version: 1.0
-milestone: v1.0
-milestone_name: Java Coverage MVP
-status: planning
-stopped_at: Phase 1 context gathered
-last_updated: "2026-03-03T22:06:33.274Z"
-last_activity: 2026-03-04 - Initial PROJECT/REQUIREMENTS/ROADMAP created
-progress:
-  total_phases: 9
-  completed_phases: 0
-  total_plans: 0
-  completed_plans: 0
-  percent: 0
----
-
 # Project State
 
 ## Project Reference
 
 See: .planning/PROJECT.md (updated 2026-03-04)
 
-**Core value:** Достоверный и автоматизируемый сигнал покрытия API-спецификаций тестами без ручной сверки
-**Current focus:** Phase 1 - Recorder Correctness Baseline
+**Core value:** Any Java service team can reliably prove that every v1 API requirement is covered by executable tests before shipping.
+**Current focus:** Phase 1 - Specification Semantics Contract
 
 ## Current Position
 
-Phase: 1 of 9 (Recorder Correctness Baseline)
-Plan: 0 of 3 in current phase
+Phase: 1 of 5 (Specification Semantics Contract)
+Plan: 0 of TBD in current phase
 Status: Ready to plan
-Last activity: 2026-03-04 - Initial PROJECT/REQUIREMENTS/ROADMAP created
+Last activity: 2026-03-04 - Initial roadmap and traceability mapping completed
 
 Progress: [░░░░░░░░░░] 0%
 
@@ -36,17 +20,21 @@ Progress: [░░░░░░░░░░] 0%
 
 **Velocity:**
 - Total plans completed: 0
-- Average duration: -
+- Average duration: 0 min
 - Total execution time: 0.0 hours
 
 **By Phase:**
 
 | Phase | Plans | Total | Avg/Plan |
 |-------|-------|-------|----------|
-| - | - | - | - |
+| 1. Specification Semantics Contract | 0 | 0 min | 0 min |
+| 2. Coverage Metrics and CLI Reporting | 0 | 0 min | 0 min |
+| 3. Governance Gates | 0 | 0 min | 0 min |
+| 4. Java Build and CI Delivery Surfaces | 0 | 0 min | 0 min |
+| 5. OSS Release and Traceable Verification | 0 | 0 min | 0 min |
 
 **Recent Trend:**
-- Last 5 plans: -
+- Last 5 plans: none
 - Trend: Stable
 
 *Updated after each plan completion*
@@ -58,8 +46,10 @@ Progress: [░░░░░░░░░░] 0%
 Decisions are logged in PROJECT.md Key Decisions table.
 Recent decisions affecting current work:
 
-- [Init]: Primary focus is Java/OpenAPI production readiness before expansion
-- [Init]: Milestone structure set as v1.0 -> v1.1 -> v1.2 with continuous phase numbering
+- [Phase 1] Canonical OpenAPI operation matching is the first dependency for all downstream coverage and governance behavior.
+- [Phase 2] v1 reporting remains CLI and file-based; no web report UI in scope.
+- [Phase 4] Required v1 delivery channels are CLI, Gradle plugin, and GitHub Action.
+- [Phase 5] Public v1 release outcomes must include signed Maven Central publication and GitHub Releases.
 
 ### Pending Todos
 
@@ -67,11 +57,10 @@ None yet.
 
 ### Blockers/Concerns
 
-- No CI workflows detected yet; quality gates are not enforced
-- Maven publication pipeline is not configured end-to-end
+None yet.
 
 ## Session Continuity
 
-Last session: 2026-03-03T22:06:33.272Z
-Stopped at: Phase 1 context gathered
-Resume file: .planning/phases/01-recorder-correctness-baseline/01-CONTEXT.md
+Last session: 2026-03-04 00:00
+Stopped at: Roadmap creation complete; Phase 1 ready for planning
+Resume file: None
