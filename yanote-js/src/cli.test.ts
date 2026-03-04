@@ -109,6 +109,8 @@ describe("cli", () => {
     expect(res.code).toBe(6);
     expect(res.stderr).toContain("class=runtime");
     expect(res.stdout).toContain("YANOTE_SUMMARY");
+    expect(res.stdout).toContain("report=none");
+    expect(res.stdout).toContain("primary=RUNTIME_REPORT_WRITE_FAILED");
   });
 
   it("succeeds for deterministic report flows and emits machine summary line once", async () => {
@@ -201,6 +203,51 @@ describe("cli", () => {
       ]);
       expect(res.code).toBe(0);
       expect(res.stdout).toContain("YANOTE_SUMMARY");
+    } finally {
+      await rm(fixture.dir, { recursive: true, force: true });
+    }
+  });
+
+  it("emits one primary error and deterministic secondary diagnostics order", async () => {
+    const fixture = await createCliFixture(
+      [
+        "openapi: 3.0.0",
+        "info:",
+        "  title: multi-failure",
+        "  version: 1.0.0",
+        "paths:",
+        "  /x:",
+        "    get:",
+        "      responses:",
+        "        '200':",
+        "          description: ok",
+        "  /y:",
+        "    get:",
+        "      responses:",
+        "        '200':",
+        "          description: ok"
+      ].join("\n"),
+      ['{"kind":"http","method":"GET","route":"/x","test.run_id":"r1","test.suite":"s1"}', "not-json"].join("\n")
+    );
+
+    try {
+      const res = await runCli([
+        "report",
+        "--spec",
+        fixture.specPath,
+        "--events",
+        fixture.eventsPath,
+        "--out",
+        fixture.outDir,
+        "--min-coverage",
+        "100"
+      ]);
+
+      expect(res.code).toBe(2);
+      const stderrLines = res.stderr.trim().split("\n");
+      expect(stderrLines[0]).toContain("YANOTE_ERROR class=input code=INPUT_EVENTS_INVALID_LINES");
+      expect(stderrLines[1]).toContain("YANOTE_ERROR_SECONDARY class=gate code=GATE_MIN_COVERAGE");
+      expect(stderrLines.filter((line) => line.startsWith("YANOTE_ERROR "))).toHaveLength(1);
     } finally {
       await rm(fixture.dir, { recursive: true, force: true });
     }
