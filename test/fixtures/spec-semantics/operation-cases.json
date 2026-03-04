@@ -1,0 +1,62 @@
+{
+  "version": 1,
+  "description": "Shared semantic extraction parity cases for Node and Java runtimes.",
+  "cases": [
+    {
+      "caseId": "op-canonical-dedupe",
+      "name": "Canonical extraction deduplicates equivalent templated routes",
+      "paths": {
+        "/health": { "get": {} },
+        "/users": { "get": {}, "post": {} },
+        "/users/{id}": { "get": {} },
+        "/users/{name}": { "get": {} }
+      },
+      "expectedOperations": [
+        "GET /health",
+        "GET /users",
+        "POST /users",
+        "GET /users/{param}"
+      ],
+      "expectedDiagnostics": []
+    },
+    {
+      "caseId": "op-invalid-shapes",
+      "name": "Invalid path and operation shapes emit explicit diagnostics",
+      "paths": {
+        "/users": { "get": {}, "post": "invalid-operation" },
+        "/broken": "invalid-path-item"
+      },
+      "expectedOperations": [
+        "GET /users"
+      ],
+      "expectedDiagnostics": [
+        { "kind": "invalid", "method": "POST", "route": "/users" },
+        { "kind": "invalid", "route": "/broken" }
+      ]
+    },
+    {
+      "caseId": "op-deterministic-order",
+      "name": "Method and path ordering stays deterministic across duplicate templates",
+      "paths": {
+        "/orders/{orderId}": { "post": {}, "get": {} },
+        "/orders/{id}": { "get": {} }
+      },
+      "expectedOperations": [
+        "GET /orders/{param}",
+        "POST /orders/{param}"
+      ],
+      "expectedDiagnostics": []
+    },
+    {
+      "caseId": "op-encoded-template-surface",
+      "name": "Encoded-segment-safe template extraction remains canonical",
+      "paths": {
+        "/files/{fileId}": { "get": {} }
+      },
+      "expectedOperations": [
+        "GET /files/{param}"
+      ],
+      "expectedDiagnostics": []
+    }
+  ]
+}

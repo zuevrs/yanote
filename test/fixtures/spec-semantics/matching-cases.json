@@ -1,0 +1,74 @@
+{
+  "version": 1,
+  "description": "Shared deterministic matching parity cases for Node and Java runtimes.",
+  "cases": [
+    {
+      "caseId": "match-exact-template",
+      "name": "Exact canonical template route matches before fallback",
+      "operations": [
+        "GET /users/{param}"
+      ],
+      "events": [
+        { "method": "GET", "route": "/users/{param}", "suite": "suite-exact" }
+      ],
+      "expectedCovered": [
+        "GET /users/{param}"
+      ],
+      "expectedDiagnostics": []
+    },
+    {
+      "caseId": "match-fallback-concrete",
+      "name": "Concrete route falls back to same-method template match",
+      "operations": [
+        "GET /users/{param}"
+      ],
+      "events": [
+        { "method": "GET", "route": "/users/123", "suite": "suite-fallback" }
+      ],
+      "expectedCovered": [
+        "GET /users/{param}"
+      ],
+      "expectedDiagnostics": []
+    },
+    {
+      "caseId": "match-ambiguous-sorted",
+      "name": "Multiple template candidates emit deterministic ambiguity diagnostics",
+      "operations": [
+        "GET /{param}/2024",
+        "GET /reports/{param}"
+      ],
+      "events": [
+        { "method": "GET", "route": "/reports/2024", "suite": "suite-ambiguous" }
+      ],
+      "expectedCovered": [],
+      "expectedDiagnostics": [
+        {
+          "kind": "ambiguous",
+          "method": "GET",
+          "route": "/reports/2024",
+          "candidates": [
+            "GET /reports/{param}",
+            "GET /{param}/2024"
+          ]
+        }
+      ]
+    },
+    {
+      "caseId": "match-encoded-and-unmatched",
+      "name": "Encoded segments still match template while unrelated paths remain unmatched",
+      "operations": [
+        "GET /files/{param}"
+      ],
+      "events": [
+        { "method": "GET", "route": "/files/a%20b", "suite": "suite-encoded" },
+        { "method": "GET", "route": "/missing/path", "suite": "suite-unmatched" }
+      ],
+      "expectedCovered": [
+        "GET /files/{param}"
+      ],
+      "expectedDiagnostics": [
+        { "kind": "unmatched", "method": "GET", "route": "/missing/path" }
+      ]
+    }
+  ]
+}
