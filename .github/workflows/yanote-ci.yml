@@ -4,6 +4,10 @@ on:
   pull_request:
   merge_group:
     types: [checks_requested]
+  push:
+    branches:
+      - main
+      - release/**
   workflow_dispatch:
     inputs:
       policy_path:
@@ -175,3 +179,14 @@ jobs:
         run: |
           echo "Yanote validation failed with exit code ${{ steps.run-yanote.outputs.exit_code }}" >&2
           exit "${{ steps.run-yanote.outputs.exit_code }}"
+
+  v1-e2e:
+    runs-on: ubuntu-latest
+    needs: yanote-validation
+    if: ${{ github.event_name == 'push' && (github.ref == 'refs/heads/main' || startsWith(github.ref, 'refs/heads/release/')) }}
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v5
+
+      - name: Run full v1 e2e workflow
+        run: bash scripts/ci/run-v1-e2e.sh
