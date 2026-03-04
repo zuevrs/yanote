@@ -2,6 +2,7 @@ package dev.yanote.gradle
 
 import org.gradle.testkit.runner.BuildResult
 import org.gradle.testkit.runner.GradleRunner
+import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertFalse
 import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.Test
@@ -9,6 +10,7 @@ import org.junit.jupiter.api.io.TempDir
 import java.nio.file.Path
 import kotlin.io.path.createDirectories
 import kotlin.io.path.writeText
+import kotlin.reflect.full.memberProperties
 
 class YanotePluginContractTest {
     @TempDir
@@ -33,35 +35,22 @@ class YanotePluginContractTest {
 
     @Test
     fun `exposes only the limited override extension surface`() {
-        writeBuildFile(
-            """
-            import dev.yanote.gradle.YanoteExtension
+        val propertyNames = YanoteExtension::class.memberProperties
+            .map { it.name }
+            .sorted()
 
-            plugins {
-                id("java")
-                id("dev.yanote.gradle")
-            }
-
-            tasks.register("printYanoteExtensionSurface") {
-                doLast {
-                    val extension = extensions.getByType(YanoteExtension::class.java)
-                    val names = extension.javaClass.methods
-                        .map { it.name }
-                        .filter { it.startsWith("get") && it != "getClass" }
-                        .map { it.removePrefix("get").replaceFirstChar(Char::lowercase) }
-                        .sorted()
-                    println("YANOTE_EXTENSION_SURFACE=" + names.joinToString(","))
-                }
-            }
-            """.trimIndent()
-        )
-
-        val result = runGradle("printYanoteExtensionSurface")
-
-        assertTrue(
-            result.output.contains(
-                "YANOTE_EXTENSION_SURFACE=criticalOperations,exclude,hookIntoCheck,minAggregate,minCoverage,moduleExcludes,policyPath,profile"
+        assertEquals(
+            listOf(
+                "criticalOperations",
+                "exclude",
+                "hookIntoCheck",
+                "minAggregate",
+                "minCoverage",
+                "moduleExcludes",
+                "policyPath",
+                "profile"
             ),
+            propertyNames,
             "Expected extension to expose only the locked override properties"
         )
     }
