@@ -7,6 +7,9 @@ import process from "node:process";
 import test from "node:test";
 
 const validatorScriptPath = path.resolve("scripts/release/verify-traceability.mjs");
+const assembleReleaseAssetsScriptPath = path.resolve(
+  "scripts/release/assemble-release-assets.sh"
+);
 const canonicalRequirementsPath = path.resolve(".planning/REQUIREMENTS.md");
 const canonicalMapPath = path.resolve(".planning/traceability/v1-requirements-tests.json");
 const canonicalSchemaPath = path.resolve(".planning/traceability/schema.v1.json");
@@ -164,4 +167,17 @@ test("traceability output contract requires schema version and deterministic req
   );
 
   assert.deepEqual(requirementIds, sortedRequirementIds);
+});
+
+test("release bundle contract includes traceability JSON and markdown artifacts", async () => {
+  const assembleSource = await readFile(assembleReleaseAssetsScriptPath, "utf8");
+  assert.match(assembleSource, /traceability-json/);
+  assert.match(assembleSource, /traceability-summary/);
+});
+
+test("release bundle contract verifies shared traceability snapshot reference", async () => {
+  const assembleSource = await readFile(assembleReleaseAssetsScriptPath, "utf8");
+  assert.match(assembleSource, /TRACEABILITY_JSON_PATH/);
+  assert.match(assembleSource, /TRACEABILITY_MARKDOWN_PATH/);
+  assert.match(assembleSource, /Traceability snapshot mismatch/);
 });
