@@ -1,0 +1,320 @@
+{
+  "schemaVersion": "traceability.v1",
+  "snapshotId": "v1-traceability-20260304",
+  "generatedAt": "2026-03-04",
+  "requirements": [
+    {
+      "requirementId": "COVR-01",
+      "tests": [
+        {
+          "testId": "coverage-operation-metrics",
+          "path": "yanote-js/src/coverage/coverage.test.ts",
+          "selector": "operation-level coverage metrics",
+          "status": "stable"
+        }
+      ],
+      "commands": [
+        "npm -C yanote-js test -- src/coverage/coverage.test.ts"
+      ]
+    },
+    {
+      "requirementId": "COVR-02",
+      "tests": [
+        {
+          "testId": "coverage-status-code-metrics",
+          "path": "yanote-js/src/coverage/statusCoverage.test.ts",
+          "selector": "status-code coverage computation",
+          "status": "stable"
+        }
+      ],
+      "commands": [
+        "npm -C yanote-js test -- src/coverage/statusCoverage.test.ts"
+      ]
+    },
+    {
+      "requirementId": "COVR-03",
+      "tests": [
+        {
+          "testId": "coverage-parameter-metrics",
+          "path": "yanote-js/src/coverage/parameterCoverage.test.ts",
+          "selector": "path/query/header coverage",
+          "status": "stable"
+        }
+      ],
+      "commands": [
+        "npm -C yanote-js test -- src/coverage/parameterCoverage.test.ts"
+      ]
+    },
+    {
+      "requirementId": "COVR-04",
+      "tests": [
+        {
+          "testId": "report-json-determinism",
+          "path": "yanote-js/src/report/writeReport.determinism.test.ts",
+          "selector": "deterministic versioned report output",
+          "status": "stable"
+        }
+      ],
+      "commands": [
+        "npm -C yanote-js test -- src/report/writeReport.determinism.test.ts"
+      ]
+    },
+    {
+      "requirementId": "COVR-05",
+      "tests": [
+        {
+          "testId": "cli-summary-contract",
+          "path": "yanote-js/src/cli.summary.contract.test.ts",
+          "selector": "concise deterministic CLI summary",
+          "status": "stable"
+        }
+      ],
+      "commands": [
+        "npm -C yanote-js test -- src/cli.summary.contract.test.ts"
+      ]
+    },
+    {
+      "requirementId": "DELV-01",
+      "tests": [
+        {
+          "testId": "cli-report-surface-contract",
+          "path": "yanote-js/src/cli.report.test.ts",
+          "selector": "CLI report surface behavior",
+          "status": "stable"
+        },
+        {
+          "testId": "cli-end-to-end-contract",
+          "path": "yanote-js/src/cli.test.ts",
+          "selector": "standalone CLI execution",
+          "status": "stable"
+        }
+      ],
+      "commands": [
+        "npm -C yanote-js test -- src/cli.report.test.ts",
+        "npm -C yanote-js test -- src/cli.test.ts"
+      ]
+    },
+    {
+      "requirementId": "DELV-02",
+      "tests": [
+        {
+          "testId": "gradle-multi-module-wiring",
+          "path": "yanote-gradle-plugin/src/test/kotlin/dev/yanote/gradle/YanoteMultiModuleWiringTest.kt",
+          "selector": "deterministic multi-module aggregation",
+          "status": "stable"
+        },
+        {
+          "testId": "gradle-plugin-contract",
+          "path": "yanote-gradle-plugin/src/test/kotlin/dev/yanote/gradle/YanotePluginContractTest.kt",
+          "selector": "stable yanoteReport/yanoteCheck contract",
+          "status": "stable"
+        }
+      ],
+      "commands": [
+        "./gradlew :yanote-gradle-plugin:test"
+      ]
+    },
+    {
+      "requirementId": "DELV-03",
+      "tests": [
+        {
+          "testId": "github-action-delivery-contract",
+          "path": "scripts/ci/yanote-ci-workflow.contract.test.mjs",
+          "selector": "github action check + artifact contract",
+          "status": "stable"
+        }
+      ],
+      "commands": [
+        "node --test scripts/ci/yanote-ci-workflow.contract.test.mjs"
+      ]
+    },
+    {
+      "requirementId": "GATE-01",
+      "tests": [
+        {
+          "testId": "threshold-gate-contract",
+          "path": "yanote-js/src/gates/evaluator.threshold.test.ts",
+          "selector": "minimum coverage threshold fail behavior",
+          "status": "stable"
+        }
+      ],
+      "commands": [
+        "npm -C yanote-js test -- src/gates/evaluator.threshold.test.ts"
+      ]
+    },
+    {
+      "requirementId": "GATE-02",
+      "tests": [
+        {
+          "testId": "regression-gate-contract",
+          "path": "yanote-js/src/gates/evaluator.regression.test.ts",
+          "selector": "baseline regression fail behavior",
+          "status": "stable"
+        }
+      ],
+      "commands": [
+        "npm -C yanote-js test -- src/gates/evaluator.regression.test.ts"
+      ]
+    },
+    {
+      "requirementId": "GATE-03",
+      "tests": [
+        {
+          "testId": "governance-exclusion-contract",
+          "path": "yanote-js/src/gates/exclusions.test.ts",
+          "selector": "explicit exclusions with rationale",
+          "status": "stable"
+        }
+      ],
+      "commands": [
+        "npm -C yanote-js test -- src/gates/exclusions.test.ts"
+      ]
+    },
+    {
+      "requirementId": "GATE-04",
+      "tests": [
+        {
+          "testId": "fail-closed-cli-contract",
+          "path": "yanote-js/src/cli.failclosed.contract.test.ts",
+          "selector": "invalid or incomplete input fail-closed behavior",
+          "status": "stable"
+        }
+      ],
+      "commands": [
+        "npm -C yanote-js test -- src/cli.failclosed.contract.test.ts"
+      ]
+    },
+    {
+      "requirementId": "QUAL-01",
+      "tests": [
+        {
+          "testId": "traceability-validator-contract",
+          "path": "scripts/release/traceability.contract.test.mjs",
+          "selector": "100% requirement traceability gate contract",
+          "status": "stable"
+        }
+      ],
+      "commands": [
+        "node --test scripts/release/traceability.contract.test.mjs"
+      ]
+    },
+    {
+      "requirementId": "QUAL-02",
+      "tests": [
+        {
+          "testId": "v1-e2e-ci-contract",
+          "path": "scripts/ci/run-v1-e2e.contract.test.mjs",
+          "selector": "unit + integration + e2e CI blocking behavior",
+          "status": "stable"
+        }
+      ],
+      "commands": [
+        "node --test scripts/ci/run-v1-e2e.contract.test.mjs"
+      ]
+    },
+    {
+      "requirementId": "QUAL-03",
+      "tests": [
+        {
+          "testId": "java21-baseline-contract",
+          "path": "scripts/ci/assert-java21.contract.test.mjs",
+          "selector": "Java 21 baseline enforcement",
+          "status": "stable"
+        }
+      ],
+      "commands": [
+        "node --test scripts/ci/assert-java21.contract.test.mjs"
+      ]
+    },
+    {
+      "requirementId": "RELS-01",
+      "tests": [
+        {
+          "testId": "maven-central-preflight-contract",
+          "path": "scripts/release/maven-central-preflight.contract.test.mjs",
+          "selector": "signed central publication prerequisites",
+          "status": "stable"
+        }
+      ],
+      "commands": [
+        "node --test scripts/release/maven-central-preflight.contract.test.mjs"
+      ]
+    },
+    {
+      "requirementId": "RELS-02",
+      "tests": [
+        {
+          "testId": "github-release-contract",
+          "path": "scripts/release/github-release.contract.test.mjs",
+          "selector": "deterministic release notes and asset contract",
+          "status": "stable"
+        }
+      ],
+      "commands": [
+        "node --test scripts/release/github-release.contract.test.mjs"
+      ]
+    },
+    {
+      "requirementId": "RELS-03",
+      "tests": [
+        {
+          "testId": "release-failclosed-contract",
+          "path": "scripts/release/release-failclosed.contract.test.mjs",
+          "selector": "deterministic fail-closed release diagnostics",
+          "status": "stable"
+        },
+        {
+          "testId": "release-workflow-contract",
+          "path": "scripts/release/release-workflow.contract.test.mjs",
+          "selector": "tag-only approval-gated release workflow",
+          "status": "stable"
+        }
+      ],
+      "commands": [
+        "node --test scripts/release/release-failclosed.contract.test.mjs scripts/release/release-workflow.contract.test.mjs"
+      ]
+    },
+    {
+      "requirementId": "SPEC-01",
+      "tests": [
+        {
+          "testId": "openapi-canonical-operations",
+          "path": "yanote-js/src/spec/openapi.test.ts",
+          "selector": "canonical OpenAPI operation key extraction",
+          "status": "stable"
+        }
+      ],
+      "commands": [
+        "npm -C yanote-js test -- src/spec/openapi.test.ts"
+      ]
+    },
+    {
+      "requirementId": "SPEC-02",
+      "tests": [
+        {
+          "testId": "semantic-diagnostics-contract",
+          "path": "yanote-js/src/spec/semantics.diagnostics.test.ts",
+          "selector": "unmatched or ambiguous diagnostics",
+          "status": "stable"
+        }
+      ],
+      "commands": [
+        "npm -C yanote-js test -- src/spec/semantics.diagnostics.test.ts"
+      ]
+    },
+    {
+      "requirementId": "SPEC-03",
+      "tests": [
+        {
+          "testId": "deterministic-operation-matching",
+          "path": "yanote-js/src/coverage/coverage.matching.test.ts",
+          "selector": "event-to-operation matching determinism",
+          "status": "stable"
+        }
+      ],
+      "commands": [
+        "npm -C yanote-js test -- src/coverage/coverage.matching.test.ts"
+      ]
+    }
+  ]
+}
