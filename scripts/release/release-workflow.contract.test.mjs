@@ -1,0 +1,43 @@
+import assert from "node:assert/strict";
+import { readFile } from "node:fs/promises";
+import path from "node:path";
+import test from "node:test";
+
+const releaseWorkflowPath = path.resolve(".github/workflows/release.yml");
+
+async function loadReleaseWorkflowSource() {
+  return readFile(releaseWorkflowPath, "utf8");
+}
+
+test("release workflow triggers only on stable version tags", async () => {
+  const source = await loadReleaseWorkflowSource();
+  assert.match(source, /^\s*on:\s*$/m);
+  assert.match(source, /^\s*push:\s*$/m);
+  assert.match(source, /^\s*tags:\s*$/m);
+  assert.match(source, /v\[0-9\]\+\\\.\[0-9\]\+\\\.\[0-9\]\+/);
+  assert.doesNotMatch(source, /^\s*workflow_dispatch:\s*$/m);
+});
+
+test("release workflow runs preflight before publish and requires approval gate", async () => {
+  const source = await loadReleaseWorkflowSource();
+  assert.match(source, /^\s*preflight:\s*$/m);
+  assert.match(source, /preflight\.sh/);
+  assert.match(source, /^\s*publish:\s*$/m);
+  assert.match(source, /needs:\s*(\[\s*preflight\s*\]|preflight)/);
+  assert.match(source, /environment:\s*production-release/);
+});
+
+test("release workflow wires deterministic publish sequence", async () => {
+  const source = await loadReleaseWorkflowSource();
+  assert.match(source, /\.\/gradlew\s+distAll/);
+  assert.match(source, /cyclonedxBom|sbom/i);
+  assert.match(source, /assemble-release-assets\.sh/);
+  assert.match(source, /render-release-notes\.mjs/);
+  assert.match(source, /jreleaser/i);
+});
+
+test("release workflow preserves deterministic retry logging for publish outages", async () => {
+  const source = await loadReleaseWorkflowSource();
+  assert.match(source, /retry-eligible|retry_reason|retry-reason/i);
+  assert.match(source, /same-tag|same tag/i);
+});
