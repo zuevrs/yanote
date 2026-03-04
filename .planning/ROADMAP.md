@@ -14,7 +14,7 @@ Deliver a Java-first OpenAPI coverage governance workflow that teams can trust i
 - [x] **Phase 2: Coverage Metrics and CLI Reporting** - Deliver operation/status/parameter coverage with deterministic report output through the standalone CLI.
 - [x] **Phase 3: Governance Gates** - Enforce threshold, regression, exclusion, and fail-closed policy behavior.
 - [x] **Phase 4: Java Build and CI Delivery Surfaces** - Deliver Gradle plugin and GitHub Action channels with merge-blocking CI checks on Java 21.
-- [ ] **Phase 5: OSS Release and Traceable Verification** - Ship signed Maven Central and GitHub releases with full v1 requirement-to-test traceability.
+- [x] **Phase 5: OSS Release and Traceable Verification** - Ship signed Maven Central and GitHub releases with full v1 requirement-to-test traceability. (completed 2026-03-04)
 
 ## Phase Details
 
@@ -93,7 +93,7 @@ Plans:
 Plans:
 - [x] 05-01-PLAN.md (Wave 1) - Establish signed Maven Central publication foundations with fail-closed preflight and scoped module allowlist.
 - [x] 05-02-PLAN.md (Wave 2, depends on 05-01) - Implement tag-only approval-gated GitHub release workflow with deterministic release notes and asset bundle contracts.
-- [ ] 05-03-PLAN.md (Wave 3, depends on 05-02) - Enforce schema-versioned requirement-to-test traceability gate and publish traceability artifacts in release outputs.
+- [x] 05-03-PLAN.md (Wave 3, depends on 05-02) - Enforce schema-versioned requirement-to-test traceability gate and publish traceability artifacts in release outputs.
 
 ## Progress
 
@@ -103,4 +103,4 @@ Plans:
 | 2. Coverage Metrics and CLI Reporting | 3/3 | Complete | 2026-03-04 |
 | 3. Governance Gates | 3/3 | Complete | 2026-03-04 |
 | 4. Java Build and CI Delivery Surfaces | 4/4 | Complete | 2026-03-04 |
-| 5. OSS Release and Traceable Verification | 2/3 | In Progress|  |
+| 5. OSS Release and Traceable Verification | 3/3 | Complete   | 2026-03-04 |
