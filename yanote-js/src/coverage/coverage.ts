@@ -127,7 +127,8 @@ function buildTemplateMatchers(operations: OperationKey[]): TemplateMatcher[] {
 function findFallbackCandidates(matchers: TemplateMatcher[], method: string, route: string): HttpOperation[] {
   return matchers
     .filter((matcher) => matcher.operation.method === method && matcher.matches(route))
-    .map((matcher) => matcher.operation);
+    .map((matcher) => matcher.operation)
+    .sort(compareHttpOperations);
 }
 
 function toPathToRegexpPattern(route: string): string {
@@ -192,5 +193,13 @@ function wildcardMatch(route: string, pattern: string): boolean {
     .replace(/\*/g, ".*");
   const re = new RegExp(`^${escaped}$`);
   return re.test(route);
+}
+
+function compareHttpOperations(left: HttpOperation, right: HttpOperation): number {
+  const leftKey = `${left.method} ${left.route}`;
+  const rightKey = `${right.method} ${right.route}`;
+  if (leftKey < rightKey) return -1;
+  if (leftKey > rightKey) return 1;
+  return 0;
 }
 
