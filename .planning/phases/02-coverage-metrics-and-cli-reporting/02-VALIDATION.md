@@ -19,7 +19,7 @@ created: 2026-03-04
 |----------|-------|
 | **Framework** | vitest |
 | **Config file** | none (Vitest defaults via `npm -C yanote-js test`) |
-| **Quick run command** | `npm -C yanote-js run test -- src/coverage/coverage.test.ts src/coverage/coverage.matching.test.ts src/report/report.test.ts src/cli.report.test.ts src/cli.test.ts` |
+| **Quick run command** | `npm -C yanote-js run test -- src/coverage/coverage.test.ts src/coverage/coverage.matching.test.ts src/report/report.test.ts src/cli.summary.contract.test.ts src/cli.report.test.ts src/cli.test.ts` |
 | **Full suite command** | `npm -C yanote-js test && ./gradlew test` |
 | **Estimated runtime** | ~45 seconds |
 
@@ -27,7 +27,7 @@ created: 2026-03-04
 
 ## Sampling Rate
 
-- **After every task commit:** Run `npm -C yanote-js run test -- src/coverage/coverage.test.ts src/report/report.test.ts src/cli.report.test.ts`
+- **After every task commit:** Run task-scoped tests for the current task plus contract smoke set `npm -C yanote-js run test -- src/coverage/coverage.test.ts src/report/report.test.ts src/cli.report.test.ts src/coverage/statusCoverage.test.ts src/coverage/parameterCoverage.test.ts src/report/report.contract.test.ts src/report/writeReport.determinism.test.ts src/cli.summary.contract.test.ts`
 - **After every plan wave:** Run `npm -C yanote-js test`
 - **Before `/gsd:verify-work`:** Full suite must be green
 - **Max feedback latency:** 45 seconds
@@ -38,12 +38,14 @@ created: 2026-03-04
 
 | Task ID | Plan | Wave | Requirement | Test Type | Automated Command | File Exists | Status |
 |---------|------|------|-------------|-----------|-------------------|-------------|--------|
-| 02-01-01 | 01 | 1 | COVR-02 | unit + contract | `npm -C yanote-js run test -- src/coverage/statusCoverage.test.ts` | ❌ W0 | ⬜ pending |
-| 02-01-02 | 01 | 1 | COVR-03 | unit + integration fixture | `npm -C yanote-js run test -- src/coverage/parameterCoverage.test.ts src/events/readJsonl.parameters.test.ts` | ❌ W0 | ⬜ pending |
-| 02-02-01 | 02 | 1 | COVR-04 | golden + schema contract | `npm -C yanote-js run test -- src/report/report.contract.test.ts src/report/writeReport.determinism.test.ts` | ❌ W0 | ⬜ pending |
-| 02-02-02 | 02 | 1 | COVR-05 | golden CLI contract | `npm -C yanote-js run test -- src/cli.summary.contract.test.ts` | ❌ W0 | ⬜ pending |
-| 02-03-01 | 03 | 2 | COVR-01 | unit + fixture | `npm -C yanote-js run test -- src/coverage/coverage.test.ts src/coverage/coverage.matching.test.ts src/coverage/coverage.parity.test.ts` | ✅ | ⬜ pending |
-| 02-03-02 | 03 | 2 | DELV-01 | integration smoke | `npm -C yanote-js run test -- src/cli.report.test.ts src/cli.test.ts && npm -C yanote-js run build` | ✅ | ⬜ pending |
+| 02-01-01 | 01 | 1 | COVR-03 | ingestion contract | `npm -C yanote-js run test -- src/events/readJsonl.test.ts src/events/readJsonl.parameters.test.ts` | ❌ W0 | ⬜ pending |
+| 02-01-02 | 01 | 1 | COVR-02 | status coverage scorer | `npm -C yanote-js run test -- src/coverage/statusCoverage.test.ts` | ❌ W0 | ⬜ pending |
+| 02-01-03 | 01 | 1 | COVR-03 | parameter coverage scorer | `npm -C yanote-js run test -- src/coverage/parameterCoverage.test.ts` | ❌ W0 | ⬜ pending |
+| 02-02-01 | 02 | 1 | COVR-04 | schema contract | `npm -C yanote-js run test -- src/report/report.contract.test.ts` | ❌ W0 | ⬜ pending |
+| 02-02-02 | 02 | 1 | COVR-04 | deterministic write boundary | `npm -C yanote-js run test -- src/report/writeReport.determinism.test.ts src/report/report.contract.test.ts` | ❌ W0 | ⬜ pending |
+| 02-03-01 | 03 | 2 | COVR-01/COVR-02/COVR-03 | integrated layered coverage | `npm -C yanote-js run test -- src/coverage/coverage.test.ts src/coverage/coverage.matching.test.ts src/coverage/coverage.parity.test.ts` | ✅ | ⬜ pending |
+| 02-03-02 | 03 | 2 | COVR-04 | report payload integration | `npm -C yanote-js run test -- src/report/report.test.ts src/report/report.contract.test.ts src/report/writeReport.determinism.test.ts` | ❌ W0 | ⬜ pending |
+| 02-03-03 | 03 | 2 | COVR-05/DELV-01 | CLI summary + no-ANSI + build | `npm -C yanote-js run test -- src/cli.summary.contract.test.ts src/cli.report.test.ts src/cli.test.ts && npm -C yanote-js run build` | ❌ W0 | ⬜ pending |
 
 *Status: ⬜ pending · ✅ green · ❌ red · ⚠️ flaky*
 
