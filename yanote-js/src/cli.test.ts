@@ -20,33 +20,29 @@ describe("cli", () => {
   it("prints help", async () => {
     const res = await runCli(["--help"]);
     expect(res.code).toBe(0);
-    expect(res.stdout).toContain("Compute coverage");
-    expect(res.stdout).toContain("report");
+    expect(res.stdout).toContain("Compute deterministic operation coverage");
+    expect(res.stdout).toContain("report [options]");
   });
 
-  it("fails closed when semantic state is invalid", async () => {
-    const fixture = await createCliFixture(
-      [
-        "openapi: 3.0.0",
-        "info:",
-        "  title: invalid",
-        "  version: 1.0.0",
-        "paths:",
-        "  /broken: \"invalid-path-item\""
-      ].join("\n"),
-      ['{"kind":"http","method":"GET","route":"/broken","test.run_id":"r1","test.suite":"s1"}'].join("\n")
-    );
+  it("uses typed input failure for invalid min coverage", async () => {
+    const res = await runCli([
+      "report",
+      "--spec",
+      "test/fixtures/openapi/simple.yaml",
+      "--events",
+      "test/fixtures/events/events.fixture.jsonl",
+      "--out",
+      "./tmp",
+      "--min-coverage",
+      "not-an-int"
+    ]);
 
-    try {
-      const res = await runCli(["report", "--spec", fixture.specPath, "--events", fixture.eventsPath, "--out", fixture.outDir]);
-      expect(res.code).not.toBe(0);
-      expect(res.stderr.toLowerCase()).toContain("semantic");
-    } finally {
-      await rm(fixture.dir, { recursive: true, force: true });
-    }
+    expect(res.code).toBe(2);
+    expect(res.stderr).toContain("class=input");
+    expect(res.stdout).toContain("YANOTE_SUMMARY");
   });
 
-  it("fails closed when matching diagnostics contain ambiguity", async () => {
+  it("fails closed on semantic ambiguity with typed semantic error", async () => {
     const fixture = await createCliFixture(
       [
         "openapi: 3.0.0",
@@ -70,14 +66,31 @@ describe("cli", () => {
 
     try {
       const res = await runCli(["report", "--spec", fixture.specPath, "--events", fixture.eventsPath, "--out", fixture.outDir]);
-      expect(res.code).not.toBe(0);
-      expect(res.stderr.toLowerCase()).toContain("ambiguous");
+      expect(res.code).toBe(5);
+      expect(res.stderr).toContain("class=semantic");
+      expect(res.stdout.trimEnd().split("\n").at(-1)?.startsWith("YANOTE_SUMMARY ")).toBe(true);
     } finally {
       await rm(fixture.dir, { recursive: true, force: true });
     }
   });
 
-  it("succeeds for deterministic non-ambiguous report flows", async () => {
+  it("emits runtime typed failure when report path is not writable", async () => {
+    const res = await runCli([
+      "report",
+      "--spec",
+      "test/fixtures/openapi/simple.yaml",
+      "--events",
+      "test/fixtures/events/events.fixture.jsonl",
+      "--out",
+      "/dev/null/yanote-out"
+    ]);
+
+    expect(res.code).toBe(6);
+    expect(res.stderr).toContain("class=runtime");
+    expect(res.stdout).toContain("YANOTE_SUMMARY");
+  });
+
+  it("succeeds for deterministic report flows and emits machine summary line once", async () => {
     const fixture = await createCliFixture(
       [
         "openapi: 3.0.0",
@@ -107,11 +120,13 @@ describe("cli", () => {
       expect(res.code).toBe(0);
 
       const reportRaw = await readFile(path.join(fixture.outDir, "yanote-report.json"), "utf8");
-      expect(reportRaw).toContain('"coveragePercent"');
+      expect(reportRaw).toContain('"schemaVersion"');
       expect(reportRaw).toContain('"/users/{param}"');
+
+      const summaryCount = (res.stdout.match(/YANOTE_SUMMARY/g) ?? []).length;
+      expect(summaryCount).toBe(1);
     } finally {
       await rm(fixture.dir, { recursive: true, force: true });
     }
   });
 });
-
