@@ -65,6 +65,13 @@ jobs:
           echo "retry_eligible=${RETRY_ELIGIBLE:-false}" >> "${GITHUB_OUTPUT}"
           echo "retry_reason=${RETRY_REASON:-no-failure}" >> "${GITHUB_OUTPUT}"
 
+      - name: Verify strict requirement traceability gate
+        run: >
+          node scripts/release/verify-traceability.mjs
+          --requirements .planning/REQUIREMENTS.md
+          --map .planning/traceability/v1-requirements-tests.json
+          --schema .planning/traceability/schema.v1.json
+
   publish:
     name: Publish
     runs-on: ubuntu-latest
@@ -104,6 +111,8 @@ jobs:
           RELEASE_TAG: ${{ needs.preflight.outputs.release_tag }}
           RELEASE_ASSET_INDEX: build/release-assets/index.txt
           SBOM_PATH: build/reports/sbom/cyclonedx.json
+          TRACEABILITY_JSON_PATH: .planning/traceability/v1-requirements-tests.json
+          TRACEABILITY_MARKDOWN_PATH: .planning/traceability/v1-requirements-tests.md
         run: bash scripts/release/assemble-release-assets.sh
 
       - name: Render deterministic release notes
@@ -115,6 +124,23 @@ jobs:
           --output build/release-notes.md
           --version "${{ needs.preflight.outputs.release_tag }}"
           --previous-tag "${{ github.event.before }}"
+
+      - name: Record release-owner sign-off context
+        env:
+          RELEASE_TAG: ${{ needs.preflight.outputs.release_tag }}
+        run: |
+          set -euo pipefail
+          SIGNOFF_ACTOR="${{ github.triggering_actor || github.actor }}"
+          TRACEABILITY_SNAPSHOT="$(node -e 'const fs=require("node:fs"); const map=JSON.parse(fs.readFileSync(".planning/traceability/v1-requirements-tests.json","utf8")); process.stdout.write(map.snapshotId || "unknown");')"
+          {
+            echo "## Release Owner Sign-off"
+            echo "- environment: production-release"
+            echo "- actor: ${SIGNOFF_ACTOR}"
+            echo "- release-tag: ${RELEASE_TAG}"
+            echo "- traceability-snapshot: ${TRACEABILITY_SNAPSHOT}"
+          } >> "${GITHUB_STEP_SUMMARY}"
+          echo "release-owner-signoff-environment=production-release"
+          echo "release-owner-signoff-actor=${SIGNOFF_ACTOR}"
 
       - name: Publish with deterministic same-tag retry policy
         env:

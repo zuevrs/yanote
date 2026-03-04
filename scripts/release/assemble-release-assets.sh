@@ -8,6 +8,8 @@ set -euo pipefail
 RELEASE_TAG="${RELEASE_TAG:-${1:-}}"
 ASSET_INDEX_PATH="${RELEASE_ASSET_INDEX:-build/release-assets/index.txt}"
 SBOM_SOURCE_PATH="${SBOM_PATH:-build/reports/sbom/cyclonedx.json}"
+TRACEABILITY_JSON_PATH="${TRACEABILITY_JSON_PATH:-.planning/traceability/v1-requirements-tests.json}"
+TRACEABILITY_MARKDOWN_PATH="${TRACEABILITY_MARKDOWN_PATH:-.planning/traceability/v1-requirements-tests.md}"
 OUTPUT_ROOT="${RELEASE_OUTPUT_DIR:-build/release-bundle/${RELEASE_TAG}}"
 CHECKSUM_ALGORITHM="sha256"
 
@@ -31,6 +33,16 @@ if [[ ! -f "${SBOM_SOURCE_PATH}" ]]; then
   exit 1
 fi
 
+if [[ ! -f "${TRACEABILITY_JSON_PATH}" ]]; then
+  echo "Traceability JSON file not found at '${TRACEABILITY_JSON_PATH}'." >&2
+  exit 1
+fi
+
+if [[ ! -f "${TRACEABILITY_MARKDOWN_PATH}" ]]; then
+  echo "Traceability markdown file not found at '${TRACEABILITY_MARKDOWN_PATH}'." >&2
+  exit 1
+fi
+
 ASSETS_DIR="${OUTPUT_ROOT}/assets"
 MANIFEST_PATH="${OUTPUT_ROOT}/${RELEASE_TAG}-manifest.txt"
 
@@ -40,6 +52,23 @@ mkdir -p "${ASSETS_DIR}"
   echo "checksum-algorithm=${CHECKSUM_ALGORITHM}"
   echo "manifest-format=v1"
 } > "${MANIFEST_PATH}"
+
+extract_snapshot_id_from_json() {
+  local json_path="$1"
+  local snapshot_id
+  snapshot_id="$(awk -F'"' '/"snapshotId"[[:space:]]*:/ {print $4; exit}' "${json_path}")"
+  printf '%s' "${snapshot_id}"
+}
+
+extract_snapshot_id_from_markdown() {
+  local markdown_path="$1"
+  local snapshot_id
+  snapshot_id="$(awk -F'\`' '/Snapshot ID:/ {print $2; exit}' "${markdown_path}")"
+  if [[ -z "${snapshot_id}" ]]; then
+    snapshot_id="$(awk -F': ' '/Snapshot ID:/ {print $2; exit}' "${markdown_path}" | tr -d '[:space:]')"
+  fi
+  printf '%s' "${snapshot_id}"
+}
 
 copy_with_deterministic_name() {
   local artifact_type="$1"
@@ -93,6 +122,18 @@ copy_with_deterministic_name() {
 SORTED_INDEX="$(mktemp)"
 trap 'rm -f "${SORTED_INDEX}"' EXIT
 
+TRACEABILITY_SNAPSHOT_JSON="$(extract_snapshot_id_from_json "${TRACEABILITY_JSON_PATH}")"
+TRACEABILITY_SNAPSHOT_MARKDOWN="$(extract_snapshot_id_from_markdown "${TRACEABILITY_MARKDOWN_PATH}")"
+if [[ -z "${TRACEABILITY_SNAPSHOT_JSON}" || -z "${TRACEABILITY_SNAPSHOT_MARKDOWN}" ]]; then
+  echo "Traceability snapshot references are required in both JSON and markdown artifacts." >&2
+  exit 1
+fi
+if [[ "${TRACEABILITY_SNAPSHOT_JSON}" != "${TRACEABILITY_SNAPSHOT_MARKDOWN}" ]]; then
+  echo "Traceability snapshot mismatch between JSON ('${TRACEABILITY_SNAPSHOT_JSON}') and markdown ('${TRACEABILITY_SNAPSHOT_MARKDOWN}')." >&2
+  exit 1
+fi
+echo "traceability-snapshot=${TRACEABILITY_SNAPSHOT_JSON}" >> "${MANIFEST_PATH}"
+
 LC_ALL=C sort "${ASSET_INDEX_PATH}" > "${SORTED_INDEX}"
 
 while IFS= read -r line; do
@@ -107,6 +148,8 @@ while IFS= read -r line; do
 done < "${SORTED_INDEX}"
 
 copy_with_deterministic_name "sbom" "${SBOM_SOURCE_PATH}"
+copy_with_deterministic_name "traceability-json" "${TRACEABILITY_JSON_PATH}"
+copy_with_deterministic_name "traceability-summary" "${TRACEABILITY_MARKDOWN_PATH}"
 
 echo "release-asset-count=$(ls -1 "${ASSETS_DIR}" | wc -l | tr -d ' ')" >> "${MANIFEST_PATH}"
 echo "manifest=${MANIFEST_PATH}"

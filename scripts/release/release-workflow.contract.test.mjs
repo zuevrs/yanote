@@ -22,6 +22,7 @@ test("release workflow runs preflight before publish and requires approval gate"
   const source = await loadReleaseWorkflowSource();
   assert.match(source, /^\s*preflight:\s*$/m);
   assert.match(source, /preflight\.sh/);
+  assert.match(source, /verify-traceability\.mjs/);
   assert.match(source, /^\s*publish:\s*$/m);
   assert.match(source, /needs:\s*(\[\s*preflight\s*\]|preflight)/);
   assert.match(source, /environment:\s*production-release/);
@@ -40,4 +41,11 @@ test("release workflow preserves deterministic retry logging for publish outages
   const source = await loadReleaseWorkflowSource();
   assert.match(source, /retry-eligible|retry_reason|retry-reason/i);
   assert.match(source, /same-tag|same tag/i);
+});
+
+test("release workflow records accountable release-owner sign-off context", async () => {
+  const source = await loadReleaseWorkflowSource();
+  assert.match(source, /Release Owner Sign-off/);
+  assert.match(source, /GITHUB_STEP_SUMMARY/);
+  assert.match(source, /release-owner-signoff-environment=production-release/);
 });
