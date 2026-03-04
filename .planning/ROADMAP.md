@@ -43,7 +43,11 @@ Plans:
   2. Developer can inspect status-code and parameter coverage per operation in generated report output.
   3. Running the CLI repeatedly with identical inputs produces byte-equivalent versioned JSON reports.
   4. Developer can read a concise terminal summary of uncovered operations and aggregate coverage percentages.
-**Plans**: TBD
+**Plans**: 3 plans
+Plans:
+- [ ] 02-01-PLAN.md (Wave 1) - Define status/parameter dimension contracts and parameter-evidence ingestion.
+- [ ] 02-02-PLAN.md (Wave 1) - Add strict versioned schema and deterministic JSON write boundary.
+- [ ] 02-03-PLAN.md (Wave 2, depends on 02-01 + 02-02) - Integrate layered coverage into deterministic standalone CLI output contract.
 
 ### Phase 3: Governance Gates
 **Goal**: Teams can enforce coverage policy as deterministic pass/fail governance in automated checks.
@@ -83,7 +87,7 @@ Plans:
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
 | 1. Specification Semantics Contract | 5/5 | Complete | 2026-03-04 |
-| 2. Coverage Metrics and CLI Reporting | 0/TBD | Not started | - |
+| 2. Coverage Metrics and CLI Reporting | 0/3 | Not started | - |
 | 3. Governance Gates | 0/TBD | Not started | - |
 | 4. Java Build and CI Delivery Surfaces | 0/TBD | Not started | - |
 | 5. OSS Release and Traceable Verification | 0/TBD | Not started | - |
