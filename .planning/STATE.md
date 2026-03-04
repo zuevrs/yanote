@@ -4,14 +4,14 @@ milestone: v1.0
 milestone_name: milestone
 current_plan: 4
 status: completed
-stopped_at: Completed 04-04-PLAN.md
-last_updated: "2026-03-04T18:39:08.747Z"
-last_activity: 2026-03-04 - Closed CI parity blocker by routing validation through rooted Gradle `yanoteCheck` execution
+stopped_at: Completed 05-01-PLAN.md
+last_updated: "2026-03-04T19:48:42.951Z"
+last_activity: 2026-03-04
 progress:
   total_phases: 5
   completed_phases: 4
-  total_plans: 15
-  completed_plans: 15
+  total_plans: 18
+  completed_plans: 16
   percent: 100
 ---
 
@@ -31,7 +31,7 @@ Plan: 4 of 4 in current phase
 Current Plan: 4
 Total Plans in Phase: 4
 Status: Complete
-Last activity: 2026-03-04 - Closed CI parity blocker by routing validation through rooted Gradle `yanoteCheck` execution
+Last activity: 2026-03-04
 
 Progress: [██████████] 100%
 
@@ -72,6 +72,7 @@ Progress: [██████████] 100%
 | Phase 04 P02 | 9 min | 3 tasks | 6 files |
 | Phase 04-java-build-and-ci-delivery-surfaces P03 | 30 min | 3 tasks | 8 files |
 | Phase 04-java-build-and-ci-delivery-surfaces P04 | 3 min | 2 tasks | 3 files |
+| Phase 05-oss-release-and-traceable-verification P01 | 10 min | 3 tasks | 11 files |
 
 ## Accumulated Context
 
@@ -102,6 +103,9 @@ Recent decisions affecting current work:
 - [Phase 04-java-build-and-ci-delivery-surfaces]: Reset compose volumes and moved report dependency install to npm ci to prevent stale-marker rerun failures.
 - [Phase 04-java-build-and-ci-delivery-surfaces]: Delegate CI validation execution to a dedicated Gradle parity helper script. — Keeps workflow concise while preserving deterministic command/log/exit artifact capture.
 - [Phase 04-java-build-and-ci-delivery-surfaces]: Preserve always-on collect/render/upload/enforce triage sequence while swapping only validation execution path. — Maintains existing failure-debug contract and minimizes workflow behavior drift.
+- [Phase 05-oss-release-and-traceable-verification]: Lock release preflight behavior with contract tests before implementation.
+- [Phase 05-oss-release-and-traceable-verification]: Configure JReleaser from checked-in jreleaser.yml and keep jreleaserConfig deterministic with fallback token.
+- [Phase 05-oss-release-and-traceable-verification]: Enforce publication scope with an explicit v1 allowlist and disabled non-allowlisted publish tasks.
 
 ### Pending Todos
 
@@ -113,6 +117,6 @@ None yet.
 
 ## Session Continuity
 
-Last session: 2026-03-04T18:02:53.804Z
-Stopped at: Completed 04-04-PLAN.md
+Last session: 2026-03-04T19:48:42.950Z
+Stopped at: Completed 05-01-PLAN.md
 Resume file: None
