@@ -55,6 +55,7 @@ async function withFixtureFiles(prepareFixture) {
     const requirementsPath = path.join(fixtureRoot, "REQUIREMENTS.md");
     const schemaPath = path.join(fixtureRoot, "schema.v1.json");
     const mapPath = path.join(fixtureRoot, "v1-requirements-tests.json");
+    const summaryPath = path.join(fixtureRoot, "v1-requirements-tests.md");
 
     const canonicalRequirements = await readFile(canonicalRequirementsPath, "utf8");
     const requirementIds = parseRequirementIds(canonicalRequirements);
@@ -82,6 +83,19 @@ async function withFixtureFiles(prepareFixture) {
       schemaPath,
       mapPath,
     });
+
+    await writeFile(mapPath, JSON.stringify(map, null, 2), "utf8");
+    await writeFile(
+      summaryPath,
+      [
+        "# Fixture traceability summary",
+        "",
+        `- Snapshot ID: \`${map.snapshotId}\``,
+        "- Schema Version: `traceability.v1`",
+        "",
+      ].join("\n"),
+      "utf8"
+    );
 
     return runValidator([
       "--requirements",
@@ -111,9 +125,8 @@ test("validator enforces 100% requirement coverage for canonical v1 inventory", 
 });
 
 test("validator fails when a requirement mapping is missing", async () => {
-  const result = await withFixtureFiles(async ({ map, mapPath }) => {
+  const result = await withFixtureFiles(async ({ map }) => {
     map.requirements.pop();
-    await writeFile(mapPath, JSON.stringify(map, null, 2), "utf8");
   });
 
   assert.notEqual(result.status, 0);
@@ -122,9 +135,8 @@ test("validator fails when a requirement mapping is missing", async () => {
 });
 
 test("validator fails when requirement mapping contains duplicates", async () => {
-  const result = await withFixtureFiles(async ({ map, mapPath }) => {
+  const result = await withFixtureFiles(async ({ map }) => {
     map.requirements.push({ ...map.requirements[0] });
-    await writeFile(mapPath, JSON.stringify(map, null, 2), "utf8");
   });
 
   assert.notEqual(result.status, 0);
@@ -132,9 +144,8 @@ test("validator fails when requirement mapping contains duplicates", async () =>
 });
 
 test("validator rejects flaky or quarantined tests from coverage accounting", async () => {
-  const result = await withFixtureFiles(async ({ map, mapPath }) => {
+  const result = await withFixtureFiles(async ({ map }) => {
     map.requirements[0].tests[0].status = "flaky";
-    await writeFile(mapPath, JSON.stringify(map, null, 2), "utf8");
   });
 
   assert.notEqual(result.status, 0);
