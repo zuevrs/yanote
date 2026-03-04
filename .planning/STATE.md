@@ -2,16 +2,16 @@
 gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: milestone
-current_plan: 3
-status: in_progress
-stopped_at: Completed 04-03-PLAN.md
-last_updated: "2026-03-04T17:34:32.079Z"
-last_activity: 2026-03-04 - Completed merge-blocking CI hardening with Java 21 enforcement and deterministic e2e gating
+current_plan: 4
+status: completed
+stopped_at: Completed 04-04-PLAN.md
+last_updated: "2026-03-04T18:02:53.807Z"
+last_activity: 2026-03-04
 progress:
   total_phases: 5
   completed_phases: 4
-  total_plans: 14
-  completed_plans: 14
+  total_plans: 15
+  completed_plans: 15
   percent: 100
 ---
 
@@ -22,16 +22,16 @@ progress:
 See: .planning/PROJECT.md (updated 2026-03-04)
 
 **Core value:** Any Java service team can reliably prove that every v1 API requirement is covered by executable tests before shipping.
-**Current focus:** Phase 4 - Java Build and CI Delivery Surfaces (complete; ready for Phase 5 planning)
+**Current focus:** Phase 5 planning (Phase 4 complete)
 
 ## Current Position
 
 Phase: 4 of 5 (Java Build and CI Delivery Surfaces)
-Plan: 3 of 3 in current phase
-Current Plan: 3
-Total Plans in Phase: 3
+Plan: 4 of 4 in current phase
+Current Plan: 4
+Total Plans in Phase: 4
 Status: Complete
-Last activity: 2026-03-04 - Completed merge-blocking CI hardening with Java 21 enforcement and deterministic e2e gating
+Last activity: 2026-03-04 - Closed CI parity blocker by routing validation through rooted Gradle `yanoteCheck` execution
 
 Progress: [██████████] 100%
 
@@ -71,6 +71,7 @@ Progress: [██████████] 100%
 | Phase 04 P01 | 19 min | 3 tasks | 9 files |
 | Phase 04 P02 | 9 min | 3 tasks | 6 files |
 | Phase 04-java-build-and-ci-delivery-surfaces P03 | 30 min | 3 tasks | 8 files |
+| Phase 04-java-build-and-ci-delivery-surfaces P04 | 3 min | 2 tasks | 3 files |
 
 ## Accumulated Context
 
@@ -99,6 +100,8 @@ Recent decisions affecting current work:
 - [Phase 04-java-build-and-ci-delivery-surfaces]: Kept required checks fixed to build-and-test and yanote-validation while adding v1-e2e only for main/release pushes.
 - [Phase 04-java-build-and-ci-delivery-surfaces]: Added explicit assert-java21.sh execution after setup-java so runtime mismatches fail early with actionable remediation.
 - [Phase 04-java-build-and-ci-delivery-surfaces]: Reset compose volumes and moved report dependency install to npm ci to prevent stale-marker rerun failures.
+- [Phase 04-java-build-and-ci-delivery-surfaces]: Delegate CI validation execution to a dedicated Gradle parity helper script. — Keeps workflow concise while preserving deterministic command/log/exit artifact capture.
+- [Phase 04-java-build-and-ci-delivery-surfaces]: Preserve always-on collect/render/upload/enforce triage sequence while swapping only validation execution path. — Maintains existing failure-debug contract and minimizes workflow behavior drift.
 
 ### Pending Todos
 
@@ -110,6 +113,6 @@ None yet.
 
 ## Session Continuity
 
-Last session: 2026-03-04T17:34:32.076Z
-Stopped at: Completed 04-03-PLAN.md
+Last session: 2026-03-04T18:02:53.804Z
+Stopped at: Completed 04-04-PLAN.md
 Resume file: None

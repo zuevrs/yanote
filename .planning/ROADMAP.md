@@ -73,11 +73,12 @@ Plans:
   2. Teams can run a GitHub Action that executes coverage checks and exposes artifacts plus check outcomes in pull requests.
   3. CI runs unit, integration, and end-to-end v1 workflow checks and blocks merges when failures occur.
   4. Automated checks verify Java 21 baseline compatibility for scoped v1 modules and delivery channels.
-**Plans**: 3 plans
+**Plans**: 4 plans
 Plans:
 - [x] 04-01-PLAN.md (Wave 1) - Build Gradle plugin delivery surface with stable `yanoteReport`/`yanoteCheck` contracts, opt-in lifecycle wiring, and multi-module aggregation.
 - [x] 04-02-PLAN.md (Wave 2, depends on 04-01) - Add GitHub Actions delivery surface with two stable checks, concise deterministic summary, and failure-path artifact retention.
 - [x] 04-03-PLAN.md (Wave 3, depends on 04-01 + 04-02) - Harden merge-blocking CI topology, Java 21 enforcement, and main/release full e2e validation contract.
+- [x] 04-04-PLAN.md (Wave 4, depends on 04-03) - Rewire `yanote-validation` to execute rooted aggregate Gradle `yanoteCheck` parity path while preserving always-on failure triage.
 
 ### Phase 5: OSS Release and Traceable Verification
 **Goal**: Maintainers can publish trusted public releases and prove complete v1 requirement coverage through automated tests.
@@ -97,5 +98,5 @@ Plans:
 | 1. Specification Semantics Contract | 5/5 | Complete | 2026-03-04 |
 | 2. Coverage Metrics and CLI Reporting | 3/3 | Complete | 2026-03-04 |
 | 3. Governance Gates | 3/3 | Complete | 2026-03-04 |
-| 4. Java Build and CI Delivery Surfaces | 3/3 | Complete | 2026-03-04 |
+| 4. Java Build and CI Delivery Surfaces | 4/4 | Complete | 2026-03-04 |
 | 5. OSS Release and Traceable Verification | 0/TBD | Not started | - |
