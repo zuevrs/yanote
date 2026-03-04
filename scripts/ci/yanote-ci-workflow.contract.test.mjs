@@ -4,9 +4,14 @@ import path from "node:path";
 import test from "node:test";
 
 const workflowPath = path.resolve(".github/workflows/yanote-ci.yml");
+const gradleHelperPath = path.resolve("scripts/ci/run-yanote-gradle-check.sh");
 
 async function loadWorkflowSource() {
   return readFile(workflowPath, "utf8");
+}
+
+async function loadGradleHelperSource() {
+  return readFile(gradleHelperPath, "utf8");
 }
 
 test("workflow defines stable required check job names", async () => {
@@ -34,6 +39,44 @@ test("workflow runs Java 21 assertion in required jobs", async () => {
     "Expected Java assertion script to run in both required checks."
   );
   assert.match(source, /Setup Java 21[\s\S]*?bash scripts\/ci\/assert-java21\.sh/);
+});
+
+test("workflow delegates validation execution to Gradle parity helper", async () => {
+  const source = await loadWorkflowSource();
+  assert.match(
+    source,
+    /- name:\s*Run Yanote validation[\s\S]*?run:\s*bash scripts\/ci\/run-yanote-gradle-check\.sh/
+  );
+});
+
+test("gradle parity helper executes rooted yanoteCheck invocation", async () => {
+  const source = await loadGradleHelperSource();
+  assert.match(source, /\.\/gradlew\b[\s\S]*\byanoteCheck\b/);
+});
+
+test("workflow no longer runs direct CLI report command as primary validation path", async () => {
+  const source = await loadWorkflowSource();
+  assert.doesNotMatch(source, /node\s+yanote-js\/dist\/yanote\.cjs\s+report/);
+});
+
+test("workflow keeps always-on triage sequence after validation execution", async () => {
+  const source = await loadWorkflowSource();
+  assert.match(
+    source,
+    /- name:\s*Collect Yanote artifacts[\s\S]*?if:\s*\$\{\{\s*always\(\)\s*\}\}/
+  );
+  assert.match(
+    source,
+    /- name:\s*Render Yanote GitHub summary[\s\S]*?if:\s*\$\{\{\s*always\(\)\s*\}\}/
+  );
+  assert.match(
+    source,
+    /- name:\s*Upload Yanote artifacts[\s\S]*?if:\s*\$\{\{\s*always\(\)\s*\}\}/
+  );
+  assert.match(
+    source,
+    /- name:\s*Enforce Yanote validation result[\s\S]*?if:\s*\$\{\{\s*always\(\)\s*&&/
+  );
 });
 
 test("workflow adds push path for main and release refs", async () => {
