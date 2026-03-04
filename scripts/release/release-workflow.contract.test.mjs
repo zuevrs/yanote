@@ -14,7 +14,8 @@ test("release workflow triggers only on stable version tags", async () => {
   assert.match(source, /^\s*on:\s*$/m);
   assert.match(source, /^\s*push:\s*$/m);
   assert.match(source, /^\s*tags:\s*$/m);
-  assert.match(source, /v\[0-9\]\+\\\.\[0-9\]\+\\\.\[0-9\]\+/);
+  assert.match(source, /^\s*-\s*['"]?v\*\.\*\.\*['"]?\s*$/m);
+  assert.doesNotMatch(source, /^\s*-\s*['"]?v\[0-9\]\+\\\.\[0-9\]\+\\\.\[0-9\]\+['"]?\s*$/m);
   assert.doesNotMatch(source, /^\s*workflow_dispatch:\s*$/m);
 });
 
@@ -35,6 +36,27 @@ test("release workflow wires deterministic publish sequence", async () => {
   assert.match(source, /assemble-release-assets\.sh/);
   assert.match(source, /render-release-notes\.mjs/);
   assert.match(source, /jreleaser/i);
+});
+
+test("release workflow wires release notes previous-tag from resolved previous release output", async () => {
+  const source = await loadReleaseWorkflowSource();
+  assert.match(source, /Resolve previous release tag/);
+  assert.match(
+    source,
+    /previous_release_tag:\s*\$\{\{\s*steps\.previous-tag\.outputs\.previous_release_tag\s*\}\}/,
+  );
+  assert.match(
+    source,
+    /--previous-tag\s+"\$\{\{\s*needs\.preflight\.outputs\.previous_release_tag\s*\}\}"/,
+  );
+  assert.doesNotMatch(
+    source,
+    /PREVIOUS_RELEASE_TAG:\s*\$\{\{\s*github\.event\.before\s*\}\}/,
+  );
+  assert.doesNotMatch(
+    source,
+    /--previous-tag\s+"\$\{\{\s*github\.event\.before\s*\}\}"/,
+  );
 });
 
 test("release workflow preserves deterministic retry logging for publish outages", async () => {
