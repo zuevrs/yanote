@@ -11,7 +11,7 @@ Requirements for initial release. Each maps to roadmap phases.
 
 - [x] **SPEC-01**: Maintainer can load OpenAPI HTTP specifications and resolve operations into canonical operation keys
 - [x] **SPEC-02**: Maintainer can detect and review unmatched or ambiguous spec operations with actionable diagnostics
-- [ ] **SPEC-03**: Maintainer can map recorded HTTP events to canonical operation keys using deterministic matching rules
+- [x] **SPEC-03**: Maintainer can map recorded HTTP events to canonical operation keys using deterministic matching rules
 
 ### Coverage Engine
 
@@ -76,7 +76,7 @@ Which phases cover which requirements. Updated during roadmap creation.
 |-------------|-------|--------|
 | SPEC-01 | Phase 1 | Complete |
 | SPEC-02 | Phase 1 | Complete |
-| SPEC-03 | Phase 1 | Pending |
+| SPEC-03 | Phase 1 | Complete |
 | COVR-01 | Phase 2 | Pending |
 | COVR-02 | Phase 2 | Pending |
 | COVR-03 | Phase 2 | Pending |
