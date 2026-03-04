@@ -3,7 +3,7 @@ name: release
 on:
   push:
     tags:
-      - 'v[0-9]+\.[0-9]+\.[0-9]+'
+      - 'v*.*.*'
 
 permissions:
   contents: read
@@ -16,6 +16,7 @@ jobs:
       contents: read
     outputs:
       release_tag: ${{ steps.preflight.outputs.release_tag }}
+      previous_release_tag: ${{ steps.previous-tag.outputs.previous_release_tag }}
       retry_eligible: ${{ steps.preflight.outputs.retry_eligible }}
       retry_reason: ${{ steps.preflight.outputs.retry_reason }}
     steps:
@@ -118,12 +119,12 @@ jobs:
       - name: Render deterministic release notes
         env:
           RELEASE_TAG: ${{ needs.preflight.outputs.release_tag }}
-          PREVIOUS_RELEASE_TAG: ${{ github.event.before }}
+          PREVIOUS_RELEASE_TAG: ${{ needs.preflight.outputs.previous_release_tag }}
         run: >
           node scripts/release/render-release-notes.mjs
           --output build/release-notes.md
           --version "${{ needs.preflight.outputs.release_tag }}"
-          --previous-tag "${{ github.event.before }}"
+          --previous-tag "${{ needs.preflight.outputs.previous_release_tag }}"
 
       - name: Record release-owner sign-off context
         env:
