@@ -26,7 +26,13 @@ Deliver a Java-first OpenAPI coverage governance workflow that teams can trust i
   1. Maintainer can load OpenAPI specs and obtain stable canonical operation keys for all scoped v1 operations.
   2. Maintainer can review actionable diagnostics for unmatched or ambiguous operations before accepting coverage output.
   3. Recorded HTTP events map to canonical operation keys deterministically when inputs are unchanged.
-**Plans**: TBD
+**Plans**: 5 plans
+Plans:
+- [ ] 01-01-PLAN.md - Implement TypeScript canonical extraction and invalid diagnostics contract.
+- [ ] 01-02-PLAN.md - Implement Java canonical extraction and invalid diagnostics contract.
+- [ ] 01-03-PLAN.md - Implement TypeScript deterministic matcher and fail-closed CLI semantics.
+- [ ] 01-04-PLAN.md - Implement Java deterministic matcher and coverage diagnostics integration.
+- [ ] 01-05-PLAN.md - Enforce cross-runtime parity with shared semantic fixtures and adapter tests.
 
 ### Phase 2: Coverage Metrics and CLI Reporting
 **Goal**: Developers can compute deterministic operation-level coverage results from evidence using the standalone CLI in local and CI workflows.
@@ -76,7 +82,7 @@ Deliver a Java-first OpenAPI coverage governance workflow that teams can trust i
 
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
-| 1. Specification Semantics Contract | 0/TBD | Not started | - |
+| 1. Specification Semantics Contract | 0/3 | Not started | - |
 | 2. Coverage Metrics and CLI Reporting | 0/TBD | Not started | - |
 | 3. Governance Gates | 0/TBD | Not started | - |
 | 4. Java Build and CI Delivery Surfaces | 0/TBD | Not started | - |
