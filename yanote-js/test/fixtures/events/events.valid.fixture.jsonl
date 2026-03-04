@@ -1,0 +1,2 @@
+{"kind":"http","ts":1772449192657,"method":"GET","route":"/health","status":200,"service":null,"instance":null,"error":false,"test.run_id":"run-1","test.suite":"suite-a"}
+{"kind":"http","ts":1772449192658,"method":"GET","route":"/users/{id}","status":200,"service":null,"instance":null,"error":false,"test.run_id":"run-1","test.suite":"suite-a"}
