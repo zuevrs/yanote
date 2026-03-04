@@ -33,8 +33,11 @@ public final class OpenApiLoader {
 
     public OpenApiSemantics loadSemantics(String specPath) {
         SwaggerParseResult result = parse(specPath);
-        List<SemanticDiagnostic> diagnostics = new ArrayList<>(diagnosticsFromRawSpec(specPath));
-        diagnostics.addAll(diagnosticsFromMessages(result.getMessages()));
+        List<SemanticDiagnostic> rawDiagnostics = diagnosticsFromRawSpec(specPath);
+        List<SemanticDiagnostic> diagnostics = new ArrayList<>(rawDiagnostics);
+        if (rawDiagnostics.isEmpty()) {
+            diagnostics.addAll(diagnosticsFromMessages(result.getMessages()));
+        }
         diagnostics = dedupeDiagnostics(diagnostics);
 
         OpenAPI api = result.getOpenAPI();
@@ -68,8 +71,11 @@ public final class OpenApiLoader {
 
         List<SemanticDiagnostic> diagnostics = new ArrayList<>();
         for (String message : messages) {
-            String route = extractRoute(message);
             String method = extractMethod(message);
+            if (method == null) {
+                continue;
+            }
+            String route = extractRoute(message);
             diagnostics.add(SemanticDiagnostic.invalid(message, method, route));
         }
         return diagnostics;

@@ -48,7 +48,7 @@ public final class OperationMatcher {
         }
 
         if (fallbackCandidates.size() > 1) {
-            List<String> candidates = fallbackCandidates.stream().map(OperationKey::toString).toList();
+            List<String> candidates = fallbackCandidates.stream().map(OperationKey::toString).sorted().toList();
             return MatchResult.withDiagnostics(List.of(new SemanticDiagnostic(
                     "ambiguous",
                     "Multiple operation templates matched event route",
