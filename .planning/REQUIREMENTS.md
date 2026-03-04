@@ -43,7 +43,7 @@ Requirements for initial release. Each maps to roadmap phases.
 ### Quality and Verification
 
 - [ ] **QUAL-01**: Team has automated tests that trace to all v1 requirements (100% requirement coverage)
-- [ ] **QUAL-02**: CI runs unit, integration, and end-to-end checks for v1 workflow and blocks merges on failure
+- [x] **QUAL-02**: CI runs unit, integration, and end-to-end checks for v1 workflow and blocks merges on failure
 - [x] **QUAL-03**: Team verifies Java 21 baseline compatibility in automated checks
 
 ## v2 Requirements
@@ -93,7 +93,7 @@ Which phases cover which requirements. Updated during roadmap creation.
 | RELS-02 | Phase 5 | Pending |
 | RELS-03 | Phase 5 | Pending |
 | QUAL-01 | Phase 5 | Pending |
-| QUAL-02 | Phase 4 | Pending |
+| QUAL-02 | Phase 4 | Complete |
 | QUAL-03 | Phase 4 | Complete |
 
 **Coverage:**

@@ -2,16 +2,17 @@
 gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: milestone
+current_plan: 3
 status: in_progress
-stopped_at: Completed 04-02-PLAN.md
-last_updated: "2026-03-04T17:00:15.002Z"
-last_activity: 2026-03-04 - Completed GitHub CI delivery surfaces with deterministic summary and artifact contracts
+stopped_at: Completed 04-03-PLAN.md
+last_updated: "2026-03-04T17:34:32.079Z"
+last_activity: 2026-03-04 - Completed merge-blocking CI hardening with Java 21 enforcement and deterministic e2e gating
 progress:
   total_phases: 5
-  completed_phases: 3
+  completed_phases: 4
   total_plans: 14
-  completed_plans: 13
-  percent: 93
+  completed_plans: 14
+  percent: 100
 ---
 
 # Project State
@@ -21,25 +22,25 @@ progress:
 See: .planning/PROJECT.md (updated 2026-03-04)
 
 **Core value:** Any Java service team can reliably prove that every v1 API requirement is covered by executable tests before shipping.
-**Current focus:** Phase 4 - Java Build and CI Delivery Surfaces (in progress)
+**Current focus:** Phase 4 - Java Build and CI Delivery Surfaces (complete; ready for Phase 5 planning)
 
 ## Current Position
 
 Phase: 4 of 5 (Java Build and CI Delivery Surfaces)
-Plan: 2 of 3 in current phase
-Current Plan: 2
+Plan: 3 of 3 in current phase
+Current Plan: 3
 Total Plans in Phase: 3
-Status: In progress
-Last activity: 2026-03-04 - Completed GitHub CI delivery surfaces with deterministic summary and artifact contracts
+Status: Complete
+Last activity: 2026-03-04 - Completed merge-blocking CI hardening with Java 21 enforcement and deterministic e2e gating
 
-Progress: [█████████░] 93%
+Progress: [██████████] 100%
 
 ## Performance Metrics
 
 **Velocity:**
-- Total plans completed: 13
-- Average duration: 9.8 min
-- Total execution time: 2.1 hours
+- Total plans completed: 14
+- Average duration: 11.0 min
+- Total execution time: 2.6 hours
 
 **By Phase:**
 
@@ -48,11 +49,11 @@ Progress: [█████████░] 93%
 | 1. Specification Semantics Contract | 5 | 18 min | 3.6 min |
 | 2. Coverage Metrics and CLI Reporting | 3 | 37 min | 12.3 min |
 | 3. Governance Gates | 3 | 116 min | 38.7 min |
-| 4. Java Build and CI Delivery Surfaces | 2 | 28 min | 14.0 min |
+| 4. Java Build and CI Delivery Surfaces | 3 | 58 min | 19.3 min |
 | 5. OSS Release and Traceable Verification | 0 | 0 min | 0 min |
 
 **Recent Trend:**
-- Last 5 plans: Phase 03 P01 (31 min), Phase 03 P02 (46 min), Phase 03 P03 (39 min), Phase 04 P01 (19 min), Phase 04 P02 (9 min)
+- Last 5 plans: Phase 03 P02 (46 min), Phase 03 P03 (39 min), Phase 04 P01 (19 min), Phase 04 P02 (9 min), Phase 04 P03 (30 min)
 - Trend: Stabilizing
 
 *Updated after each plan completion*
@@ -69,6 +70,7 @@ Progress: [█████████░] 93%
 | Phase 03 P03 | 39 min | 3 tasks | 10 files |
 | Phase 04 P01 | 19 min | 3 tasks | 9 files |
 | Phase 04 P02 | 9 min | 3 tasks | 6 files |
+| Phase 04-java-build-and-ci-delivery-surfaces P03 | 30 min | 3 tasks | 8 files |
 
 ## Accumulated Context
 
@@ -94,6 +96,9 @@ Recent decisions affecting current work:
 - [Phase 04]: Freeze required-check names build-and-test and yanote-validation with merge_group support for deterministic branch-protection reporting.
 - [Phase 04]: Render concise GitHub summary from report artifacts using deterministic issue ranking and top-5 cap to preserve single-screen readability.
 - [Phase 04]: Capture validation exit code explicitly and always upload deterministic artifact bundle with bounded override inputs.
+- [Phase 04-java-build-and-ci-delivery-surfaces]: Kept required checks fixed to build-and-test and yanote-validation while adding v1-e2e only for main/release pushes.
+- [Phase 04-java-build-and-ci-delivery-surfaces]: Added explicit assert-java21.sh execution after setup-java so runtime mismatches fail early with actionable remediation.
+- [Phase 04-java-build-and-ci-delivery-surfaces]: Reset compose volumes and moved report dependency install to npm ci to prevent stale-marker rerun failures.
 
 ### Pending Todos
 
@@ -105,6 +110,6 @@ None yet.
 
 ## Session Continuity
 
-Last session: 2026-03-04T17:00:15.000Z
-Stopped at: Completed 04-02-PLAN.md
+Last session: 2026-03-04T17:34:32.076Z
+Stopped at: Completed 04-03-PLAN.md
 Resume file: None
