@@ -121,8 +121,9 @@ join_sorted() {
 
 verify_release_tag_signature() {
   local release_tag="$1"
+  local verify_output=""
 
-  if git verify-tag "$release_tag" >/dev/null 2>&1; then
+  if verify_output="$(git verify-tag "$release_tag" 2>&1)"; then
     return 0
   fi
 
@@ -152,11 +153,13 @@ verify_release_tag_signature() {
 
     echo "tag-signing-key-fingerprint=${imported_fingerprint}"
 
-    if git verify-tag "$release_tag" >/dev/null 2>&1; then
+    if verify_output="$(git verify-tag "$release_tag" 2>&1)"; then
       return 0
     fi
 
-    fail_with_diagnostic "policy" "unverifiable-tag-signature" "Release tag '${release_tag}' signature could not be verified after importing RELEASE_TAG_SIGNING_PUBLIC_KEY." "false" "signature-verification-failed"
+    local compact_verify_output
+    compact_verify_output="$(printf '%s' "$verify_output" | tr '\n' ' ' | tr -s ' ')"
+    fail_with_diagnostic "policy" "unverifiable-tag-signature" "Release tag '${release_tag}' signature could not be verified after importing RELEASE_TAG_SIGNING_PUBLIC_KEY. verify-tag output: ${compact_verify_output}" "false" "signature-verification-failed"
     return 1
   fi
 
