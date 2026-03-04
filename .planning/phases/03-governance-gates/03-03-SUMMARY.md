@@ -44,7 +44,7 @@ Wave 3 integrated governance output contracts across CLI/report surfaces and pub
 - `npm -C yanote-js run test -- src/cli.summary.contract.test.ts src/cli.test.ts` ✅
 - `npm -C yanote-js run test -- src/report/report.test.ts src/cli.report.test.ts src/report/report.contract.test.ts` ✅
 - `npm -C yanote-js test && npm -C yanote-js run build` ✅
-- `./gradlew test` ❌ (Java runtime unavailable in execution environment)
+- `./gradlew test` ✅ (passed after setting `JAVA_HOME` to OpenJDK 21 in local environment)
 
 ## Outcome
 
