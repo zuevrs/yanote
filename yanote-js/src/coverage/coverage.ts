@@ -1,4 +1,9 @@
 import { match } from "path-to-regexp";
+import {
+  computeParameterCoverage
+} from "./parameterCoverage.js";
+import { computeStatusCoverage } from "./statusCoverage.js";
+import type { CoverageDimensionState, ParameterCoverageResult, ParameterDefinition, StatusCoverageResult } from "./dimensions.js";
 import type { HttpEvent } from "../model/httpEvent.js";
 import type { OperationKey } from "../model/operationKey.js";
 import { serializeOperationKey } from "../model/operationKey.js";
@@ -12,46 +17,90 @@ type TemplateMatcher = {
   matches: (route: string) => boolean;
 };
 
+type OperationEvidence = {
+  observed: boolean;
+  statuses: Set<number>;
+  queryKeys: Set<string>;
+  headerKeys: Set<string>;
+  suites: Set<string>;
+};
+
+export type HttpOperationContract = {
+  declaredStatuses: string[];
+  parameters: ParameterDefinition[];
+};
+
+export type CoverageDimensionSummary = {
+  state: CoverageDimensionState;
+  percent: number | null;
+  explanation?: string;
+};
+
+export type PerOperationCoverage = {
+  operationKey: string;
+  method: string;
+  route: string;
+  operation: {
+    state: "COVERED" | "UNCOVERED";
+  };
+  status: StatusCoverageResult;
+  parameters: ParameterCoverageResult;
+  suites: string[];
+};
+
 export type CoverageResult = {
   allOperations: OperationKey[];
   coveredOperations: OperationKey[];
   uncoveredOperations: OperationKey[];
   suitesByOperation: Map<string, Set<string>>;
   diagnostics: SemanticDiagnostic[];
+  dimensions: {
+    operations: CoverageDimensionSummary;
+    status: CoverageDimensionSummary;
+    parameters: CoverageDimensionSummary;
+    aggregate: CoverageDimensionSummary;
+  };
+  perOperation: PerOperationCoverage[];
+};
+
+export type ComputeCoverageOptions = {
+  operationContractsByKey?: ReadonlyMap<string, HttpOperationContract>;
 };
 
 export function computeCoverage(
   operations: OperationKey[],
   events: HttpEvent[],
-  excludePatterns: string[] = []
+  excludePatterns: string[] = [],
+  options: ComputeCoverageOptions = {}
 ): CoverageResult {
   const normalizedOps = normalizeAndFilterOperations(operations, excludePatterns);
-  const opByKey = new Map<string, OperationKey>();
-  for (const op of normalizedOps) {
-    opByKey.set(serializeOperationKey(op), op);
+  const httpOperations = normalizedOps.filter((operation): operation is HttpOperation => operation.kind === "http");
+
+  const operationByKey = new Map<string, HttpOperation>();
+  for (const operation of httpOperations) {
+    operationByKey.set(serializeOperationKey(operation), operation);
   }
 
-  const templateMatchers = buildTemplateMatchers(normalizedOps);
-  const suitesByOperation = new Map<string, Set<string>>();
+  const templateMatchers = buildTemplateMatchers(httpOperations);
+  const evidenceByOperation = new Map<string, OperationEvidence>();
   const diagnostics: SemanticDiagnostic[] = [];
 
-  for (const ev of events) {
-    if (typeof ev.method !== "string" || typeof ev.route !== "string") continue;
+  for (const event of events) {
+    if (typeof event.method !== "string" || typeof event.route !== "string") continue;
 
-    const eventMethod = ev.method.toUpperCase();
-    const eventRoute = ev.route;
+    const eventMethod = event.method.toUpperCase();
+    const eventRoute = event.route;
     const exactKey = serializeOperationKey({ kind: "http", method: eventMethod, route: eventRoute });
-    const exactOperation = opByKey.get(exactKey);
+    const exactOperation = operationByKey.get(exactKey);
 
-    if (exactOperation?.kind === "http") {
-      addSuiteMatch(suitesByOperation, exactKey, ev.testSuite);
+    if (exactOperation) {
+      recordOperationEvidence(evidenceByOperation, exactKey, event);
       continue;
     }
 
     const fallbackCandidates = findFallbackCandidates(templateMatchers, eventMethod, eventRoute);
     if (fallbackCandidates.length === 1) {
-      const selected = fallbackCandidates[0];
-      addSuiteMatch(suitesByOperation, serializeOperationKey(selected), ev.testSuite);
+      recordOperationEvidence(evidenceByOperation, serializeOperationKey(fallbackCandidates[0]), event);
       continue;
     }
 
@@ -74,48 +123,194 @@ export function computeCoverage(
     });
   }
 
-  const coveredKeys = new Set(suitesByOperation.keys());
   const coveredOperations: OperationKey[] = [];
   const uncoveredOperations: OperationKey[] = [];
 
-  for (const op of normalizedOps) {
-    const sk = serializeOperationKey(op);
-    if (coveredKeys.has(sk)) coveredOperations.push(op);
-    else uncoveredOperations.push(op);
+  for (const operation of httpOperations) {
+    const operationKey = serializeOperationKey(operation);
+    const evidence = evidenceByOperation.get(operationKey);
+    if (evidence?.observed) coveredOperations.push(operation);
+    else uncoveredOperations.push(operation);
   }
 
+  const perOperation: PerOperationCoverage[] = httpOperations.map((operation) => {
+    const operationKey = serializeOperationKey(operation);
+    const contract = options.operationContractsByKey?.get(operationKey);
+    const evidence = evidenceByOperation.get(operationKey) ?? createOperationEvidence();
+
+    const status = computeStatusCoverage({
+      declaredStatuses: contract?.declaredStatuses ?? [],
+      observedStatuses: Array.from(evidence.statuses).sort((left, right) => left - right)
+    });
+
+    const parameters = computeParameterCoverage({
+      parameters: contract?.parameters ?? [],
+      evidence: {
+        operationObserved: evidence.observed,
+        queryKeys: Array.from(evidence.queryKeys).sort((left, right) => left.localeCompare(right)),
+        headerKeys: Array.from(evidence.headerKeys).sort((left, right) => left.localeCompare(right))
+      }
+    });
+
+    return {
+      operationKey,
+      method: operation.method,
+      route: operation.route,
+      operation: {
+        state: evidence.observed ? "COVERED" : "UNCOVERED"
+      },
+      status,
+      parameters,
+      suites: Array.from(evidence.suites).sort((left, right) => left.localeCompare(right))
+    };
+  });
+
+  const suitesByOperation = new Map<string, Set<string>>();
+  for (const entry of perOperation) {
+    if (entry.suites.length === 0) continue;
+    suitesByOperation.set(entry.operationKey, new Set(entry.suites));
+  }
+
+  const dimensions = computeDimensionSummaries(perOperation, coveredOperations.length, httpOperations.length);
+
   return {
-    allOperations: normalizedOps,
+    allOperations: httpOperations,
     coveredOperations,
     uncoveredOperations,
     suitesByOperation,
-    diagnostics
+    diagnostics,
+    dimensions,
+    perOperation
   };
 }
 
-function addSuiteMatch(suitesByOperation: Map<string, Set<string>>, operationKey: string, suiteName: string): void {
-  const suite = suiteName?.trim() ? suiteName : "unknown";
-  const set = suitesByOperation.get(operationKey) ?? new Set<string>();
-  set.add(suite);
-  suitesByOperation.set(operationKey, set);
+function recordOperationEvidence(
+  evidenceByOperation: Map<string, OperationEvidence>,
+  operationKey: string,
+  event: HttpEvent
+): void {
+  const evidence = evidenceByOperation.get(operationKey) ?? createOperationEvidence();
+  evidence.observed = true;
+
+  const suite = typeof event.testSuite === "string" && event.testSuite.trim().length > 0 ? event.testSuite.trim() : "unknown";
+  evidence.suites.add(suite);
+
+  if (typeof event.status === "number" && Number.isInteger(event.status)) {
+    evidence.statuses.add(event.status);
+  }
+
+  for (const key of Array.isArray(event.queryKeys) ? event.queryKeys : []) {
+    if (typeof key !== "string" || key.trim().length === 0) continue;
+    evidence.queryKeys.add(key.trim());
+  }
+
+  for (const key of Array.isArray(event.headerKeys) ? event.headerKeys : []) {
+    if (typeof key !== "string" || key.trim().length === 0) continue;
+    evidence.headerKeys.add(key.trim().toLowerCase());
+  }
+
+  evidenceByOperation.set(operationKey, evidence);
 }
 
-function buildTemplateMatchers(operations: OperationKey[]): TemplateMatcher[] {
+function createOperationEvidence(): OperationEvidence {
+  return {
+    observed: false,
+    statuses: new Set<number>(),
+    queryKeys: new Set<string>(),
+    headerKeys: new Set<string>(),
+    suites: new Set<string>()
+  };
+}
+
+function computeDimensionSummaries(
+  perOperation: PerOperationCoverage[],
+  coveredOperations: number,
+  totalOperations: number
+): CoverageResult["dimensions"] {
+  const operations = summarizeDimension(coveredOperations, totalOperations);
+
+  let statusDeclared = 0;
+  let statusCovered = 0;
+  let requiredParametersTotal = 0;
+  let requiredParametersCovered = 0;
+
+  for (const entry of perOperation) {
+    statusDeclared += entry.status.declaredStatuses.length;
+    statusCovered += entry.status.coveredStatuses.length;
+    requiredParametersTotal += entry.parameters.required.total;
+    requiredParametersCovered += entry.parameters.required.covered;
+  }
+
+  const status = summarizeDimension(statusCovered, statusDeclared);
+  const parameters = summarizeDimension(requiredParametersCovered, requiredParametersTotal);
+
+  const aggregate = summarizeAggregate(operations.percent, status.percent, parameters.percent);
+
+  return {
+    operations,
+    status,
+    parameters,
+    aggregate
+  };
+}
+
+function summarizeDimension(covered: number, total: number): CoverageDimensionSummary {
+  if (total === 0) {
+    return { state: "N/A", percent: null };
+  }
+
+  const percent = roundPercent((covered / total) * 100);
+  return {
+    state: stateFromPercent(percent),
+    percent
+  };
+}
+
+function summarizeAggregate(
+  operationsPercent: number | null,
+  statusPercent: number | null,
+  parameterPercent: number | null
+): CoverageDimensionSummary {
+  if (operationsPercent == null || statusPercent == null || parameterPercent == null) {
+    return {
+      state: "N/A",
+      percent: null,
+      explanation: "aggregate is N/A because weighted dimensions include N/A"
+    };
+  }
+
+  const weighted = roundPercent(operationsPercent * 0.6 + statusPercent * 0.25 + parameterPercent * 0.15);
+  return {
+    state: stateFromPercent(weighted),
+    percent: weighted
+  };
+}
+
+function stateFromPercent(percent: number): CoverageDimensionState {
+  if (percent >= 100) return "COVERED";
+  if (percent <= 0) return "UNCOVERED";
+  return "PARTIAL";
+}
+
+function roundPercent(value: number): number {
+  return Math.round(value * 100) / 100;
+}
+
+function buildTemplateMatchers(operations: HttpOperation[]): TemplateMatcher[] {
   const matchers: TemplateMatcher[] = [];
 
-  for (const op of operations) {
-    if (op.kind !== "http") continue;
-    if (!op.route.includes("{")) continue;
+  for (const operation of operations) {
+    if (!operation.route.includes("{")) continue;
 
-    const key = serializeOperationKey(op);
-    const pattern = toPathToRegexpPattern(op.route);
+    const key = serializeOperationKey(operation);
+    const pattern = toPathToRegexpPattern(operation.route);
     const routeMatcher = match<Record<string, string>>(pattern, {
       end: true,
       decode: decodeURIComponent
     });
 
     matchers.push({
-      operation: op,
+      operation,
       key,
       matches: (route: string) => routeMatcher(route) !== false
     });
@@ -136,38 +331,25 @@ function toPathToRegexpPattern(route: string): string {
   return route.replace(/\{[^/}]+\}/g, () => `:param${index++}`);
 }
 
-function normalizeAndFilterOperations(operations: OperationKey[], excludePatterns: string[]): OperationKey[] {
-  const out: OperationKey[] = [];
+function normalizeAndFilterOperations(operations: OperationKey[], excludePatterns: string[]): HttpOperation[] {
+  const out: HttpOperation[] = [];
   const seen = new Set<string>();
 
-  for (const op of operations) {
-    if (!op || typeof op !== "object") continue;
-    if (op.kind === "http") {
-      if (typeof op.method !== "string" || typeof op.route !== "string") continue;
+  for (const operation of operations) {
+    if (!operation || typeof operation !== "object") continue;
+    if (operation.kind !== "http") continue;
+    if (typeof operation.method !== "string" || typeof operation.route !== "string") continue;
 
-      const method = op.method.toUpperCase();
-      const route = normalizeTemplatedRoute(op.route);
-      if (isExcluded(route, excludePatterns)) continue;
+    const method = operation.method.toUpperCase();
+    const route = normalizeTemplatedRoute(operation.route);
+    if (isExcluded(route, excludePatterns)) continue;
 
-      const norm: OperationKey = { kind: "http", method, route };
-      const sk = serializeOperationKey(norm);
-      if (seen.has(sk)) continue;
-      seen.add(sk);
-      out.push(norm);
-      continue;
-    }
+    const normalized: HttpOperation = { kind: "http", method, route };
+    const key = serializeOperationKey(normalized);
+    if (seen.has(key)) continue;
 
-    if ((op as any).kind === "asyncapi") {
-      const action = (op as any).action;
-      const channel = (op as any).channel;
-      if ((action !== "send" && action !== "receive") || typeof channel !== "string") continue;
-      const norm: OperationKey = { kind: "asyncapi", action, channel };
-      const sk = serializeOperationKey(norm);
-      if (seen.has(sk)) continue;
-      seen.add(sk);
-      out.push(norm);
-      continue;
-    }
+    seen.add(key);
+    out.push(normalized);
   }
 
   return out;
@@ -202,4 +384,3 @@ function compareHttpOperations(left: HttpOperation, right: HttpOperation): numbe
   if (leftKey > rightKey) return 1;
   return 0;
 }
-

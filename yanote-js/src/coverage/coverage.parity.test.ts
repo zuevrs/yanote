@@ -34,6 +34,8 @@ function toHttpEvents(entries: Array<{ method: string; route: string; suite?: st
     kind: "http",
     method: entry.method,
     route: entry.route,
+    queryKeys: [],
+    headerKeys: [],
     testRunId: `run-${index + 1}`,
     testSuite: entry.suite ?? "suite-parity"
   }));
