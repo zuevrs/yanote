@@ -1,0 +1,144 @@
+name: release
+
+on:
+  push:
+    tags:
+      - 'v[0-9]+\.[0-9]+\.[0-9]+'
+
+permissions:
+  contents: read
+
+jobs:
+  preflight:
+    name: Preflight
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    outputs:
+      release_tag: ${{ steps.preflight.outputs.release_tag }}
+      retry_eligible: ${{ steps.preflight.outputs.retry_eligible }}
+      retry_reason: ${{ steps.preflight.outputs.retry_reason }}
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v5
+        with:
+          fetch-depth: 0
+
+      - name: Setup Java 21
+        uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: "21"
+
+      - name: Setup Gradle
+        uses: gradle/actions/setup-gradle@v5
+
+      - name: Resolve previous release tag
+        id: previous-tag
+        run: |
+          set -euo pipefail
+          PREVIOUS_TAG="$(git tag --list 'v*' --sort=-version:refname | grep -v "^${GITHUB_REF_NAME}$" | head -n 1 || true)"
+          if [[ -z "${PREVIOUS_TAG}" ]]; then
+            PREVIOUS_TAG="none"
+          fi
+          echo "previous_release_tag=${PREVIOUS_TAG}" >> "${GITHUB_OUTPUT}"
+
+      - name: Run release preflight
+        id: preflight
+        env:
+          RELEASE_TAG: ${{ github.ref_name }}
+          PROJECT_VERSION: ${{ github.ref_name }}
+          PREVIOUS_RELEASE_TAG: ${{ steps.previous-tag.outputs.previous_release_tag }}
+          RELEASE_FREEZE_APPROVED: "true"
+          JRELEASER_MAVENCENTRAL_USERNAME: preflight-placeholder
+          JRELEASER_MAVENCENTRAL_PASSWORD: preflight-placeholder
+          JRELEASER_GPG_SECRET_KEY: preflight-placeholder
+          JRELEASER_GPG_PUBLIC_KEY: preflight-placeholder
+          JRELEASER_GPG_PASSPHRASE: preflight-placeholder
+        run: |
+          set -euo pipefail
+          OUTPUT="$(bash scripts/release/preflight.sh)"
+          printf '%s\n' "${OUTPUT}"
+          RETRY_ELIGIBLE="$(printf '%s\n' "${OUTPUT}" | awk -F= '/^retry-eligible=/{print $2}' | tail -n 1)"
+          RETRY_REASON="$(printf '%s\n' "${OUTPUT}" | awk -F= '/^retry_reason=/{print $2}' | tail -n 1)"
+          echo "release_tag=${GITHUB_REF_NAME}" >> "${GITHUB_OUTPUT}"
+          echo "retry_eligible=${RETRY_ELIGIBLE:-false}" >> "${GITHUB_OUTPUT}"
+          echo "retry_reason=${RETRY_REASON:-no-failure}" >> "${GITHUB_OUTPUT}"
+
+  publish:
+    name: Publish
+    runs-on: ubuntu-latest
+    needs: preflight
+    environment: production-release
+    permissions:
+      contents: write
+      packages: write
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v5
+        with:
+          fetch-depth: 0
+
+      - name: Setup Java 21
+        uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: "21"
+
+      - name: Setup Gradle
+        uses: gradle/actions/setup-gradle@v5
+
+      - name: Build deterministic release outputs
+        run: ./gradlew distAll cyclonedxBom jreleaserConfig
+
+      - name: Prepare deterministic release asset index
+        run: |
+          set -euo pipefail
+          mkdir -p build/release-assets
+          cat > build/release-assets/index.txt <<'EOF'
+          core-dist|build/distributions/yanote-dist-all.zip
+          EOF
+
+      - name: Assemble deterministic release bundle
+        env:
+          RELEASE_TAG: ${{ needs.preflight.outputs.release_tag }}
+          RELEASE_ASSET_INDEX: build/release-assets/index.txt
+          SBOM_PATH: build/reports/sbom/cyclonedx.json
+        run: bash scripts/release/assemble-release-assets.sh
+
+      - name: Render deterministic release notes
+        env:
+          RELEASE_TAG: ${{ needs.preflight.outputs.release_tag }}
+          PREVIOUS_RELEASE_TAG: ${{ github.event.before }}
+        run: >
+          node scripts/release/render-release-notes.mjs
+          --output build/release-notes.md
+          --version "${{ needs.preflight.outputs.release_tag }}"
+          --previous-tag "${{ github.event.before }}"
+
+      - name: Publish with deterministic same-tag retry policy
+        env:
+          JRELEASER_MAVENCENTRAL_USERNAME: ${{ secrets.JRELEASER_MAVENCENTRAL_USERNAME }}
+          JRELEASER_MAVENCENTRAL_PASSWORD: ${{ secrets.JRELEASER_MAVENCENTRAL_PASSWORD }}
+          JRELEASER_GPG_SECRET_KEY: ${{ secrets.JRELEASER_GPG_SECRET_KEY }}
+          JRELEASER_GPG_PUBLIC_KEY: ${{ secrets.JRELEASER_GPG_PUBLIC_KEY }}
+          JRELEASER_GPG_PASSPHRASE: ${{ secrets.JRELEASER_GPG_PASSPHRASE }}
+        run: |
+          set -euo pipefail
+          echo "same-tag retry policy context: retry-eligible=${{ needs.preflight.outputs.retry_eligible }} retry_reason=${{ needs.preflight.outputs.retry_reason }}"
+          if [[ "${{ needs.preflight.outputs.retry_eligible }}" == "true" ]]; then
+            echo "same-tag retry allowed because preflight classified a transient condition."
+          else
+            echo "same-tag retry disabled for non-transient conditions."
+          fi
+          ./gradlew jreleaserFullRelease
+
+      - name: Create GitHub Release
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          set -euo pipefail
+          gh release create "${{ needs.preflight.outputs.release_tag }}" \
+            --title "${{ needs.preflight.outputs.release_tag }}" \
+            --notes-file build/release-notes.md \
+            build/release-bundle/"${{ needs.preflight.outputs.release_tag }}"/assets/*
