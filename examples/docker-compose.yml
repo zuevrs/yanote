@@ -30,10 +30,12 @@ services:
       YANOTE_EVENTS_PATH: /data/yanote/events.jsonl
       YANOTE_READY_MARKER: /data/yanote/tests-done.marker
       YANOTE_REPORT_MARKER: /data/yanote/report-done.marker
+      YANOTE_API_WAIT_ATTEMPTS: "900"
+      YANOTE_REPORT_WAIT_ATTEMPTS: "900"
     command: >
       sh -c '
         set -e;
-        for i in $(seq 1 180); do
+        for i in $(seq 1 "$${YANOTE_API_WAIT_ATTEMPTS}"); do
           if curl -fsS "$${YANOTE_BASE_URI}/health" >/dev/null; then
             break;
           fi;
@@ -42,7 +44,7 @@ services:
         ./gradlew --no-daemon -g /data/gradle --project-cache-dir /data/gradle/project-cache :examples:tests-restassured:test;
         echo "done" > "$${YANOTE_READY_MARKER}";
         found=0;
-        for i in $(seq 1 180); do
+        for i in $(seq 1 "$${YANOTE_REPORT_WAIT_ATTEMPTS}"); do
           if test -f "$${YANOTE_REPORT_MARKER}"; then
             found=1;
             break;
@@ -67,12 +69,13 @@ services:
     environment:
       YANOTE_READY_MARKER: /data/yanote/tests-done.marker
       YANOTE_REPORT_MARKER: /data/yanote/report-done.marker
+      YANOTE_TESTS_WAIT_ATTEMPTS: "900"
     command: >
       sh -c '
         set -e;
         cd /workspace;
         found=0;
-        for i in $(seq 1 180); do
+        for i in $(seq 1 "$${YANOTE_TESTS_WAIT_ATTEMPTS}"); do
           if test -f "$${YANOTE_READY_MARKER}"; then
             found=1;
             break;
@@ -83,7 +86,7 @@ services:
           echo "ERROR: tests marker not found at $${YANOTE_READY_MARKER}";
           exit 1;
         fi;
-        npm -C yanote-js install;
+        npm -C yanote-js ci;
         npm -C yanote-js run build;
         node yanote-js/dist/yanote.cjs report --spec /workspace/examples/openapi/demo-openapi.yaml --events /data/yanote/events.jsonl --out /data/yanote/out --min-coverage 100 --exclude /health;
         echo "Generated report:";
