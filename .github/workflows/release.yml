@@ -112,6 +112,9 @@ jobs:
         run: |
           set -euo pipefail
           mkdir -p build/release-assets
+          mkdir -p build/distributions
+          rm -f build/distributions/yanote-dist-all.zip
+          (cd dist && zip -rq ../build/distributions/yanote-dist-all.zip .)
           cat > build/release-assets/index.txt <<'EOF'
           core-dist|build/distributions/yanote-dist-all.zip
           EOF
