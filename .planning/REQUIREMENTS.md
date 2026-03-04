@@ -32,7 +32,7 @@ Requirements for initial release. Each maps to roadmap phases.
 
 - [x] **DELV-01**: Developer can run coverage analysis via standalone CLI in local and CI environments
 - [x] **DELV-02**: Developer can run coverage analysis via Gradle plugin tasks integrated into Java build lifecycle
-- [ ] **DELV-03**: Team can run coverage analysis via GitHub Action and consume resulting artifacts/check outcomes
+- [x] **DELV-03**: Team can run coverage analysis via GitHub Action and consume resulting artifacts/check outcomes
 
 ### Release and Distribution
 
@@ -44,7 +44,7 @@ Requirements for initial release. Each maps to roadmap phases.
 
 - [ ] **QUAL-01**: Team has automated tests that trace to all v1 requirements (100% requirement coverage)
 - [ ] **QUAL-02**: CI runs unit, integration, and end-to-end checks for v1 workflow and blocks merges on failure
-- [ ] **QUAL-03**: Team verifies Java 21 baseline compatibility in automated checks
+- [x] **QUAL-03**: Team verifies Java 21 baseline compatibility in automated checks
 
 ## v2 Requirements
 
@@ -88,13 +88,13 @@ Which phases cover which requirements. Updated during roadmap creation.
 | GATE-04 | Phase 3 | Complete |
 | DELV-01 | Phase 2 | Complete |
 | DELV-02 | Phase 4 | Complete |
-| DELV-03 | Phase 4 | Pending |
+| DELV-03 | Phase 4 | Complete |
 | RELS-01 | Phase 5 | Pending |
 | RELS-02 | Phase 5 | Pending |
 | RELS-03 | Phase 5 | Pending |
 | QUAL-01 | Phase 5 | Pending |
 | QUAL-02 | Phase 4 | Pending |
-| QUAL-03 | Phase 4 | Pending |
+| QUAL-03 | Phase 4 | Complete |
 
 **Coverage:**
 - v1 requirements: 21 total

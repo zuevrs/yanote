@@ -97,5 +97,5 @@ Plans:
 | 1. Specification Semantics Contract | 5/5 | Complete | 2026-03-04 |
 | 2. Coverage Metrics and CLI Reporting | 3/3 | Complete | 2026-03-04 |
 | 3. Governance Gates | 3/3 | Complete | 2026-03-04 |
-| 4. Java Build and CI Delivery Surfaces | 1/3 | In Progress | - |
+| 4. Java Build and CI Delivery Surfaces | 2/3 | In Progress | - |
 | 5. OSS Release and Traceable Verification | 0/TBD | Not started | - |
