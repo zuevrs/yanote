@@ -36,9 +36,9 @@ Requirements for initial release. Each maps to roadmap phases.
 
 ### Release and Distribution
 
-- [ ] **RELS-01**: Maintainer can publish signed Java artifacts to Maven Central
+- [x] **RELS-01**: Maintainer can publish signed Java artifacts to Maven Central
 - [ ] **RELS-02**: Maintainer can publish versioned GitHub Releases with changelog and usage notes
-- [ ] **RELS-03**: Maintainer can run a reproducible CI release pipeline from tagged versions
+- [x] **RELS-03**: Maintainer can run a reproducible CI release pipeline from tagged versions
 
 ### Quality and Verification
 
@@ -89,9 +89,9 @@ Which phases cover which requirements. Updated during roadmap creation.
 | DELV-01 | Phase 2 | Complete |
 | DELV-02 | Phase 4 | Complete |
 | DELV-03 | Phase 4 | Complete |
-| RELS-01 | Phase 5 | Pending |
+| RELS-01 | Phase 5 | Complete |
 | RELS-02 | Phase 5 | Pending |
-| RELS-03 | Phase 5 | Pending |
+| RELS-03 | Phase 5 | Complete |
 | QUAL-01 | Phase 5 | Pending |
 | QUAL-02 | Phase 4 | Complete |
 | QUAL-03 | Phase 4 | Complete |
