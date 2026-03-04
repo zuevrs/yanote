@@ -145,6 +145,11 @@ verify_release_tag_signature() {
       return 1
     fi
 
+    if ! printf '%s:6:\n' "$imported_fingerprint" | gpg --import-ownertrust >/dev/null 2>&1; then
+      fail_with_diagnostic "input" "untrusted-signing-public-key" "Unable to set owner trust for RELEASE_TAG_SIGNING_PUBLIC_KEY in runner keyring." "false" "signing-key-trust"
+      return 1
+    fi
+
     echo "tag-signing-key-fingerprint=${imported_fingerprint}"
 
     if git verify-tag "$release_tag" >/dev/null 2>&1; then
