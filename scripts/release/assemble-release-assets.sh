@@ -7,7 +7,7 @@ set -euo pipefail
 
 RELEASE_TAG="${RELEASE_TAG:-${1:-}}"
 ASSET_INDEX_PATH="${RELEASE_ASSET_INDEX:-build/release-assets/index.txt}"
-SBOM_SOURCE_PATH="${SBOM_PATH:-build/reports/sbom/cyclonedx.json}"
+SBOM_SOURCE_PATH="${SBOM_PATH:-build/reports/cyclonedx/bom.json}"
 TRACEABILITY_JSON_PATH="${TRACEABILITY_JSON_PATH:-.planning/traceability/v1-requirements-tests.json}"
 TRACEABILITY_MARKDOWN_PATH="${TRACEABILITY_MARKDOWN_PATH:-.planning/traceability/v1-requirements-tests.md}"
 OUTPUT_ROOT="${RELEASE_OUTPUT_DIR:-build/release-bundle/${RELEASE_TAG}}"

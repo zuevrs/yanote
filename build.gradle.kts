@@ -1,6 +1,7 @@
 plugins {
     base
     id("org.jreleaser") version "1.23.0"
+    id("org.cyclonedx.bom") version "3.2.0"
 }
 
 val releasePublicationModules = setOf(
