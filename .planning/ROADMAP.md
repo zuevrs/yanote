@@ -10,7 +10,7 @@ Deliver a Java-first OpenAPI coverage governance workflow that teams can trust i
 - Integer phases (1, 2, 3): Planned milestone work
 - Decimal phases (2.1, 2.2): Urgent insertions (marked with INSERTED)
 
-- [ ] **Phase 1: Specification Semantics Contract** - Canonicalize OpenAPI operations and deterministic event-to-operation mapping.
+- [x] **Phase 1: Specification Semantics Contract** - Canonicalize OpenAPI operations and deterministic event-to-operation mapping.
 - [ ] **Phase 2: Coverage Metrics and CLI Reporting** - Deliver operation/status/parameter coverage with deterministic report output through the standalone CLI.
 - [ ] **Phase 3: Governance Gates** - Enforce threshold, regression, exclusion, and fail-closed policy behavior.
 - [ ] **Phase 4: Java Build and CI Delivery Surfaces** - Deliver Gradle plugin and GitHub Action channels with merge-blocking CI checks on Java 21.
@@ -32,7 +32,7 @@ Plans:
 - [x] 01-02-PLAN.md - Implement Java canonical extraction and invalid diagnostics contract.
 - [x] 01-03-PLAN.md - Implement TypeScript deterministic matcher and fail-closed CLI semantics.
 - [x] 01-04-PLAN.md - Implement Java deterministic matcher and coverage diagnostics integration.
-- [ ] 01-05-PLAN.md - Enforce cross-runtime parity with shared semantic fixtures and adapter tests.
+- [x] 01-05-PLAN.md - Enforce cross-runtime parity with shared semantic fixtures and adapter tests.
 
 ### Phase 2: Coverage Metrics and CLI Reporting
 **Goal**: Developers can compute deterministic operation-level coverage results from evidence using the standalone CLI in local and CI workflows.
@@ -82,7 +82,7 @@ Plans:
 
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
-| 1. Specification Semantics Contract | 4/5 | In Progress | - |
+| 1. Specification Semantics Contract | 5/5 | Complete | 2026-03-04 |
 | 2. Coverage Metrics and CLI Reporting | 0/TBD | Not started | - |
 | 3. Governance Gates | 0/TBD | Not started | - |
 | 4. Java Build and CI Delivery Surfaces | 0/TBD | Not started | - |
