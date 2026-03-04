@@ -37,6 +37,8 @@ test("release workflow runs preflight before publish and requires approval gate"
 test("release workflow wires deterministic publish sequence", async () => {
   const source = await loadReleaseWorkflowSource();
   assert.match(source, /\.\/gradlew\s+distAll/);
+  assert.match(source, /yanote-dist-all\.zip/);
+  assert.match(source, /zip -rq/);
   assert.match(source, /cyclonedxBom|sbom/i);
   assert.match(source, /assemble-release-assets\.sh/);
   assert.match(source, /render-release-notes\.mjs/);
