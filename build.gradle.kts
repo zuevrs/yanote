@@ -38,6 +38,16 @@ subprojects {
 
     val releaseScopedModule = path in releasePublicationModules
     val explicitlyExcludedModule = path in releasePublicationExcludedModules
+
+    tasks.matching { it.name == "cyclonedxDirectBom" }.configureEach {
+        if (!releaseScopedModule || explicitlyExcludedModule) {
+            enabled = false
+        } else {
+            // Make cross-project class outputs explicit to satisfy Gradle validation in CI.
+            dependsOn(rootProject.subprojects.map { "${it.path}:classes" })
+        }
+    }
+
     if (!releaseScopedModule || explicitlyExcludedModule) {
         // Fail closed: only the v1 publication allowlist is permitted to publish externally.
         tasks.matching {
