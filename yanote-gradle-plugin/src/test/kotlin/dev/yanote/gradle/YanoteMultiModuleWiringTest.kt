@@ -158,14 +158,15 @@ class YanoteMultiModuleWiringTest {
             tasks.register("printYanoteDependencyOrder") {
                 doLast {
                     val rootReport = tasks.named("yanoteReport").get()
+                    fun flatten(dep: Any?): List<String> = when (dep) {
+                        is org.gradle.api.Task -> listOf(dep.path)
+                        is org.gradle.api.tasks.TaskProvider<*> -> listOf(dep.get().path)
+                        is Iterable<*> -> dep.flatMap { flatten(it) }
+                        is Array<*> -> dep.toList().flatMap { flatten(it) }
+                        else -> emptyList()
+                    }
                     val orderedDependencies = rootReport.dependsOn
-                        .mapNotNull { dep ->
-                            when (dep) {
-                                is org.gradle.api.Task -> dep.path
-                                is org.gradle.api.tasks.TaskProvider<*> -> dep.get().path
-                                else -> null
-                            }
-                        }
+                        .flatMap { flatten(it) }
                         .filter { it.endsWith(":yanoteReport") }
                     println("ROOT_REPORT_DEPS_ORDER=" + orderedDependencies.joinToString(","))
                 }
@@ -177,7 +178,7 @@ class YanoteMultiModuleWiringTest {
 
         assertTrue(
             result.output.contains("ROOT_REPORT_DEPS_ORDER=:alpha:yanoteReport,:middle:yanoteReport,:zeta:yanoteReport"),
-            "Expected aggregate dependencies to be wired in sorted project-path order"
+            "Expected aggregate dependencies to be wired in sorted project-path order. Output was:\n${result.output}"
         )
     }
 
