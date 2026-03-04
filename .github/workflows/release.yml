@@ -120,7 +120,7 @@ jobs:
         env:
           RELEASE_TAG: ${{ needs.preflight.outputs.release_tag }}
           RELEASE_ASSET_INDEX: build/release-assets/index.txt
-          SBOM_PATH: build/reports/sbom/cyclonedx.json
+          SBOM_PATH: build/reports/cyclonedx/bom.json
           TRACEABILITY_JSON_PATH: .planning/traceability/v1-requirements-tests.json
           TRACEABILITY_MARKDOWN_PATH: .planning/traceability/v1-requirements-tests.md
         run: bash scripts/release/assemble-release-assets.sh
