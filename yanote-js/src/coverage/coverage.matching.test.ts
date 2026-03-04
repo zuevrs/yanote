@@ -8,6 +8,8 @@ function event(method: string, route: string, suite = "suite-a"): HttpEvent {
     kind: "http",
     method,
     route,
+    queryKeys: [],
+    headerKeys: [],
     testRunId: "run-1",
     testSuite: suite
   };
