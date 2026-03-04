@@ -11,7 +11,7 @@ Deliver a Java-first OpenAPI coverage governance workflow that teams can trust i
 - Decimal phases (2.1, 2.2): Urgent insertions (marked with INSERTED)
 
 - [x] **Phase 1: Specification Semantics Contract** - Canonicalize OpenAPI operations and deterministic event-to-operation mapping.
-- [ ] **Phase 2: Coverage Metrics and CLI Reporting** - Deliver operation/status/parameter coverage with deterministic report output through the standalone CLI.
+- [x] **Phase 2: Coverage Metrics and CLI Reporting** - Deliver operation/status/parameter coverage with deterministic report output through the standalone CLI.
 - [ ] **Phase 3: Governance Gates** - Enforce threshold, regression, exclusion, and fail-closed policy behavior.
 - [ ] **Phase 4: Java Build and CI Delivery Surfaces** - Deliver Gradle plugin and GitHub Action channels with merge-blocking CI checks on Java 21.
 - [ ] **Phase 5: OSS Release and Traceable Verification** - Ship signed Maven Central and GitHub releases with full v1 requirement-to-test traceability.
@@ -45,9 +45,9 @@ Plans:
   4. Developer can read a concise terminal summary of uncovered operations and aggregate coverage percentages.
 **Plans**: 3 plans
 Plans:
-- [ ] 02-01-PLAN.md (Wave 1) - Define status/parameter dimension contracts and parameter-evidence ingestion.
-- [ ] 02-02-PLAN.md (Wave 1) - Add strict versioned schema and deterministic JSON write boundary.
-- [ ] 02-03-PLAN.md (Wave 2, depends on 02-01 + 02-02) - Integrate layered coverage into deterministic standalone CLI output contract.
+- [x] 02-01-PLAN.md (Wave 1) - Define status/parameter dimension contracts and parameter-evidence ingestion.
+- [x] 02-02-PLAN.md (Wave 1) - Add strict versioned schema and deterministic JSON write boundary.
+- [x] 02-03-PLAN.md (Wave 2, depends on 02-01 + 02-02) - Integrate layered coverage into deterministic standalone CLI output contract.
 
 ### Phase 3: Governance Gates
 **Goal**: Teams can enforce coverage policy as deterministic pass/fail governance in automated checks.
@@ -87,7 +87,7 @@ Plans:
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
 | 1. Specification Semantics Contract | 5/5 | Complete | 2026-03-04 |
-| 2. Coverage Metrics and CLI Reporting | 0/3 | Not started | - |
+| 2. Coverage Metrics and CLI Reporting | 3/3 | Complete | 2026-03-04 |
 | 3. Governance Gates | 0/TBD | Not started | - |
 | 4. Java Build and CI Delivery Surfaces | 0/TBD | Not started | - |
 | 5. OSS Release and Traceable Verification | 0/TBD | Not started | - |

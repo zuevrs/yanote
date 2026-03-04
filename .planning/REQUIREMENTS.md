@@ -15,11 +15,11 @@ Requirements for initial release. Each maps to roadmap phases.
 
 ### Coverage Engine
 
-- [ ] **COVR-01**: Maintainer can compute operation-level coverage for all scoped v1 endpoints
-- [ ] **COVR-02**: Maintainer can compute status-code coverage per operation
-- [ ] **COVR-03**: Maintainer can compute parameter coverage (path/query/header where defined)
-- [ ] **COVR-04**: Maintainer can generate deterministic versioned JSON report output for the same inputs
-- [ ] **COVR-05**: Maintainer can read a concise CLI summary showing uncovered operations and coverage percentages
+- [x] **COVR-01**: Maintainer can compute operation-level coverage for all scoped v1 endpoints
+- [x] **COVR-02**: Maintainer can compute status-code coverage per operation
+- [x] **COVR-03**: Maintainer can compute parameter coverage (path/query/header where defined)
+- [x] **COVR-04**: Maintainer can generate deterministic versioned JSON report output for the same inputs
+- [x] **COVR-05**: Maintainer can read a concise CLI summary showing uncovered operations and coverage percentages
 
 ### Governance Gates
 
@@ -30,7 +30,7 @@ Requirements for initial release. Each maps to roadmap phases.
 
 ### Delivery Surfaces
 
-- [ ] **DELV-01**: Developer can run coverage analysis via standalone CLI in local and CI environments
+- [x] **DELV-01**: Developer can run coverage analysis via standalone CLI in local and CI environments
 - [ ] **DELV-02**: Developer can run coverage analysis via Gradle plugin tasks integrated into Java build lifecycle
 - [ ] **DELV-03**: Team can run coverage analysis via GitHub Action and consume resulting artifacts/check outcomes
 
@@ -77,16 +77,16 @@ Which phases cover which requirements. Updated during roadmap creation.
 | SPEC-01 | Phase 1 | Complete |
 | SPEC-02 | Phase 1 | Complete |
 | SPEC-03 | Phase 1 | Complete |
-| COVR-01 | Phase 2 | Pending |
-| COVR-02 | Phase 2 | Pending |
-| COVR-03 | Phase 2 | Pending |
-| COVR-04 | Phase 2 | Pending |
-| COVR-05 | Phase 2 | Pending |
+| COVR-01 | Phase 2 | Complete |
+| COVR-02 | Phase 2 | Complete |
+| COVR-03 | Phase 2 | Complete |
+| COVR-04 | Phase 2 | Complete |
+| COVR-05 | Phase 2 | Complete |
 | GATE-01 | Phase 3 | Pending |
 | GATE-02 | Phase 3 | Pending |
 | GATE-03 | Phase 3 | Pending |
 | GATE-04 | Phase 3 | Pending |
-| DELV-01 | Phase 2 | Pending |
+| DELV-01 | Phase 2 | Complete |
 | DELV-02 | Phase 4 | Pending |
 | DELV-03 | Phase 4 | Pending |
 | RELS-01 | Phase 5 | Pending |
@@ -103,4 +103,4 @@ Which phases cover which requirements. Updated during roadmap creation.
 
 ---
 *Requirements defined: 2026-03-04*
-*Last updated: 2026-03-04 after roadmap mapping*
+*Last updated: 2026-03-04 after Phase 2 execution*
