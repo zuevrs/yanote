@@ -74,33 +74,33 @@ Which phases cover which requirements. Updated during roadmap creation.
 
 | Requirement | Phase | Status |
 |-------------|-------|--------|
-| SPEC-01 | Unmapped | Pending |
-| SPEC-02 | Unmapped | Pending |
-| SPEC-03 | Unmapped | Pending |
-| COVR-01 | Unmapped | Pending |
-| COVR-02 | Unmapped | Pending |
-| COVR-03 | Unmapped | Pending |
-| COVR-04 | Unmapped | Pending |
-| COVR-05 | Unmapped | Pending |
-| GATE-01 | Unmapped | Pending |
-| GATE-02 | Unmapped | Pending |
-| GATE-03 | Unmapped | Pending |
-| GATE-04 | Unmapped | Pending |
-| DELV-01 | Unmapped | Pending |
-| DELV-02 | Unmapped | Pending |
-| DELV-03 | Unmapped | Pending |
-| RELS-01 | Unmapped | Pending |
-| RELS-02 | Unmapped | Pending |
-| RELS-03 | Unmapped | Pending |
-| QUAL-01 | Unmapped | Pending |
-| QUAL-02 | Unmapped | Pending |
-| QUAL-03 | Unmapped | Pending |
+| SPEC-01 | Phase 1 | Pending |
+| SPEC-02 | Phase 1 | Pending |
+| SPEC-03 | Phase 1 | Pending |
+| COVR-01 | Phase 2 | Pending |
+| COVR-02 | Phase 2 | Pending |
+| COVR-03 | Phase 2 | Pending |
+| COVR-04 | Phase 2 | Pending |
+| COVR-05 | Phase 2 | Pending |
+| GATE-01 | Phase 3 | Pending |
+| GATE-02 | Phase 3 | Pending |
+| GATE-03 | Phase 3 | Pending |
+| GATE-04 | Phase 3 | Pending |
+| DELV-01 | Phase 2 | Pending |
+| DELV-02 | Phase 4 | Pending |
+| DELV-03 | Phase 4 | Pending |
+| RELS-01 | Phase 5 | Pending |
+| RELS-02 | Phase 5 | Pending |
+| RELS-03 | Phase 5 | Pending |
+| QUAL-01 | Phase 5 | Pending |
+| QUAL-02 | Phase 4 | Pending |
+| QUAL-03 | Phase 4 | Pending |
 
 **Coverage:**
 - v1 requirements: 21 total
-- Mapped to phases: 0
-- Unmapped: 21 ⚠️
+- Mapped to phases: 21
+- Unmapped: 0 ✓
 
 ---
 *Requirements defined: 2026-03-04*
-*Last updated: 2026-03-04 after initial definition*
+*Last updated: 2026-03-04 after roadmap mapping*
