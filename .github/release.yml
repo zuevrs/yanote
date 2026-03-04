@@ -1,0 +1,29 @@
+# Deterministic changelog categories for releases since previous release tag.
+changelog:
+  exclude:
+    labels:
+      - skip-release-notes
+      - no-changelog
+  categories:
+    - title: Summary
+      labels:
+        - summary
+        - enhancement
+        - feature
+    - title: Breaking Changes
+      labels:
+        - breaking-change
+        - breaking
+    - title: Upgrade Notes
+      labels:
+        - upgrade
+        - migration
+        - dependencies
+    - title: Verification Highlights
+      labels:
+        - verification
+        - ci
+        - tests
+    - title: Additional Changes
+      labels:
+        - "*"
