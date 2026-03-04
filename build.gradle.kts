@@ -1,6 +1,20 @@
 plugins {
     base
+    id("org.jreleaser") version "1.23.0"
 }
+
+val releasePublicationModules = setOf(
+    ":yanote-core",
+    ":yanote-recorder-spring-mvc",
+    ":yanote-test-tags-restassured",
+    ":yanote-test-tags-cucumber",
+    ":yanote-gradle-plugin"
+)
+
+val releasePublicationExcludedModules = setOf(
+    ":examples:springmvc-service",
+    ":examples:tests-restassured"
+)
 
 allprojects {
     repositories {
@@ -18,6 +32,19 @@ subprojects {
     extensions.configure<JavaPluginExtension> {
         toolchain {
             languageVersion.set(JavaLanguageVersion.of(21))
+        }
+    }
+
+    val releaseScopedModule = path in releasePublicationModules
+    val explicitlyExcludedModule = path in releasePublicationExcludedModules
+    if (!releaseScopedModule || explicitlyExcludedModule) {
+        // Fail closed: only the v1 publication allowlist is permitted to publish externally.
+        tasks.matching {
+            it.name == "publish" ||
+                it.name == "publishToMavenLocal" ||
+                it.name.startsWith("publishAllPublicationsTo")
+        }.configureEach {
+            enabled = false
         }
     }
 }
@@ -111,5 +138,21 @@ tasks.register("distAll") {
     group = "distribution"
     description = "Build all dist bundles (recorder + analyzer)"
     dependsOn("distFlatdirRecorder", "distNodeAnalyzer")
+}
+
+jreleaser {
+    configFile.set(layout.projectDirectory.file("jreleaser.yml"))
+    gitRootSearch.set(false)
+}
+
+tasks.named("jreleaserConfig").configure {
+    doFirst {
+        val hasEnvToken = !System.getenv("JRELEASER_GITHUB_TOKEN").isNullOrBlank()
+        val hasPropertyToken = !System.getProperty("jreleaser.github.token").isNullOrBlank()
+        if (!hasEnvToken && !hasPropertyToken) {
+            // Phase 05-01 validates Central wiring only; GitHub token wiring lands in the release workflow plan.
+            System.setProperty("jreleaser.github.token", "disabled-until-phase-05-02")
+        }
+    }
 }
 
