@@ -21,7 +21,7 @@ progress:
 See: .planning/PROJECT.md (updated 2026-03-04)
 
 **Core value:** Any Java service team can reliably prove that every v1 API requirement is covered by executable tests before shipping.
-**Current focus:** Phase 3 - Governance Gates
+**Current focus:** Phase 2 - Coverage Metrics and CLI Reporting (complete, no transition)
 
 ## Current Position
 
