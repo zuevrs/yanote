@@ -4,6 +4,8 @@ import { readHttpEventsJsonl } from "./events/readJsonl.js";
 import { computeRegression, readBaseline } from "./baseline/baseline.js";
 import { buildReport, type YanoteReport } from "./report/report.js";
 import { writeYanoteReport } from "./report/writeReport.js";
+import { applyExclusionRules, compileExclusionRules } from "./gates/exclusions.js";
+import { resolveGatePolicy, type GateProfile } from "./gates/policy.js";
 import { discoverSpecs } from "./spec/discover.js";
 import { loadOpenApiCoverageModel } from "./spec/openapi.js";
 import { TOOL_VERSION } from "./version.js";
@@ -65,6 +67,8 @@ function createProgram(io?: { out?: (chunk: string) => void; err?: (chunk: strin
     .requiredOption("--spec <path>", "Spec file or directory (OpenAPI)")
     .requiredOption("--events <path>", "Path to events.jsonl")
     .requiredOption("--out <dir>", "Output directory")
+    .option("--policy <path>", "Gate policy YAML file path")
+    .option("--profile <profile>", "Gate profile (ci|local)")
     .option("--min-coverage <percent>", "Minimum operation coverage percent (integer)")
     .option("--baseline <path>", "Baseline file path")
     .option("--fail-on-regression", "Fail if coverage regressed vs baseline", false)
@@ -78,6 +82,15 @@ function createProgram(io?: { out?: (chunk: string) => void; err?: (chunk: strin
 
       try {
         const minCoverage = parseMinCoverage(opts.minCoverage);
+        const policy = await loadPolicy({
+          profile: parseProfile(opts.profile),
+          policyPath: opts.policy,
+          cliOverrides: {
+            minCoverage,
+            failOnRegression: Boolean(opts.failOnRegression),
+            excludePatterns: Array.isArray(opts.exclude) ? opts.exclude : []
+          }
+        });
 
         const { openapi } = await discoverSpecs(opts.spec);
         if (!openapi) {
@@ -94,9 +107,12 @@ function createProgram(io?: { out?: (chunk: string) => void; err?: (chunk: strin
 
         const openapiModel = await loadCoverageModel(openapi);
         const events = await loadEvents(opts.events);
-        const excludePatterns: string[] = Array.isArray(opts.exclude) ? opts.exclude : [];
+        const compiledExclusions = compileExclusionRules(policy.exclusions.rules);
+        const exclusionResult = applyExclusionRules(openapiModel.operations, compiledExclusions, {
+          criticalOperationKeys: policy.thresholds.criticalOperations
+        });
 
-        coverage = computeCoverage(openapiModel.operations, events.items, excludePatterns, {
+        coverage = computeCoverage(exclusionResult.includedOperations, events.items, [], {
           operationContractsByKey: openapiModel.operationContractsByKey
         });
 
@@ -122,7 +138,7 @@ function createProgram(io?: { out?: (chunk: string) => void; err?: (chunk: strin
         if (!failure && opts.baseline) {
           const baseline = await loadBaseline(opts.baseline);
           const regressed = computeRegression(baseline, coverage.coveredOperations);
-          if (regressed.length > 0 && opts.failOnRegression) {
+          if (regressed.length > 0 && policy.regression.failOnRegression) {
             failure = makeFailure(
               EXIT.GATE_REGRESSION,
               "gate",
@@ -133,12 +149,16 @@ function createProgram(io?: { out?: (chunk: string) => void; err?: (chunk: strin
           }
         }
 
-        if (!failure && minCoverage != null && report.summary.operationCoveragePercent < minCoverage) {
+        if (
+          !failure &&
+          policy.enforcement.thresholdFailuresAreErrors &&
+          report.summary.operationCoveragePercent < policy.thresholds.minCoverage
+        ) {
           failure = makeFailure(
             EXIT.GATE_THRESHOLD,
             "gate",
             "GATE_MIN_COVERAGE",
-            `Operation coverage ${report.summary.operationCoveragePercent}% is below required ${minCoverage}%.`,
+            `Operation coverage ${report.summary.operationCoveragePercent}% is below required ${policy.thresholds.minCoverage}%.`,
             "Increase endpoint coverage or lower --min-coverage threshold intentionally."
           );
         }
@@ -248,6 +268,51 @@ async function loadBaseline(baselinePath: string) {
   }
 }
 
+async function loadPolicy(input: {
+  profile?: GateProfile;
+  policyPath?: string;
+  cliOverrides?: {
+    minCoverage?: number;
+    failOnRegression?: boolean;
+    excludePatterns?: string[];
+  };
+}) {
+  try {
+    return await resolveGatePolicy({
+      defaultProfile: "ci",
+      profile: input.profile,
+      policyPath: input.policyPath,
+      cliOverrides: input.cliOverrides
+    });
+  } catch (error) {
+    if (isFsInputError(error)) {
+      throw new CliFailureError(
+        makeFailure(
+          EXIT.INPUT,
+          "input",
+          "INPUT_POLICY_READ_FAILED",
+          fsErrorReason(error, "Unable to read policy file."),
+          "Check --policy path and file permissions."
+        )
+      );
+    }
+
+    if (error instanceof Error && (error.message.includes("Invalid policy YAML") || error.message.includes("Invalid gate policy config"))) {
+      throw new CliFailureError(
+        makeFailure(
+          EXIT.INPUT,
+          "input",
+          "INPUT_POLICY_INVALID",
+          "Policy file is invalid.",
+          "Fix policy YAML shape and rerun."
+        )
+      );
+    }
+
+    throw error;
+  }
+}
+
 function parseMinCoverage(raw: unknown): number | undefined {
   if (raw == null) return undefined;
   const parsed = Number.parseInt(String(raw), 10);
@@ -263,6 +328,20 @@ function parseMinCoverage(raw: unknown): number | undefined {
     );
   }
   return parsed;
+}
+
+function parseProfile(raw: unknown): GateProfile | undefined {
+  if (raw == null) return undefined;
+  if (raw === "ci" || raw === "local") return raw;
+  throw new CliFailureError(
+    makeFailure(
+      EXIT.INPUT,
+      "input",
+      "INPUT_PROFILE_INVALID",
+      "--profile must be either ci or local.",
+      "Use values like --profile ci."
+    )
+  );
 }
 
 function classifyFailure(error: unknown): CliFailure {

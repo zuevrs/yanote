@@ -42,6 +42,25 @@ describe("cli", () => {
     expect(res.stdout).toContain("YANOTE_SUMMARY");
   });
 
+  it("emits deterministic input failure when policy path is missing", async () => {
+    const res = await runCli([
+      "report",
+      "--spec",
+      "test/fixtures/openapi/simple.yaml",
+      "--events",
+      "test/fixtures/events/events.fixture.jsonl",
+      "--out",
+      "./tmp",
+      "--policy",
+      "./test/fixtures/policy/does-not-exist.yaml"
+    ]);
+
+    expect(res.code).toBe(2);
+    expect(res.stderr).toContain("class=input");
+    expect(res.stderr).toContain("INPUT_POLICY_READ_FAILED");
+    expect(res.stdout).toContain("YANOTE_SUMMARY");
+  });
+
   it("fails closed on semantic ambiguity with typed semantic error", async () => {
     const fixture = await createCliFixture(
       [
@@ -125,6 +144,61 @@ describe("cli", () => {
 
       const summaryCount = (res.stdout.match(/YANOTE_SUMMARY/g) ?? []).length;
       expect(summaryCount).toBe(1);
+    } finally {
+      await rm(fixture.dir, { recursive: true, force: true });
+    }
+  });
+
+  it("honors precedence with cli overrides over policy file values", async () => {
+    const fixture = await createCliFixture(
+      [
+        "openapi: 3.0.0",
+        "info:",
+        "  title: policy-precedence",
+        "  version: 1.0.0",
+        "paths:",
+        "  /health:",
+        "    get:",
+        "      responses:",
+        "        '200':",
+        "          description: ok",
+        "  /users/{id}:",
+        "    get:",
+        "      responses:",
+        "        '200':",
+        "          description: ok"
+      ].join("\n"),
+      ['{"kind":"http","method":"GET","route":"/health","test.run_id":"r1","test.suite":"s1"}'].join("\n")
+    );
+
+    const policyPath = path.join(fixture.dir, "gate-policy.yaml");
+    await writeFile(
+      policyPath,
+      [
+        "profile: ci",
+        "thresholds:",
+        "  minCoverage: 100",
+        "  aggregateEnabled: false"
+      ].join("\n"),
+      "utf8"
+    );
+
+    try {
+      const res = await runCli([
+        "report",
+        "--spec",
+        fixture.specPath,
+        "--events",
+        fixture.eventsPath,
+        "--out",
+        fixture.outDir,
+        "--policy",
+        policyPath,
+        "--min-coverage",
+        "10"
+      ]);
+      expect(res.code).toBe(0);
+      expect(res.stdout).toContain("YANOTE_SUMMARY");
     } finally {
       await rm(fixture.dir, { recursive: true, force: true });
     }
