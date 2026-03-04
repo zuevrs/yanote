@@ -1,5 +1,11 @@
 plugins {
     `java-library`
+    signing
+}
+
+java {
+    withSourcesJar()
+    withJavadocJar()
 }
 
 dependencies {
@@ -8,6 +14,43 @@ dependencies {
     testRuntimeOnly("org.junit.jupiter:junit-jupiter-engine:5.10.2")
     api("com.fasterxml.jackson.core:jackson-databind:2.17.2")
     api("io.swagger.parser.v3:swagger-parser:2.1.22")
+}
+
+publishing {
+    publications {
+        create<MavenPublication>("mavenJava") {
+            from(components["java"])
+            artifactId = "yanote-core"
+            pom {
+                name.set("Yanote Core")
+                description.set("Core APIs and parsers for deterministic Yanote verification workflows.")
+                url.set("https://github.com/yanote/yanote")
+                licenses {
+                    license {
+                        name.set("Apache License, Version 2.0")
+                        url.set("https://www.apache.org/licenses/LICENSE-2.0.txt")
+                    }
+                }
+                developers {
+                    developer {
+                        id.set("yanote-maintainers")
+                        name.set("Yanote Maintainers")
+                    }
+                }
+                scm {
+                    connection.set("scm:git:https://github.com/yanote/yanote.git")
+                    developerConnection.set("scm:git:ssh://git@github.com/yanote/yanote.git")
+                    url.set("https://github.com/yanote/yanote")
+                }
+            }
+        }
+    }
+}
+
+signing {
+    val releasePublishRequested = gradle.startParameter.taskNames.any { it.contains("publish", ignoreCase = true) }
+    setRequired { !version.toString().endsWith("SNAPSHOT") && releasePublishRequested }
+    sign(publishing.publications["mavenJava"])
 }
 
 tasks.withType<Test>().configureEach {
