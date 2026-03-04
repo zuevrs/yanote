@@ -362,11 +362,17 @@ function normalizeTemplatedRoute(route: string): string {
 function isExcluded(route: string, excludePatterns: string[] | undefined): boolean {
   if (!excludePatterns) return false;
   for (const pattern of excludePatterns) {
-    if (!pattern || !pattern.trim()) continue;
-    if (route === pattern || route.startsWith(pattern)) return true;
-    if (pattern.includes("*") && wildcardMatch(route, pattern)) return true;
+    if (matchesExclusionPattern(route, pattern)) return true;
   }
   return false;
+}
+
+export function matchesExclusionPattern(route: string, rawPattern: string | undefined): boolean {
+  if (!rawPattern || !rawPattern.trim()) return false;
+  const pattern = rawPattern.trim();
+  if (route === pattern || route.startsWith(pattern)) return true;
+  if (!pattern.includes("*")) return false;
+  return wildcardMatch(route, pattern);
 }
 
 function wildcardMatch(route: string, pattern: string): boolean {
