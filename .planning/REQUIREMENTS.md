@@ -31,7 +31,7 @@ Requirements for initial release. Each maps to roadmap phases.
 ### Delivery Surfaces
 
 - [x] **DELV-01**: Developer can run coverage analysis via standalone CLI in local and CI environments
-- [ ] **DELV-02**: Developer can run coverage analysis via Gradle plugin tasks integrated into Java build lifecycle
+- [x] **DELV-02**: Developer can run coverage analysis via Gradle plugin tasks integrated into Java build lifecycle
 - [ ] **DELV-03**: Team can run coverage analysis via GitHub Action and consume resulting artifacts/check outcomes
 
 ### Release and Distribution
@@ -87,7 +87,7 @@ Which phases cover which requirements. Updated during roadmap creation.
 | GATE-03 | Phase 3 | Complete |
 | GATE-04 | Phase 3 | Complete |
 | DELV-01 | Phase 2 | Complete |
-| DELV-02 | Phase 4 | Pending |
+| DELV-02 | Phase 4 | Complete |
 | DELV-03 | Phase 4 | Pending |
 | RELS-01 | Phase 5 | Pending |
 | RELS-02 | Phase 5 | Pending |

@@ -2,16 +2,16 @@
 gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: milestone
-status: completed
-stopped_at: Completed 03-03-PLAN.md
-last_updated: "2026-03-04T13:58:22.911Z"
-last_activity: 2026-03-04 - Completed deterministic governance gate enforcement, precedence ordering, and exclusion transparency
+status: in_progress
+stopped_at: Completed 04-01-PLAN.md
+last_updated: "2026-03-04T16:44:25.083Z"
+last_activity: 2026-03-04 - Completed Gradle plugin delivery surface with stable task contracts and wrapper semantics
 progress:
   total_phases: 5
   completed_phases: 3
-  total_plans: 11
-  completed_plans: 11
-  percent: 60
+  total_plans: 14
+  completed_plans: 12
+  percent: 86
 ---
 
 # Project State
@@ -21,23 +21,23 @@ progress:
 See: .planning/PROJECT.md (updated 2026-03-04)
 
 **Core value:** Any Java service team can reliably prove that every v1 API requirement is covered by executable tests before shipping.
-**Current focus:** Phase 3 - Governance Gates (complete, no transition)
+**Current focus:** Phase 4 - Java Build and CI Delivery Surfaces (in progress)
 
 ## Current Position
 
-Phase: 3 of 5 (Governance Gates)
-Plan: 3 of 3 in current phase
-Status: Phase complete
-Last activity: 2026-03-04 - Completed deterministic governance gate enforcement, precedence ordering, and exclusion transparency
+Phase: 4 of 5 (Java Build and CI Delivery Surfaces)
+Plan: 1 of 3 in current phase
+Status: In progress
+Last activity: 2026-03-04 - Completed Gradle plugin delivery surface with stable task contracts and wrapper semantics
 
-Progress: [██████░░░░] 60%
+Progress: [█████████░] 86%
 
 ## Performance Metrics
 
 **Velocity:**
-- Total plans completed: 11
-- Average duration: 9.2 min
-- Total execution time: 1.7 hours
+- Total plans completed: 12
+- Average duration: 9.9 min
+- Total execution time: 2.0 hours
 
 **By Phase:**
 
@@ -46,11 +46,11 @@ Progress: [██████░░░░] 60%
 | 1. Specification Semantics Contract | 5 | 18 min | 3.6 min |
 | 2. Coverage Metrics and CLI Reporting | 3 | 37 min | 12.3 min |
 | 3. Governance Gates | 3 | 116 min | 38.7 min |
-| 4. Java Build and CI Delivery Surfaces | 0 | 0 min | 0 min |
+| 4. Java Build and CI Delivery Surfaces | 1 | 19 min | 19.0 min |
 | 5. OSS Release and Traceable Verification | 0 | 0 min | 0 min |
 
 **Recent Trend:**
-- Last 5 plans: Phase 02 P02 (5 min), Phase 02 P03 (24 min), Phase 03 P01 (31 min), Phase 03 P02 (46 min), Phase 03 P03 (39 min)
+- Last 5 plans: Phase 02 P03 (24 min), Phase 03 P01 (31 min), Phase 03 P02 (46 min), Phase 03 P03 (39 min), Phase 04 P01 (19 min)
 - Trend: Increasing complexity
 
 *Updated after each plan completion*
@@ -65,6 +65,7 @@ Progress: [██████░░░░] 60%
 | Phase 03 P01 | 31 min | 3 tasks | 10 files |
 | Phase 03 P02 | 46 min | 3 tasks | 12 files |
 | Phase 03 P03 | 39 min | 3 tasks | 10 files |
+| Phase 04 P01 | 19 min | 3 tasks | 9 files |
 
 ## Accumulated Context
 
@@ -84,6 +85,9 @@ Recent decisions affecting current work:
 - [Phase 3] Baseline regression contract moved to versioned v2 snapshots with explicit update-only workflow.
 - [Phase 3] Failures are rendered with deterministic precedence (`input > semantic > gate > runtime`, gate internal `regression > threshold`) using one primary plus ordered secondary diagnostics.
 - [Phase 3] Report artifacts now include governance exclusion transparency blocks and ordered governance diagnostics.
+- [Phase 04]: Locked Gradle v1 API to stable yanoteReport/yanoteCheck task names and constrained extension overrides.
+- [Phase 04]: Implemented deterministic root aggregate wiring over Java subprojects sorted by project path with explicit moduleExcludes filtering.
+- [Phase 04]: Preserved analyzer parity through thin report/check wrappers with precedence override > policy file > defaults and report-vs-check strictness split.
 
 ### Pending Todos
 
@@ -95,6 +99,6 @@ None yet.
 
 ## Session Continuity
 
-Last session: 2026-03-04T13:58:22.909Z
-Stopped at: Completed 03-03-PLAN.md
-Resume file: .planning/phases/03-governance-gates/03-03-SUMMARY.md
+Last session: 2026-03-04T16:44:25.081Z
+Stopped at: Completed 04-01-PLAN.md
+Resume file: None
