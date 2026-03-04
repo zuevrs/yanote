@@ -2,6 +2,9 @@ package dev.yanote.core.coverage;
 
 import dev.yanote.core.events.HttpEvent;
 import dev.yanote.core.openapi.OperationKey;
+import dev.yanote.core.openapi.OperationMatcher;
+import dev.yanote.core.openapi.SemanticDiagnostic;
+import java.util.ArrayList;
 import java.util.Collections;
 import java.util.LinkedHashMap;
 import java.util.LinkedHashSet;
@@ -10,9 +13,28 @@ import java.util.Map;
 import java.util.Set;
 
 public final class CoverageCalculator {
+    private final OperationMatcher operationMatcher = new OperationMatcher();
+
     public CoverageReport calculate(Set<OperationKey> operations, List<HttpEvent> events, List<String> excludePatterns) {
         Set<OperationKey> allOperations = normalizeAndFilterOperations(operations, excludePatterns);
-        Map<OperationKey, Set<String>> suitesByOperation = buildSuiteMapping(allOperations, events);
+        Map<OperationKey, Set<String>> suitesByOperation = new LinkedHashMap<>();
+        List<SemanticDiagnostic> semanticDiagnostics = new ArrayList<>();
+
+        for (HttpEvent event : events) {
+            if (event == null || event.method() == null || event.route() == null) {
+                continue;
+            }
+
+            OperationMatcher.MatchResult matchResult = operationMatcher.match(allOperations, event);
+            semanticDiagnostics.addAll(matchResult.diagnostics());
+            if (matchResult.operation().isEmpty()) {
+                continue;
+            }
+            OperationKey matchedOperation = matchResult.operation().orElseThrow();
+            suitesByOperation.computeIfAbsent(matchedOperation, key -> new LinkedHashSet<>())
+                    .add(normalizeSuite(event.testSuite()));
+        }
+
         Set<OperationKey> covered = new LinkedHashSet<>(suitesByOperation.keySet());
         Set<OperationKey> uncovered = new LinkedHashSet<>(allOperations);
         uncovered.removeAll(covered);
@@ -22,6 +44,7 @@ public final class CoverageCalculator {
                 covered,
                 uncovered,
                 suitesByOperation,
+                semanticDiagnostics,
                 summary
         );
     }
@@ -38,22 +61,6 @@ public final class CoverageCalculator {
             normalized.add(new OperationKey(op.method(), op.route()));
         }
         return normalized;
-    }
-
-    private Map<OperationKey, Set<String>> buildSuiteMapping(Set<OperationKey> allOperations, List<HttpEvent> events) {
-        Map<OperationKey, Set<String>> result = new LinkedHashMap<>();
-        for (HttpEvent event : events) {
-            if (event == null || event.method() == null || event.route() == null) {
-                continue;
-            }
-            OperationKey current = new OperationKey(event.method(), event.route());
-            if (!allOperations.contains(current)) {
-                continue;
-            }
-            result.computeIfAbsent(current, key -> new LinkedHashSet<>())
-                    .add(normalizeSuite(event.testSuite()));
-        }
-        return result;
     }
 
     private boolean isExcluded(String route, List<String> excludePatterns) {

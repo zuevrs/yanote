@@ -1,7 +1,9 @@
 package dev.yanote.core.coverage;
 
 import dev.yanote.core.openapi.OperationKey;
+import dev.yanote.core.openapi.SemanticDiagnostic;
 import java.util.Collections;
+import java.util.List;
 import java.util.Map;
 import java.util.Set;
 
@@ -10,6 +12,7 @@ public final class CoverageReport {
     private final Set<OperationKey> coveredOperations;
     private final Set<OperationKey> uncoveredOperations;
     private final Map<OperationKey, Set<String>> operationToSuites;
+    private final List<SemanticDiagnostic> semanticDiagnostics;
     private final CoverageSummary summary;
 
     public CoverageReport(
@@ -17,12 +20,14 @@ public final class CoverageReport {
             Set<OperationKey> coveredOperations,
             Set<OperationKey> uncoveredOperations,
             Map<OperationKey, Set<String>> operationToSuites,
+            List<SemanticDiagnostic> semanticDiagnostics,
             CoverageSummary summary
     ) {
         this.allOperations = Collections.unmodifiableSet(allOperations);
         this.coveredOperations = Collections.unmodifiableSet(coveredOperations);
         this.uncoveredOperations = Collections.unmodifiableSet(uncoveredOperations);
         this.operationToSuites = Collections.unmodifiableMap(operationToSuites);
+        this.semanticDiagnostics = semanticDiagnostics == null ? List.of() : List.copyOf(semanticDiagnostics);
         this.summary = summary;
     }
 
@@ -40,6 +45,10 @@ public final class CoverageReport {
 
     public Map<OperationKey, Set<String>> operationToSuites() {
         return operationToSuites;
+    }
+
+    public List<SemanticDiagnostic> semanticDiagnostics() {
+        return semanticDiagnostics;
     }
 
     public CoverageSummary summary() {
