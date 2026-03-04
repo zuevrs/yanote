@@ -22,4 +22,9 @@ paths:
       responses:
         '200':
           description: ok
+  /users/{name}:
+    get:
+      responses:
+        '200':
+          description: ok
 
