@@ -44,7 +44,11 @@ subprojects {
             enabled = false
         } else {
             // Make cross-project class outputs explicit to satisfy Gradle validation in CI.
-            dependsOn(rootProject.subprojects.map { "${it.path}:classes" })
+            dependsOn(
+                rootProject.subprojects.flatMap {
+                    listOf("${it.path}:classes", "${it.path}:jar")
+                }
+            )
         }
     }
 
