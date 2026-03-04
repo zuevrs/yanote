@@ -22,6 +22,7 @@ test("preflight verifies signed tags and ancestry from main", async () => {
   assert.match(source, /git verify-tag/);
   assert.match(source, /RELEASE_TAG_SIGNING_PUBLIC_KEY/);
   assert.match(source, /gpg --batch --import/);
+  assert.match(source, /gpg --import-ownertrust/);
   assert.match(source, /merge-base --is-ancestor/);
   assert.match(source, /origin\/main|main/);
 });
