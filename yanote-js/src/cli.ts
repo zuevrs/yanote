@@ -77,6 +77,7 @@ function createProgram(io?: { out?: (chunk: string) => void; err?: (chunk: strin
       }
 
       const report = buildReport(coverage, { toolVersion: TOOL_VERSION });
+      await writeYanoteReport(opts.out, report);
 
       if (opts.baseline) {
         const baseline = await readBaseline(opts.baseline);
@@ -107,8 +108,6 @@ function createProgram(io?: { out?: (chunk: string) => void; err?: (chunk: strin
         const message = failures.map((f) => f.message).join("\n");
         cmd.error(message, { exitCode });
       }
-
-      await writeYanoteReport(opts.out, report);
     });
 
   return program;
