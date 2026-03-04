@@ -91,8 +91,8 @@ Plans:
   4. Team can trace every v1 requirement to automated tests with 100% requirement coverage accountability.
 **Plans**: 3 plans
 Plans:
-- [ ] 05-01-PLAN.md (Wave 1) - Establish signed Maven Central publication foundations with fail-closed preflight and scoped module allowlist.
-- [ ] 05-02-PLAN.md (Wave 2, depends on 05-01) - Implement tag-only approval-gated GitHub release workflow with deterministic release notes and asset bundle contracts.
+- [x] 05-01-PLAN.md (Wave 1) - Establish signed Maven Central publication foundations with fail-closed preflight and scoped module allowlist.
+- [x] 05-02-PLAN.md (Wave 2, depends on 05-01) - Implement tag-only approval-gated GitHub release workflow with deterministic release notes and asset bundle contracts.
 - [ ] 05-03-PLAN.md (Wave 3, depends on 05-02) - Enforce schema-versioned requirement-to-test traceability gate and publish traceability artifacts in release outputs.
 
 ## Progress
@@ -103,4 +103,4 @@ Plans:
 | 2. Coverage Metrics and CLI Reporting | 3/3 | Complete | 2026-03-04 |
 | 3. Governance Gates | 3/3 | Complete | 2026-03-04 |
 | 4. Java Build and CI Delivery Surfaces | 4/4 | Complete | 2026-03-04 |
-| 5. OSS Release and Traceable Verification | 1/3 | In Progress|  |
+| 5. OSS Release and Traceable Verification | 2/3 | In Progress|  |

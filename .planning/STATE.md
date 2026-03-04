@@ -2,17 +2,17 @@
 gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: milestone
-current_plan: 1
-status: in_progress
-stopped_at: Completed 05-01-PLAN.md
-last_updated: "2026-03-04T19:49:36.652Z"
-last_activity: 2026-03-04 - Completed Phase 05 Plan 01 release publication foundation
+current_plan: 3
+status: executing
+stopped_at: Completed 05-02-PLAN.md
+last_updated: "2026-03-04T19:58:40.216Z"
+last_activity: 2026-03-04 - Completed Phase 05 Plan 02 release workflow and bundle contracts
 progress:
   total_phases: 5
   completed_phases: 4
   total_plans: 18
-  completed_plans: 16
-  percent: 89
+  completed_plans: 17
+  percent: 94
 ---
 
 # Project State
@@ -22,18 +22,18 @@ progress:
 See: .planning/PROJECT.md (updated 2026-03-04)
 
 **Core value:** Any Java service team can reliably prove that every v1 API requirement is covered by executable tests before shipping.
-**Current focus:** Phase 5 execution (Plan 01 complete, Plan 02 next)
+**Current focus:** Phase 5 execution (Plan 02 complete, Plan 03 next)
 
 ## Current Position
 
 Phase: 5 of 5 (OSS Release and Traceable Verification)
-Plan: 1 of 3 in current phase
-Current Plan: 1
+Plan: 3 of 3 in current phase
+Current Plan: 3
 Total Plans in Phase: 3
 Status: In Progress
-Last activity: 2026-03-04 - Completed Phase 05 Plan 01 release publication foundation
+Last activity: 2026-03-04 - Completed Phase 05 Plan 02 release workflow and bundle contracts
 
-Progress: [█████████░] 89%
+Progress: [█████████░] 94%
 
 ## Performance Metrics
 
@@ -50,7 +50,7 @@ Progress: [█████████░] 89%
 | 2. Coverage Metrics and CLI Reporting | 3 | 37 min | 12.3 min |
 | 3. Governance Gates | 3 | 116 min | 38.7 min |
 | 4. Java Build and CI Delivery Surfaces | 3 | 58 min | 19.3 min |
-| 5. OSS Release and Traceable Verification | 0 | 0 min | 0 min |
+| 5. OSS Release and Traceable Verification | 2 | 14 min | 7.0 min |
 
 **Recent Trend:**
 - Last 5 plans: Phase 03 P02 (46 min), Phase 03 P03 (39 min), Phase 04 P01 (19 min), Phase 04 P02 (9 min), Phase 04 P03 (30 min)
@@ -73,6 +73,7 @@ Progress: [█████████░] 89%
 | Phase 04-java-build-and-ci-delivery-surfaces P03 | 30 min | 3 tasks | 8 files |
 | Phase 04-java-build-and-ci-delivery-surfaces P04 | 3 min | 2 tasks | 3 files |
 | Phase 05-oss-release-and-traceable-verification P01 | 10 min | 3 tasks | 11 files |
+| Phase 05 P02 | 4 min | 3 tasks | 6 files |
 
 ## Accumulated Context
 
@@ -106,6 +107,9 @@ Recent decisions affecting current work:
 - [Phase 05-oss-release-and-traceable-verification]: Lock release preflight behavior with contract tests before implementation.
 - [Phase 05-oss-release-and-traceable-verification]: Configure JReleaser from checked-in jreleaser.yml and keep jreleaserConfig deterministic with fallback token.
 - [Phase 05-oss-release-and-traceable-verification]: Enforce publication scope with an explicit v1 allowlist and disabled non-allowlisted publish tasks.
+- [Phase 05]: Release workflow is tag-only and excludes workflow_dispatch to prevent bypassing semver tag policy.
+- [Phase 05]: Publish path now requires explicit production-release environment approval after preflight completes.
+- [Phase 05]: Release assets are assembled deterministically with stable ordering, SHA-256 checksums, per-asset proof files, and shared manifest.
 
 ### Pending Todos
 
@@ -117,6 +121,6 @@ None yet.
 
 ## Session Continuity
 
-Last session: 2026-03-04T19:48:42.950Z
-Stopped at: Completed 05-01-PLAN.md
+Last session: 2026-03-04T19:57:36.429Z
+Stopped at: Completed 05-02-PLAN.md
 Resume file: None
