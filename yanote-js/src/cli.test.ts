@@ -99,9 +99,11 @@ describe("cli", () => {
       "--spec",
       "test/fixtures/openapi/simple.yaml",
       "--events",
-      "test/fixtures/events/events.fixture.jsonl",
+      "test/fixtures/events/events.valid.fixture.jsonl",
       "--out",
-      "/dev/null/yanote-out"
+      "/dev/null/yanote-out",
+      "--profile",
+      "local"
     ]);
 
     expect(res.code).toBe(6);

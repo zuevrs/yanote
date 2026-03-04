@@ -5,6 +5,7 @@ import { normalizeMethod, normalizeRunId, normalizeSuite, type HttpEvent } from 
 export type ReadJsonlResult<T> = {
   items: T[];
   invalidLines: number;
+  invalidLineNumbers: number[];
 };
 
 export async function readHttpEventsJsonl(filePath: string): Promise<ReadJsonlResult<HttpEvent>> {
@@ -13,14 +14,18 @@ export async function readHttpEventsJsonl(filePath: string): Promise<ReadJsonlRe
 
   const items: HttpEvent[] = [];
   let invalidLines = 0;
+  const invalidLineNumbers: number[] = [];
+  let lineNumber = 0;
 
   for await (const line of rl) {
+    lineNumber += 1;
     if (!line || !line.trim()) continue;
     let obj: any;
     try {
       obj = JSON.parse(line);
     } catch {
       invalidLines += 1;
+      invalidLineNumbers.push(lineNumber);
       continue;
     }
 
@@ -50,7 +55,7 @@ export async function readHttpEventsJsonl(filePath: string): Promise<ReadJsonlRe
     items.push(event);
   }
 
-  return { items, invalidLines };
+  return { items, invalidLines, invalidLineNumbers };
 }
 
 function normalizeQueryKeys(value: unknown): string[] {
