@@ -17,7 +17,6 @@ import {
   type GovernanceFailure
 } from "./gates/failureOrder.js";
 import { resolveGatePolicy, type GateProfile } from "./gates/policy.js";
-import { serializeOperationKey } from "./model/operationKey.js";
 import { buildReport, type YanoteReport } from "./report/report.js";
 import { writeYanoteReport } from "./report/writeReport.js";
 import { discoverSpecs } from "./spec/discover.js";
@@ -184,7 +183,14 @@ async function executeReportCommand(opts: any, writeOut: (chunk: string) => void
       toolVersion: TOOL_VERSION,
       eventTimestamps: events.items
         .map((event) => event.ts)
-        .filter((timestamp): timestamp is number => typeof timestamp === "number")
+        .filter((timestamp): timestamp is number => typeof timestamp === "number"),
+      governance: {
+        exclusions: {
+          appliedRules: exclusionResult.appliedExclusions,
+          unmatchedRules: exclusionResult.unmatchedRules
+        },
+        diagnostics: gateDiagnostics
+      }
     });
 
     try {

@@ -1,5 +1,7 @@
 import type { CoverageDimensionState } from "../coverage/dimensions.js";
 import type { CoverageResult } from "../coverage/coverage.js";
+import type { AppliedExclusionRule, UnmatchedExclusionRuleWarning } from "../gates/exclusions.js";
+import type { GovernanceFailure } from "../gates/failureOrder.js";
 import type { SemanticDiagnostic } from "../spec/diagnostics.js";
 import { REPORT_SCHEMA_VERSION } from "./schema.js";
 
@@ -76,11 +78,54 @@ export type YanoteReport = {
     };
     items: SemanticDiagnostic[];
   };
+  governance: {
+    exclusions: {
+      appliedRules: Array<{
+        id: string;
+        pattern: string;
+        rationale: string;
+        owner: string;
+        expiresOn: string;
+        allowBroadWildcard: boolean;
+        allowCriticalOverride: boolean;
+        source: "policy-file" | "cli";
+        matchedOperationCount: number;
+        matchedOperationKeys: string[];
+        usedCriticalOverride: boolean;
+      }>;
+      unmatchedRules: Array<{
+        id: string;
+        pattern: string;
+        rationale: string;
+        owner: string;
+        expiresOn: string;
+        source: "policy-file" | "cli";
+        message: string;
+      }>;
+    };
+    diagnostics: Array<{
+      severity: "error" | "warning";
+      class: "input" | "semantic" | "gate" | "runtime";
+      code: string;
+      message: string;
+      operationKey?: string;
+    }>;
+  };
 };
 
 export function buildReport(
   coverage: CoverageResult,
-  opts: { toolVersion: string; eventTimestamps?: number[] }
+  opts: {
+    toolVersion: string;
+    eventTimestamps?: number[];
+    governance?: {
+      exclusions?: {
+        appliedRules: AppliedExclusionRule[];
+        unmatchedRules: UnmatchedExclusionRuleWarning[];
+      };
+      diagnostics?: GovernanceFailure[];
+    };
+  }
 ): YanoteReport {
   const diagnostics = sortDiagnostics(coverage.diagnostics);
   const counts = countDiagnostics(diagnostics);
@@ -152,6 +197,13 @@ export function buildReport(
     diagnostics: {
       counts,
       items: diagnostics
+    },
+    governance: {
+      exclusions: {
+        appliedRules: sortAppliedRules(opts.governance?.exclusions?.appliedRules ?? []),
+        unmatchedRules: sortUnmatchedRules(opts.governance?.exclusions?.unmatchedRules ?? [])
+      },
+      diagnostics: sortGovernanceDiagnostics(opts.governance?.diagnostics ?? [])
     }
   };
 }
@@ -217,4 +269,76 @@ function severityRank(kind: SemanticDiagnostic["kind"]): number {
   if (kind === "invalid") return 0;
   if (kind === "ambiguous") return 1;
   return 2;
+}
+
+function sortAppliedRules(appliedRules: AppliedExclusionRule[]): YanoteReport["governance"]["exclusions"]["appliedRules"] {
+  return [...appliedRules]
+    .map((rule) => ({
+      id: rule.id,
+      pattern: rule.pattern,
+      rationale: rule.rationale,
+      owner: rule.owner,
+      expiresOn: rule.expiresOn,
+      allowBroadWildcard: rule.allowBroadWildcard,
+      allowCriticalOverride: rule.allowCriticalOverride,
+      source: rule.source,
+      matchedOperationCount: rule.matchedOperationCount,
+      matchedOperationKeys: [...rule.matchedOperationKeys].sort((left, right) => left.localeCompare(right)),
+      usedCriticalOverride: rule.usedCriticalOverride
+    }))
+    .sort((left, right) => {
+      if (left.pattern !== right.pattern) return left.pattern.localeCompare(right.pattern);
+      return left.id.localeCompare(right.id);
+    });
+}
+
+function sortUnmatchedRules(
+  unmatchedRules: UnmatchedExclusionRuleWarning[]
+): YanoteReport["governance"]["exclusions"]["unmatchedRules"] {
+  return [...unmatchedRules]
+    .map((rule) => ({
+      id: rule.id,
+      pattern: rule.pattern,
+      rationale: rule.rationale,
+      owner: rule.owner,
+      expiresOn: rule.expiresOn,
+      source: rule.source,
+      message: rule.message
+    }))
+    .sort((left, right) => {
+      if (left.pattern !== right.pattern) return left.pattern.localeCompare(right.pattern);
+      return left.id.localeCompare(right.id);
+    });
+}
+
+function sortGovernanceDiagnostics(
+  diagnostics: GovernanceFailure[]
+): YanoteReport["governance"]["diagnostics"] {
+  return [...diagnostics]
+    .map((diagnostic) => ({
+      severity: diagnostic.severity,
+      class: diagnostic.failureClass,
+      code: diagnostic.code,
+      message: diagnostic.reason,
+      operationKey: diagnostic.operationKey
+    }))
+    .sort((left, right) => {
+      const severityDelta = governanceSeverityRank(left.severity) - governanceSeverityRank(right.severity);
+      if (severityDelta !== 0) return severityDelta;
+      const classDelta = governanceClassRank(left.class) - governanceClassRank(right.class);
+      if (classDelta !== 0) return classDelta;
+      if (left.code !== right.code) return left.code.localeCompare(right.code);
+      return (left.operationKey ?? "").localeCompare(right.operationKey ?? "");
+    });
+}
+
+function governanceSeverityRank(severity: "error" | "warning"): number {
+  return severity === "error" ? 0 : 1;
+}
+
+function governanceClassRank(failureClass: "input" | "semantic" | "gate" | "runtime"): number {
+  if (failureClass === "input") return 0;
+  if (failureClass === "semantic") return 1;
+  if (failureClass === "gate") return 2;
+  return 3;
 }

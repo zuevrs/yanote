@@ -47,6 +47,13 @@ const baseReport: YanoteReport = {
       unmatched: 0
     },
     items: []
+  },
+  governance: {
+    exclusions: {
+      appliedRules: [],
+      unmatchedRules: []
+    },
+    diagnostics: []
   }
 };
 
@@ -122,6 +129,53 @@ describe("report schema contract", () => {
           },
           { kind: "invalid", method: "POST", route: "/x", message: "invalid" }
         ]
+      },
+      governance: {
+        exclusions: {
+          appliedRules: [
+            {
+              id: "rule-2",
+              pattern: "/z/*",
+              rationale: "temp",
+              owner: "qa",
+              expiresOn: "2099-01-01",
+              allowBroadWildcard: false,
+              allowCriticalOverride: false,
+              source: "policy-file",
+              matchedOperationCount: 1,
+              matchedOperationKeys: ["http GET /z", "http GET /a"],
+              usedCriticalOverride: false
+            },
+            {
+              id: "rule-1",
+              pattern: "/a/*",
+              rationale: "temp",
+              owner: "qa",
+              expiresOn: "2099-01-01",
+              allowBroadWildcard: false,
+              allowCriticalOverride: false,
+              source: "policy-file",
+              matchedOperationCount: 1,
+              matchedOperationKeys: ["http GET /a"],
+              usedCriticalOverride: true
+            }
+          ],
+          unmatchedRules: [
+            {
+              id: "rule-3",
+              pattern: "/zz/*",
+              rationale: "temp",
+              owner: "qa",
+              expiresOn: "2099-01-01",
+              source: "policy-file",
+              message: "none"
+            }
+          ]
+        },
+        diagnostics: [
+          { severity: "warning", class: "gate", code: "WARN_B", message: "b" },
+          { severity: "error", class: "input", code: "ERR_A", message: "a", operationKey: "http GET /z" }
+        ]
       }
     });
 
@@ -131,5 +185,7 @@ describe("report schema contract", () => {
     expect(normalized.coverage.perOperation[1].suites).toEqual(["suite-a", "suite-b"]);
     expect(normalized.coverage.perOperation[1].status.declared).toEqual(["200", "404"]);
     expect(normalized.diagnostics.items.map((item) => item.kind)).toEqual(["invalid", "ambiguous", "unmatched"]);
+    expect(normalized.governance.exclusions.appliedRules.map((rule) => rule.id)).toEqual(["rule-1", "rule-2"]);
+    expect(normalized.governance.diagnostics.map((item) => item.code)).toEqual(["ERR_A", "WARN_B"]);
   });
 });
