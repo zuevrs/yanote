@@ -128,6 +128,13 @@ verify_release_tag_signature() {
 
   local signing_public_key="${RELEASE_TAG_SIGNING_PUBLIC_KEY:-}"
   if [[ -n "$signing_public_key" ]]; then
+    local imported_fingerprint=""
+    imported_fingerprint="$(printf '%s\n' "$signing_public_key" | gpg --batch --show-keys --with-colons 2>/dev/null | awk -F: '/^fpr:/{print $10; exit}')"
+    if [[ -z "$imported_fingerprint" ]]; then
+      fail_with_diagnostic "input" "invalid-signing-public-key" "RELEASE_TAG_SIGNING_PUBLIC_KEY is not a valid OpenPGP public key." "false" "invalid-signing-key"
+      return 1
+    fi
+
     if ! command -v gpg >/dev/null 2>&1; then
       fail_with_diagnostic "input" "missing-gpg-binary" "gpg is required to verify signed release tags." "false" "gpg-missing"
       return 1
@@ -137,6 +144,8 @@ verify_release_tag_signature() {
       fail_with_diagnostic "input" "invalid-signing-public-key" "RELEASE_TAG_SIGNING_PUBLIC_KEY could not be imported by gpg." "false" "invalid-signing-key"
       return 1
     fi
+
+    echo "tag-signing-key-fingerprint=${imported_fingerprint}"
 
     if git verify-tag "$release_tag" >/dev/null 2>&1; then
       return 0
