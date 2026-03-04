@@ -20,7 +20,8 @@ function makeReport(): YanoteReport {
       totalOperations: 2,
       coveredOperations: 1,
       operationCoveragePercent: 50,
-      aggregateCoveragePercent: null
+      aggregateCoveragePercent: null,
+      aggregateExplanation: "aggregate is N/A because weighted dimensions include N/A"
     },
     coverage: {
       operations: { state: "PARTIAL", percent: 50 },

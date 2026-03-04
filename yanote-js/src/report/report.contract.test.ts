@@ -16,7 +16,8 @@ const baseReport: YanoteReport = {
     totalOperations: 1,
     coveredOperations: 1,
     operationCoveragePercent: 100,
-    aggregateCoveragePercent: null
+    aggregateCoveragePercent: null,
+    aggregateExplanation: "aggregate is N/A because weighted dimensions include N/A"
   },
   coverage: {
     operations: { state: "COVERED", percent: 100 },

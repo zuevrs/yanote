@@ -1,4 +1,3 @@
-import { serializeOperationKey } from "../model/operationKey.js";
 import type { YanoteReport } from "./report.js";
 
 const DECIMALS = 2;
