@@ -1,0 +1,38 @@
+project:
+  name: yanote
+  description: Deterministic API coverage verification tooling for Java services.
+  authors:
+    - Yanote Maintainers
+  license: Apache-2.0
+  links:
+    homepage: https://github.com/yanote/yanote
+    documentation: https://github.com/yanote/yanote#readme
+    bugTracker: https://github.com/yanote/yanote/issues
+
+release:
+  github:
+    enabled: true
+    overwrite: false
+    skipTag: true
+    draft: false
+    update:
+      enabled: false
+
+signing:
+  active: ALWAYS
+  pgp:
+    armored: true
+    mode: MEMORY
+    publicKey: "{{ env.JRELEASER_GPG_PUBLIC_KEY }}"
+    secretKey: "{{ env.JRELEASER_GPG_SECRET_KEY }}"
+    passphrase: "{{ env.JRELEASER_GPG_PASSPHRASE }}"
+
+deploy:
+  maven:
+    mavenCentral:
+      sonatype:
+        active: RELEASE
+        url: https://central.sonatype.com/api/v1/publisher
+        applyMavenCentralRules: true
+        stagingRepositories:
+          - build/staging-deploy
