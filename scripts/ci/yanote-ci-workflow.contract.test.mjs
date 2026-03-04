@@ -26,6 +26,16 @@ test("workflow pins Java 21 in required jobs", async () => {
   assert.match(source, /java-version:\s*['"]?21['"]?/);
 });
 
+test("workflow runs Java 21 assertion in required jobs", async () => {
+  const source = await loadWorkflowSource();
+  const assertionCalls = source.match(/bash scripts\/ci\/assert-java21\.sh/g) ?? [];
+  assert.ok(
+    assertionCalls.length >= 2,
+    "Expected Java assertion script to run in both required checks."
+  );
+  assert.match(source, /Setup Java 21[\s\S]*?bash scripts\/ci\/assert-java21\.sh/);
+});
+
 test("workflow adds push path for main and release refs", async () => {
   const source = await loadWorkflowSource();
   assert.match(source, /^\s*push:\s*$/m);
