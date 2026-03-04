@@ -7,6 +7,8 @@ export type HttpEvent = {
   service?: string | null;
   instance?: string | null;
   error?: boolean;
+  queryKeys: string[];
+  headerKeys: string[];
   testRunId: string;
   testSuite: string;
 };
@@ -29,4 +31,3 @@ export function normalizeMethod(value: unknown): string | null {
   if (!s) return null;
   return s.toUpperCase();
 }
-

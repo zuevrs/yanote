@@ -42,6 +42,8 @@ export async function readHttpEventsJsonl(filePath: string): Promise<ReadJsonlRe
       service: typeof obj.service === "string" ? obj.service : obj.service ?? undefined,
       instance: typeof obj.instance === "string" ? obj.instance : obj.instance ?? undefined,
       error: typeof obj.error === "boolean" ? obj.error : undefined,
+      queryKeys: normalizeQueryKeys(obj.queryKeys),
+      headerKeys: normalizeHeaderKeys(obj.headerKeys),
       testRunId,
       testSuite
     };
@@ -51,3 +53,26 @@ export async function readHttpEventsJsonl(filePath: string): Promise<ReadJsonlRe
   return { items, invalidLines };
 }
 
+function normalizeQueryKeys(value: unknown): string[] {
+  if (!Array.isArray(value)) return [];
+  const seen = new Set<string>();
+  for (const key of value) {
+    if (typeof key !== "string") continue;
+    const normalized = key.trim();
+    if (!normalized) continue;
+    seen.add(normalized);
+  }
+  return Array.from(seen).sort((left, right) => left.localeCompare(right));
+}
+
+function normalizeHeaderKeys(value: unknown): string[] {
+  if (!Array.isArray(value)) return [];
+  const seen = new Set<string>();
+  for (const key of value) {
+    if (typeof key !== "string") continue;
+    const normalized = key.trim().toLowerCase();
+    if (!normalized) continue;
+    seen.add(normalized);
+  }
+  return Array.from(seen).sort((left, right) => left.localeCompare(right));
+}
