@@ -45,7 +45,11 @@ public final class OpenApiLoader {
             return new OpenApiSemantics(Set.of(), diagnostics);
         }
 
-        return new OpenApiSemantics(new OpenApiOperations().extract(api), diagnostics);
+        OpenApiSemantics extracted = new OpenApiOperations().extractSemantics(api);
+        List<SemanticDiagnostic> combinedDiagnostics = new ArrayList<>(diagnostics);
+        combinedDiagnostics.addAll(extracted.diagnostics());
+        combinedDiagnostics = dedupeDiagnostics(combinedDiagnostics);
+        return new OpenApiSemantics(extracted.operations(), combinedDiagnostics);
     }
 
     private SwaggerParseResult parse(String specPath) {
