@@ -1,7 +1,13 @@
 import { Command, CommanderError } from "commander";
 import { computeCoverage, type CoverageResult } from "./coverage/coverage.js";
 import { readHttpEventsJsonl } from "./events/readJsonl.js";
-import { computeRegression, readBaseline } from "./baseline/baseline.js";
+import {
+  computeRegression,
+  createBaselineSnapshot,
+  readBaseline,
+  type BaselineDimensionsSnapshot,
+  writeBaseline
+} from "./baseline/baseline.js";
 import { buildReport, type YanoteReport } from "./report/report.js";
 import { writeYanoteReport } from "./report/writeReport.js";
 import { applyExclusionRules, compileExclusionRules } from "./gates/exclusions.js";
@@ -71,6 +77,7 @@ function createProgram(io?: { out?: (chunk: string) => void; err?: (chunk: strin
     .option("--profile <profile>", "Gate profile (ci|local)")
     .option("--min-coverage <percent>", "Minimum operation coverage percent (integer)")
     .option("--baseline <path>", "Baseline file path")
+    .option("--update-baseline <path>", "Write baseline v2 snapshot explicitly")
     .option("--fail-on-regression", "Fail if coverage regressed vs baseline", false)
     .option("--exclude <pattern...>", "Exclude route patterns (repeatable)")
     .option("--verbose", "Print additional issue details", false)
@@ -160,6 +167,17 @@ function createProgram(io?: { out?: (chunk: string) => void; err?: (chunk: strin
             "GATE_MIN_COVERAGE",
             `Operation coverage ${report.summary.operationCoveragePercent}% is below required ${policy.thresholds.minCoverage}%.`,
             "Increase endpoint coverage or lower --min-coverage threshold intentionally."
+          );
+        }
+
+        if (!failure && coverage && opts.updateBaseline) {
+          await writeBaseline(
+            String(opts.updateBaseline),
+            createBaselineSnapshot({
+              coveredOperations: coverage.coveredOperations,
+              dimensions: toBaselineDimensions(coverage),
+              generatedAt: report?.generatedAt
+            })
           );
         }
       } catch (error) {
@@ -342,6 +360,15 @@ function parseProfile(raw: unknown): GateProfile | undefined {
       "Use values like --profile ci."
     )
   );
+}
+
+function toBaselineDimensions(coverage: CoverageResult): BaselineDimensionsSnapshot {
+  return {
+    operations: coverage.dimensions.operations.percent,
+    status: coverage.dimensions.status.percent,
+    parameters: coverage.dimensions.parameters.percent,
+    aggregate: coverage.dimensions.aggregate.percent
+  };
 }
 
 function classifyFailure(error: unknown): CliFailure {
