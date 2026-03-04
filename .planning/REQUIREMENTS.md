@@ -23,10 +23,10 @@ Requirements for initial release. Each maps to roadmap phases.
 
 ### Governance Gates
 
-- [ ] **GATE-01**: Maintainer can configure minimum coverage threshold and fail checks when result is below target
-- [ ] **GATE-02**: Maintainer can fail checks on coverage regression against a baseline report
-- [ ] **GATE-03**: Maintainer can configure explicit coverage exclusions with rationale captured in output
-- [ ] **GATE-04**: Maintainer gets fail-closed behavior when input evidence is invalid or incomplete
+- [x] **GATE-01**: Maintainer can configure minimum coverage threshold and fail checks when result is below target
+- [x] **GATE-02**: Maintainer can fail checks on coverage regression against a baseline report
+- [x] **GATE-03**: Maintainer can configure explicit coverage exclusions with rationale captured in output
+- [x] **GATE-04**: Maintainer gets fail-closed behavior when input evidence is invalid or incomplete
 
 ### Delivery Surfaces
 
@@ -82,10 +82,10 @@ Which phases cover which requirements. Updated during roadmap creation.
 | COVR-03 | Phase 2 | Complete |
 | COVR-04 | Phase 2 | Complete |
 | COVR-05 | Phase 2 | Complete |
-| GATE-01 | Phase 3 | Pending |
-| GATE-02 | Phase 3 | Pending |
-| GATE-03 | Phase 3 | Pending |
-| GATE-04 | Phase 3 | Pending |
+| GATE-01 | Phase 3 | Complete |
+| GATE-02 | Phase 3 | Complete |
+| GATE-03 | Phase 3 | Complete |
+| GATE-04 | Phase 3 | Complete |
 | DELV-01 | Phase 2 | Complete |
 | DELV-02 | Phase 4 | Pending |
 | DELV-03 | Phase 4 | Pending |
@@ -103,4 +103,4 @@ Which phases cover which requirements. Updated during roadmap creation.
 
 ---
 *Requirements defined: 2026-03-04*
-*Last updated: 2026-03-04 after Phase 2 execution*
+*Last updated: 2026-03-04 after Phase 3 execution*

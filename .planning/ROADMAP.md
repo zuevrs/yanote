@@ -12,7 +12,7 @@ Deliver a Java-first OpenAPI coverage governance workflow that teams can trust i
 
 - [x] **Phase 1: Specification Semantics Contract** - Canonicalize OpenAPI operations and deterministic event-to-operation mapping.
 - [x] **Phase 2: Coverage Metrics and CLI Reporting** - Deliver operation/status/parameter coverage with deterministic report output through the standalone CLI.
-- [ ] **Phase 3: Governance Gates** - Enforce threshold, regression, exclusion, and fail-closed policy behavior.
+- [x] **Phase 3: Governance Gates** - Enforce threshold, regression, exclusion, and fail-closed policy behavior.
 - [ ] **Phase 4: Java Build and CI Delivery Surfaces** - Deliver Gradle plugin and GitHub Action channels with merge-blocking CI checks on Java 21.
 - [ ] **Phase 5: OSS Release and Traceable Verification** - Ship signed Maven Central and GitHub releases with full v1 requirement-to-test traceability.
 
@@ -60,9 +60,9 @@ Plans:
   4. Invalid or incomplete evidence causes fail-closed behavior with actionable diagnostics instead of a passing result.
 **Plans**: 3 plans
 Plans:
-- [ ] 03-01-PLAN.md (Wave 1) - Implement deterministic policy resolution and auditable exclusion rule foundations.
-- [ ] 03-02-PLAN.md (Wave 2, depends on 03-01) - Deliver baseline v2 regression evaluator, precedence engine, and fail-closed evidence checks.
-- [ ] 03-03-PLAN.md (Wave 3, depends on 03-01 + 03-02) - Integrate governance output contract and exclusion transparency across CLI/report surfaces.
+- [x] 03-01-PLAN.md (Wave 1) - Implement deterministic policy resolution and auditable exclusion rule foundations.
+- [x] 03-02-PLAN.md (Wave 2, depends on 03-01) - Deliver baseline v2 regression evaluator, precedence engine, and fail-closed evidence checks.
+- [x] 03-03-PLAN.md (Wave 3, depends on 03-01 + 03-02) - Integrate governance output contract and exclusion transparency across CLI/report surfaces.
 
 ### Phase 4: Java Build and CI Delivery Surfaces
 **Goal**: Teams can run the same analyzer and governance behavior through Gradle and GitHub Action channels with merge-blocking CI validation on Java 21.
@@ -92,6 +92,8 @@ Plans:
 |-------|----------------|--------|-----------|
 | 1. Specification Semantics Contract | 5/5 | Complete | 2026-03-04 |
 | 2. Coverage Metrics and CLI Reporting | 3/3 | Complete | 2026-03-04 |
-| 3. Governance Gates | 0/3 | Not started | - |
+| 3. Governance Gates | 3/3 | Complete* | 2026-03-04 |
 | 4. Java Build and CI Delivery Surfaces | 0/TBD | Not started | - |
 | 5. OSS Release and Traceable Verification | 0/TBD | Not started | - |
+
+*Phase 3 implementation and Node verification are complete; `./gradlew test` is currently blocked in this environment by missing Java runtime.*
