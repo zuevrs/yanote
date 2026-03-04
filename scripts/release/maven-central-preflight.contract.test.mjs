@@ -20,6 +20,8 @@ test("preflight verifies signed tags and ancestry from main", async () => {
   const source = await loadPreflightSource();
   assert.match(source, /verify_release_tag_signature/);
   assert.match(source, /git verify-tag/);
+  assert.match(source, /git fetch --force --tags/);
+  assert.match(source, /git cat-file -t/);
   assert.match(source, /RELEASE_TAG_SIGNING_PUBLIC_KEY/);
   assert.match(source, /gpg --batch --import/);
   assert.match(source, /gpg --import-ownertrust/);

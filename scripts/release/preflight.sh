@@ -260,7 +260,17 @@ main() {
   fi
 
   if [[ -n "$release_tag" ]]; then
+    if ! git fetch --force --tags >/dev/null 2>&1; then
+      fail_with_diagnostic "input" "tag-fetch-failed" "Unable to fetch tag objects from origin before signature verification." "false" "tag-fetch-failed"
+    fi
+
     if git rev-parse --verify --quiet "refs/tags/${release_tag}" >/dev/null; then
+      local tag_object_type
+      tag_object_type="$(git cat-file -t "refs/tags/${release_tag}" 2>/dev/null || true)"
+      if [[ "$tag_object_type" != "tag" ]]; then
+        fail_with_diagnostic "policy" "non-annotated-tag" "Release tag '${release_tag}' must resolve to an annotated tag object (got '${tag_object_type:-missing}')." "false" "tag-object-required"
+      fi
+
       if ! verify_release_tag_signature "$release_tag"; then
         :
       fi
