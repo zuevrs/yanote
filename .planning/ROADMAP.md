@@ -58,7 +58,11 @@ Plans:
   2. Maintainer can compare current coverage to a baseline report and fail checks on regressions.
   3. Maintainer can configure explicit coverage exclusions with rationale, and exclusions appear in output artifacts.
   4. Invalid or incomplete evidence causes fail-closed behavior with actionable diagnostics instead of a passing result.
-**Plans**: TBD
+**Plans**: 3 plans
+Plans:
+- [ ] 03-01-PLAN.md (Wave 1) - Implement deterministic policy resolution and auditable exclusion rule foundations.
+- [ ] 03-02-PLAN.md (Wave 2, depends on 03-01) - Deliver baseline v2 regression evaluator, precedence engine, and fail-closed evidence checks.
+- [ ] 03-03-PLAN.md (Wave 3, depends on 03-01 + 03-02) - Integrate governance output contract and exclusion transparency across CLI/report surfaces.
 
 ### Phase 4: Java Build and CI Delivery Surfaces
 **Goal**: Teams can run the same analyzer and governance behavior through Gradle and GitHub Action channels with merge-blocking CI validation on Java 21.
@@ -88,6 +92,6 @@ Plans:
 |-------|----------------|--------|-----------|
 | 1. Specification Semantics Contract | 5/5 | Complete | 2026-03-04 |
 | 2. Coverage Metrics and CLI Reporting | 3/3 | Complete | 2026-03-04 |
-| 3. Governance Gates | 0/TBD | Not started | - |
+| 3. Governance Gates | 0/3 | Not started | - |
 | 4. Java Build and CI Delivery Surfaces | 0/TBD | Not started | - |
 | 5. OSS Release and Traceable Verification | 0/TBD | Not started | - |
