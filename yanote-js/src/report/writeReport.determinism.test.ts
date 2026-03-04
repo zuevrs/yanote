@@ -64,6 +64,13 @@ function makeReport(): YanoteReport {
         unmatched: 0
       },
       items: []
+    },
+    governance: {
+      exclusions: {
+        appliedRules: [],
+        unmatchedRules: []
+      },
+      diagnostics: []
     }
   };
 }
@@ -113,7 +120,7 @@ describe("writeYanoteReport determinism", () => {
       expect(bytes.endsWith("\n")).toBe(true);
 
       const parsed = JSON.parse(bytes);
-      expect(Object.keys(parsed).slice(0, 4)).toEqual(["coverage", "diagnostics", "generatedAt", "phase"]);
+      expect(Object.keys(parsed).slice(0, 4)).toEqual(["coverage", "diagnostics", "generatedAt", "governance"]);
     } finally {
       await rm(dir, { recursive: true, force: true });
     }

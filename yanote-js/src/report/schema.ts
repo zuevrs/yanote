@@ -5,7 +5,7 @@ export const REPORT_SCHEMA_VERSION = "1.0.0";
 const REPORT_SCHEMA = {
   type: "object",
   additionalProperties: false,
-  required: ["schemaVersion", "generatedAt", "toolVersion", "phase", "status", "summary", "coverage", "diagnostics"],
+  required: ["schemaVersion", "generatedAt", "toolVersion", "phase", "status", "summary", "coverage", "diagnostics", "governance"],
   properties: {
     schemaVersion: { const: REPORT_SCHEMA_VERSION },
     generatedAt: { type: "string", minLength: 1 },
@@ -167,6 +167,85 @@ const REPORT_SCHEMA = {
               method: { type: "string" },
               route: { type: "string" },
               candidates: { type: "array", items: { type: "string" } }
+            }
+          }
+        }
+      }
+    },
+    governance: {
+      type: "object",
+      additionalProperties: false,
+      required: ["exclusions", "diagnostics"],
+      properties: {
+        exclusions: {
+          type: "object",
+          additionalProperties: false,
+          required: ["appliedRules", "unmatchedRules"],
+          properties: {
+            appliedRules: {
+              type: "array",
+              items: {
+                type: "object",
+                additionalProperties: false,
+                required: [
+                  "id",
+                  "pattern",
+                  "rationale",
+                  "owner",
+                  "expiresOn",
+                  "allowBroadWildcard",
+                  "allowCriticalOverride",
+                  "source",
+                  "matchedOperationCount",
+                  "matchedOperationKeys",
+                  "usedCriticalOverride"
+                ],
+                properties: {
+                  id: { type: "string", minLength: 1 },
+                  pattern: { type: "string", minLength: 1 },
+                  rationale: { type: "string", minLength: 1 },
+                  owner: { type: "string", minLength: 1 },
+                  expiresOn: { type: "string", minLength: 1 },
+                  allowBroadWildcard: { type: "boolean" },
+                  allowCriticalOverride: { type: "boolean" },
+                  source: { enum: ["policy-file", "cli"] },
+                  matchedOperationCount: { type: "integer", minimum: 0 },
+                  matchedOperationKeys: { type: "array", items: { type: "string" } },
+                  usedCriticalOverride: { type: "boolean" }
+                }
+              }
+            },
+            unmatchedRules: {
+              type: "array",
+              items: {
+                type: "object",
+                additionalProperties: false,
+                required: ["id", "pattern", "rationale", "owner", "expiresOn", "source", "message"],
+                properties: {
+                  id: { type: "string", minLength: 1 },
+                  pattern: { type: "string", minLength: 1 },
+                  rationale: { type: "string", minLength: 1 },
+                  owner: { type: "string", minLength: 1 },
+                  expiresOn: { type: "string", minLength: 1 },
+                  source: { enum: ["policy-file", "cli"] },
+                  message: { type: "string", minLength: 1 }
+                }
+              }
+            }
+          }
+        },
+        diagnostics: {
+          type: "array",
+          items: {
+            type: "object",
+            additionalProperties: false,
+            required: ["severity", "class", "code", "message"],
+            properties: {
+              severity: { enum: ["error", "warning"] },
+              class: { enum: ["input", "semantic", "gate", "runtime"] },
+              code: { type: "string", minLength: 1 },
+              message: { type: "string", minLength: 1 },
+              operationKey: { type: "string" }
             }
           }
         }

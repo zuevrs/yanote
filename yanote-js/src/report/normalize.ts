@@ -84,6 +84,31 @@ export function normalizeReport(report: YanoteReport): YanoteReport {
           candidates: item.candidates ? [...item.candidates].sort((left, right) => left.localeCompare(right)) : undefined
         }))
         .sort(compareDiagnostics)
+    },
+    governance: {
+      exclusions: {
+        appliedRules: [...report.governance.exclusions.appliedRules]
+          .map((rule) => ({
+            ...rule,
+            matchedOperationKeys: [...rule.matchedOperationKeys].sort((left, right) => left.localeCompare(right))
+          }))
+          .sort((left, right) => {
+            if (left.pattern !== right.pattern) return left.pattern.localeCompare(right.pattern);
+            return left.id.localeCompare(right.id);
+          }),
+        unmatchedRules: [...report.governance.exclusions.unmatchedRules].sort((left, right) => {
+          if (left.pattern !== right.pattern) return left.pattern.localeCompare(right.pattern);
+          return left.id.localeCompare(right.id);
+        })
+      },
+      diagnostics: [...report.governance.diagnostics].sort((left, right) => {
+        const severity = governanceSeverityRank(left.severity) - governanceSeverityRank(right.severity);
+        if (severity !== 0) return severity;
+        const klass = governanceClassRank(left.class) - governanceClassRank(right.class);
+        if (klass !== 0) return klass;
+        if (left.code !== right.code) return left.code.localeCompare(right.code);
+        return (left.operationKey ?? "").localeCompare(right.operationKey ?? "");
+      })
     }
   };
 }
@@ -107,4 +132,15 @@ function severityRank(kind: "invalid" | "ambiguous" | "unmatched"): number {
   if (kind === "invalid") return 0;
   if (kind === "ambiguous") return 1;
   return 2;
+}
+
+function governanceSeverityRank(value: "error" | "warning"): number {
+  return value === "error" ? 0 : 1;
+}
+
+function governanceClassRank(value: "input" | "semantic" | "gate" | "runtime"): number {
+  if (value === "input") return 0;
+  if (value === "semantic") return 1;
+  if (value === "gate") return 2;
+  return 3;
 }
