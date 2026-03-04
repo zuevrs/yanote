@@ -56,10 +56,27 @@ function createProgram(io?: { out?: (chunk: string) => void; err?: (chunk: strin
       const exclude: string[] = Array.isArray(opts.exclude) ? opts.exclude : [];
 
       const coverage = computeCoverage(operations, eventsRes.items, exclude);
-      const report = buildReport(coverage, { toolVersion: TOOL_VERSION });
-      await writeYanoteReport(opts.out, report);
-
       const failures: { exitCode: number; message: string }[] = [];
+      const blockingDiagnostics = coverage.diagnostics.filter(
+        (diagnostic) => diagnostic.kind === "invalid" || diagnostic.kind === "ambiguous"
+      );
+
+      if (blockingDiagnostics.length > 0) {
+        const details = blockingDiagnostics
+          .map((diagnostic) => {
+            const method = diagnostic.method ? `${diagnostic.method} ` : "";
+            const route = diagnostic.route ?? "<unknown-route>";
+            const candidates =
+              diagnostic.kind === "ambiguous" && diagnostic.candidates?.length
+                ? ` candidates=[${diagnostic.candidates.join(", ")}]`
+                : "";
+            return `- ${diagnostic.kind}: ${method}${route}${candidates}`;
+          })
+          .join("\n");
+        cmd.error(`Semantic diagnostics require fail-closed exit:\n${details}`, { exitCode: 5 });
+      }
+
+      const report = buildReport(coverage, { toolVersion: TOOL_VERSION });
 
       if (opts.baseline) {
         const baseline = await readBaseline(opts.baseline);
@@ -90,6 +107,8 @@ function createProgram(io?: { out?: (chunk: string) => void; err?: (chunk: strin
         const message = failures.map((f) => f.message).join("\n");
         cmd.error(message, { exitCode });
       }
+
+      await writeYanoteReport(opts.out, report);
     });
 
   return program;
