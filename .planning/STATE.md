@@ -3,13 +3,13 @@ gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: milestone
 current_plan: 4
-status: human_needed
-stopped_at: Live approval gate and bundle upload proven; awaiting Sonatype namespace verification for io.github coordinates
-last_updated: "2026-03-05T08:39:27Z"
-last_activity: 2026-03-05 - Re-verified Phase 05 on run 22709149702 after namespace migration; key discovery now passes and publish fails deterministically on Sonatype namespace authorization
+status: completed
+stopped_at: Phase 05 complete after successful v1.0.122 release proof run
+last_updated: "2026-03-05T10:18:22Z"
+last_activity: 2026-03-05 - Verified full success on run 22712608803 (Preflight+Publish success, GitHub Release v1.0.122 published)
 progress:
   total_phases: 5
-  completed_phases: 4
+  completed_phases: 5
   total_plans: 19
   completed_plans: 19
   percent: 100
@@ -22,7 +22,7 @@ progress:
 See: .planning/PROJECT.md (updated 2026-03-04)
 
 **Core value:** Any Java service team can reliably prove that every v1 API requirement is covered by executable tests before shipping.
-**Current focus:** Phase 05 external Sonatype namespace verification (io.github.zuevrs*) + final publish success proof
+**Current focus:** Milestone complete - optional post-release cleanup only
 
 ## Current Position
 
@@ -30,8 +30,8 @@ Phase: 5 of 5 (OSS Release and Traceable Verification)
 Plan: 4 of 4 in current phase
 Current Plan: 4
 Total Plans in Phase: 4
-Status: Human Verification Needed
-Last activity: 2026-03-05 - Re-verified Phase 05 on run 22709149702 after namespace migration; key discovery now passes and publish fails deterministically on Sonatype namespace authorization
+Status: Complete
+Last activity: 2026-03-05 - Verified full success on run 22712608803 (Preflight+Publish success, GitHub Release v1.0.122 published)
 
 Progress: [██████████] 100%
 
@@ -121,20 +121,19 @@ Recent decisions affecting current work:
 - [Phase 05]: Signed-tag preflight now force-fetches tag objects, validates annotated tag refs, and verifies signatures using imported `RELEASE_TAG_SIGNING_PUBLIC_KEY` diagnostics.
 - [Phase 05]: Publish build now deterministically creates `build/distributions/yanote-dist-all.zip` and uses root `cyclonedxBom` output at `build/reports/cyclonedx/bom.json`.
 - [Phase 05]: Migrated release coordinates to `io.github.zuevrs` + `io.github.zuevrs.yanote.gradle` to avoid custom-domain ownership dependency.
-- [Phase 05]: Live run now proves `production-release` waiting gate + reviewer approval transition + bundle upload + signing-key discovery pass; remaining blocker is Sonatype namespace authorization.
+- [Phase 05]: Final proof run `22712608803` (`v1.0.122`) completed with `Preflight=success`, `Publish=success`, and published GitHub Release `v1.0.122`.
+- [Phase 05]: GitHub release step is now idempotent (`view` -> `edit/create` + `upload --clobber`) to avoid duplicate-tag failures after JReleaser release creation.
 
 ### Pending Todos
 
-- Create/verify Sonatype namespace `io.github.zuevrs` (code-hosting verification flow) for the publishing account/token.
-- Confirm `io.github.zuevrs.yanote.gradle` is authorized as subnamespace (or request it explicitly if Portal requires).
-- Re-run one stable semver tag release and confirm `jreleaserFullRelease` plus `Create GitHub Release` complete successfully.
+- Optional: delete temporary namespace verification repository `zuevrs/ucnsloyd8h` (requires GitHub token with `delete_repo` scope).
 
 ### Blockers/Concerns
 
-- External provisioning pending: Sonatype namespace authorization for `io.github.zuevrs*` prevents full post-approval publish/release completion.
+- None blocking Phase 05 completion.
 
 ## Session Continuity
 
-Last session: 2026-03-05T08:39:27Z
-Stopped at: Live approval/upload/signing-key discovery proven; pending Sonatype namespace verification and final publish-success rerun
+Last session: 2026-03-05T10:18:22Z
+Stopped at: Phase 05 complete; release pipeline verified end-to-end
 Resume file: None
