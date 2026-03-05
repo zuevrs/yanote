@@ -213,7 +213,16 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           set -euo pipefail
-          gh release create "${{ needs.preflight.outputs.release_tag }}" \
-            --title "${{ needs.preflight.outputs.release_tag }}" \
-            --notes-file build/release-notes.md \
-            build/release-bundle/"${{ needs.preflight.outputs.release_tag }}"/assets/*
+          RELEASE_TAG="${{ needs.preflight.outputs.release_tag }}"
+          if gh release view "${RELEASE_TAG}" >/dev/null 2>&1; then
+            gh release edit "${RELEASE_TAG}" \
+              --title "${RELEASE_TAG}" \
+              --notes-file build/release-notes.md
+          else
+            gh release create "${RELEASE_TAG}" \
+              --title "${RELEASE_TAG}" \
+              --notes-file build/release-notes.md
+          fi
+          gh release upload "${RELEASE_TAG}" \
+            build/release-bundle/"${RELEASE_TAG}"/assets/* \
+            --clobber
