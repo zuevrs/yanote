@@ -3,13 +3,13 @@ gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: milestone
 current_plan: 4
-status: ready_for_verification
-stopped_at: Completed 05-04-PLAN.md
-last_updated: "2026-03-04T20:50:15Z"
-last_activity: 2026-03-04 - Completed Phase 05 Plan 04 release workflow gap closure for trigger semantics and previous-tag wiring
+status: human_needed
+stopped_at: Live approval gate proven; awaiting Maven Central/signing secrets for full publish success
+last_updated: "2026-03-05T04:57:39Z"
+last_activity: 2026-03-05 - Re-verified Phase 05 on run 22702951749; post-approval publish now fails deterministically on missing Maven Central credentials
 progress:
   total_phases: 5
-  completed_phases: 5
+  completed_phases: 4
   total_plans: 19
   completed_plans: 19
   percent: 100
@@ -22,7 +22,7 @@ progress:
 See: .planning/PROJECT.md (updated 2026-03-04)
 
 **Core value:** Any Java service team can reliably prove that every v1 API requirement is covered by executable tests before shipping.
-**Current focus:** Milestone verification and closeout
+**Current focus:** Phase 05 external Maven Central/signing secret provisioning + final publish success proof
 
 ## Current Position
 
@@ -30,8 +30,8 @@ Phase: 5 of 5 (OSS Release and Traceable Verification)
 Plan: 4 of 4 in current phase
 Current Plan: 4
 Total Plans in Phase: 4
-Status: Ready for Verification
-Last activity: 2026-03-04 - Completed Phase 05 Plan 04 release workflow gap closure for trigger semantics and previous-tag wiring
+Status: Human Verification Needed
+Last activity: 2026-03-05 - Re-verified Phase 05 on run 22702951749; post-approval publish now fails deterministically on missing Maven Central credentials
 
 Progress: [██████████] 100%
 
@@ -118,17 +118,21 @@ Recent decisions affecting current work:
 - [Phase 05]: Gap closure requires GitHub-compatible tag filter glob syntax in release workflow trigger while strict semver remains enforced in preflight.
 - [Phase 05]: Release notes previous-tag scope must use resolved previous-tag output, not `github.event.before`.
 - [Phase 05]: Environment reviewer proof remains a manual GitHub settings verification step and is not faked by repository automation.
+- [Phase 05]: Signed-tag preflight now force-fetches tag objects, validates annotated tag refs, and verifies signatures using imported `RELEASE_TAG_SIGNING_PUBLIC_KEY` diagnostics.
+- [Phase 05]: Publish build now deterministically creates `build/distributions/yanote-dist-all.zip` and uses root `cyclonedxBom` output at `build/reports/cyclonedx/bom.json`.
+- [Phase 05]: Live run now proves `production-release` waiting gate + reviewer approval transition; remaining release blocker is external Maven Central/signing secret provisioning.
 
 ### Pending Todos
 
-- Perform human verification in GitHub settings/run: required reviewers on `production-release` and approval pause during a stable tag dry run.
+- Provision production release secrets: `JRELEASER_MAVENCENTRAL_USERNAME`, `JRELEASER_MAVENCENTRAL_PASSWORD`, `JRELEASER_GPG_SECRET_KEY`, `JRELEASER_GPG_PUBLIC_KEY`, `JRELEASER_GPG_PASSPHRASE`.
+- Re-run one stable semver tag release and confirm `jreleaserFullRelease` plus `Create GitHub Release` complete successfully.
 
 ### Blockers/Concerns
 
-- Human-needed verification pending: confirm required reviewers on `production-release` and approval pause during tag dry run.
+- External provisioning pending: missing Maven Central/signing secrets prevents full post-approval publish/release completion.
 
 ## Session Continuity
 
-Last session: 2026-03-04T20:50:15Z
-Stopped at: Completed 05-04-PLAN.md
+Last session: 2026-03-05T04:57:39Z
+Stopped at: Live approval proven; pending Maven Central/signing secret provisioning and final publish-success rerun
 Resume file: None
