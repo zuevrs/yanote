@@ -14,7 +14,7 @@ Deliver a Java-first OpenAPI coverage governance workflow that teams can trust i
 - [x] **Phase 2: Coverage Metrics and CLI Reporting** - Deliver operation/status/parameter coverage with deterministic report output through the standalone CLI.
 - [x] **Phase 3: Governance Gates** - Enforce threshold, regression, exclusion, and fail-closed policy behavior.
 - [x] **Phase 4: Java Build and CI Delivery Surfaces** - Deliver Gradle plugin and GitHub Action channels with merge-blocking CI checks on Java 21.
-- [ ] **Phase 5: OSS Release and Traceable Verification** - Ship signed Maven Central and GitHub releases with full v1 requirement-to-test traceability. (code complete; external Maven Central/signing secret provisioning pending)
+- [ ] **Phase 5: OSS Release and Traceable Verification** - Ship signed Maven Central and GitHub releases with full v1 requirement-to-test traceability. (code complete; external Sonatype namespace/keyserver onboarding pending)
 
 ## Phase Details
 
@@ -104,4 +104,4 @@ Plans:
 | 2. Coverage Metrics and CLI Reporting | 3/3 | Complete | 2026-03-04 |
 | 3. Governance Gates | 3/3 | Complete | 2026-03-04 |
 | 4. Java Build and CI Delivery Surfaces | 4/4 | Complete | 2026-03-04 |
-| 5. OSS Release and Traceable Verification | 4/4 | External Maven/signing provisioning needed | - |
+| 5. OSS Release and Traceable Verification | 4/4 | External Sonatype namespace/keyserver onboarding needed | - |
