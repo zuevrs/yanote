@@ -106,7 +106,11 @@ jobs:
         uses: gradle/actions/setup-gradle@v5
 
       - name: Build deterministic release outputs
-        run: ./gradlew distAll cyclonedxBom jreleaserConfig
+        run: |
+          set -euo pipefail
+          RELEASE_VERSION="${{ needs.preflight.outputs.release_tag }}"
+          RELEASE_VERSION="${RELEASE_VERSION#v}"
+          ./gradlew -Pversion="${RELEASE_VERSION}" distAll cyclonedxBom jreleaserConfig
 
       - name: Prepare deterministic release asset index
         run: |
@@ -165,13 +169,15 @@ jobs:
           JRELEASER_GPG_PASSPHRASE: ${{ secrets.JRELEASER_GPG_PASSPHRASE }}
         run: |
           set -euo pipefail
+          RELEASE_VERSION="${{ needs.preflight.outputs.release_tag }}"
+          RELEASE_VERSION="${RELEASE_VERSION#v}"
           echo "same-tag retry policy context: retry-eligible=${{ needs.preflight.outputs.retry_eligible }} retry_reason=${{ needs.preflight.outputs.retry_reason }}"
           if [[ "${{ needs.preflight.outputs.retry_eligible }}" == "true" ]]; then
             echo "same-tag retry allowed because preflight classified a transient condition."
           else
             echo "same-tag retry disabled for non-transient conditions."
           fi
-          ./gradlew jreleaserFullRelease
+          ./gradlew -Pversion="${RELEASE_VERSION}" jreleaserFullRelease
 
       - name: Create GitHub Release
         env:
