@@ -39,6 +39,29 @@ subprojects {
     val releaseScopedModule = path in releasePublicationModules
     val explicitlyExcludedModule = path in releasePublicationExcludedModules
 
+    plugins.withId("signing") {
+        extensions.configure<org.gradle.plugins.signing.SigningExtension> {
+            val releasePublishRequested = gradle.startParameter.taskNames.any { it.contains("publish", ignoreCase = true) }
+            if (releasePublishRequested) {
+                val rawSigningKey = (findProperty("signingKey") as String?)
+                    ?: System.getenv("JRELEASER_GPG_SECRET_KEY")
+                val signingPassword = (findProperty("signingPassword") as String?)
+                    ?: System.getenv("JRELEASER_GPG_PASSPHRASE")
+                if (!rawSigningKey.isNullOrBlank()) {
+                    val keyMaterial = if (rawSigningKey.contains("BEGIN PGP PRIVATE KEY BLOCK")) {
+                        rawSigningKey
+                    } else {
+                        val keyFile = file(rawSigningKey)
+                        if (keyFile.exists()) keyFile.readText() else rawSigningKey
+                    }
+                    if (keyMaterial.contains("BEGIN PGP PRIVATE KEY BLOCK")) {
+                        useInMemoryPgpKeys(keyMaterial, signingPassword)
+                    }
+                }
+            }
+        }
+    }
+
     if (releaseScopedModule && !explicitlyExcludedModule) {
         extensions.configure<org.gradle.api.publish.PublishingExtension> {
             repositories {
