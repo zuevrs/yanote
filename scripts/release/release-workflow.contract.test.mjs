@@ -53,6 +53,10 @@ test("release workflow wires deterministic publish sequence", async () => {
   assert.match(source, /render-release-notes\.mjs/);
   assert.match(source, /JRELEASER_GITHUB_TOKEN:\s*\$\{\{\s*secrets\.JRELEASER_GITHUB_TOKEN\s*\}\}/);
   assert.match(source, /\.\/gradlew\s+-Pversion="\$\{RELEASE_VERSION\}"\s+jreleaserFullRelease/);
+  assert.match(source, /gh release view "\$\{RELEASE_TAG\}"/);
+  assert.match(source, /gh release edit "\$\{RELEASE_TAG\}"/);
+  assert.match(source, /gh release create "\$\{RELEASE_TAG\}"/);
+  assert.match(source, /gh release upload "\$\{RELEASE_TAG\}"[\s\S]*--clobber/);
   assert.match(source, /jreleaser/i);
 });
 
