@@ -26,7 +26,7 @@ import dev.yanote.gradle.tasks.YanoteCheckTask
 import java.io.File
 
 plugins {
-    id("dev.yanote.gradle")
+    id("io.github.zuevrs.yanote.gradle")
 }
 
 fun parseCsv(envName: String): List<String> {

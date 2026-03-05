@@ -27,7 +27,7 @@ subprojects {
     pluginManager.apply("java-library")
     pluginManager.apply("maven-publish")
 
-    group = "dev.yanote"
+    group = rootProject.group.toString()
     version = rootProject.version.toString()
 
     extensions.configure<JavaPluginExtension> {
