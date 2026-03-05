@@ -39,6 +39,10 @@ test("release workflow wires deterministic publish sequence", async () => {
   assert.match(source, /RELEASE_VERSION="\$\{\{\s*needs\.preflight\.outputs\.release_tag\s*\}\}"/);
   assert.match(source, /RELEASE_VERSION="\$\{RELEASE_VERSION#v\}"/);
   assert.match(source, /\.\/gradlew\s+-Pversion="\$\{RELEASE_VERSION\}"\s+distAll\s+cyclonedxBom\s+jreleaserConfig/);
+  assert.match(
+    source,
+    /Build deterministic release outputs[\s\S]*JRELEASER_MAVENCENTRAL_USERNAME:\s*\$\{\{\s*secrets\.JRELEASER_MAVENCENTRAL_USERNAME\s*\}\}/,
+  );
   assert.match(source, /yanote-dist-all\.zip/);
   assert.match(source, /zip -rq/);
   assert.match(source, /cyclonedxBom|sbom/i);
