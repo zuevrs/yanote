@@ -42,6 +42,7 @@ test("release workflow wires deterministic publish sequence", async () => {
   assert.match(source, /cyclonedxBom|sbom/i);
   assert.match(source, /assemble-release-assets\.sh/);
   assert.match(source, /render-release-notes\.mjs/);
+  assert.match(source, /JRELEASER_GITHUB_TOKEN:\s*\$\{\{\s*secrets\.JRELEASER_GITHUB_TOKEN\s*\}\}/);
   assert.match(source, /jreleaser/i);
 });
 
