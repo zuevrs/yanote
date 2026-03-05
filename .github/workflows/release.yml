@@ -105,13 +105,37 @@ jobs:
       - name: Setup Gradle
         uses: gradle/actions/setup-gradle@v5
 
+      - name: Materialize in-runner signing key files
+        env:
+          JRELEASER_GPG_SECRET_KEY: ${{ secrets.JRELEASER_GPG_SECRET_KEY }}
+          JRELEASER_GPG_PUBLIC_KEY: ${{ secrets.JRELEASER_GPG_PUBLIC_KEY }}
+        run: |
+          set -euo pipefail
+          PUBLIC_KEY_FILE="${RUNNER_TEMP}/jreleaser-public.asc"
+          SECRET_KEY_FILE="${RUNNER_TEMP}/jreleaser-secret.asc"
+          printf '%s' "${JRELEASER_GPG_PUBLIC_KEY}" > "${PUBLIC_KEY_FILE}"
+          printf '%s' "${JRELEASER_GPG_SECRET_KEY}" > "${SECRET_KEY_FILE}"
+          PUBLIC_HEADER="$(awk 'NR==1{print;exit}' "${PUBLIC_KEY_FILE}")"
+          SECRET_HEADER="$(awk 'NR==1{print;exit}' "${SECRET_KEY_FILE}")"
+          if [[ "${PUBLIC_HEADER}" != "-----BEGIN PGP PUBLIC KEY BLOCK-----" ]]; then
+            echo "Invalid JRELEASER_GPG_PUBLIC_KEY payload header: ${PUBLIC_HEADER}" >&2
+            exit 1
+          fi
+          if [[ "${SECRET_HEADER}" != "-----BEGIN PGP PRIVATE KEY BLOCK-----" ]]; then
+            echo "Invalid JRELEASER_GPG_SECRET_KEY payload header: ${SECRET_HEADER}" >&2
+            exit 1
+          fi
+          chmod 600 "${PUBLIC_KEY_FILE}" "${SECRET_KEY_FILE}"
+          {
+            echo "JRELEASER_GPG_PUBLIC_KEY=${PUBLIC_KEY_FILE}"
+            echo "JRELEASER_GPG_SECRET_KEY=${SECRET_KEY_FILE}"
+          } >> "${GITHUB_ENV}"
+
       - name: Build deterministic release outputs
         env:
           JRELEASER_GITHUB_TOKEN: ${{ secrets.JRELEASER_GITHUB_TOKEN }}
           JRELEASER_MAVENCENTRAL_USERNAME: ${{ secrets.JRELEASER_MAVENCENTRAL_USERNAME }}
           JRELEASER_MAVENCENTRAL_PASSWORD: ${{ secrets.JRELEASER_MAVENCENTRAL_PASSWORD }}
-          JRELEASER_GPG_SECRET_KEY: ${{ secrets.JRELEASER_GPG_SECRET_KEY }}
-          JRELEASER_GPG_PUBLIC_KEY: ${{ secrets.JRELEASER_GPG_PUBLIC_KEY }}
           JRELEASER_GPG_PASSPHRASE: ${{ secrets.JRELEASER_GPG_PASSPHRASE }}
         run: |
           set -euo pipefail
@@ -171,8 +195,6 @@ jobs:
           JRELEASER_GITHUB_TOKEN: ${{ secrets.JRELEASER_GITHUB_TOKEN }}
           JRELEASER_MAVENCENTRAL_USERNAME: ${{ secrets.JRELEASER_MAVENCENTRAL_USERNAME }}
           JRELEASER_MAVENCENTRAL_PASSWORD: ${{ secrets.JRELEASER_MAVENCENTRAL_PASSWORD }}
-          JRELEASER_GPG_SECRET_KEY: ${{ secrets.JRELEASER_GPG_SECRET_KEY }}
-          JRELEASER_GPG_PUBLIC_KEY: ${{ secrets.JRELEASER_GPG_PUBLIC_KEY }}
           JRELEASER_GPG_PASSPHRASE: ${{ secrets.JRELEASER_GPG_PASSPHRASE }}
         run: |
           set -euo pipefail
