@@ -26,7 +26,7 @@ class YanoteMultiModuleWiringTest {
         writeBuildFile(
             """
             plugins {
-                id("dev.yanote.gradle")
+                id("io.github.zuevrs.yanote.gradle")
             }
 
             project(":service") {
@@ -88,7 +88,7 @@ class YanoteMultiModuleWiringTest {
         writeBuildFile(
             """
             plugins {
-                id("dev.yanote.gradle")
+                id("io.github.zuevrs.yanote.gradle")
             }
 
             yanote {
@@ -140,7 +140,7 @@ class YanoteMultiModuleWiringTest {
         writeBuildFile(
             """
             plugins {
-                id("dev.yanote.gradle")
+                id("io.github.zuevrs.yanote.gradle")
             }
 
             project(":zeta") {

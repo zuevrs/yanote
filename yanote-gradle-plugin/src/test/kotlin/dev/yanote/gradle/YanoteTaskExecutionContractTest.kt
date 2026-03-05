@@ -99,7 +99,7 @@ class YanoteTaskExecutionContractTest {
             import dev.yanote.gradle.tasks.YanoteReportTask
 
             plugins {
-                id("dev.yanote.gradle")
+                id("io.github.zuevrs.yanote.gradle")
             }
 
             project(":service") {

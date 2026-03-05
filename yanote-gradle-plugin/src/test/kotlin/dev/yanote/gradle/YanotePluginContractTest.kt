@@ -22,7 +22,7 @@ class YanotePluginContractTest {
             """
             plugins {
                 id("java")
-                id("dev.yanote.gradle")
+                id("io.github.zuevrs.yanote.gradle")
             }
             """.trimIndent()
         )
@@ -61,7 +61,7 @@ class YanotePluginContractTest {
             """
             plugins {
                 id("java")
-                id("dev.yanote.gradle")
+                id("io.github.zuevrs.yanote.gradle")
             }
 
             tasks.register("printCheckDependencies") {
@@ -86,7 +86,7 @@ class YanotePluginContractTest {
             """
             plugins {
                 id("java")
-                id("dev.yanote.gradle")
+                id("io.github.zuevrs.yanote.gradle")
             }
 
             yanote {

@@ -8,7 +8,7 @@ plugins {
 gradlePlugin {
     plugins {
         create("yanoteGradlePlugin") {
-            id = "dev.yanote.gradle"
+            id = "io.github.zuevrs.yanote.gradle"
             implementationClass = "dev.yanote.gradle.YanotePlugin"
             displayName = "Yanote Gradle Plugin"
             description = "Gradle delivery surface for Yanote analyzer tasks."
