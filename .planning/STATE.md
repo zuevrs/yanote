@@ -4,9 +4,9 @@ milestone: v1.0
 milestone_name: milestone
 current_plan: 4
 status: human_needed
-stopped_at: Live approval gate and bundle upload proven; awaiting Sonatype namespace authorization and keyserver fingerprint discovery
-last_updated: "2026-03-05T05:51:32Z"
-last_activity: 2026-03-05 - Re-verified Phase 05 on run 22704093554; publish uploads bundle then fails deterministically on Sonatype namespace/key discovery policy checks
+stopped_at: Live approval gate and bundle upload proven; awaiting Sonatype namespace verification for io.github coordinates
+last_updated: "2026-03-05T08:39:27Z"
+last_activity: 2026-03-05 - Re-verified Phase 05 on run 22709149702 after namespace migration; key discovery now passes and publish fails deterministically on Sonatype namespace authorization
 progress:
   total_phases: 5
   completed_phases: 4
@@ -22,7 +22,7 @@ progress:
 See: .planning/PROJECT.md (updated 2026-03-04)
 
 **Core value:** Any Java service team can reliably prove that every v1 API requirement is covered by executable tests before shipping.
-**Current focus:** Phase 05 external Sonatype namespace/keyserver onboarding + final publish success proof
+**Current focus:** Phase 05 external Sonatype namespace verification (io.github.zuevrs*) + final publish success proof
 
 ## Current Position
 
@@ -31,7 +31,7 @@ Plan: 4 of 4 in current phase
 Current Plan: 4
 Total Plans in Phase: 4
 Status: Human Verification Needed
-Last activity: 2026-03-05 - Re-verified Phase 05 on run 22704093554; publish uploads bundle then fails deterministically on Sonatype namespace/key discovery policy checks
+Last activity: 2026-03-05 - Re-verified Phase 05 on run 22709149702 after namespace migration; key discovery now passes and publish fails deterministically on Sonatype namespace authorization
 
 Progress: [██████████] 100%
 
@@ -120,20 +120,21 @@ Recent decisions affecting current work:
 - [Phase 05]: Environment reviewer proof remains a manual GitHub settings verification step and is not faked by repository automation.
 - [Phase 05]: Signed-tag preflight now force-fetches tag objects, validates annotated tag refs, and verifies signatures using imported `RELEASE_TAG_SIGNING_PUBLIC_KEY` diagnostics.
 - [Phase 05]: Publish build now deterministically creates `build/distributions/yanote-dist-all.zip` and uses root `cyclonedxBom` output at `build/reports/cyclonedx/bom.json`.
-- [Phase 05]: Live run now proves `production-release` waiting gate + reviewer approval transition + bundle upload; remaining blockers are Sonatype namespace authorization and signing-key fingerprint discovery on supported keyservers.
+- [Phase 05]: Migrated release coordinates to `io.github.zuevrs` + `io.github.zuevrs.yanote.gradle` to avoid custom-domain ownership dependency.
+- [Phase 05]: Live run now proves `production-release` waiting gate + reviewer approval transition + bundle upload + signing-key discovery pass; remaining blocker is Sonatype namespace authorization.
 
 ### Pending Todos
 
-- Authorize namespaces `dev.yanote` and `dev.yanote.gradle` in Sonatype Central Portal for the publishing account/token.
-- Ensure fingerprint `E171E81396502206` is discoverable on Sonatype-supported keyservers; re-run release after propagation.
+- Create/verify Sonatype namespace `io.github.zuevrs` (code-hosting verification flow) for the publishing account/token.
+- Confirm `io.github.zuevrs.yanote.gradle` is authorized as subnamespace (or request it explicitly if Portal requires).
 - Re-run one stable semver tag release and confirm `jreleaserFullRelease` plus `Create GitHub Release` complete successfully.
 
 ### Blockers/Concerns
 
-- External provisioning pending: Sonatype namespace authorization and keyserver fingerprint discovery prevent full post-approval publish/release completion.
+- External provisioning pending: Sonatype namespace authorization for `io.github.zuevrs*` prevents full post-approval publish/release completion.
 
 ## Session Continuity
 
-Last session: 2026-03-05T05:51:32Z
-Stopped at: Live approval and upload proven; pending Sonatype namespace/keyserver external onboarding and final publish-success rerun
+Last session: 2026-03-05T08:39:27Z
+Stopped at: Live approval/upload/signing-key discovery proven; pending Sonatype namespace verification and final publish-success rerun
 Resume file: None
