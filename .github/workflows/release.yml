@@ -141,7 +141,7 @@ jobs:
           set -euo pipefail
           RELEASE_VERSION="${{ needs.preflight.outputs.release_tag }}"
           RELEASE_VERSION="${RELEASE_VERSION#v}"
-          ./gradlew -Pversion="${RELEASE_VERSION}" distAll cyclonedxBom jreleaserConfig
+          ./gradlew -Pversion="${RELEASE_VERSION}" publish distAll cyclonedxBom jreleaserConfig
 
       - name: Prepare deterministic release asset index
         run: |

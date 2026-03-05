@@ -41,7 +41,7 @@ test("release workflow wires deterministic publish sequence", async () => {
   assert.match(source, /Materialize in-runner signing key files/);
   assert.match(source, /JRELEASER_GPG_PUBLIC_KEY=\$\{PUBLIC_KEY_FILE\}/);
   assert.match(source, /JRELEASER_GPG_SECRET_KEY=\$\{SECRET_KEY_FILE\}/);
-  assert.match(source, /\.\/gradlew\s+-Pversion="\$\{RELEASE_VERSION\}"\s+distAll\s+cyclonedxBom\s+jreleaserConfig/);
+  assert.match(source, /\.\/gradlew\s+-Pversion="\$\{RELEASE_VERSION\}"\s+publish\s+distAll\s+cyclonedxBom\s+jreleaserConfig/);
   assert.match(
     source,
     /Build deterministic release outputs[\s\S]*JRELEASER_MAVENCENTRAL_USERNAME:\s*\$\{\{\s*secrets\.JRELEASER_MAVENCENTRAL_USERNAME\s*\}\}/,
