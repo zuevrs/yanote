@@ -39,6 +39,17 @@ subprojects {
     val releaseScopedModule = path in releasePublicationModules
     val explicitlyExcludedModule = path in releasePublicationExcludedModules
 
+    if (releaseScopedModule && !explicitlyExcludedModule) {
+        extensions.configure<org.gradle.api.publish.PublishingExtension> {
+            repositories {
+                maven {
+                    name = "stagingDeploy"
+                    url = rootProject.layout.buildDirectory.dir("staging-deploy").get().asFile.toURI()
+                }
+            }
+        }
+    }
+
     tasks.matching { it.name == "cyclonedxDirectBom" }.configureEach {
         if (!releaseScopedModule || explicitlyExcludedModule) {
             enabled = false
