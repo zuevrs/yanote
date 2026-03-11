@@ -22,3 +22,32 @@ dist/node-analyzer/package-lock.json
 
 # default recorder output (if generated during local runs)
 /events.jsonl
+
+# ── GSD baseline (auto-generated) ──
+.gsd/activity/
+.gsd/runtime/
+.gsd/worktrees/
+.gsd/auto.lock
+.gsd/metrics.json
+.gsd/STATE.md
+Thumbs.db
+*.swp
+*.swo
+*~
+.vscode/
+*.code-workspace
+.env
+.env.*
+!.env.example
+.next/
+dist/
+__pycache__/
+*.pyc
+.venv/
+venv/
+target/
+vendor/
+*.log
+coverage/
+.cache/
+tmp/
