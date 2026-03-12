@@ -66,7 +66,7 @@ This milestone is complete only when all are true:
 - [x] **S03: Concept-First Product Landing** `risk:medium` `depends:[S01,S02]`
   > After this: A first-time engineer can understand the product, primary workflow, and next steps from the root landing without wading through implementation archaeology.
 
-- [ ] **S04: Version, Release, And Support Boundaries** `risk:medium` `depends:[S03]`
+- [x] **S04: Version, Release, And Support Boundaries** `risk:medium` `depends:[S03]`
   > After this: A repo visitor can see which version line is current, what changed recently, what is stable, and what limitations/support boundaries still apply.
 
 - [ ] **S05: Documentation Architecture And Navigation** `risk:medium` `depends:[S03,S04]`

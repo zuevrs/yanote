@@ -21,7 +21,8 @@ What exists now:
 - 100% validated v1 requirement traceability with publishable release artifacts.
 
 Current repo-level gap:
-- The technical product is stronger than the repository surface. Public entry points, navigation, version visibility, and integration guidance still need product-grade packaging so a first-time engineer can understand Yanote, wire it into a real service, and trust the repo as a maintained corporate tool.
+- The technical product is stronger than the repository surface. Public entry points, navigation, and integration guidance still need product-grade packaging so a first-time engineer can understand Yanote, wire it into a real service, and trust the repo as a maintained corporate tool.
+- Release/support visibility now has an authoritative public owner in `docs/release-and-support.md` and thin pointers from both main landings, but the broader docs architecture and trust surfaces are still owned by later M002 slices.
 
 ## Architecture / Key Patterns
 

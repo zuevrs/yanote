@@ -1,7 +1,7 @@
 # GSD State
 
 **Active Milestone:** M002 — Repository Product Maturity
-**Active Slice:** S04 — Version, Release, And Support Boundaries
+**Active Slice:** S05 — Documentation Architecture And Navigation
 **Phase:** planning
 **Requirements Status:** 10 active · 21 validated · 2 deferred · 3 out of scope
 
@@ -16,4 +16,4 @@
 - None
 
 ## Next Action
-Plan slice S04 (Version, Release, And Support Boundaries).
+Plan slice S05 (Documentation Architecture And Navigation).
