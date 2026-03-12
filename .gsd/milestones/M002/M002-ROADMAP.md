@@ -57,7 +57,7 @@ This milestone is complete only when all are true:
 
 ## Slices
 
-- [ ] **S01: Verified Recorder Integration Path** `risk:high` `depends:[]`
+- [x] **S01: Verified Recorder Integration Path** `risk:high` `depends:[]`
   > After this: An engineer can follow one short, truthful path to connect the recorder to a real Spring service and verify that `events.jsonl` is being produced.
 
 - [ ] **S02: Analysis Run And Coverage Interpretation** `risk:high` `depends:[S01]`

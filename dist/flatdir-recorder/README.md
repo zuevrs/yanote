@@ -1,8 +1,16 @@
-## FlatDir bundle: `yanote-recorder-spring-mvc`
+## FlatDir fallback bundle: `yanote-recorder-spring-mvc`
 
-Самый быстрый офлайн-способ подключить `yanote-recorder-spring-mvc` к вашему Spring Boot 3.x сервису и убедиться, что он пишет `events.jsonl` при REST вызовах — без публикации в репозитории артефактов.
+Это `flatDir`-bundle для **smoke/offline-only fallback**: используйте его только тогда, когда нужно быстро доказать запись `events.jsonl` в закрытой сети, а публикация в Maven-репозиторий или `mavenLocal()` недоступна.
 
-> **Важно:** это **временный тестовый вариант** (smoke-проверка). Для долгосрочной интеграции предпочтительнее внутренняя публикация артефактов (Nexus/Artifactory) или `mavenLocal()`.
+> **Рекомендуемый путь:** dependency-based интеграция описана в каноническом гайде [`docs/guides/recorder-spring-mvc.md`](../../docs/guides/recorder-spring-mvc.md). Этот bundle не должен быть основной историей продукта и не заменяет нормальную публикацию артефактов.
+
+### Когда этот fallback всё ещё полезен
+
+- нужно сделать быстрый smoke-прогон в закрытой сети без доступа к репозиторию артефактов;
+- нужно временно положить JAR'ы рядом с сервисом и убедиться, что рекордер пишет `events.jsonl`;
+- нужно провести короткую offline-диагностику перед переходом на dependency-based подключение.
+
+Если у вас доступен обычный dependency-based setup, возвращайтесь к [`docs/guides/recorder-spring-mvc.md`](../../docs/guides/recorder-spring-mvc.md).
 
 ### 1) Собрать bundle в этом репо
 
@@ -77,6 +85,8 @@ test -s /data/yanote/events.jsonl && echo "OK: events.jsonl is not empty"
 
 Если хотите автоматизировать — используйте `dist/flatdir-recorder/verify.sh`.
 
+После smoke/offline proof вернитесь к каноническому dependency-based пути: [`docs/guides/recorder-spring-mvc.md`](../../docs/guides/recorder-spring-mvc.md).
+
 ---
 
 ## Дальше: посчитать coverage (OpenAPI/AsyncAPI) по `events.jsonl`
@@ -84,4 +94,3 @@ test -s /data/yanote/events.jsonl && echo "OK: events.jsonl is not empty"
 После того, как `events.jsonl` появился и пополняется, можно запустить Node analyzer и получить `yanote-report.json`.
 
 - Bundle/инструкция: `dist/node-analyzer/README.md`
-

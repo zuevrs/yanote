@@ -10,24 +10,24 @@
 - `yanote-test-tags-restassured`: фильтр для автоподстановки заголовков `X-Test-Run-Id` и `X-Test-Suite`.
 - `yanote-test-tags-cucumber`: плагин для определения suite и передачи её в заголовки через системное свойство `yanote.suite`.
 
-## Настройка рекордера (Spring MVC)
+## Проверенный путь интеграции рекордера (Spring MVC)
 
-По умолчанию `yanote-recorder-spring-mvc` **выключен**. Это сделано специально, чтобы подключение стартера в production не начинало записывать прод-трафик “само собой”.
+Рекомендуемый путь настройки рекордера — канонический guide [`docs/guides/recorder-spring-mvc.md`](docs/guides/recorder-spring-mvc.md). В корневом README оставлена только навигация по проверенному пути; точные шаги подключения, proof flow и инспекция `events.jsonl` живут в этом гайде.
 
-Чтобы включить запись событий:
+Проверенный путь S01 выглядит так:
 
-- `yanote.recorder.enabled=true`
-- `yanote.recorder.events-path=/path/to/events.jsonl` (по умолчанию `events.jsonl`)
-- `yanote.recorder.service-name=...` (опционально)
+1. **Канонический dependency-based setup** — [`docs/guides/recorder-spring-mvc.md`](docs/guides/recorder-spring-mvc.md)
+2. **Runnable service example** — [`examples/springmvc-service/README.md`](examples/springmvc-service/README.md)
+3. **Metadata handoff example (RestAssured)** — [`examples/tests-restassured/README.md`](examples/tests-restassured/README.md)
+4. **Smoke/offline fallback** — [`dist/flatdir-recorder/README.md`](dist/flatdir-recorder/README.md) только когда публикация в Maven-репозиторий или `mavenLocal()` недоступна
 
-## Быстрый офлайн-тест в закрытой сети (временный вариант)
+Канонические свойства этого пути:
 
-Если нужно **максимально быстро** проверить, что рекордер пишет `events.jsonl` в вашем Spring Boot 3.x сервисе в закрытом контуре, можно использовать **временный** способ подключения через Gradle `flatDir` (локальные JAR’ы).
+- `yanote.recorder.enabled`
+- `yanote.recorder.events-path`
+- `yanote.recorder.service-name` (опционально)
 
-- Инструкция: `dist/flatdir-recorder/README.md`
-- Сборка bundle JAR’ов в этом репо: `./gradlew distFlatdirRecorder`
-
-> Этот способ удобен для smoke-проверок, но не рекомендуется как долгосрочная интеграция (лучше внутренняя публикация в Maven-репозиторий или `mavenLocal()`).
+Bundle для smoke/offline fallback по-прежнему можно собрать командой `./gradlew distFlatdirRecorder`, но основной и проверенный путь — обычная зависимость из `mavenLocal()` или внутреннего Maven-репозитория по гайду выше.
 
 ## Быстрый запуск
 
