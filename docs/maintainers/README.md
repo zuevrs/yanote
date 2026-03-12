@@ -12,6 +12,7 @@
 ## Что владеет эта директория
 
 - [`release-signing.md`](release-signing.md) — release-signing policy, tag-driven publication flow и требования к подписи коммитов/тегов.
+- [`local-agent-workflow.md`](local-agent-workflow.md) — локальный root `AGENTS.md`, repo-local `info/exclude` bootstrap и граница содержимого для maintainer-only workflow.
 
 ## Когда оставаться здесь
 
