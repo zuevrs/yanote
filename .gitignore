@@ -36,7 +36,8 @@ Thumbs.db
 .env.*
 !.env.example
 .next/
-dist/
+dist/*
+!dist/README.md
 __pycache__/
 *.pyc
 .venv/

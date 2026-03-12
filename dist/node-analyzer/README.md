@@ -1,5 +1,7 @@
 ## Node analyzer bundle: offline fallback
 
+> Audience: **offline/fallback leaf**. Если вы открыли этот bundle напрямую, сначала вернитесь в [`dist/README.md`](../README.md) для owner map fallback-поверхностей, а затем — в канонический analyzer guide [`docs/guides/analyzer-coverage.md`](../../docs/guides/analyzer-coverage.md), который этот bundle не заменяет.
+
 Канонический путь анализа для репозитория описан в [`docs/guides/analyzer-coverage.md`](../../docs/guides/analyzer-coverage.md): сначала source-built `yanote-js`, затем `Summary` / `YANOTE_SUMMARY`, затем `yanote-report.json`.
 
 `dist/node-analyzer/` нужен только как offline fallback, когда в вашем контуре нельзя выполнить:

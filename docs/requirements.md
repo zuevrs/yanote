@@ -1,5 +1,7 @@
 # Requirements: Yanote Coverage Platform
 
+> Audience: **public requirements owner surface**. Этот файл остаётся каноническим inventory требований, deferred scope и out-of-scope границ. Если вы пришли сюда напрямую и ищете карту всей пользовательской документации, вернитесь в [`docs/README.md`](README.md).
+
 **Defined:** 2026-03-04
 **Core Value:** Any Java service team can reliably prove that every v1 API requirement is covered by executable tests before shipping.
 

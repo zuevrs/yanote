@@ -1,5 +1,7 @@
 # Release Signing and Versioning
 
+> Audience: **maintainer-only leaf**. This page owns release-signing and tag policy details. For the maintainer workflow map and the rest of this secondary surface, return to [`docs/maintainers/README.md`](README.md).
+
 This repository uses two signing modes on purpose:
 
 - **SSH-signed commits** for normal day-to-day development

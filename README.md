@@ -74,9 +74,12 @@ Yanote нужен инженеру, который одновременно от
 
 Эти материалы полезны, но они не должны быть первым входом в продукт:
 
-- maintainer/release surface: [`docs/maintainers/release-signing.md`](docs/maintainers/release-signing.md)
-- traceability surface: [`docs/traceability/v1-requirements-tests.md`](docs/traceability/v1-requirements-tests.md)
-- historical plans: [`docs/plans/`](docs/plans/)
+- maintainer map: [`docs/maintainers/README.md`](docs/maintainers/README.md) — owner map для release/signing workflow и других maintainer-only surface-ов.
+  - direct leaf: [`docs/maintainers/release-signing.md`](docs/maintainers/release-signing.md)
+- traceability map: [`docs/traceability/README.md`](docs/traceability/README.md) — owner map для requirement/test matrix и schema-level reference.
+  - direct matrix: [`docs/traceability/v1-requirements-tests.md`](docs/traceability/v1-requirements-tests.md)
+- historical plans map: [`docs/plans/README.md`](docs/plans/README.md) — owner map для design/proof history без подмены текущих guide-level docs.
+- offline/fallback bundles map: [`dist/README.md`](dist/README.md) — secondary маршрут к smoke/offline bundle docs только после канонических guide-level surface-ов.
 
 Состав репозитория тоже остаётся вторичным навигационным слоем:
 
