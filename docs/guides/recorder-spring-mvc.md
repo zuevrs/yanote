@@ -125,17 +125,19 @@ bash scripts/docs/verify-s01-recorder-path.sh
 
 Если заголовки не пришли, рекордер всё равно пишет ключи `test.run_id` и `test.suite`, но со значением `null`. Это нормальный базовый сценарий для ручного `curl` или сервиса без тестовых тегов.
 
-Текущий RestAssured handoff в репозитории такой:
+Полный текущий contract RestAssured/Cucumber, различие между demo/env bridge `YANOTE_SUITE` и общей suite surface `yanote.suite`, а также путь от `test.run_id`/`test.suite` до `coverage.perOperation[].suites` описаны в [`docs/guides/test-tagging.md`](test-tagging.md).
 
-- demo-тест берёт run id из env `YANOTE_RUN_ID`
-- demo-тест берёт suite из env `YANOTE_SUITE`
-- это же значение suite перекладывается в системное свойство `yanote.suite`, которое остаётся текущей общей surface для test-tagging интеграций
-- затем demo-тест передаёт оба значения в `YanoteRestAssuredFilter`, и на запросе появляются `X-Test-Run-Id` и `X-Test-Suite`
+Для базового recorder proof здесь достаточно помнить:
 
-Этого достаточно, чтобы увидеть заполненные `test.run_id`/`test.suite` в `events.jsonl`. Более глубокая интерпретация coverage остаётся для следующего этапа.
+- `X-Test-Run-Id` → `test.run_id`
+- `X-Test-Suite` → `test.suite`
+- если заголовки не пришли, оба поля останутся `null`
+
+Этого достаточно, чтобы увидеть заполненные `test.run_id`/`test.suite` в `events.jsonl`; более глубокая интерпретация handoff и report-level suites вынесена в канонический tagging guide.
 
 ## Связанные поверхности
 
+- Канонический test-tagging contract: [`docs/guides/test-tagging.md`](test-tagging.md)
 - Runnable пример сервиса: [`examples/springmvc-service/README.md`](../../examples/springmvc-service/README.md)
 - Пример текущего RestAssured handoff: [`examples/tests-restassured/README.md`](../../examples/tests-restassured/README.md)
 - `flatDir` smoke/offline fallback: [`dist/flatdir-recorder/README.md`](../../dist/flatdir-recorder/README.md)

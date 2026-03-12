@@ -37,8 +37,7 @@ mkdir -p "$out"
 node "$(dirname "$0")/bin/yanote.cjs" report \
   --spec "$spec" \
   --events "$events" \
-  --out "$out" \
-  --exclude /health
+  --out "$out"
 
 test -s "$out/yanote-report.json" && echo "OK: yanote-report.json written"
 

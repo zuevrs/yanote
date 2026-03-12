@@ -54,4 +54,13 @@ tmp/
 .gsd/worktrees/
 .gsd/auto.lock
 .gsd/metrics.json
+.gsd/completed-units.json
 .gsd/STATE.md
+
+# tracked GSD planning artifacts
+!.gsd/
+!.gsd/DECISIONS.md
+!.gsd/PROJECT.md
+!.gsd/REQUIREMENTS.md
+!.gsd/milestones/
+!.gsd/milestones/**

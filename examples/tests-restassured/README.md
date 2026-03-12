@@ -1,6 +1,6 @@
 # RestAssured E2E тесты для примера
 
-Этот пример показывает только текущий путь передачи тестовых метаданных. За настройкой рекордера и путём к `events.jsonl` идите в [`docs/guides/recorder-spring-mvc.md`](../../docs/guides/recorder-spring-mvc.md).
+Этот пример показывает текущий runnable handoff для RestAssured. Полный contract RestAssured/Cucumber, различие между `YANOTE_SUITE` и `yanote.suite`, а также путь до report-level `coverage.perOperation[].suites` живут в [`docs/guides/test-tagging.md`](../../docs/guides/test-tagging.md). За настройкой рекордера и путём к `events.jsonl` идите в [`docs/guides/recorder-spring-mvc.md`](../../docs/guides/recorder-spring-mvc.md).
 
 Текущий handoff в репозитории выглядит так:
 
@@ -8,6 +8,8 @@
 - demo-тест читает suite из env `YANOTE_SUITE`
 - это же значение suite копируется в `System.setProperty("yanote.suite", ...)`, чтобы сохранить текущую общую `yanote.suite` surface для test-tagging интеграций
 - после этого demo-тест передаёт оба значения в `YanoteRestAssuredFilter`, и запрос получает заголовки `X-Test-Run-Id` и `X-Test-Suite`
+
+`YANOTE_SUITE` здесь только demo/env bridge; общей surface для suite остаётся `yanote.suite`.
 
 Итог для рекордера:
 
@@ -18,7 +20,7 @@
 Запуск из корня репозитория:
 
 ```bash
-./gradlew :examples:tests-restassured:test
+./gradlew --no-daemon :examples:tests-restassured:test --rerun-tasks
 ```
 
 Полезные переменные для демо-прогона:
@@ -37,4 +39,4 @@ test -s "$YANOTE_EVENTS_PATH" && echo "OK: events.jsonl is not empty"
 rg -n 'test\.run_id|test\.suite' "$YANOTE_EVENTS_PATH"
 ```
 
-Если вам нужен runnable сервис для этого тестового клиента, смотрите [`examples/springmvc-service/README.md`](../springmvc-service/README.md). Если нужен только временный smoke/offline путь без публикации зависимостей, используйте fallback [`dist/flatdir-recorder/README.md`](../../dist/flatdir-recorder/README.md).
+Если вам нужен runnable сервис для этого тестового клиента, смотрите [`examples/springmvc-service/README.md`](../springmvc-service/README.md). Если нужен канонический разбор contract и того, как suite потом попадает в analyzer report, возвращайтесь к [`docs/guides/test-tagging.md`](../../docs/guides/test-tagging.md). Если нужен только временный smoke/offline путь без публикации зависимостей, используйте fallback [`dist/flatdir-recorder/README.md`](../../dist/flatdir-recorder/README.md).
