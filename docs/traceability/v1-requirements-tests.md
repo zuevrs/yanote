@@ -2,9 +2,9 @@
 
 - Snapshot ID: `v1-traceability-20260304`
 - Schema Version: `traceability.v1`
-- Canonical inventory: `.planning/REQUIREMENTS.md`
+- Canonical inventory: `docs/requirements.md`
 - Validator:
-  `node scripts/release/verify-traceability.mjs --requirements .planning/REQUIREMENTS.md --map .planning/traceability/v1-requirements-tests.json --schema .planning/traceability/schema.v1.json`
+  `node scripts/release/verify-traceability.mjs --requirements docs/requirements.md --map docs/traceability/v1-requirements-tests.json --schema docs/traceability/schema.v1.json`
 
 ## Requirement Mapping
 

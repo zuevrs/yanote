@@ -10,9 +10,9 @@ const validatorScriptPath = path.resolve("scripts/release/verify-traceability.mj
 const assembleReleaseAssetsScriptPath = path.resolve(
   "scripts/release/assemble-release-assets.sh"
 );
-const canonicalRequirementsPath = path.resolve(".planning/REQUIREMENTS.md");
-const canonicalMapPath = path.resolve(".planning/traceability/v1-requirements-tests.json");
-const canonicalSchemaPath = path.resolve(".planning/traceability/schema.v1.json");
+const canonicalRequirementsPath = path.resolve("docs/requirements.md");
+const canonicalMapPath = path.resolve("docs/traceability/v1-requirements-tests.json");
+const canonicalSchemaPath = path.resolve("docs/traceability/schema.v1.json");
 
 function parseRequirementIds(requirementsMarkdown) {
   return requirementsMarkdown
