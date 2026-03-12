@@ -1,7 +1,7 @@
 # GSD State
 
 **Active Milestone:** M002 — Repository Product Maturity
-**Active Slice:** S05 — Documentation Architecture And Navigation
+**Active Slice:** S06 — Maintained-Product Trust Surfaces
 **Phase:** planning
 **Requirements Status:** 10 active · 21 validated · 2 deferred · 3 out of scope
 
@@ -16,4 +16,4 @@
 - None
 
 ## Next Action
-Plan slice S05 (Documentation Architecture And Navigation).
+Plan slice S06 (Maintained-Product Trust Surfaces).

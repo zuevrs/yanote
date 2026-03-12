@@ -37,7 +37,14 @@ Fallback bundles остаются вторичным маршрутом. Есл�
 
 ## Для мейнтейнера и исторического контекста
 
-Эти материалы реальны и полезны, но они не должны быть первым входом из `docs/` для пользователя, который просто хочет дойти до работающего recorder/analyzer цикла.
+Эти материалы реальны и полезны, но они не должны быть первым входом из `docs/` для пользователя, который просто хочет дойти до работающего recorder/analyzer цикла. Ниже сначала перечислены owner maps вторичных веток, а уже потом leaf/reference-docs внутри них.
+
+### Карты вторичных веток
+
+- [`maintainers/README.md`](maintainers/README.md) — owner map maintainer-only workflow-ов и точка входа к release/signing surface-ам.
+- [`traceability/README.md`](traceability/README.md) — owner map requirement/test traceability, machine-readable snapshots и schema-level reference.
+- [`plans/README.md`](plans/README.md) — owner map historical design/proof notes.
+- [`../dist/README.md`](../dist/README.md) — owner map offline/fallback bundles; открывайте его только после канонических guide-level docs, если dependency/source-built путь недоступен.
 
 ### Только для мейнтейнера
 

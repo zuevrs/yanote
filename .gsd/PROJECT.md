@@ -19,10 +19,10 @@ What exists now:
 - Java-first delivery surfaces through `yanoteReport` / `yanoteCheck` Gradle tasks, recorder modules, and GitHub CI/release workflows.
 - Runnable example and offline distribution bundles for recorder and analyzer usage in restricted environments.
 - 100% validated v1 requirement traceability with publishable release artifacts.
+- Concept-first Russian-first documentation maps at the root, `docs/`, `examples/`, maintainer/traceability/history branches, and `dist/`, with leaf-level recovery links and a machine-checked S01-S05 verifier stack.
 
 Current repo-level gap:
-- The technical product is stronger than the repository surface. Public entry points, navigation, and integration guidance still need product-grade packaging so a first-time engineer can understand Yanote, wire it into a real service, and trust the repo as a maintained corporate tool.
-- Release/support visibility now has an authoritative public owner in `docs/release-and-support.md` and thin pointers from both main landings, but the broader docs architecture and trust surfaces are still owned by later M002 slices.
+- Public entry points, integration guidance, release/support boundaries, and secondary-surface recovery routes are now in place and machine-checked. The remaining repository-maturity work is to harden maintained-product trust surfaces, keep local-only maintainer agent workflow boundaries explicit, and re-proof the full entry path end to end in later M002 slices.
 
 ## Architecture / Key Patterns
 

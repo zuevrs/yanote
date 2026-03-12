@@ -1,5 +1,7 @@
 # v1 Requirement Traceability Snapshot
 
+> Audience: **reference-only leaf**. This snapshot is a secondary traceability surface. For the owner map of traceability/reference docs, return to [`docs/traceability/README.md`](README.md); for the canonical requirements inventory behind this snapshot, use [`docs/requirements.md`](../requirements.md).
+
 - Snapshot ID: `v1-traceability-20260304`
 - Schema Version: `traceability.v1`
 - Canonical inventory: `docs/requirements.md`

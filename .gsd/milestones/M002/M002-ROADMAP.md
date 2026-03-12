@@ -69,7 +69,7 @@ This milestone is complete only when all are true:
 - [x] **S04: Version, Release, And Support Boundaries** `risk:medium` `depends:[S03]`
   > After this: A repo visitor can see which version line is current, what changed recently, what is stable, and what limitations/support boundaries still apply.
 
-- [ ] **S05: Documentation Architecture And Navigation** `risk:medium` `depends:[S03,S04]`
+- [x] **S05: Documentation Architecture And Navigation** `risk:medium` `depends:[S03,S04]`
   > After this: User docs, maintainer docs, and historical artifacts live in a coherent structure with clear navigation and truthful ownership of each surface.
 
 - [ ] **S06: Maintained-Product Trust Surfaces** `risk:medium` `depends:[S05]`

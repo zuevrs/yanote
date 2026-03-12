@@ -1,5 +1,7 @@
 ## FlatDir fallback bundle: `yanote-recorder-spring-mvc`
 
+> Audience: **offline/fallback leaf**. Если вы открыли этот bundle напрямую, сначала вернитесь в [`dist/README.md`](../README.md) для owner map fallback-поверхностей, а затем — в канонический recorder guide [`docs/guides/recorder-spring-mvc.md`](../../docs/guides/recorder-spring-mvc.md), который этот bundle не заменяет.
+
 Это `flatDir`-bundle для **smoke/offline-only fallback**: используйте его только тогда, когда нужно быстро доказать запись `events.jsonl` в закрытой сети, а публикация в Maven-репозиторий или `mavenLocal()` недоступна.
 
 > **Рекомендуемый путь:** dependency-based интеграция описана в каноническом гайде [`docs/guides/recorder-spring-mvc.md`](../../docs/guides/recorder-spring-mvc.md). Этот bundle не должен быть основной историей продукта и не заменяет нормальную публикацию артефактов.

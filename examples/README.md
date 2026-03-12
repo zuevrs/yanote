@@ -22,7 +22,7 @@
 
 Сгенерированные build-артефакты внутри подпапок не являются навигационными surface-ами. Читайте README-файлы и Compose-файл как стабильный вход, а не случайные build outputs.
 
-Fallback bundles из `dist/` здесь намеренно не продвигаются: examples-путь описывает нормальный repo demo. Если нужен smoke/offline сценарий без обычного dependency/source-built пути, возвращайтесь в канонические гайды — именно они держат эти fallback-ветки как явно вторичные.
+Fallback bundles из `dist/` здесь намеренно не продвигаются: examples-путь описывает нормальный repo demo. Если нужен smoke/offline сценарий без обычного dependency/source-built пути, возвращайтесь в канонические гайды — именно они держат эти fallback-ветки как явно вторичные. Если после этого всё ещё нужен bundle-level маршрут, заходите через [`../dist/README.md`](../dist/README.md): это secondary owner map для offline assets, а не альтернативный первый шаг.
 
 ## Когда возвращаться в документацию
 
@@ -32,5 +32,6 @@ Fallback bundles из `dist/` здесь намеренно не продвиг�
 - [`../docs/guides/recorder-spring-mvc.md`](../docs/guides/recorder-spring-mvc.md) — канонический recorder path.
 - [`../docs/guides/analyzer-coverage.md`](../docs/guides/analyzer-coverage.md) — канонический analyzer path и интерпретация отчёта.
 - [`../docs/guides/test-tagging.md`](../docs/guides/test-tagging.md) — канонический contract test metadata.
+- [`../dist/README.md`](../dist/README.md) — secondary карта fallback bundles, если обычный dependency/source-built путь недоступен.
 
 Если вы зашли сразу в leaf example, сначала вернитесь к этой карте примеров, затем — в каноническую документацию за guide-level деталями.
