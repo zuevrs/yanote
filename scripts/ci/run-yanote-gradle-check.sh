@@ -16,7 +16,7 @@ export YANOTE_REPO_ROOT="${ROOT_DIR}"
 
 cat > "${FIXTURE_DIR}/settings.gradle.kts" <<EOF
 pluginManagement {
-    includeBuild("${ROOT_DIR}/yanote-gradle-plugin")
+    includeBuild("${ROOT_DIR}")
 }
 rootProject.name = "yanote-ci-gradle-check"
 EOF
@@ -80,7 +80,7 @@ yanote {
 
 tasks.named<YanoteCheckTask>("yanoteCheck") {
     specPath.set(repoRoot.resolve("yanote-js/test/fixtures/openapi/simple.yaml").absolutePath)
-    eventsPath.set(repoRoot.resolve("yanote-js/test/fixtures/events/events.valid.fixture.jsonl").absolutePath)
+    eventsPath.set(repoRoot.resolve("yanote-js/test/fixtures/events/events.ci.fixture.jsonl").absolutePath)
     analyzerPath.set(repoRoot.resolve("dist/node-analyzer/bin/yanote.cjs").absolutePath)
     outputDir.set(layout.dir(provider { repoRoot.resolve("build/yanote/aggregate/check") }))
 }

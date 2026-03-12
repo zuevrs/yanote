@@ -1,0 +1,4 @@
+{"kind":"http","ts":1772449192657,"method":"GET","route":"/health","status":200,"service":null,"instance":null,"error":false,"test.run_id":"run-ci","test.suite":"suite-ci"}
+{"kind":"http","ts":1772449192658,"method":"GET","route":"/users","status":200,"service":null,"instance":null,"error":false,"test.run_id":"run-ci","test.suite":"suite-ci"}
+{"kind":"http","ts":1772449192659,"method":"POST","route":"/users","status":201,"service":null,"instance":null,"error":false,"test.run_id":"run-ci","test.suite":"suite-ci"}
+{"kind":"http","ts":1772449192660,"method":"GET","route":"/users/{id}","status":200,"service":null,"instance":null,"error":false,"test.run_id":"run-ci","test.suite":"suite-ci"}
