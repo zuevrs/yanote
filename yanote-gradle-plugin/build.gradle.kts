@@ -35,7 +35,7 @@ publishing {
         pom {
             name.set("Yanote Gradle Plugin")
             description.set("Gradle plugin delivery surface for deterministic Yanote validation.")
-            url.set("https://github.com/yanote/yanote")
+            url.set("https://github.com/zuevrs/yanote")
             licenses {
                 license {
                     name.set("Apache License, Version 2.0")
@@ -49,9 +49,9 @@ publishing {
                 }
             }
             scm {
-                connection.set("scm:git:https://github.com/yanote/yanote.git")
-                developerConnection.set("scm:git:ssh://git@github.com/yanote/yanote.git")
-                url.set("https://github.com/yanote/yanote")
+                connection.set("scm:git:https://github.com/zuevrs/yanote.git")
+                developerConnection.set("scm:git:ssh://git@github.com/zuevrs/yanote.git")
+                url.set("https://github.com/zuevrs/yanote")
             }
         }
     }

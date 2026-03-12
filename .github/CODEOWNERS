@@ -1,0 +1,8 @@
+# Single-maintainer repository and public trust surfaces.
+# Keep ownership explicit so review expectations stay truthful.
+/.github/ @zuevrs
+/SECURITY.md @zuevrs
+/SUPPORT.md @zuevrs
+/CONTRIBUTING.md @zuevrs
+/docs/release-and-support.md @zuevrs
+* @zuevrs

@@ -1,0 +1,8 @@
+blank_issues_enabled: false
+contact_links:
+  - name: Поддержка / Support routing
+    url: https://github.com/zuevrs/yanote/blob/main/SUPPORT.md
+    about: Проверьте границы поддержки, публичный bug-маршрут и ожидаемые evidence-артефакты перед открытием issue.
+  - name: Безопасность / Security reporting
+    url: https://github.com/zuevrs/yanote/blob/main/SECURITY.md
+    about: Для нераскрытых уязвимостей используйте только приватный security-канал, а не публичный issue.
