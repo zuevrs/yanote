@@ -60,7 +60,7 @@ This milestone is complete only when all are true:
 - [x] **S01: Verified Recorder Integration Path** `risk:high` `depends:[]`
   > After this: An engineer can follow one short, truthful path to connect the recorder to a real Spring service and verify that `events.jsonl` is being produced.
 
-- [ ] **S02: Analysis Run And Coverage Interpretation** `risk:high` `depends:[S01]`
+- [x] **S02: Analysis Run And Coverage Interpretation** `risk:high` `depends:[S01]`
   > After this: An engineer can run Yanote analysis on collected events, get a report, and understand the core meaning of the output and tagging-related integration points.
 
 - [ ] **S03: Concept-First Product Landing** `risk:medium` `depends:[S01,S02]`

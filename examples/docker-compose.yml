@@ -41,7 +41,7 @@ services:
           fi;
           sleep 2;
         done;
-        ./gradlew --no-daemon -g /data/gradle --project-cache-dir /data/gradle/project-cache :examples:tests-restassured:test;
+        ./gradlew --no-daemon -g /data/gradle --project-cache-dir /data/gradle/project-cache :examples:tests-restassured:test --rerun-tasks;
         echo "done" > "$${YANOTE_READY_MARKER}";
         found=0;
         for i in $(seq 1 "$${YANOTE_REPORT_WAIT_ATTEMPTS}"); do
@@ -88,7 +88,7 @@ services:
         fi;
         npm -C yanote-js ci;
         npm -C yanote-js run build;
-        node yanote-js/dist/yanote.cjs report --spec /workspace/examples/openapi/demo-openapi.yaml --events /data/yanote/events.jsonl --out /data/yanote/out --min-coverage 100 --exclude /health;
+        node yanote-js/dist/yanote.cjs report --spec /workspace/examples/openapi/demo-openapi.yaml --events /data/yanote/events.jsonl --out /data/yanote/out --min-coverage 100;
         echo "Generated report:";
         cat /data/yanote/out/yanote-report.json;
         echo "done" > "$${YANOTE_REPORT_MARKER}";

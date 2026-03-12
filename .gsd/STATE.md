@@ -1,7 +1,7 @@
 # GSD State
 
 **Active Milestone:** M002 — Repository Product Maturity
-**Active Slice:** S02 — Analysis Run And Coverage Interpretation
+**Active Slice:** S03 — Concept-First Product Landing
 **Phase:** planning
 **Requirements Status:** 10 active · 21 validated · 2 deferred · 3 out of scope
 
@@ -16,4 +16,4 @@
 - None
 
 ## Next Action
-Plan slice S02 (Analysis Run And Coverage Interpretation).
+Plan slice S03 (Concept-First Product Landing).
