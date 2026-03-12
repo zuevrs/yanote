@@ -1,7 +1,7 @@
 # GSD State
 
 **Active Milestone:** M002 — Repository Product Maturity
-**Active Slice:** S06 — Maintained-Product Trust Surfaces
+**Active Slice:** S07 — Local Agent Development Contract
 **Phase:** planning
 **Requirements Status:** 10 active · 21 validated · 2 deferred · 3 out of scope
 
@@ -16,4 +16,4 @@
 - None
 
 ## Next Action
-Plan slice S06 (Maintained-Product Trust Surfaces).
+Plan slice S07 (Local Agent Development Contract).

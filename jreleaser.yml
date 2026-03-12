@@ -5,9 +5,9 @@ project:
     - Yanote Maintainers
   license: Apache-2.0
   links:
-    homepage: https://github.com/yanote/yanote
-    documentation: https://github.com/yanote/yanote#readme
-    bugTracker: https://github.com/yanote/yanote/issues
+    homepage: https://github.com/zuevrs/yanote
+    documentation: https://github.com/zuevrs/yanote#readme
+    bugTracker: https://github.com/zuevrs/yanote/issues
 
 release:
   github:

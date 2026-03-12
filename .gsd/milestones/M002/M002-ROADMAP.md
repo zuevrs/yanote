@@ -72,7 +72,7 @@ This milestone is complete only when all are true:
 - [x] **S05: Documentation Architecture And Navigation** `risk:medium` `depends:[S03,S04]`
   > After this: User docs, maintainer docs, and historical artifacts live in a coherent structure with clear navigation and truthful ownership of each surface.
 
-- [ ] **S06: Maintained-Product Trust Surfaces** `risk:medium` `depends:[S05]`
+- [x] **S06: Maintained-Product Trust Surfaces** `risk:medium` `depends:[S05]`
   > After this: The repository presents the trust signals and policy surfaces expected from a serious maintained product repo, without overselling community bandwidth.
 
 - [ ] **S07: Local Agent Development Contract** `risk:low` `depends:[S05,S06]`
