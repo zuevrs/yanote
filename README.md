@@ -1,102 +1,85 @@
 # yanote
 
-Инструмент для сбора покрытия REST API тестами по OpenAPI и событийным файлам (`events.jsonl`), с поддержкой режима регрессий.
+Yanote помогает инженерной команде увидеть не абстрактное «тесты прошли», а реальное покрытие HTTP-контракта по живым вызовам. Сервис пишет события в `events.jsonl`, analyzer сопоставляет их со спецификацией OpenAPI и собирает `yanote-report.json`, где видно, какие операции, статусы и обязательные параметры действительно наблюдались.
 
-## Основное
+## Что такое Yanote
 
-- `yanote-core`: модель событий (для рекордеров).
-- `yanote-js`: Node CLI для расчёта покрытия и отчётов (OpenAPI сейчас, AsyncAPI далее).
-- `yanote-recorder-spring-mvc`: стартер для записи вызовов в `events.jsonl`.
-- `yanote-test-tags-restassured`: фильтр для автоподстановки заголовков `X-Test-Run-Id` и `X-Test-Suite`.
-- `yanote-test-tags-cucumber`: плагин, который вычисляет suite и записывает её в общее системное свойство `yanote.suite`.
+Yanote — это связка из рекордера, событийного формата и analyzer-а для контрактного покрытия API:
 
-## Проверенный путь интеграции рекордера (Spring MVC)
+- рекордер подключается к сервису и пишет evidence в `events.jsonl`;
+- analyzer читает OpenAPI + `events.jsonl` и считает покрытие;
+- результат остаётся в читаемом stdout, строке `YANOTE_SUMMARY ...` и файле `yanote-report.json`.
 
-Рекомендуемый путь настройки рекордера — канонический guide [`docs/guides/recorder-spring-mvc.md`](docs/guides/recorder-spring-mvc.md). В корневом README оставлена только навигация по проверенному пути; точные шаги подключения, proof flow и инспекция `events.jsonl` живут в этом гайде.
+Практический результат для команды простой: после прогона тестов или ручных вызовов можно ответить не только на вопрос «были ли запросы», но и на вопрос «какая часть контракта реально доказана событиями, а где coverage ещё partial».
 
-Проверенный путь S01 выглядит так:
+## Для кого
 
-1. **Канонический dependency-based setup** — [`docs/guides/recorder-spring-mvc.md`](docs/guides/recorder-spring-mvc.md)
-2. **Runnable service example** — [`examples/springmvc-service/README.md`](examples/springmvc-service/README.md)
-3. **Metadata handoff example (RestAssured)** — [`examples/tests-restassured/README.md`](examples/tests-restassured/README.md)
-4. **Smoke/offline fallback** — [`dist/flatdir-recorder/README.md`](dist/flatdir-recorder/README.md) только когда публикация в Maven-репозиторий или `mavenLocal()` недоступна
+Yanote нужен инженеру, который одновременно отвечает за HTTP-сервис, спецификацию и набор API-тестов и хочет видеть доказуемое покрытие по реальному трафику.
 
-Канонические свойства этого пути:
+Сейчас проверенный путь в репозитории такой:
 
-- `yanote.recorder.enabled`
-- `yanote.recorder.events-path`
-- `yanote.recorder.service-name` (опционально)
+- Spring Boot 3.x / Spring MVC сервис с подключённым рекордером;
+- `events.jsonl` как переносимый артефакт между сервисом, CI и analyzer-ом;
+- source-built analyzer из `yanote-js`;
+- OpenAPI как источник объявленного контракта.
 
-Bundle для smoke/offline fallback по-прежнему можно собрать командой `./gradlew distFlatdirRecorder`, но основной и проверенный путь — обычная зависимость из `mavenLocal()` или внутреннего Maven-репозитория по гайду выше.
+Если вам важно быстро понять, где тесты наблюдали операции, но не закрыли нужные response statuses или required parameters, это как раз целевой сценарий Yanote.
 
-## Быстрый запуск
+## Проверенный цикл
 
-```bash
-./gradlew test
-```
+1. **Подключите рекордер к сервису.**
+   Рекомендуемый путь настройки рекордера описан в [`docs/guides/recorder-spring-mvc.md`](docs/guides/recorder-spring-mvc.md): обычная зависимость из `mavenLocal()` или внутреннего Maven-репозитория, явное включение рекордера и writable/exportable путь для `events.jsonl`.
 
-## Для мейнтейнера
+   Полезные поверхности этого шага:
+   - канонический guide: [`docs/guides/recorder-spring-mvc.md`](docs/guides/recorder-spring-mvc.md)
+   - runnable service example: [`examples/springmvc-service/README.md`](examples/springmvc-service/README.md)
+   - metadata handoff example: [`examples/tests-restassured/README.md`](examples/tests-restassured/README.md)
+   - Smoke/offline fallback: [`dist/flatdir-recorder/README.md`](dist/flatdir-recorder/README.md) — только когда публикация в Maven-репозиторий или `mavenLocal()` недоступна
 
-- Политика релизных тегов и подписи: `docs/maintainers/release-signing.md`
+2. **Соберите реальные события в `events.jsonl`.**
+   После живого HTTP-запроса или прогона тестов проверьте, что файл создан, не пустой и содержит ожидаемые поля маршрута, статуса и сервиса. Это первый доказуемый артефакт цикла, который потом пойдёт в analyzer.
 
-## Канонический путь анализа покрытия
+3. **Прогоните analyzer по OpenAPI и событиям.**
+   Канонический путь запуска и интерпретации описан в [`docs/guides/analyzer-coverage.md`](docs/guides/analyzer-coverage.md): собрать `yanote-js`, выполнить `report` против OpenAPI и `events.jsonl`, получить stdout с `Summary`, строку `YANOTE_SUMMARY ...` и стабильный файл `yanote-report.json`.
 
-Рекомендуемый путь запуска analyzer и интерпретации результата описан в [`docs/guides/analyzer-coverage.md`](docs/guides/analyzer-coverage.md). В корневом README оставлена только навигация по проверенному пути.
+   Если нужен runnable repo demo целиком, используйте [`examples/README.md`](examples/README.md) и [`examples/docker-compose.yml`](examples/docker-compose.yml). Offline fallback для analyzer остаётся вторичным путём в [`dist/node-analyzer/README.md`](dist/node-analyzer/README.md).
 
-Проверенный путь S02 выглядит так:
+4. **Прочитайте отчёт, а не только exit code.**
+   `yanote-report.json` показывает не только observed operations, но и пробелы по response statuses и required parameters. В текущем demo-path это особенно важно: `operations = 100%` ещё не означает полный контрактный coverage, если status dimension или aggregate остаются partial.
 
-1. **Собрать/получить `events.jsonl`** — [`docs/guides/recorder-spring-mvc.md`](docs/guides/recorder-spring-mvc.md)
-2. **Канонический source-built analyzer path** — [`docs/guides/analyzer-coverage.md`](docs/guides/analyzer-coverage.md)
-3. **Runnable repo example** — [`examples/docker-compose.yml`](examples/docker-compose.yml)
-4. **Offline fallback bundle** — [`dist/node-analyzer/README.md`](dist/node-analyzer/README.md) только когда нельзя собрать `yanote-js` из исходников
+### Канонический путь тестовых метаданных
 
-Минимальная команда из корня репозитория:
+Текущий contract RestAssured/Cucumber описан в [`docs/guides/test-tagging.md`](docs/guides/test-tagging.md). Он нужен, когда вы хотите связать конкретный прогон тестов и suite с evidence в `events.jsonl` и потом увидеть suites в отчёте.
 
-```bash
-npm -C yanote-js ci
-npm -C yanote-js run build
-node yanote-js/dist/yanote.cjs report \
-  --spec /path/to/openapi.yaml \
-  --events /path/to/events.jsonl \
-  --out ./out
-```
-
-Ожидаемые surface-ы этого пути:
-
-- stdout с секцией `Summary`
-- финальная machine-readable строка `YANOTE_SUMMARY ...`
-- файл `./out/yanote-report.json`
-- при gate/input/semantic fail-closed — `stderr` с `YANOTE_ERROR ...`
-
-## Канонический путь тестовых метаданных
-
-Текущий contract RestAssured/Cucumber описан в [`docs/guides/test-tagging.md`](docs/guides/test-tagging.md). В корневом README оставлена только навигация по этому handoff.
-
-Что этот guide фиксирует:
+Коротко о handoff:
 
 - `YanoteRestAssuredFilter` добавляет `X-Test-Run-Id` и `X-Test-Suite`;
-- `YanoteSuiteNamePlugin` заполняет shared property `yanote.suite`;
-- рекордер пишет `test.run_id` и `test.suite` в `events.jsonl`;
-- analyzer поднимает suite names в `coverage.perOperation[].suites`, но не переносит туда run id.
+- рекордер пишет их в `events.jsonl` как `test.run_id` и `test.suite`;
+- analyzer поднимает suite names в `coverage.perOperation[].suites`;
+- runnable demo этого пути лежит в [`examples/tests-restassured/README.md`](examples/tests-restassured/README.md).
 
-Runnable demo этого handoff: [`examples/tests-restassured/README.md`](examples/tests-restassured/README.md)
+## Куда идти дальше
 
-## E2E пример (Spring MVC + RestAssured)
+- **Понять пользовательскую документацию целиком:** [`docs/README.md`](docs/README.md)
+- **Пройти runnable demo по repo assets:** [`examples/README.md`](examples/README.md)
+- **Сразу подключить рекордер к Spring MVC сервису:** [`docs/guides/recorder-spring-mvc.md`](docs/guides/recorder-spring-mvc.md)
+- **Сразу запустить analyzer и научиться читать отчёт:** [`docs/guides/analyzer-coverage.md`](docs/guides/analyzer-coverage.md)
+- **Разобрать suite/run metadata и их путь до отчёта:** [`docs/guides/test-tagging.md`](docs/guides/test-tagging.md)
 
-В директории `examples/` есть runnable-сборка:
+Если нужен самый короткий маршрут «посмотреть продукт в действии», начните с [`examples/README.md`](examples/README.md), затем вернитесь в [`docs/README.md`](docs/README.md) за каноническими guide-level деталями.
 
-- `examples/springmvc-service/` — demo Spring MVC сервис с включённым `yanote-recorder-spring-mvc`
-- `examples/tests-restassured/` — demo RestAssured тесты с `YanoteRestAssuredFilter`
-- `examples/openapi/demo-openapi.yaml` — пример спецификации API
-- `examples/docker-compose.yml` — поднимает сервис, форсирует свежий прогон тестов и запускает тот же source-built analyzer path без устаревшего `--exclude /health`
+## Вторичные поверхности
 
-Запуск:
+Эти материалы полезны, но они не должны быть первым входом в продукт:
 
-```bash
-docker compose -f examples/docker-compose.yml up --build --exit-code-from report
-```
+- maintainer/release surface: [`docs/maintainers/release-signing.md`](docs/maintainers/release-signing.md)
+- traceability surface: [`docs/traceability/v1-requirements-tests.md`](docs/traceability/v1-requirements-tests.md)
+- historical plans: [`docs/plans/`](docs/plans/)
 
-После выполнения команда создаст файл отчёта:
+Состав репозитория тоже остаётся вторичным навигационным слоем:
 
-- `examples/` → общий volume `./yanote-events:/data/yanote` (в контейнерах)
-- `yanote-report.json` в директории `/data/yanote/out`
+- `yanote-core` — модель событий для рекордеров;
+- `yanote-js` — CLI analyzer и отчёты по OpenAPI;
+- `yanote-recorder-spring-mvc` — Spring MVC стартер для записи вызовов в `events.jsonl`;
+- `yanote-test-tags-restassured` — фильтр для `X-Test-Run-Id` и `X-Test-Suite`;
+- `yanote-test-tags-cucumber` — плагин, который вычисляет suite и пишет её в `yanote.suite`.

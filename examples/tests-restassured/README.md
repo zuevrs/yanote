@@ -1,6 +1,6 @@
 # RestAssured E2E тесты для примера
 
-Этот пример показывает текущий runnable handoff для RestAssured. Полный contract RestAssured/Cucumber, различие между `YANOTE_SUITE` и `yanote.suite`, а также путь до report-level `coverage.perOperation[].suites` живут в [`docs/guides/test-tagging.md`](../../docs/guides/test-tagging.md). За настройкой рекордера и путём к `events.jsonl` идите в [`docs/guides/recorder-spring-mvc.md`](../../docs/guides/recorder-spring-mvc.md).
+Этот пример показывает текущий runnable handoff для RestAssured. Полный contract RestAssured/Cucumber, различие между `YANOTE_SUITE` и `yanote.suite`, а также путь до report-level `coverage.perOperation[].suites` живут в [`docs/guides/test-tagging.md`](../../docs/guides/test-tagging.md). За настройкой рекордера и путём к `events.jsonl` идите в [`docs/guides/recorder-spring-mvc.md`](../../docs/guides/recorder-spring-mvc.md). Вернуться к карте примеров и общему demo-маршруту можно через [`examples/README.md`](../README.md).
 
 Текущий handoff в репозитории выглядит так:
 

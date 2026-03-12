@@ -63,7 +63,7 @@ This milestone is complete only when all are true:
 - [x] **S02: Analysis Run And Coverage Interpretation** `risk:high` `depends:[S01]`
   > After this: An engineer can run Yanote analysis on collected events, get a report, and understand the core meaning of the output and tagging-related integration points.
 
-- [ ] **S03: Concept-First Product Landing** `risk:medium` `depends:[S01,S02]`
+- [x] **S03: Concept-First Product Landing** `risk:medium` `depends:[S01,S02]`
   > After this: A first-time engineer can understand the product, primary workflow, and next steps from the root landing without wading through implementation archaeology.
 
 - [ ] **S04: Version, Release, And Support Boundaries** `risk:medium` `depends:[S03]`
