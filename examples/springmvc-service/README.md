@@ -1,6 +1,6 @@
 # Spring MVC demo service
 
-Этот пример показывает уже подключённый Spring Boot сервис с `yanote-recorder-spring-mvc`, но каноническая инструкция по интеграции живёт в [`docs/guides/recorder-spring-mvc.md`](../../docs/guides/recorder-spring-mvc.md).
+Этот пример показывает уже подключённый Spring Boot сервис с `yanote-recorder-spring-mvc`, но каноническая инструкция по интеграции живёт в [`docs/guides/recorder-spring-mvc.md`](../../docs/guides/recorder-spring-mvc.md). Вернуться к карте примеров и общему demo-сценарию можно через [`examples/README.md`](../README.md).
 
 Что здесь уже настроено теми же свойствами, что и в гайде:
 
