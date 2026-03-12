@@ -23,13 +23,9 @@ dist/node-analyzer/package-lock.json
 # default recorder output (if generated during local runs)
 /events.jsonl
 
-# ── GSD baseline (auto-generated) ──
-.gsd/activity/
-.gsd/runtime/
-.gsd/worktrees/
-.gsd/auto.lock
-.gsd/metrics.json
-.gsd/STATE.md
+# planning / agent state (local-only)
+.gsd/
+.planning/
 Thumbs.db
 *.swp
 *.swo

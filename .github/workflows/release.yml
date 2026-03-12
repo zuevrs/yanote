@@ -77,9 +77,9 @@ jobs:
       - name: Verify strict requirement traceability gate
         run: >
           node scripts/release/verify-traceability.mjs
-          --requirements .planning/REQUIREMENTS.md
-          --map .planning/traceability/v1-requirements-tests.json
-          --schema .planning/traceability/schema.v1.json
+          --requirements docs/requirements.md
+          --map docs/traceability/v1-requirements-tests.json
+          --schema docs/traceability/schema.v1.json
 
   publish:
     name: Publish
@@ -159,8 +159,8 @@ jobs:
           RELEASE_TAG: ${{ needs.preflight.outputs.release_tag }}
           RELEASE_ASSET_INDEX: build/release-assets/index.txt
           SBOM_PATH: build/reports/cyclonedx/bom.json
-          TRACEABILITY_JSON_PATH: .planning/traceability/v1-requirements-tests.json
-          TRACEABILITY_MARKDOWN_PATH: .planning/traceability/v1-requirements-tests.md
+          TRACEABILITY_JSON_PATH: docs/traceability/v1-requirements-tests.json
+          TRACEABILITY_MARKDOWN_PATH: docs/traceability/v1-requirements-tests.md
         run: bash scripts/release/assemble-release-assets.sh
 
       - name: Render deterministic release notes
@@ -179,7 +179,7 @@ jobs:
         run: |
           set -euo pipefail
           SIGNOFF_ACTOR="${{ github.triggering_actor || github.actor }}"
-          TRACEABILITY_SNAPSHOT="$(node -e 'const fs=require("node:fs"); const map=JSON.parse(fs.readFileSync(".planning/traceability/v1-requirements-tests.json","utf8")); process.stdout.write(map.snapshotId || "unknown");')"
+          TRACEABILITY_SNAPSHOT="$(node -e 'const fs=require("node:fs"); const map=JSON.parse(fs.readFileSync("docs/traceability/v1-requirements-tests.json","utf8")); process.stdout.write(map.snapshotId || "unknown");')"
           {
             echo "## Release Owner Sign-off"
             echo "- environment: production-release"
