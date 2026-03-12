@@ -75,7 +75,7 @@ This milestone is complete only when all are true:
 - [x] **S06: Maintained-Product Trust Surfaces** `risk:medium` `depends:[S05]`
   > After this: The repository presents the trust signals and policy surfaces expected from a serious maintained product repo, without overselling community bandwidth.
 
-- [ ] **S07: Local Agent Development Contract** `risk:low` `depends:[S05,S06]`
+- [x] **S07: Local Agent Development Contract** `risk:low` `depends:[S05,S06]`
   > After this: The maintainer has a safe, explicit local-only `AGENTS.md` workflow that does not publish private agent instructions into tracked repo state.
 
 - [ ] **S08: Proofed Entry Paths And Doc Reliability** `risk:high` `depends:[S01,S02,S03,S04,S05,S06,S07]`

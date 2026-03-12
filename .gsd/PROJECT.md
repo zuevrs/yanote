@@ -20,9 +20,10 @@ What exists now:
 - Runnable example and offline distribution bundles for recorder and analyzer usage in restricted environments.
 - 100% validated v1 requirement traceability with publishable release artifacts.
 - Concept-first Russian-first documentation maps at the root, `docs/`, `examples/`, maintainer/traceability/history branches, and `dist/`, with leaf-level recovery links and a machine-checked S01-S05 verifier stack.
+- Maintained-product trust surfaces and a local-only maintainer `AGENTS.md` contract are now in place, with public-boundary verifiers plus clone-local Git ignore proof commands.
 
 Current repo-level gap:
-- Public entry points, integration guidance, release/support boundaries, and secondary-surface recovery routes are now in place and machine-checked. The remaining repository-maturity work is to harden maintained-product trust surfaces, keep local-only maintainer agent workflow boundaries explicit, and re-proof the full entry path end to end in later M002 slices.
+- Public entry points, integration guidance, release/support boundaries, trust surfaces, and the local-only maintainer agent workflow are now in place and machine-checked. The remaining repository-maturity work is to re-proof the full entry path end to end in S08.
 
 ## Architecture / Key Patterns
 

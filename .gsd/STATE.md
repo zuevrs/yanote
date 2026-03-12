@@ -1,7 +1,7 @@
 # GSD State
 
 **Active Milestone:** M002 — Repository Product Maturity
-**Active Slice:** S07 — Local Agent Development Contract
+**Active Slice:** S08 — Proofed Entry Paths And Doc Reliability
 **Phase:** planning
 **Requirements Status:** 10 active · 21 validated · 2 deferred · 3 out of scope
 
@@ -16,4 +16,4 @@
 - None
 
 ## Next Action
-Plan slice S07 (Local Agent Development Contract).
+Plan slice S08 (Proofed Entry Paths And Doc Reliability).
