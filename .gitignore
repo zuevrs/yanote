@@ -65,3 +65,6 @@ tmp/
 !.gsd/REQUIREMENTS.md
 !.gsd/milestones/
 !.gsd/milestones/**
+
+# ── GSD baseline (auto-generated) ──
+dist/
