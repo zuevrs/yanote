@@ -2,7 +2,7 @@
 
 ## What This Is
 
-Yanote is a Java-first contract-coverage product for engineering teams that need trustworthy evidence that their API contracts are exercised by tests before shipping. Today it proves HTTP/OpenAPI coverage by recording runtime facts, matching them to canonical specification operations, computing deterministic coverage, and enforcing CI-ready governance rules through a standalone Node analyzer, Java delivery surfaces, recorder/test-tagging modules, and GitHub workflow/release automation. It also now has a proven Kafka-oriented AsyncAPI foundation: supported AsyncAPI v2/v3 Kafka specs normalize into canonical `kafka <action> <channel>` identities with adjacent message-contract metadata, and normalized Kafka evidence can already drive deterministic async coverage semantics plus explicit unmatched/mismatched drift diagnostics.
+Yanote is a Java-first contract-coverage product for engineering teams that need trustworthy evidence that their API contracts are exercised by tests before shipping. Today it proves HTTP/OpenAPI coverage by recording runtime facts, matching them to canonical specification operations, computing deterministic coverage, and enforcing CI-ready governance rules through a standalone Node analyzer, Java delivery surfaces, recorder/test-tagging modules, and GitHub workflow/release automation. It also now has a complete Kafka-oriented AsyncAPI foundation: supported AsyncAPI v2/v3 Kafka specs normalize into canonical `kafka <action> <channel>` identities with adjacent message-contract metadata, normalized Kafka evidence can drive deterministic async coverage semantics plus explicit unmatched/mismatched drift diagnostics, and a separate async CLI/report/gate path is shipped for the first async release.
 
 ## Core Value
 
@@ -10,7 +10,7 @@ Any engineering team running Java services can reliably prove that their scoped 
 
 ## Current State
 
-Yanote v1 delivery, the M002 repository-maturity pass, and M003 async coverage foundations are now proven end to end.
+Yanote v1 delivery, the M002 repository-maturity pass, and M003 async coverage foundations are complete. The current frontier is M004: Kafka evidence capture and Java integration.
 
 What exists now:
 - Deterministic OpenAPI semantic extraction and event-to-operation matching across Node and Java.
@@ -23,12 +23,12 @@ What exists now:
 - The full concept → recorder → events → analyzer → interpretation journey is re-proven from the docs by `bash scripts/docs/verify-s08-entry-paths.sh`, with live evidence captured in `.gsd/milestones/M002/slices/S08/S08-UAT.md`.
 - Release/support boundaries, secondary navigation, maintained-product trust surfaces, and the local-only maintainer `AGENTS.md` contract are all machine-checked as part of that final proof path.
 - Supported AsyncAPI v2/v3 Kafka contracts normalize into canonical `kafka <action> <channel>` identities with adjacent message-contract metadata and deterministic invalid/unsupported diagnostics.
-- Normalized Kafka evidence now drives separate async coverage semantics for channels, send/receive operations, and message-contract identity, with explicit unmatched and mismatched async drift diagnostics.
-- A dedicated `yanote async-report` path now loads AsyncAPI specs plus normalized async evidence, writes deterministic `yanote-async-report.json`, emits typed `YANOTE_ASYNC_*` summary/error lines, and keeps the existing HTTP `yanote report` path separate.
-- Async coverage semantics are parity-proven across equivalent AsyncAPI v2/v3 contracts, and both the async CLI/report path and the existing HTTP coverage/report baseline remain green under the final M003 proof stack.
+- Normalized Kafka evidence drives separate async coverage semantics for channels, send/receive operations, and message-contract identity, with explicit unmatched and mismatched async drift diagnostics.
+- A dedicated `yanote async-report` path loads AsyncAPI specs plus normalized async evidence, writes deterministic `yanote-async-report.json`, emits typed `YANOTE_ASYNC_*` summary/error lines, and keeps the existing HTTP `yanote report` path separate.
+- Async coverage semantics are parity-proven across equivalent AsyncAPI v2/v3 contracts, and both the async CLI/report path and the existing HTTP coverage/report baseline remain green under the M003 verifier stack.
 
 Current product-level gap:
-- Live Spring Kafka evidence capture, Kafka metadata propagation, and end-to-end async proof remain upcoming in M004 and M005.
+- Live Spring Kafka evidence capture, Kafka metadata propagation, and end-to-end async runtime proof remain upcoming in M004.
 - Async onboarding, CI-grade end-to-end acceptance, and release/support hardening for the Kafka path remain upcoming in M005.
 - Payload validation against AsyncAPI message schemas remains deferred.
 
