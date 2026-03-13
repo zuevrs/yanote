@@ -1,0 +1,66 @@
+# Доказанный entry path и финальная команда проверки
+
+> Audience: **maintainer-only leaf**. This page owns the final rerun contract for the guide-first proof path. For the maintainer workflow map and the rest of this secondary surface, return to [`docs/maintainers/README.md`](README.md).
+
+Этот leaf фиксирует единственную rerunnable команду для финальной proof-проверки S08/M002. Он не дублирует assertions из S01-S07 и не публикует содержимое локального `AGENTS.md`: здесь перечислены только stage order, delegated verifiers и clone-local Git diagnostics.
+
+## Каноническая команда
+
+```bash
+bash scripts/docs/verify-s08-entry-paths.sh
+```
+
+Команда идёт в guide-first порядке и fail-closed останавливается на первом сломанном слое. В выводе у каждого stage есть стабильная метка `S08-0N` и точный delegated command, поэтому следующий maintainer или агент может сразу rerun-ить нужный proof surface отдельно.
+
+## Порядок stage-ов
+
+1. `S08-01` — `scripts/docs/verify-s03-landing.sh`  
+   Проверяет concept-first landing contract между `README.md`, `docs/README.md`, `examples/README.md` и example backlinks.
+2. `S08-02` — `scripts/docs/verify-s01-doc-links.sh`  
+   Проверяет, что канонический recorder guide остаётся первичным surface-ом.
+3. `S08-03` — `scripts/docs/verify-s01-recorder-path.sh`  
+   Даёт живой recorder proof: writable `events.jsonl`, реальный HTTP call и inspectable event fields.
+4. `S08-04` — `scripts/docs/verify-s02-doc-links.sh`  
+   Проверяет tagging/analyzer guide wiring и vocabulary.
+5. `S08-05` — `scripts/docs/verify-s02-analysis-path.sh`  
+   Даёт живой analyzer proof, `yanote-report.json`, `YANOTE_SUMMARY` и ожидаемый gate-failure surface.
+6. `S08-06` — `scripts/docs/verify-s04-boundaries.sh`  
+   Проверяет release/support truth against the latest stable tag.
+7. `S08-07` — `scripts/docs/verify-s05-navigation.sh`  
+   Проверяет owner maps, secondary leaves и fallback recovery path.
+8. `S08-08` — `scripts/docs/verify-s06-trust-surfaces.sh`  
+   Проверяет identity, policy и GitHub trust/intake surfaces.
+9. `S08-09` — `scripts/docs/verify-s07-local-agent.sh`  
+   Проверяет tracked/public boundary вокруг local-agent workflow.
+10. `S08-10` — clone-local Git diagnostics из [`local-agent-workflow.md`](local-agent-workflow.md)  
+    Проверяет, что root `AGENTS.md` остаётся local-only и ignored именно через repo-local Git admin state.
+
+## Обязательные clone-local diagnostics для `AGENTS.md`
+
+Финальный stage обязан выполнить именно clone-local Git команды, а не переписывать их в tracked assertions:
+
+```bash
+git rev-parse --git-path info/exclude
+git check-ignore -v AGENTS.md
+git status --ignored --short AGENTS.md
+git ls-files | rg '(^|/)AGENTS\.md$'
+```
+
+Что считать truthful результатом:
+
+- `git rev-parse --git-path info/exclude` возвращает repo-local exclude path;
+- `git check-ignore -v AGENTS.md` показывает match из `info/exclude` для anchored `/AGENTS.md`;
+- `git status --ignored --short AGENTS.md` возвращает `!! AGENTS.md`;
+- `git ls-files | rg '(^|/)AGENTS\.md$'` не возвращает tracked `AGENTS.md`.
+
+В tracked docs, summaries и других repo surfaces нельзя копировать содержимое `AGENTS.md`, private prompt material, секреты или личные local notes. Этот leaf документирует только proof commands и ожидаемое состояние.
+
+## Docker Compose — вторичный путь
+
+`examples/docker-compose.yml` остаётся полезным demo surface-ом, но не является обязательной частью финальной acceptance-проверки. Truthful status для S08 такой:
+
+- primary acceptance path: `bash scripts/docs/verify-s08-entry-paths.sh`;
+- Compose — secondary/optional demo, который имеет смысл только когда Docker daemon доступен;
+- отсутствие Docker daemon не делает S08 verifier invalid, потому что канонический путь для продукта остаётся guide-first: concept → recorder → `events.jsonl` → analyzer → interpretation → repo boundaries.
+
+Если нужен именно runnable demo через Compose, возвращайтесь в пользовательские карты: [`../../README.md`](../../README.md) для product landing, затем [`../README.md`](../README.md) и [`../../examples/README.md`](../../examples/README.md) для demo routing. Но финальная acceptance-команда slice-а остаётся одна: `bash scripts/docs/verify-s08-entry-paths.sh`.
