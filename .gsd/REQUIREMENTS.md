@@ -14,28 +14,6 @@ Guidelines:
 
 ## Active
 
-### R039 — Async coverage semantics for channels, operations, and message contracts
-- Class: core-capability
-- Status: active
-- Description: Yanote can compute async coverage that shows which Kafka channels are covered, which send/receive operations are covered, and which message contracts were observed.
-- Why it matters: The user wants async results to be as informative as HTTP coverage, not a shallow topic-hit counter.
-- Source: user
-- Primary owning slice: M003/S02
-- Supporting slices: M003/S03, M005/S02
-- Validation: mapped
-- Notes: Payload-schema validation can arrive later; first-wave semantics should still expose message-contract identity as part of coverage.
-
-### R040 — Unmatched and mismatched async evidence diagnostics
-- Class: failure-visibility
-- Status: active
-- Description: Yanote shows unmatched async events and async contract mismatches explicitly instead of silently counting best-effort matches.
-- Why it matters: Event-driven coverage is only trustworthy if evidence drift is visible and can participate in gates.
-- Source: user
-- Primary owning slice: M003/S02
-- Supporting slices: M003/S03, M005/S02
-- Validation: mapped
-- Notes: Users should see both sides at once: uncovered async operations in the spec and unmatched/mismatched evidence in runtime facts.
-
 ### R041 — Separate async report and gate path alongside HTTP
 - Class: integration
 - Status: active
@@ -147,6 +125,28 @@ Guidelines:
 - Supporting slices: M003/S02, M004/S01
 - Validation: validated
 - Notes: Proven by canonical `kafka <action> <channel>` normalization plus parity tests that hold AsyncAPI v2 and v3 to the same deterministic operation ordering.
+
+### R039 — Async coverage semantics for channels, operations, and message contracts
+- Class: core-capability
+- Status: validated
+- Description: Yanote can compute async coverage that shows which Kafka channels are covered, which send/receive operations are covered, and which message contracts were observed.
+- Why it matters: The user wants async results to be as informative as HTTP coverage, not a shallow topic-hit counter.
+- Source: user
+- Primary owning slice: M003/S02
+- Supporting slices: M003/S03, M005/S02
+- Validation: validated
+- Notes: Proven by the S02 verifier stack covering separate channel, operation, and message-contract coverage semantics with deterministic v2/v3 parity under shared evidence.
+
+### R040 — Unmatched and mismatched async evidence diagnostics
+- Class: failure-visibility
+- Status: validated
+- Description: Yanote shows unmatched async events and async contract mismatches explicitly instead of silently counting best-effort matches.
+- Why it matters: Event-driven coverage is only trustworthy if evidence drift is visible and can participate in gates.
+- Source: user
+- Primary owning slice: M003/S02
+- Supporting slices: M003/S03, M005/S02
+- Validation: validated
+- Notes: Proven by explicit `unmatched` and `mismatched` async diagnostics, including known-channel action drift and message-contract mismatch proof in the S02 verifier stack.
 
 ### R001 — Canonical OpenAPI specification loading and operation identity
 - Class: core-capability
@@ -678,8 +678,8 @@ Guidelines:
 | R036 | anti-feature | out-of-scope | none | none | n/a |
 | R037 | core-capability | validated | M003/S01 | M003/S03 | S01 proof command (`asyncapi`, parity, discovery, diagnostics, OpenAPI`) |
 | R038 | core-capability | validated | M003/S01 | M003/S02, M004/S01 | S01 parity and canonical-key proof |
-| R039 | core-capability | active | M003/S02 | M003/S03, M005/S02 | mapped |
-| R040 | failure-visibility | active | M003/S02 | M003/S03, M005/S02 | mapped |
+| R039 | core-capability | validated | M003/S02 | M003/S03, M005/S02 | S02 async coverage semantics proof (`asyncCoverage`, diagnostics, parity, HTTP non-regression) |
+| R040 | failure-visibility | validated | M003/S02 | M003/S03, M005/S02 | S02 unmatched/mismatched async diagnostic proof (`asyncCoverage.diagnostics`, parity stack) |
 | R041 | integration | active | M003/S03 | M005/S02 | mapped |
 | R042 | integration | active | M004/S01 | M004/S02, M004/S03 | mapped |
 | R043 | integration | active | M004/S01 | M004/S02, M004/S03 | mapped |
@@ -699,7 +699,7 @@ Guidelines:
 
 ## Coverage Summary
 
-- Active requirements: 12
-- Mapped to slices: 12
-- Validated: 31
+- Active requirements: 8
+- Mapped to slices: 8
+- Validated: 35
 - Unmapped active requirements: 0

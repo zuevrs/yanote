@@ -50,10 +50,10 @@ This milestone is complete only when all are true:
 
 ## Slices
 
-- [ ] **S01: AsyncAPI Contract Ingestion And Canonical Identity** `risk:high` `depends:[]`
+- [x] **S01: AsyncAPI Contract Ingestion And Canonical Identity** `risk:high` `depends:[]`
   > After this: Yanote can validate supported AsyncAPI contracts and turn them into canonical Kafka-oriented async operation identities with explicit diagnostics.
 
-- [ ] **S02: Async Coverage And Diagnostics Semantics** `risk:high` `depends:[S01]`
+- [x] **S02: Async Coverage And Diagnostics Semantics** `risk:high` `depends:[S01]`
   > After this: Yanote can compute deterministic async coverage across channels, send/receive operations, and message-contract identity while surfacing unmatched/mismatched evidence clearly.
 
 - [ ] **S03: Separate Async Report And Gate Surface** `risk:medium` `depends:[S02]`

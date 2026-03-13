@@ -46,6 +46,8 @@ target/
 vendor/
 *.log
 coverage/
+!yanote-js/src/coverage/
+!yanote-js/src/coverage/**
 .cache/
 tmp/
 
