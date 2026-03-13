@@ -50,6 +50,27 @@ describe("asyncapi contract", () => {
     ]);
   });
 
+  it("rejects unsupported AsyncAPI version documents before kafka normalization starts", async () => {
+    await expectParserBoundaryToReject(
+      "test/fixtures/asyncapi/unsupported-version.yaml",
+      /Version "4\.0\.0" is not supported/i
+    );
+  });
+
+  it("rejects unresolved AsyncAPI message references instead of producing partial kafka operations", async () => {
+    await expectParserBoundaryToReject(
+      "test/fixtures/asyncapi/unresolved-message-ref.yaml",
+      /MissingMessage.*does not exist|does not exist.*MissingMessage/i
+    );
+  });
+
+  it("rejects malformed AsyncAPI channel references instead of normalizing them as kafka operations", async () => {
+    await expectParserBoundaryToReject(
+      "test/fixtures/asyncapi/malformed-channel-ref.yaml",
+      /must always reference a channel/i
+    );
+  });
+
   it("expects malformed kafka contracts to fail closed instead of silently disappearing", async () => {
     await expect(loadAsyncApiOperations("test/fixtures/asyncapi/invalid.yaml")).rejects.toThrow(
       /invalid|semantic|channel|kafka/i
@@ -62,3 +83,8 @@ describe("asyncapi contract", () => {
     );
   });
 });
+
+async function expectParserBoundaryToReject(specPath: string, pattern: RegExp): Promise<void> {
+  await expect(loadAsyncApiSemanticsBundle(specPath)).rejects.toThrow(pattern);
+  await expect(loadAsyncApiOperations(specPath)).rejects.toThrow(pattern);
+}
