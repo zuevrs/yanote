@@ -49,7 +49,7 @@ This milestone is complete only when all are true:
 
 ## Slices
 
-- [ ] **S01: Truthful Spring Kafka Recorder Path** `risk:high` `depends:[]`
+- [x] **S01: Truthful Spring Kafka Recorder Path** `risk:high` `depends:[]`
   > After this: one Spring Kafka service can publish and consume against a real Kafka broker while emitting normalized producer and consumer JSONL evidence that the existing async analyzer accepts.
 
 - [ ] **S02: Metadata Propagation And Republish Attribution** `risk:medium` `depends:[S01]`
