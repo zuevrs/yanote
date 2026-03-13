@@ -1,9 +1,9 @@
 # GSD State
 
 **Active Milestone:** M002 — Repository Product Maturity
-**Active Slice:** S08 — Proofed Entry Paths And Doc Reliability
-**Phase:** planning
-**Requirements Status:** 10 active · 21 validated · 2 deferred · 3 out of scope
+**Active Slice:** None
+**Phase:** completing-milestone
+**Requirements Status:** 0 active · 31 validated · 2 deferred · 3 out of scope
 
 ## Milestone Registry
 - ✅ **M001:** Yanote v1 Delivery
@@ -16,4 +16,4 @@
 - None
 
 ## Next Action
-Plan slice S08 (Proofed Entry Paths And Doc Reliability).
+All slices complete in M002. Write milestone summary.

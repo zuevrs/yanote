@@ -12,8 +12,9 @@
 ## Что владеет эта директория
 
 - [`release-signing.md`](release-signing.md) — release-signing policy, tag-driven publication flow и требования к подписи коммитов/тегов.
+- [`proofed-entry-paths.md`](proofed-entry-paths.md) — финальная rerun-команда `bash scripts/docs/verify-s08-entry-paths.sh` для guide-first acceptance path, stage order S08 и clone-local `AGENTS.md` diagnostics без публикации содержимого локального файла.
 - [`local-agent-workflow.md`](local-agent-workflow.md) — локальный root `AGENTS.md`, repo-local `info/exclude` bootstrap и граница содержимого для maintainer-only workflow.
 
 ## Когда оставаться здесь
 
-Оставайтесь в `docs/maintainers/`, если вы меняете release workflow, проверяете signing policy или готовите публикацию. Для user-facing setup и canonical guides возвращайтесь в [`docs/README.md`](../README.md).
+Оставайтесь в `docs/maintainers/`, если вы меняете release workflow, перепроверяете финальный proof command или готовите публикацию. Для user-facing setup и canonical guides возвращайтесь в [`docs/README.md`](../README.md).

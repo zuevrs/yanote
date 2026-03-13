@@ -26,7 +26,7 @@
 - fragmented first-run navigation → retire in S03 and S05 by proving a concept-first landing and a coherent docs information architecture
 - trust-surface mismatch → retire in S04 and S06 by proving version/support/limitations visibility and maintained-product repo surfaces
 - local-only agent handling uncertainty → retire in S07 by proving a private, untracked maintainer workflow for `AGENTS.md`
-- pretty docs that do not actually work → retire in S08 by re-running the key entry paths end-to-end from the docs as milestone proof
+- pretty docs that do not actually work → retired in S08 via `bash scripts/docs/verify-s08-entry-paths.sh`, which re-runs the key entry paths end-to-end from the docs and ends with the clone-local `AGENTS.md` diagnostics
 
 ## Verification Classes
 
@@ -46,7 +46,13 @@ This milestone is complete only when all are true:
 - user docs, maintainer docs, and historical artifacts are wired into a coherent navigation model
 - the repo exposes maintained-product trust surfaces without implying a community-first operating model
 - the local-only maintainer `AGENTS.md` workflow is defined and kept out of tracked public repo state
-- final integrated acceptance scenarios pass
+- final integrated acceptance scenarios pass via `bash scripts/docs/verify-s08-entry-paths.sh`
+
+## Canonical Milestone Proof
+
+- Acceptance command: `bash scripts/docs/verify-s08-entry-paths.sh`
+- Live evidence: `.gsd/milestones/M002/slices/S08/S08-UAT.md`
+- Proof shape: guide-first composition of the S01-S07 verifiers plus the clone-local `AGENTS.md` Git diagnostics
 
 ## Requirement Coverage
 
@@ -78,8 +84,8 @@ This milestone is complete only when all are true:
 - [x] **S07: Local Agent Development Contract** `risk:low` `depends:[S05,S06]`
   > After this: The maintainer has a safe, explicit local-only `AGENTS.md` workflow that does not publish private agent instructions into tracked repo state.
 
-- [ ] **S08: Proofed Entry Paths And Doc Reliability** `risk:high` `depends:[S01,S02,S03,S04,S05,S06,S07]`
-  > After this: The full user journey from concept to recorder setup to coverage interpretation is re-run from the docs, proving that the milestone improved real usability instead of only file organization.
+- [x] **S08: Proofed Entry Paths And Doc Reliability** `risk:high` `depends:[S01,S02,S03,S04,S05,S06,S07]`
+  > After this: The full user journey from concept to recorder setup to coverage interpretation is re-run from the docs through `bash scripts/docs/verify-s08-entry-paths.sh`, proving that the milestone improved real usability instead of only file organization.
 
 ## Boundary Map
 

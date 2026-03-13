@@ -14,115 +14,7 @@ Guidelines:
 
 ## Active
 
-### R022 — Concept-first repository landing for engineers
-- Class: primary-user-loop
-- Status: active
-- Description: A first-time engineer can open the root repository and understand what Yanote is, what problem it solves, who it is for, and the main path from concept to integration before reading deep setup details.
-- Why it matters: The current technical strength of the product is wasted if the first five minutes in the repo do not create clarity and trust.
-- Source: user
-- Primary owning slice: M002/S03
-- Supporting slices: M002/S05, M002/S08
-- Validation: mapped
-- Notes: Public entry surfaces should lead with concept and supported workflow, not with scattered implementation notes.
-
-### R023 — Verified real-service recorder integration path
-- Class: integration
-- Status: active
-- Description: An engineer can follow one short, verified path to connect the recorder to a real Spring-based service and produce `events.jsonl` without guesswork.
-- Why it matters: Recorder integration is the highest-friction adoption step and the place where trust will be won or lost.
-- Source: user
-- Primary owning slice: M002/S01
-- Supporting slices: M002/S05, M002/S08
-- Validation: mapped
-- Notes: The path should stay grounded in real repo assets and should distinguish smoke-only options from recommended product usage.
-
-### R024 — Event evidence capture and retrieval guidance
-- Class: operability
-- Status: active
-- Description: The docs explain where event evidence is written, how to verify the file exists and is non-empty, and how to retrieve it for analysis in real environments.
-- Why it matters: Users do not care that recording happened internally; they need a dependable way to find the evidence file and move to the next step.
-- Source: user
-- Primary owning slice: M002/S01
-- Supporting slices: M002/S02, M002/S08
-- Validation: mapped
-- Notes: This should cover both path/config behavior and practical verification commands.
-
-### R025 — Analyzer execution and coverage interpretation path
-- Class: primary-user-loop
-- Status: active
-- Description: An engineer can run the analyzer on collected events, generate a report, and understand the meaning of core coverage results, exclusions, and failure states.
-- Why it matters: Producing a file is not enough; users must be able to turn it into an actionable understanding of contract coverage.
-- Source: user
-- Primary owning slice: M002/S02
-- Supporting slices: M002/S03, M002/S08
-- Validation: mapped
-- Notes: The path should favor one reliable happy path before optional advanced modes.
-
-### R026 — RestAssured and Cucumber tagging/header setup guidance
-- Class: integration
-- Status: active
-- Description: The docs explain how to configure the current test-tagging surfaces so engineers using RestAssured and Cucumber can emit the expected request headers and suite/run metadata.
-- Why it matters: These integrations affect event quality and downstream interpretation, and they are easy to misuse when explained abstractly.
-- Source: user
-- Primary owning slice: M002/S02
-- Supporting slices: M002/S01, M002/S08
-- Validation: mapped
-- Notes: Guidance should stay concrete and match the modules that already exist in the repo.
-
-### R027 — Current version, recent changes, and release visibility
-- Class: continuity
-- Status: active
-- Description: A repository visitor can tell which version line is current, where to see recent changes, and how the latest stable release relates to the repository state.
-- Why it matters: Corporate engineers need immediate confidence that they are evaluating a current and maintained product instead of stale code.
-- Source: user
-- Primary owning slice: M002/S04
-- Supporting slices: M002/S03, M002/S05
-- Validation: mapped
-- Notes: The answer should not require browsing many tags or digging through workflow files.
-
-### R028 — Stable support boundaries, limitations, and compatibility story
-- Class: admin/support
-- Status: active
-- Description: The docs clearly state what is already stable, what constraints or limitations still exist, and what runtime/integration expectations users should assume.
-- Why it matters: Trust improves when the product is explicit about its current envelope instead of implying universal readiness.
-- Source: user
-- Primary owning slice: M002/S04
-- Supporting slices: M002/S06, M002/S08
-- Validation: mapped
-- Notes: This should include product boundaries, compatibility assumptions, and the distinction between supported and deferred surfaces.
-
-### R029 — Documentation architecture that separates user docs, maintainer docs, and historical artifacts
-- Class: operability
-- Status: active
-- Description: The repository documentation is organized so first-time users, maintainers, and historical-reference readers each have a clear path without stepping on each other.
-- Why it matters: A mature repo is not only well-written; it is navigable, with the right information in the right place.
-- Source: inferred
-- Primary owning slice: M002/S05
-- Supporting slices: M002/S03, M002/S04, M002/S06
-- Validation: mapped
-- Notes: Historical plans and traceability evidence remain available but should not dominate the landing path.
-
-### R030 — Repository trust surfaces for a maintained product repo
-- Class: launchability
-- Status: active
-- Description: The repository contains the repo-level files and policy surfaces that make it look and behave like a maintained product rather than an ad hoc pet project.
-- Why it matters: Product trust is shaped by repo hygiene as much as by source code quality.
-- Source: research
-- Primary owning slice: M002/S06
-- Supporting slices: M002/S04, M002/S05, M002/S08
-- Validation: mapped
-- Notes: The goal is trust and clarity for users, not performative open-source bureaucracy.
-
-### R031 — Local-only AGENTS.md contract for agent-assisted development
-- Class: operability
-- Status: active
-- Description: Maintainer agent instructions exist as a local-only artifact with clear handling rules so agent-assisted development is effective without publishing private workflow details in the tracked repository.
-- Why it matters: The maintainer wants agent leverage, but the file should not become part of the public product surface.
-- Source: user
-- Primary owning slice: M002/S07
-- Supporting slices: M002/S08
-- Validation: mapped
-- Notes: The milestone should settle the storage/ignore pattern and make it safe to maintain over time.
+- None. M002 closed with S08; no active requirements are currently in scope.
 
 ## Validated
 
@@ -357,6 +249,116 @@ Guidelines:
 - Validation: validated
 - Notes: Legacy QUAL-03. Proven by explicit Java 21 enforcement in CI.
 
+### R022 — Concept-first repository landing for engineers
+- Class: primary-user-loop
+- Status: validated
+- Description: A first-time engineer can open the root repository and understand what Yanote is, what problem it solves, who it is for, and the main path from concept to integration before reading deep setup details.
+- Why it matters: The current technical strength of the product is wasted if the first five minutes in the repo do not create clarity and trust.
+- Source: user
+- Primary owning slice: M002/S03
+- Supporting slices: M002/S05, M002/S08
+- Validation: validated
+- Notes: Public entry surfaces should lead with concept and supported workflow, not with scattered implementation notes.
+
+### R023 — Verified real-service recorder integration path
+- Class: integration
+- Status: validated
+- Description: An engineer can follow one short, verified path to connect the recorder to a real Spring-based service and produce `events.jsonl` without guesswork.
+- Why it matters: Recorder integration is the highest-friction adoption step and the place where trust will be won or lost.
+- Source: user
+- Primary owning slice: M002/S01
+- Supporting slices: M002/S05, M002/S08
+- Validation: validated
+- Notes: The path should stay grounded in real repo assets and should distinguish smoke-only options from recommended product usage.
+
+### R024 — Event evidence capture and retrieval guidance
+- Class: operability
+- Status: validated
+- Description: The docs explain where event evidence is written, how to verify the file exists and is non-empty, and how to retrieve it for analysis in real environments.
+- Why it matters: Users do not care that recording happened internally; they need a dependable way to find the evidence file and move to the next step.
+- Source: user
+- Primary owning slice: M002/S01
+- Supporting slices: M002/S02, M002/S08
+- Validation: validated
+- Notes: This should cover both path/config behavior and practical verification commands.
+
+### R025 — Analyzer execution and coverage interpretation path
+- Class: primary-user-loop
+- Status: validated
+- Description: An engineer can run the analyzer on collected events, generate a report, and understand the meaning of core coverage results, exclusions, and failure states.
+- Why it matters: Producing a file is not enough; users must be able to turn it into an actionable understanding of contract coverage.
+- Source: user
+- Primary owning slice: M002/S02
+- Supporting slices: M002/S03, M002/S08
+- Validation: validated
+- Notes: The path should favor one reliable happy path before optional advanced modes.
+
+### R026 — RestAssured and Cucumber tagging/header setup guidance
+- Class: integration
+- Status: validated
+- Description: The docs explain how to configure the current test-tagging surfaces so engineers using RestAssured and Cucumber can emit the expected request headers and suite/run metadata.
+- Why it matters: These integrations affect event quality and downstream interpretation, and they are easy to misuse when explained abstractly.
+- Source: user
+- Primary owning slice: M002/S02
+- Supporting slices: M002/S01, M002/S08
+- Validation: validated
+- Notes: Guidance should stay concrete and match the modules that already exist in the repo.
+
+### R027 — Current version, recent changes, and release visibility
+- Class: continuity
+- Status: validated
+- Description: A repository visitor can tell which version line is current, where to see recent changes, and how the latest stable release relates to the repository state.
+- Why it matters: Corporate engineers need immediate confidence that they are evaluating a current and maintained product instead of stale code.
+- Source: user
+- Primary owning slice: M002/S04
+- Supporting slices: M002/S03, M002/S05
+- Validation: validated
+- Notes: The answer should not require browsing many tags or digging through workflow files.
+
+### R028 — Stable support boundaries, limitations, and compatibility story
+- Class: admin/support
+- Status: validated
+- Description: The docs clearly state what is already stable, what constraints or limitations still exist, and what runtime/integration expectations users should assume.
+- Why it matters: Trust improves when the product is explicit about its current envelope instead of implying universal readiness.
+- Source: user
+- Primary owning slice: M002/S04
+- Supporting slices: M002/S06, M002/S08
+- Validation: validated
+- Notes: This should include product boundaries, compatibility assumptions, and the distinction between supported and deferred surfaces.
+
+### R029 — Documentation architecture that separates user docs, maintainer docs, and historical artifacts
+- Class: operability
+- Status: validated
+- Description: The repository documentation is organized so first-time users, maintainers, and historical-reference readers each have a clear path without stepping on each other.
+- Why it matters: A mature repo is not only well-written; it is navigable, with the right information in the right place.
+- Source: inferred
+- Primary owning slice: M002/S05
+- Supporting slices: M002/S03, M002/S04, M002/S06
+- Validation: validated
+- Notes: Historical plans and traceability evidence remain available but should not dominate the landing path.
+
+### R030 — Repository trust surfaces for a maintained product repo
+- Class: launchability
+- Status: validated
+- Description: The repository contains the repo-level files and policy surfaces that make it look and behave like a maintained product rather than an ad hoc pet project.
+- Why it matters: Product trust is shaped by repo hygiene as much as by source code quality.
+- Source: research
+- Primary owning slice: M002/S06
+- Supporting slices: M002/S04, M002/S05, M002/S08
+- Validation: validated
+- Notes: The goal is trust and clarity for users, not performative open-source bureaucracy.
+
+### R031 — Local-only AGENTS.md contract for agent-assisted development
+- Class: operability
+- Status: validated
+- Description: Maintainer agent instructions exist as a local-only artifact with clear handling rules so agent-assisted development is effective without publishing private workflow details in the tracked repository.
+- Why it matters: The maintainer wants agent leverage, but the file should not become part of the public product surface.
+- Source: user
+- Primary owning slice: M002/S07
+- Supporting slices: M002/S08
+- Validation: validated
+- Notes: The milestone should settle the storage/ignore pattern and make it safe to maintain over time.
+
 ## Deferred
 
 ### R032 — Dedicated documentation site outside the repository
@@ -441,16 +443,16 @@ Guidelines:
 | R019 | quality-attribute | validated | M001/S05 | none | validated |
 | R020 | quality-attribute | validated | M001/S04 | M001/S05 | validated |
 | R021 | constraint | validated | M001/S04 | none | validated |
-| R022 | primary-user-loop | active | M002/S03 | M002/S05, M002/S08 | mapped |
-| R023 | integration | active | M002/S01 | M002/S05, M002/S08 | mapped |
-| R024 | operability | active | M002/S01 | M002/S02, M002/S08 | mapped |
-| R025 | primary-user-loop | active | M002/S02 | M002/S03, M002/S08 | mapped |
-| R026 | integration | active | M002/S02 | M002/S01, M002/S08 | mapped |
-| R027 | continuity | active | M002/S04 | M002/S03, M002/S05 | mapped |
-| R028 | admin/support | active | M002/S04 | M002/S06, M002/S08 | mapped |
-| R029 | operability | active | M002/S05 | M002/S03, M002/S04, M002/S06 | mapped |
-| R030 | launchability | active | M002/S06 | M002/S04, M002/S05, M002/S08 | mapped |
-| R031 | operability | active | M002/S07 | M002/S08 | mapped |
+| R022 | primary-user-loop | validated | M002/S03 | M002/S05, M002/S08 | validated |
+| R023 | integration | validated | M002/S01 | M002/S05, M002/S08 | validated |
+| R024 | operability | validated | M002/S01 | M002/S02, M002/S08 | validated |
+| R025 | primary-user-loop | validated | M002/S02 | M002/S03, M002/S08 | validated |
+| R026 | integration | validated | M002/S02 | M002/S01, M002/S08 | validated |
+| R027 | continuity | validated | M002/S04 | M002/S03, M002/S05 | validated |
+| R028 | admin/support | validated | M002/S04 | M002/S06, M002/S08 | validated |
+| R029 | operability | validated | M002/S05 | M002/S03, M002/S04, M002/S06 | validated |
+| R030 | launchability | validated | M002/S06 | M002/S04, M002/S05, M002/S08 | validated |
+| R031 | operability | validated | M002/S07 | M002/S08 | validated |
 | R032 | differentiator | deferred | none | none | unmapped |
 | R033 | integration | deferred | none | none | unmapped |
 | R034 | constraint | out-of-scope | none | none | n/a |
@@ -459,7 +461,7 @@ Guidelines:
 
 ## Coverage Summary
 
-- Active requirements: 10
-- Mapped to slices: 10
-- Validated: 21
+- Active requirements: 0
+- Mapped to slices: 0
+- Validated: 31
 - Unmapped active requirements: 0
