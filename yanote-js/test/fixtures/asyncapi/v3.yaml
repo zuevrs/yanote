@@ -1,17 +1,34 @@
 asyncapi: 3.0.0
 info:
-  title: yanote async v3 sample
+  title: yanote async v3 kafka sample
   version: '1.0.0'
+servers:
+  kafkaLocal:
+    host: localhost:9092
+    protocol: kafka
 channels:
-  hello:
-    address: hello
+  usersSignedUp:
+    address: users.signedup
     messages:
-      sayHelloMessage:
+      UserSignedUp:
         payload:
-          type: string
+          type: object
+  usersDeleted:
+    address: users.deleted
+    messages:
+      UserDeleted:
+        payload:
+          type: object
 operations:
-  receiveHello:
+  sendUserSignedUp:
+    action: send
+    channel:
+      $ref: '#/channels/usersSignedUp'
+    messages:
+      - $ref: '#/channels/usersSignedUp/messages/UserSignedUp'
+  receiveUserDeleted:
     action: receive
     channel:
-      $ref: '#/channels/hello'
-
+      $ref: '#/channels/usersDeleted'
+    messages:
+      - $ref: '#/channels/usersDeleted/messages/UserDeleted'

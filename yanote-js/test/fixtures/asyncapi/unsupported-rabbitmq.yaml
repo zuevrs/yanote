@@ -1,0 +1,22 @@
+asyncapi: 3.0.0
+info:
+  title: unsupported rabbitmq async contract
+  version: '1.0.0'
+servers:
+  rabbitmqLocal:
+    host: localhost:5672
+    protocol: amqp
+channels:
+  usersSignedUp:
+    address: users.signedup
+    messages:
+      UserSignedUp:
+        payload:
+          type: object
+operations:
+  sendUserSignedUp:
+    action: send
+    channel:
+      $ref: '#/channels/usersSignedUp'
+    messages:
+      - $ref: '#/channels/usersSignedUp/messages/UserSignedUp'

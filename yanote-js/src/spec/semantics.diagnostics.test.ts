@@ -1,4 +1,5 @@
 import { describe, expect, it } from "vitest";
+import type { SemanticDiagnostic } from "./diagnostics.js";
 import { buildHttpSemantics } from "./semantics.js";
 
 describe("buildHttpSemantics diagnostics", () => {
@@ -46,6 +47,26 @@ describe("buildHttpSemantics diagnostics", () => {
       { kind: "http", method: "GET", route: "/pets/{param}/owners/{param}" }
     ]);
     expect(bundle.diagnostics).toEqual([]);
+  });
+
+  it("accepts structured async diagnostic context for kafka contract failures", () => {
+    const diagnostic = {
+      kind: "invalid",
+      message: "Unsupported async protocol for the current scope boundary",
+      async: {
+        protocol: "amqp",
+        asyncapiVersion: "3.0.0",
+        action: "send",
+        channel: "users.signedup"
+      }
+    } satisfies SemanticDiagnostic;
+
+    expect(diagnostic.async).toEqual({
+      protocol: "amqp",
+      asyncapiVersion: "3.0.0",
+      action: "send",
+      channel: "users.signedup"
+    });
   });
 
   it("is deterministic across repeated builds", () => {

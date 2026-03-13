@@ -1,0 +1,19 @@
+asyncapi: 3.0.0
+info:
+  title: invalid kafka async contract
+  version: '1.0.0'
+servers:
+  kafkaLocal:
+    host: localhost:9092
+    protocol: kafka
+channels:
+  usersSignedUp:
+    address: users.signedup
+    messages:
+      UserSignedUp:
+        payload:
+          type: object
+operations:
+  sendUserSignedUp:
+    action: send
+    channel: {}
