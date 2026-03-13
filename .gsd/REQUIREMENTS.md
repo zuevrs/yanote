@@ -443,16 +443,16 @@ Guidelines:
 | R019 | quality-attribute | validated | M001/S05 | none | validated |
 | R020 | quality-attribute | validated | M001/S04 | M001/S05 | validated |
 | R021 | constraint | validated | M001/S04 | none | validated |
-| R022 | primary-user-loop | validated | M002/S03 | M002/S05, M002/S08 | validated |
-| R023 | integration | validated | M002/S01 | M002/S05, M002/S08 | validated |
-| R024 | operability | validated | M002/S01 | M002/S02, M002/S08 | validated |
-| R025 | primary-user-loop | validated | M002/S02 | M002/S03, M002/S08 | validated |
-| R026 | integration | validated | M002/S02 | M002/S01, M002/S08 | validated |
-| R027 | continuity | validated | M002/S04 | M002/S03, M002/S05 | validated |
-| R028 | admin/support | validated | M002/S04 | M002/S06, M002/S08 | validated |
-| R029 | operability | validated | M002/S05 | M002/S03, M002/S04, M002/S06 | validated |
-| R030 | launchability | validated | M002/S06 | M002/S04, M002/S05, M002/S08 | validated |
-| R031 | operability | validated | M002/S07 | M002/S08 | validated |
+| R022 | primary-user-loop | validated | M002/S03 | M002/S05, M002/S08 | M002/S08 final proof (`S08-01`) |
+| R023 | integration | validated | M002/S01 | M002/S05, M002/S08 | M002/S08 final proof (`S08-02`, `S08-03`) |
+| R024 | operability | validated | M002/S01 | M002/S02, M002/S08 | M002/S08 final proof (`S08-03`) |
+| R025 | primary-user-loop | validated | M002/S02 | M002/S03, M002/S08 | M002/S08 final proof (`S08-05`) |
+| R026 | integration | validated | M002/S02 | M002/S01, M002/S08 | M002/S08 final proof (`S08-04`, `S08-05`) |
+| R027 | continuity | validated | M002/S04 | M002/S03, M002/S05 | M002/S08 final proof (`S08-06`) |
+| R028 | admin/support | validated | M002/S04 | M002/S06, M002/S08 | M002/S08 final proof (`S08-06`, `S08-08`) |
+| R029 | operability | validated | M002/S05 | M002/S03, M002/S04, M002/S06 | M002/S08 final proof (`S08-01`, `S08-07`) |
+| R030 | launchability | validated | M002/S06 | M002/S04, M002/S05, M002/S08 | M002/S08 final proof (`S08-08`) |
+| R031 | operability | validated | M002/S07 | M002/S08 | M002/S08 final proof (`S08-09`, `S08-10`) |
 | R032 | differentiator | deferred | none | none | unmapped |
 | R033 | integration | deferred | none | none | unmapped |
 | R034 | constraint | out-of-scope | none | none | n/a |

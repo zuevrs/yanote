@@ -21,6 +21,7 @@ What exists now:
 - 100% validated v1 requirement traceability with publishable release artifacts.
 - Concept-first Russian-first documentation maps at the root, `docs/`, `examples/`, maintainer/traceability/history branches, and `dist/`, with leaf-level recovery links and a machine-checked guide-first verifier stack.
 - The full concept → recorder → events → analyzer → interpretation journey is now re-proven from the docs by `bash scripts/docs/verify-s08-entry-paths.sh`, with live evidence captured in `.gsd/milestones/M002/slices/S08/S08-UAT.md`.
+- Milestone closure is recorded in `.gsd/milestones/M002/M002-SUMMARY.md`, which points future work at the live S08 proof instead of the recovered placeholder slice summaries.
 - Release/support boundaries, secondary navigation, maintained-product trust surfaces, and the local-only maintainer `AGENTS.md` contract are all machine-checked as part of that final proof path.
 - The maintainer-only `AGENTS.md` contract is proven as clone-local Git state through `.git/info/exclude`, ignored-but-untracked rather than published repo content.
 
