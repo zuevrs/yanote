@@ -9,9 +9,9 @@ import com.fasterxml.jackson.annotation.JsonTypeInfo;
  */
 @JsonTypeInfo(use = JsonTypeInfo.Id.NAME, property = "kind")
 @JsonSubTypes({
-    @JsonSubTypes.Type(value = HttpEvent.class, name = "http")
+    @JsonSubTypes.Type(value = HttpEvent.class, name = "http"),
+    @JsonSubTypes.Type(value = KafkaEvent.class, name = "kafka")
 })
 @JsonIgnoreProperties(ignoreUnknown = true)
-public sealed interface YanoteEvent permits HttpEvent {
+public sealed interface YanoteEvent permits HttpEvent, KafkaEvent {
 }
-

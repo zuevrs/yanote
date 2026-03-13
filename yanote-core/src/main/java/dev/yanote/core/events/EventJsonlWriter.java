@@ -1,6 +1,8 @@
 package dev.yanote.core.events;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.fasterxml.jackson.databind.ObjectWriter;
+
 import java.io.BufferedWriter;
 import java.io.IOException;
 import java.nio.file.Files;
@@ -9,6 +11,7 @@ import java.nio.file.StandardOpenOption;
 
 public final class EventJsonlWriter implements AutoCloseable {
     private static final ObjectMapper OBJECT_MAPPER = new ObjectMapper();
+    private static final ObjectWriter EVENT_WRITER = OBJECT_MAPPER.writerFor(YanoteEvent.class);
     private final Path path;
 
     public EventJsonlWriter(Path path) throws IOException {
@@ -19,13 +22,13 @@ public final class EventJsonlWriter implements AutoCloseable {
         this.path = path;
     }
 
-    public void write(HttpEvent event) throws IOException {
+    public void write(YanoteEvent event) throws IOException {
         try (BufferedWriter writer = Files.newBufferedWriter(
                 path,
                 StandardOpenOption.CREATE,
                 StandardOpenOption.APPEND
         )) {
-            writer.write(OBJECT_MAPPER.writeValueAsString(event));
+            writer.write(EVENT_WRITER.writeValueAsString(event));
             writer.newLine();
         }
     }
@@ -35,4 +38,3 @@ public final class EventJsonlWriter implements AutoCloseable {
         // no-op: writer is created per write
     }
 }
-

@@ -1,6 +1,8 @@
 package dev.yanote.core.events;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.fasterxml.jackson.databind.ObjectReader;
+
 import java.io.BufferedReader;
 import java.io.IOException;
 import java.nio.file.Files;
@@ -10,9 +12,10 @@ import java.util.List;
 
 public final class EventJsonlReader {
     private static final ObjectMapper OBJECT_MAPPER = new ObjectMapper();
+    private static final ObjectReader EVENT_READER = OBJECT_MAPPER.readerFor(YanoteEvent.class);
 
-    public List<HttpEvent> read(Path path) throws IOException {
-        List<HttpEvent> events = new ArrayList<>();
+    public List<YanoteEvent> read(Path path) throws IOException {
+        List<YanoteEvent> events = new ArrayList<>();
         if (!Files.exists(path)) {
             return events;
         }
@@ -26,7 +29,7 @@ public final class EventJsonlReader {
                     continue;
                 }
                 try {
-                    events.add(OBJECT_MAPPER.readValue(line, HttpEvent.class));
+                    events.add(EVENT_READER.readValue(line));
                 } catch (IOException ex) {
                     throw new IOException("Failed to parse JSONL line " + lineNo + ": " + line, ex);
                 }
@@ -35,4 +38,3 @@ public final class EventJsonlReader {
         return events;
     }
 }
-
