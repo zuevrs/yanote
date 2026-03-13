@@ -1,27 +1,24 @@
 # GSD State
 
 **Active Milestone:** M003 — AsyncAPI Coverage Foundations
-**Active Slice:** S01 — AsyncAPI Contract Ingestion And Canonical Identity
-**Active Task:** (none)
+**Active Slice:** S02 — Async Coverage And Diagnostics Semantics
 **Phase:** planning
-**Requirements Status:** 12 active · 31 validated · 7 deferred · 6 out of scope
+**Requirements Status:** 10 active · 33 validated · 7 deferred · 6 out of scope
 
 ## Milestone Registry
 - ✅ **M001:** Yanote v1 Delivery
 - ✅ **M002:** Repository Product Maturity
-- ⏳ **M003:** AsyncAPI Coverage Foundations
-- ⏳ **M004:** Kafka Evidence Capture And Java Integration
-- ⏳ **M005:** Async Productization And End-to-End Proof
+- 🔄 **M003:** AsyncAPI Coverage Foundations
+- ⬜ **M004:** M004
+- ⬜ **M005:** M005
 
 ## Recent Decisions
-- Use `kind:"kafka"` as the canonical first-wave async operation kind; treat AsyncAPI as the input format, not the runtime identity label.
-- Normalize AsyncAPI v2 `publish`/`subscribe` and v3 `send`/`receive` into canonical `send` / `receive` semantics.
-- Keep message-contract references alongside the base async operation identity instead of embedding them in the primary key during S01.
-- Translate AsyncAPI parser and normalization problems into deterministic semantic diagnostics bundles rather than raw thrown parser strings.
-- Expose AsyncAPI normalization as a semantics bundle and fail closed on unsupported protocol or semantic invalidity before returning operations.
+- 2026-03-13 — **M003/S01/T03:** Keep unsupported AsyncAPI versions and broken `$ref` inputs on the parser-rejection side; reserve structured async diagnostics for successfully parsed Kafka-scoped contracts.
+- 2026-03-13 — **M003/S01/T02:** Expose AsyncAPI normalization as a semantics bundle and fail closed on unsupported protocol or semantically invalid contracts before returning canonical operations.
+- 2026-03-13 — **M003/S01:** Use canonical Kafka runtime identities (`kafka <action> <channel>`) and keep message-contract metadata adjacent to the base operation key.
 
 ## Blockers
 - None
 
 ## Next Action
-Execute M003/S01/T03 — Add parity and failure-path proof for canonical async identity.
+Plan slice S02 (Async Coverage And Diagnostics Semantics) on top of the now-locked S01 proof command.

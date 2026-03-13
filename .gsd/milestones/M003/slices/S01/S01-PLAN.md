@@ -5,10 +5,9 @@
 
 ## Must-Haves
 
-- A Kafka-oriented canonical async identity exists for supported AsyncAPI contracts and distinguishes `send` vs `receive` without leaking raw AsyncAPI version differences into downstream logic.
-- The async semantics layer preserves message-contract references alongside the base async operation identity, so S02 can reason about message-contract coverage without fragmenting the primary key prematurely.
-- Invalid, unsupported, or structurally ambiguous AsyncAPI inputs fail closed through deterministic diagnostics with async-relevant context instead of raw thrown parser strings or silent skipping.
-- Equivalent v2 and v3 fixture contracts normalize to the same canonical identities in deterministic order, and OpenAPI-only discovery behavior remains green.
+- Supported Kafka-oriented AsyncAPI contracts normalize into a canonical async identity surface that is framed around the runtime domain rather than the source document label.
+- The slice fixture corpus proves equivalent AsyncAPI v2/v3 happy paths plus explicit invalid and unsupported boundaries.
+- Async diagnostics carry enough structured context to localize version/protocol/channel/action/message failures without payload dumps.
 
 ## Proof Level
 
@@ -18,56 +17,49 @@
 
 ## Verification
 
-- `npm -C yanote-js test -- src/spec/asyncapi.test.ts src/spec/discover.test.ts src/spec/asyncapi.parity.test.ts src/spec/semantics.diagnostics.test.ts`
-- `npm -C yanote-js test -- src/spec/openapi.test.ts src/spec/semantics.diagnostics.test.ts`
+- `npm -C yanote-js test -- src/spec/asyncapi.test.ts src/spec/asyncapi.parity.test.ts src/spec/discover.test.ts src/spec/semantics.diagnostics.test.ts src/spec/openapi.test.ts`
 
 ## Observability / Diagnostics
 
 - Runtime signals: deterministic async semantic diagnostics carrying version/protocol/channel/action/message context and stable canonical key serialization for fixture proofs.
-- Inspection surfaces: `yanote-js/src/spec/asyncapi*.test.ts`, `yanote-js/src/spec/discover.test.ts`, `yanote-js/test/fixtures/asyncapi/*`, and the async semantics bundle produced by the loader.
-- Failure visibility: test failures localize parser/normalization drift, unsupported-version handling, unresolved refs, or ordering/dedupe regressions without requiring a live Kafka runtime.
-- Redaction constraints: fixtures and diagnostics should stay contract-focused; do not introduce payload dumps, secrets, or broker credentials into test surfaces.
+- Inspection surfaces: `yanote-js/src/spec/asyncapi*.test.ts`, `yanote-js/src/spec/discover.test.ts`, `yanote-js/src/spec/semantics.diagnostics.test.ts`, `yanote-js/test/fixtures/asyncapi/*`, and the async semantics bundle produced by the loader.
+- Failure visibility: test failures localize parser/normalization drift, unsupported protocol/version handling, malformed or unresolved refs, canonical ordering drift, or HTTP compatibility regressions without requiring a live Kafka runtime.
+- Redaction constraints: fixtures and diagnostics stay contract-focused; do not introduce payload dumps, secrets, or broker credentials into test surfaces.
 
 ## Integration Closure
 
-- Upstream surfaces consumed: `yanote-js/src/spec/semantics.ts`, `yanote-js/src/spec/diagnostics.ts`, `yanote-js/src/model/operationKey.ts`, `yanote-js/src/spec/discover.ts`, current AsyncAPI fixtures, and the existing deterministic test stack.
-- New wiring introduced in this slice: a canonical async semantics bundle and Kafka-oriented identity contract that future coverage/report code (S02/S03) and Spring Kafka evidence capture (M004) can target directly.
-- What remains before the milestone is truly usable end-to-end: async coverage semantics and diagnostics over evidence in S02, then separate async report/gate surfaces in S03.
+- Upstream surfaces consumed: `yanote-js/src/model/operationKey.ts`, `yanote-js/src/spec/diagnostics.ts`, `yanote-js/src/spec/asyncapi.ts`, `yanote-js/src/spec/discover.ts`, `yanote-js/src/spec/semantics.ts`, and `yanote-js/test/fixtures/asyncapi/*`.
+- New wiring introduced in this slice: AsyncAPI fixtures, canonical async key serialization, parity tests, and generalized semantic diagnostics that will anchor the loader implementation.
+- What remains before the milestone is truly usable end-to-end: S01 is now closed on a single repeatable proof command; the milestone moves next to S02 async coverage and diagnostics semantics work on top of this canonical contract surface.
 
 ## Tasks
 
-- [x] **T01: Define the Kafka-oriented async identity and fixture contract** `est:75m`
-  - Why: The slice needs one stable target for both parser normalization and future runtime evidence before implementation details spread through the analyzer.
-  - Files: `yanote-js/src/model/operationKey.ts`, `yanote-js/src/spec/diagnostics.ts`, `yanote-js/test/fixtures/asyncapi/v2.yaml`, `yanote-js/test/fixtures/asyncapi/v3.yaml`, `yanote-js/test/fixtures/asyncapi/invalid.yaml`, `yanote-js/test/fixtures/asyncapi/unsupported-rabbitmq.yaml`
-  - Do: Replace the shallow `kind:"asyncapi"` identity assumption with a Kafka-oriented async contract shape, decide what belongs in the primary key versus associated message-contract metadata, generalize diagnostics to carry async context, and expand the fixture corpus to cover equivalent v2/v3 operations plus invalid/unsupported cases.
+- [x] **T01: Define the Kafka-oriented async identity and fixture contract** `est:45m`
+  - Why: The milestone cannot trust coverage or recorder work until AsyncAPI v2/v3 and invalid/unsupported cases are pinned to one runtime-oriented contract.
+  - Files: `yanote-js/src/model/operationKey.ts`, `yanote-js/src/spec/diagnostics.ts`, `yanote-js/src/spec/asyncapi.test.ts`, `yanote-js/src/spec/asyncapi.parity.test.ts`, `yanote-js/test/fixtures/asyncapi/*`
+  - Do: Replace the shallow AsyncAPI identity assumption with a Kafka-oriented key/contract vocabulary, add structured async diagnostic context, and expand the fixture/test corpus so invalid and unsupported inputs fail closed instead of disappearing.
   - Verify: `npm -C yanote-js test -- src/spec/asyncapi.test.ts src/spec/semantics.diagnostics.test.ts`
-  - Done when: the type/fixture surface can express the same canonical Kafka operation across v2 and v3, plus deterministic invalid/unsupported diagnostics, without depending on ad hoc string parsing downstream.
-
-- [x] **T02: Implement deterministic AsyncAPI semantics loading and discovery normalization** `est:90m`
-  - Why: A strong type contract is useless until the real parser/discovery path produces it deterministically from supported AsyncAPI inputs.
-  - Files: `yanote-js/src/spec/asyncapi.ts`, `yanote-js/src/spec/discover.ts`, `yanote-js/src/spec/asyncapi.test.ts`, `yanote-js/src/spec/discover.test.ts`
-  - Do: Replace the raw operation list/throwing loader with an async semantics bundle that uses `@asyncapi/parser`, normalizes v2 `publish/subscribe` and v3 `action: send|receive` into one canonical Kafka identity surface, preserves message-contract references, translates parser problems into structured diagnostics, and tightens AsyncAPI discovery while keeping OpenAPI behavior green.
-  - Verify: `npm -C yanote-js test -- src/spec/asyncapi.test.ts src/spec/discover.test.ts`
-  - Done when: supported v2/v3 fixtures yield deterministic canonical bundles, invalid/unsupported fixtures return structured diagnostics instead of raw thrown strings, and spec discovery still classifies OpenAPI vs AsyncAPI inputs correctly.
-
-- [ ] **T03: Add parity and failure-path proof for canonical async identity** `est:60m`
-  - Why: S01 only becomes trustworthy when normalization, dedupe, and failure behavior are locked into repeatable proofs rather than inferred from implementation.
-  - Files: `yanote-js/src/spec/asyncapi.parity.test.ts`, `yanote-js/src/spec/semantics.diagnostics.test.ts`, `yanote-js/test/fixtures/asyncapi/v2.yaml`, `yanote-js/test/fixtures/asyncapi/v3.yaml`, `yanote-js/test/fixtures/asyncapi/invalid.yaml`, `yanote-js/test/fixtures/asyncapi/unsupported-rabbitmq.yaml`
-  - Do: Add fixture-driven parity tests that prove equivalent v2/v3 contracts normalize to identical canonical keys and stable order, cover failure paths such as unsupported protocol/version or unresolved refs, and keep the existing HTTP semantic tests green after the async model changes.
+  - Done when: The contract and fixture corpus are pinned in code, HTTP diagnostics remain green, and the remaining async test failures point directly at the shallow loader gaps that T02 must close.
+- [x] **T02: Implement AsyncAPI normalization and fail-closed diagnostics** `est:1h`
+  - Why: T01 only defines the contract; the slice still needs a real loader that turns supported AsyncAPI inputs into the canonical Kafka surface and rejects unsupported/invalid cases explicitly.
+  - Files: `yanote-js/src/spec/asyncapi.ts`, `yanote-js/src/spec/diagnostics.ts`, `yanote-js/src/spec/asyncapi.test.ts`, `yanote-js/src/spec/asyncapi.parity.test.ts`
+  - Do: Replace the shallow extractor with Kafka-scoped AsyncAPI normalization for supported v2/v3 documents, surface deterministic invalid/unsupported diagnostics with async context, and preserve stable ordering/dedupe behavior.
+  - Verify: `npm -C yanote-js test -- src/spec/asyncapi.test.ts src/spec/asyncapi.parity.test.ts src/spec/semantics.diagnostics.test.ts`
+  - Done when: The new async contract tests pass and failures carry actionable async context instead of silent drops.
+- [x] **T03: Add parity and failure-path proof for canonical async identity** `est:45m`
+  - Why: The slice is only complete when equivalent v2/v3 contracts, explicit async failure paths, discovery classification, and the existing OpenAPI path all stay green under one repeatable proof command.
+  - Files: `yanote-js/src/spec/asyncapi.test.ts`, `yanote-js/src/spec/asyncapi.parity.test.ts`, `yanote-js/src/spec/discover.test.ts`, `yanote-js/src/spec/openapi.test.ts`, `yanote-js/test/fixtures/asyncapi/*`, `.gsd/STATE.md`
+  - Do: Tighten the parity and failure-path fixtures/tests, rerun the full slice verifier stack, and refresh the living state to reflect the now-proven slice.
   - Verify: `npm -C yanote-js test -- src/spec/asyncapi.test.ts src/spec/asyncapi.parity.test.ts src/spec/discover.test.ts src/spec/semantics.diagnostics.test.ts src/spec/openapi.test.ts`
-  - Done when: one proof command exercises both happy-path normalization and fail-closed async diagnostics, and the HTTP semantic baseline still passes after the async contract changes.
+  - Done when: The single slice proof command passes with explicit parity, diagnostics, discovery, and OpenAPI non-regression coverage, and the GSD state no longer presents S01 as active work.
 
 ## Files Likely Touched
 
 - `yanote-js/src/model/operationKey.ts`
 - `yanote-js/src/spec/diagnostics.ts`
 - `yanote-js/src/spec/asyncapi.ts`
-- `yanote-js/src/spec/discover.ts`
 - `yanote-js/src/spec/asyncapi.test.ts`
 - `yanote-js/src/spec/asyncapi.parity.test.ts`
-- `yanote-js/src/spec/discover.test.ts`
 - `yanote-js/src/spec/semantics.diagnostics.test.ts`
-- `yanote-js/test/fixtures/asyncapi/v2.yaml`
-- `yanote-js/test/fixtures/asyncapi/v3.yaml`
-- `yanote-js/test/fixtures/asyncapi/invalid.yaml`
-- `yanote-js/test/fixtures/asyncapi/unsupported-rabbitmq.yaml`
+- `yanote-js/test/fixtures/asyncapi/*`
+- `.gsd/STATE.md`

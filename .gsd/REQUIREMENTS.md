@@ -14,28 +14,6 @@ Guidelines:
 
 ## Active
 
-### R037 — AsyncAPI contract ingestion for Kafka APIs
-- Class: core-capability
-- Status: active
-- Description: Yanote can ingest Kafka-oriented AsyncAPI specifications, validate them, and load them into the analyzer without treating async contracts as opaque attachments.
-- Why it matters: Teams with event-driven services need the same contract entry point for AsyncAPI that HTTP teams already have for OpenAPI.
-- Source: user
-- Primary owning slice: M003/S01
-- Supporting slices: M003/S03
-- Validation: mapped
-- Notes: Support for AsyncAPI v2 and v3 is desirable; if both cannot be delivered without semantic compromise, v3 takes priority and the supported version boundary must stay explicit.
-
-### R038 — Canonical async operation identity across AsyncAPI versions
-- Class: core-capability
-- Status: active
-- Description: Yanote can normalize supported AsyncAPI version shapes into one canonical async operation identity that distinguishes Kafka channel and direction reliably.
-- Why it matters: Coverage, diagnostics, recorder evidence, and CI gates all depend on one stable async identity contract.
-- Source: inferred
-- Primary owning slice: M003/S01
-- Supporting slices: M003/S02, M004/S01
-- Validation: mapped
-- Notes: The internal model should not leak raw spec-version differences into downstream recorder or report logic.
-
 ### R039 — Async coverage semantics for channels, operations, and message contracts
 - Class: core-capability
 - Status: active
@@ -147,6 +125,28 @@ Guidelines:
 - Notes: Final proof should compose the lower-level async verifiers instead of inventing a separate ungrounded acceptance story.
 
 ## Validated
+
+### R037 — AsyncAPI contract ingestion for Kafka APIs
+- Class: core-capability
+- Status: validated
+- Description: Yanote can ingest Kafka-oriented AsyncAPI specifications, validate them, and load them into the analyzer without treating async contracts as opaque attachments.
+- Why it matters: Teams with event-driven services need the same contract entry point for AsyncAPI that HTTP teams already have for OpenAPI.
+- Source: user
+- Primary owning slice: M003/S01
+- Supporting slices: M003/S03
+- Validation: validated
+- Notes: Proven by the S01 proof command covering Kafka-only AsyncAPI v2/v3 ingestion, explicit invalid/unsupported boundaries, and OpenAPI non-regression.
+
+### R038 — Canonical async operation identity across AsyncAPI versions
+- Class: core-capability
+- Status: validated
+- Description: Yanote can normalize supported AsyncAPI version shapes into one canonical async operation identity that distinguishes Kafka channel and direction reliably.
+- Why it matters: Coverage, diagnostics, recorder evidence, and CI gates all depend on one stable async identity contract.
+- Source: inferred
+- Primary owning slice: M003/S01
+- Supporting slices: M003/S02, M004/S01
+- Validation: validated
+- Notes: Proven by canonical `kafka <action> <channel>` normalization plus parity tests that hold AsyncAPI v2 and v3 to the same deterministic operation ordering.
 
 ### R001 — Canonical OpenAPI specification loading and operation identity
 - Class: core-capability
@@ -676,8 +676,8 @@ Guidelines:
 | R034 | constraint | out-of-scope | none | none | n/a |
 | R035 | anti-feature | out-of-scope | none | none | n/a |
 | R036 | anti-feature | out-of-scope | none | none | n/a |
-| R037 | core-capability | active | M003/S01 | M003/S03 | mapped |
-| R038 | core-capability | active | M003/S01 | M003/S02, M004/S01 | mapped |
+| R037 | core-capability | validated | M003/S01 | M003/S03 | S01 proof command (`asyncapi`, parity, discovery, diagnostics, OpenAPI`) |
+| R038 | core-capability | validated | M003/S01 | M003/S02, M004/S01 | S01 parity and canonical-key proof |
 | R039 | core-capability | active | M003/S02 | M003/S03, M005/S02 | mapped |
 | R040 | failure-visibility | active | M003/S02 | M003/S03, M005/S02 | mapped |
 | R041 | integration | active | M003/S03 | M005/S02 | mapped |

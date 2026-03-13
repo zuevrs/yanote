@@ -21,9 +21,9 @@ Lock the new async semantics into repeatable proof: equivalent v2/v3 contracts n
 
 ## Must-Haves
 
-- [ ] Equivalent v2 and v3 fixtures normalize to identical canonical Kafka operation identities in deterministic order.
-- [ ] Failure-path tests cover unsupported or malformed AsyncAPI inputs explicitly.
-- [ ] The proof command keeps the HTTP semantic baseline green after the async contract changes.
+- [x] Equivalent v2 and v3 fixtures normalize to identical canonical Kafka operation identities in deterministic order.
+- [x] Failure-path tests cover unsupported or malformed AsyncAPI inputs explicitly.
+- [x] The proof command keeps the HTTP semantic baseline green after the async contract changes.
 
 ## Verification
 
