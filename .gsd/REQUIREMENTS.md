@@ -14,7 +14,137 @@ Guidelines:
 
 ## Active
 
-- None. M002 closed with S08; no active requirements are currently in scope.
+### R037 — AsyncAPI contract ingestion for Kafka APIs
+- Class: core-capability
+- Status: active
+- Description: Yanote can ingest Kafka-oriented AsyncAPI specifications, validate them, and load them into the analyzer without treating async contracts as opaque attachments.
+- Why it matters: Teams with event-driven services need the same contract entry point for AsyncAPI that HTTP teams already have for OpenAPI.
+- Source: user
+- Primary owning slice: M003/S01
+- Supporting slices: M003/S03
+- Validation: mapped
+- Notes: Support for AsyncAPI v2 and v3 is desirable; if both cannot be delivered without semantic compromise, v3 takes priority and the supported version boundary must stay explicit.
+
+### R038 — Canonical async operation identity across AsyncAPI versions
+- Class: core-capability
+- Status: active
+- Description: Yanote can normalize supported AsyncAPI version shapes into one canonical async operation identity that distinguishes Kafka channel and direction reliably.
+- Why it matters: Coverage, diagnostics, recorder evidence, and CI gates all depend on one stable async identity contract.
+- Source: inferred
+- Primary owning slice: M003/S01
+- Supporting slices: M003/S02, M004/S01
+- Validation: mapped
+- Notes: The internal model should not leak raw spec-version differences into downstream recorder or report logic.
+
+### R039 — Async coverage semantics for channels, operations, and message contracts
+- Class: core-capability
+- Status: active
+- Description: Yanote can compute async coverage that shows which Kafka channels are covered, which send/receive operations are covered, and which message contracts were observed.
+- Why it matters: The user wants async results to be as informative as HTTP coverage, not a shallow topic-hit counter.
+- Source: user
+- Primary owning slice: M003/S02
+- Supporting slices: M003/S03, M005/S02
+- Validation: mapped
+- Notes: Payload-schema validation can arrive later; first-wave semantics should still expose message-contract identity as part of coverage.
+
+### R040 — Unmatched and mismatched async evidence diagnostics
+- Class: failure-visibility
+- Status: active
+- Description: Yanote shows unmatched async events and async contract mismatches explicitly instead of silently counting best-effort matches.
+- Why it matters: Event-driven coverage is only trustworthy if evidence drift is visible and can participate in gates.
+- Source: user
+- Primary owning slice: M003/S02
+- Supporting slices: M003/S03, M005/S02
+- Validation: mapped
+- Notes: Users should see both sides at once: uncovered async operations in the spec and unmatched/mismatched evidence in runtime facts.
+
+### R041 — Separate async report and gate path alongside HTTP
+- Class: integration
+- Status: active
+- Description: Yanote provides a separate async report and gate path alongside the existing HTTP path instead of forcing one mandatory combined report in the first async release.
+- Why it matters: This keeps the first async rollout legible and reduces coupling while the async semantics mature.
+- Source: user
+- Primary owning slice: M003/S03
+- Supporting slices: M005/S02
+- Validation: mapped
+- Notes: Combined HTTP+async reporting is useful later but should not blur first-wave proof surfaces.
+
+### R042 — Spring Kafka producer evidence capture
+- Class: integration
+- Status: active
+- Description: Yanote can capture normalized producer-side Kafka evidence from Spring Kafka applications.
+- Why it matters: Teams need proof for outbound event contracts, not only inbound consumption.
+- Source: user
+- Primary owning slice: M004/S01
+- Supporting slices: M004/S02, M004/S03
+- Validation: mapped
+- Notes: Evidence should preserve enough metadata to link producer facts back to canonical async operations.
+
+### R043 — Spring Kafka consumer evidence capture
+- Class: integration
+- Status: active
+- Description: Yanote can capture normalized consumer-side Kafka evidence from Spring Kafka applications.
+- Why it matters: Real services often both publish and consume, and Yanote must distinguish those directions honestly.
+- Source: user
+- Primary owning slice: M004/S01
+- Supporting slices: M004/S02, M004/S03
+- Validation: mapped
+- Notes: Consumer evidence must not be conflated with producer evidence even when the same service does both.
+
+### R044 — Kafka test metadata propagation via headers
+- Class: operability
+- Status: active
+- Description: Suite/run metadata can propagate through Kafka headers and land in normalized async evidence so coverage attribution remains diagnosable.
+- Why it matters: The current HTTP path already depends on trustworthy test metadata; the async path needs the same debugging and attribution surface.
+- Source: inferred
+- Primary owning slice: M004/S02
+- Supporting slices: M004/S03, M005/S01
+- Validation: mapped
+- Notes: The first version should preserve headers and evidence truth even if the final report surface stays minimal.
+
+### R045 — Real Kafka integration proof for single-service and two-service scenarios
+- Class: operability
+- Status: active
+- Description: Yanote proves its Kafka path in two live scenarios: one service that both publishes and consumes, and a two-service producer-to-consumer flow.
+- Why it matters: The user wants both scenarios covered, and async confidence requires more than unit-only proof.
+- Source: user
+- Primary owning slice: M004/S03
+- Supporting slices: M005/S02
+- Validation: mapped
+- Notes: These proofs should run against a real Kafka runtime, not only mocked broker abstractions.
+
+### R046 — Async verification stack at OpenAPI-quality depth
+- Class: quality-attribute
+- Status: active
+- Description: The async capability is protected by fixture, unit, integration, end-to-end, and CI checks at the same trust depth as the current OpenAPI path.
+- Why it matters: A second-class async test story would make the new capability untrustworthy even if the happy path appears to work.
+- Source: user
+- Primary owning slice: M004/S03
+- Supporting slices: M003/S01, M003/S02, M003/S03, M005/S02
+- Validation: mapped
+- Notes: This is a quality bar, not a stretch goal.
+
+### R047 — Productized AsyncAPI/Kafka onboarding and support surface
+- Class: primary-user-loop
+- Status: active
+- Description: Engineers can understand how to use the new AsyncAPI/Kafka capability, what it supports, and where its current boundaries are without reverse-engineering internal implementation notes.
+- Why it matters: A strong async core still fails adoption if users cannot discover the right path or trust the limits.
+- Source: inferred
+- Primary owning slice: M005/S01
+- Supporting slices: M005/S02
+- Validation: mapped
+- Notes: The first async public story should stay Kafka-only and Spring Kafka-first unless later milestones broaden it.
+
+### R048 — CI-ready end-to-end async proof and release-grade trust surface
+- Class: quality-attribute
+- Status: active
+- Description: The async path closes with machine-checked end-to-end proof, CI-ready acceptance, and trust surfaces that make it feel like a first-class product capability.
+- Why it matters: Async support should ship with the same release confidence as the existing HTTP path.
+- Source: inferred
+- Primary owning slice: M005/S02
+- Supporting slices: M004/S03
+- Validation: mapped
+- Notes: Final proof should compose the lower-level async verifiers instead of inventing a separate ungrounded acceptance story.
 
 ## Validated
 
@@ -383,6 +513,61 @@ Guidelines:
 - Validation: unmapped
 - Notes: The current product posture remains Java-first; expanding beyond that is valuable but not part of this milestone.
 
+### R049 — Payload validation against AsyncAPI message schema
+- Class: core-capability
+- Status: deferred
+- Description: Yanote may later validate observed Kafka payloads against AsyncAPI message schemas instead of only identifying the message contract that was exercised.
+- Why it matters: This would deepen confidence in contract fidelity, but it materially increases the semantic and runtime scope of the first async rollout.
+- Source: user
+- Primary owning slice: none
+- Supporting slices: none
+- Validation: unmapped
+- Notes: The user wants this eventually, but not at the cost of delaying a trustworthy first async capability.
+
+### R050 — Unified combined HTTP and async reporting surface
+- Class: primary-user-loop
+- Status: deferred
+- Description: Yanote may later present HTTP and async coverage in one unified report and gate surface.
+- Why it matters: Teams running hybrid services will eventually want one higher-level contract picture.
+- Source: user
+- Primary owning slice: none
+- Supporting slices: none
+- Validation: unmapped
+- Notes: The first async rollout should keep separate reports and gates to avoid blurring semantics.
+
+### R051 — Non-Kafka AsyncAPI brokers beyond Spring Kafka-first path
+- Class: integration
+- Status: deferred
+- Description: Later milestones may expand AsyncAPI support beyond Kafka and beyond the Spring Kafka-first Java integration path.
+- Why it matters: AsyncAPI is broader than Kafka, but first-wave trust should come from one strong broker/runtime path.
+- Source: inferred
+- Primary owning slice: none
+- Supporting slices: none
+- Validation: unmapped
+- Notes: This includes RabbitMQ and other AsyncAPI-capable transports.
+
+### R052 — Schema Registry integration and schema-evolution awareness
+- Class: integration
+- Status: deferred
+- Description: Yanote may later integrate with schema registries and account for schema-evolution concerns in async contract verification.
+- Why it matters: Many Kafka teams rely on schema registries in production, but they are not required to establish the first coverage-capable async path.
+- Source: inferred
+- Primary owning slice: none
+- Supporting slices: none
+- Validation: unmapped
+- Notes: Deliberately postponed to keep the first async milestone set focused and testable.
+
+### R053 — DLQ, retry, partition, and lag-aware async coverage dimensions
+- Class: differentiator
+- Status: deferred
+- Description: Yanote may later add async coverage dimensions tied to dead-letter flows, retries, partition-aware semantics, or lag/runtime operational signals.
+- Why it matters: These could become valuable for mature event-driven teams, but they are not table stakes for the first contract-coverage rollout.
+- Source: inferred
+- Primary owning slice: none
+- Supporting slices: none
+- Validation: unmapped
+- Notes: First-wave async support should measure contract exercise before deeper broker-operational behaviors.
+
 ## Out of Scope
 
 ### R034 — English-first documentation set
@@ -417,6 +602,39 @@ Guidelines:
 - Supporting slices: none
 - Validation: n/a
 - Notes: Trust surfaces may still allow issues or contributions, but they should not imply high-bandwidth community stewardship.
+
+### R054 — Silent best-effort matching for async evidence drift
+- Class: anti-feature
+- Status: out-of-scope
+- Description: The first async release does not silently accept best-effort Kafka evidence matches when the evidence drifts from the AsyncAPI contract.
+- Why it matters: This prevents false confidence in async coverage and preserves the fail-closed posture established for HTTP.
+- Source: inferred
+- Primary owning slice: none
+- Supporting slices: none
+- Validation: n/a
+- Notes: Async drift should surface as explicit unmatched or mismatched diagnostics.
+
+### R055 — HTTP and async merged into one mandatory report in the first async release
+- Class: anti-feature
+- Status: out-of-scope
+- Description: The first async release does not force HTTP and async evidence into one combined mandatory report and gate.
+- Why it matters: It protects clarity while the async semantics and runtime path are still being established.
+- Source: user
+- Primary owning slice: none
+- Supporting slices: none
+- Validation: n/a
+- Notes: Separate report/gate surfaces are intentional for the first rollout.
+
+### R056 — Broker-agnostic “everything async” support in the first cut
+- Class: anti-feature
+- Status: out-of-scope
+- Description: The first async rollout does not attempt broad broker-agnostic support across every AsyncAPI transport.
+- Why it matters: Kafka-only and Spring Kafka-first is the smallest scope that can still be delivered deeply and credibly.
+- Source: inferred
+- Primary owning slice: none
+- Supporting slices: none
+- Validation: n/a
+- Notes: The initial async expansion should go deep on Kafka rather than shallow across many brokers.
 
 ## Traceability
 
@@ -458,10 +676,30 @@ Guidelines:
 | R034 | constraint | out-of-scope | none | none | n/a |
 | R035 | anti-feature | out-of-scope | none | none | n/a |
 | R036 | anti-feature | out-of-scope | none | none | n/a |
+| R037 | core-capability | active | M003/S01 | M003/S03 | mapped |
+| R038 | core-capability | active | M003/S01 | M003/S02, M004/S01 | mapped |
+| R039 | core-capability | active | M003/S02 | M003/S03, M005/S02 | mapped |
+| R040 | failure-visibility | active | M003/S02 | M003/S03, M005/S02 | mapped |
+| R041 | integration | active | M003/S03 | M005/S02 | mapped |
+| R042 | integration | active | M004/S01 | M004/S02, M004/S03 | mapped |
+| R043 | integration | active | M004/S01 | M004/S02, M004/S03 | mapped |
+| R044 | operability | active | M004/S02 | M004/S03, M005/S01 | mapped |
+| R045 | operability | active | M004/S03 | M005/S02 | mapped |
+| R046 | quality-attribute | active | M004/S03 | M003/S01, M003/S02, M003/S03, M005/S02 | mapped |
+| R047 | primary-user-loop | active | M005/S01 | M005/S02 | mapped |
+| R048 | quality-attribute | active | M005/S02 | M004/S03 | mapped |
+| R049 | core-capability | deferred | none | none | unmapped |
+| R050 | primary-user-loop | deferred | none | none | unmapped |
+| R051 | integration | deferred | none | none | unmapped |
+| R052 | integration | deferred | none | none | unmapped |
+| R053 | differentiator | deferred | none | none | unmapped |
+| R054 | anti-feature | out-of-scope | none | none | n/a |
+| R055 | anti-feature | out-of-scope | none | none | n/a |
+| R056 | anti-feature | out-of-scope | none | none | n/a |
 
 ## Coverage Summary
 
-- Active requirements: 0
-- Mapped to slices: 0
+- Active requirements: 12
+- Mapped to slices: 12
 - Validated: 31
 - Unmapped active requirements: 0
