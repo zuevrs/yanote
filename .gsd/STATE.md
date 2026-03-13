@@ -1,9 +1,9 @@
 # GSD State
 
 **Active Milestone:** M003 — AsyncAPI Coverage Foundations
-**Active Slice:** S03 — Separate Async Report And Gate Surface
-**Phase:** executing
-**Requirements Status:** 8 active · 35 validated · 7 deferred · 6 out of scope
+**Active Slice:** None
+**Phase:** completing-milestone
+**Requirements Status:** 7 active · 36 validated · 7 deferred · 6 out of scope
 
 ## Milestone Registry
 - ✅ **M001:** Yanote v1 Delivery
@@ -19,4 +19,4 @@
 - None
 
 ## Next Action
-Execute T01: Define the separate async report and gate contract in slice S03.
+All slices complete in M003. Write milestone summary.

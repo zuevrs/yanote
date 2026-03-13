@@ -6,9 +6,12 @@ import {
   type BaselineDimensionsSnapshot,
   writeBaseline
 } from "./baseline/baseline.js";
+import { computeAsyncCoverage, type AsyncCoverageResult } from "./coverage/asyncCoverage.js";
 import { computeCoverage, type CoverageResult } from "./coverage/coverage.js";
+import { readAsyncEventsJsonl } from "./events/readAsyncEventsJsonl.js";
 import { readHttpEventsJsonl } from "./events/readJsonl.js";
 import { applyExclusionRules, compileExclusionRules, type ExclusionApplicationResult } from "./gates/exclusions.js";
+import { evaluateAsyncGateFailures } from "./gates/asyncEvaluator.js";
 import { evaluateGateFailures } from "./gates/evaluator.js";
 import {
   selectPrimaryFailure,
@@ -17,8 +20,11 @@ import {
   type GovernanceFailure
 } from "./gates/failureOrder.js";
 import { resolveGatePolicy, type GateProfile } from "./gates/policy.js";
+import { buildAsyncReport, type AsyncYanoteReport } from "./report/asyncReport.js";
 import { buildReport, type YanoteReport } from "./report/report.js";
+import { writeAsyncYanoteReport } from "./report/writeAsyncReport.js";
 import { writeYanoteReport } from "./report/writeReport.js";
+import { loadAsyncApiSemanticsBundle } from "./spec/asyncapi.js";
 import { discoverSpecs } from "./spec/discover.js";
 import { loadOpenApiCoverageModel } from "./spec/openapi.js";
 import { TOOL_VERSION } from "./version.js";
@@ -84,6 +90,21 @@ function createProgram(io?: { out?: (chunk: string) => void; err?: (chunk: strin
     .option("--verbose", "Print additional issue details", false)
     .action(async (opts: any) => {
       await executeReportCommand(opts, writeOut, writeErr);
+    });
+
+  program
+    .command("async-report")
+    .description("Compute deterministic async coverage from AsyncAPI and kafka evidence")
+    .requiredOption("--spec <path>", "Spec file or directory (AsyncAPI)")
+    .requiredOption("--events <path>", "Path to async events.jsonl")
+    .requiredOption("--out <dir>", "Output directory")
+    .option("--policy <path>", "Gate policy YAML file path")
+    .option("--profile <profile>", "Gate profile (ci|local)")
+    .option("--min-coverage <percent>", "Minimum async operation coverage percent")
+    .option("--critical-operation <operationKey...>", "Critical async operation key(s), repeatable")
+    .option("--verbose", "Print additional issue details", false)
+    .action(async (opts: any) => {
+      await executeAsyncReportCommand(opts, writeOut, writeErr);
     });
 
   return program;
@@ -248,6 +269,117 @@ async function executeReportCommand(opts: any, writeOut: (chunk: string) => void
   }
 }
 
+async function executeAsyncReportCommand(
+  opts: any,
+  writeOut: (chunk: string) => void,
+  writeErr: (chunk: string) => void
+): Promise<void> {
+  let coverage: AsyncCoverageResult | undefined;
+  let report: AsyncYanoteReport | undefined;
+  let reportPath: string | undefined;
+  let summaryIssues: SummaryIssue[] = [];
+  const failureCandidates: CliFailure[] = [];
+
+  try {
+    const minCoverage = parsePercentOption(opts.minCoverage, "--min-coverage", "INPUT_MIN_COVERAGE_INVALID");
+    const criticalOperations = parseStringList(opts.criticalOperation);
+    const profile = parseProfile(opts.profile);
+
+    const policy = await loadPolicy({
+      profile,
+      policyPath: opts.policy,
+      cliOverrides: {
+        minCoverage,
+        criticalOperations
+      }
+    });
+
+    const { asyncapi } = await discoverSpecs(opts.spec);
+    if (!asyncapi) {
+      throw new CliFailureError(
+        makeFailure(
+          EXIT.INPUT,
+          "input",
+          "INPUT_ASYNC_SPEC_NOT_FOUND",
+          "No AsyncAPI spec found.",
+          "Provide --spec with a valid AsyncAPI file or directory."
+        )
+      );
+    }
+
+    const bundle = await loadAsyncCoverageModel(asyncapi);
+    const events = await loadAsyncEvents(opts.events);
+    if (events.invalidLines > 0) {
+      const lineInfo =
+        events.invalidLineNumbers.length > 0 ? ` at line(s) ${events.invalidLineNumbers.join(",")}` : "";
+      failureCandidates.push(
+        makeFailure(
+          EXIT.INPUT,
+          "input",
+          "INPUT_ASYNC_EVENTS_INVALID_LINES",
+          `${events.invalidLines} invalid JSONL line(s) detected${lineInfo}.`,
+          "Fix malformed async evidence and rerun async-report."
+        )
+      );
+    }
+
+    coverage = computeAsyncCoverage(bundle, events.items);
+
+    const gateDiagnostics = evaluateAsyncGateFailures({
+      coverage,
+      policy
+    });
+    for (const diagnostic of gateDiagnostics) {
+      if (diagnostic.severity === "error") {
+        failureCandidates.push(diagnostic);
+      } else {
+        summaryIssues.push(toSummaryIssueFromFailure(diagnostic));
+      }
+    }
+
+    report = buildAsyncReport(coverage, {
+      toolVersion: TOOL_VERSION,
+      eventTimestamps: events.items
+        .map((event) => event.ts)
+        .filter((timestamp): timestamp is number => typeof timestamp === "number")
+    });
+
+    try {
+      reportPath = await writeAsyncYanoteReport(opts.out, report);
+    } catch (error) {
+      failureCandidates.push(classifyFailure(error));
+    }
+  } catch (error) {
+    failureCandidates.push(classifyFailure(error));
+  }
+
+  const orderedFailures = sortFailuresByPrecedence(failureCandidates);
+  const primaryFailure = selectPrimaryFailure(orderedFailures);
+  const secondaryFailures = primaryFailure
+    ? orderedFailures.filter((failure) => failure.severity === "error" && failure !== primaryFailure)
+    : [];
+
+  const summary = formatAsyncSummaryOutput({
+    report,
+    coverage,
+    reportPath,
+    failures: orderedFailures,
+    extraIssues: summaryIssues,
+    verbose: Boolean(opts.verbose)
+  });
+  writeOut(summary);
+
+  if (primaryFailure) {
+    writeErr(
+      formatFailureOutput(primaryFailure, secondaryFailures, {
+        primaryPrefix: "YANOTE_ASYNC_ERROR",
+        secondaryPrefix: "YANOTE_ASYNC_ERROR_SECONDARY"
+      })
+    );
+    throw new CommanderError(primaryFailure.exitCode, primaryFailure.code, primaryFailure.reason);
+  }
+}
+
 async function loadCoverageModel(specPath: string) {
   try {
     return await loadOpenApiCoverageModel(specPath);
@@ -291,6 +423,79 @@ async function loadEvents(eventsPath: string) {
           "input",
           "INPUT_EVENTS_READ_FAILED",
           fsErrorReason(error, "Unable to read events file."),
+          "Check --events path and ensure the file is readable JSONL."
+        )
+      );
+    }
+
+    throw error;
+  }
+}
+
+async function loadAsyncCoverageModel(specPath: string) {
+  try {
+    const bundle = await loadAsyncApiSemanticsBundle(specPath);
+    const invalidDiagnostics = bundle.diagnostics.filter((diagnostic) => diagnostic.kind === "invalid");
+    if (invalidDiagnostics.length > 0) {
+      throw new CliFailureError(
+        makeFailure(
+          EXIT.SEMANTIC,
+          "semantic",
+          "ASYNC_SEMANTIC_SPEC_INVALID",
+          `AsyncAPI semantic extraction failed: ${invalidDiagnostics.map((diagnostic) => diagnostic.message).join("; ")}`,
+          "Fix invalid AsyncAPI operations and rerun async-report."
+        )
+      );
+    }
+
+    return bundle;
+  } catch (error) {
+    if (error instanceof CliFailureError) {
+      throw error;
+    }
+
+    if (isFsInputError(error)) {
+      throw new CliFailureError(
+        makeFailure(
+          EXIT.INPUT,
+          "input",
+          "INPUT_ASYNC_SPEC_READ_FAILED",
+          fsErrorReason(error, "Unable to read AsyncAPI spec."),
+          "Check --spec path and file permissions."
+        )
+      );
+    }
+
+    if (
+      error instanceof Error &&
+      (error.message.includes("Invalid AsyncAPI document") || error.message.includes("AsyncAPI semantic extraction failed"))
+    ) {
+      throw new CliFailureError(
+        makeFailure(
+          EXIT.SEMANTIC,
+          "semantic",
+          "ASYNC_SEMANTIC_SPEC_INVALID",
+          error.message,
+          "Fix invalid AsyncAPI operations and rerun async-report."
+        )
+      );
+    }
+
+    throw error;
+  }
+}
+
+async function loadAsyncEvents(eventsPath: string) {
+  try {
+    return await readAsyncEventsJsonl(eventsPath);
+  } catch (error) {
+    if (isFsInputError(error)) {
+      throw new CliFailureError(
+        makeFailure(
+          EXIT.INPUT,
+          "input",
+          "INPUT_ASYNC_EVENTS_READ_FAILED",
+          fsErrorReason(error, "Unable to read async events file."),
           "Check --events path and ensure the file is readable JSONL."
         )
       );
@@ -536,6 +741,82 @@ function formatSummaryOutput(input: {
   return `${lines.join("\n")}\n`;
 }
 
+function formatAsyncSummaryOutput(input: {
+  report?: AsyncYanoteReport;
+  coverage?: AsyncCoverageResult;
+  reportPath?: string;
+  failures: CliFailure[];
+  extraIssues: SummaryIssue[];
+  verbose: boolean;
+}): string {
+  const primaryFailure = selectPrimaryFailure(input.failures);
+  const status = input.report?.status ?? (primaryFailure ? "invalid" : "ok");
+  const summary = input.report?.summary;
+  const dimensions = input.report?.coverage;
+
+  const totalChannels = summary?.totalChannels ?? 0;
+  const coveredChannels = summary?.coveredChannels ?? 0;
+  const totalOperations = summary?.totalOperations ?? 0;
+  const coveredOperations = summary?.coveredOperations ?? 0;
+  const totalMessages = summary?.totalMessages ?? 0;
+  const coveredMessages = summary?.coveredMessages ?? 0;
+
+  const issues = collectAsyncIssues(input.report, input.coverage, input.failures, input.extraIssues);
+  const maxIssues = input.verbose ? issues.length : 5;
+  const shownIssues = issues.slice(0, maxIssues);
+  const hiddenCount = Math.max(0, issues.length - shownIssues.length);
+
+  const lines: string[] = [];
+  lines.push("Summary");
+  lines.push(`- status: ${status}`);
+  lines.push(`- channels: ${coveredChannels}/${totalChannels} (${formatPercent(summary?.channelCoveragePercent ?? null)})`);
+  lines.push(`- operations: ${coveredOperations}/${totalOperations} (${formatPercent(summary?.operationCoveragePercent ?? null)})`);
+  lines.push(`- messages: ${coveredMessages}/${totalMessages} (${formatPercent(summary?.messageCoveragePercent ?? null)})`);
+
+  lines.push("");
+  lines.push("Coverage Dimensions");
+  lines.push(`- channels: ${formatPercent(dimensions?.channels.percent ?? null)} (${dimensions?.channels.state ?? "N/A"})`);
+  lines.push(`- operations: ${formatPercent(dimensions?.operations.percent ?? null)} (${dimensions?.operations.state ?? "N/A"})`);
+  lines.push(`- messages: ${formatPercent(dimensions?.messages.percent ?? null)} (${dimensions?.messages.state ?? "N/A"})`);
+
+  lines.push("");
+  lines.push("Top Issues");
+  if (shownIssues.length === 0) {
+    lines.push("- none");
+  } else {
+    for (const issue of shownIssues) {
+      lines.push(`- ${issue.severityLabel}: ${issue.text}`);
+    }
+  }
+  if (hiddenCount > 0) {
+    lines.push(`... +${hiddenCount} more; see report`);
+  }
+
+  lines.push("");
+  lines.push("Report Path");
+  lines.push(input.reportPath ?? "none");
+
+  lines.push("");
+  lines.push(
+    [
+      "YANOTE_ASYNC_SUMMARY",
+      `status=${status}`,
+      `channels=${formatMachinePercent(summary?.channelCoveragePercent ?? null)}`,
+      `operations=${formatMachinePercent(summary?.operationCoveragePercent ?? null)}`,
+      `messages=${formatMachinePercent(summary?.messageCoveragePercent ?? null)}`,
+      `covered_channels=${coveredChannels}/${totalChannels}`,
+      `covered_operations=${coveredOperations}/${totalOperations}`,
+      `covered_messages=${coveredMessages}/${totalMessages}`,
+      `diagnostics=${input.report?.diagnostics.items.length ?? 0}`,
+      `report=${input.reportPath ?? "none"}`,
+      `primary=${primaryFailure?.code ?? "none"}`,
+      `class_counts=${formatClassCounts(input.failures)}`
+    ].join(" ")
+  );
+
+  return `${lines.join("\n")}\n`;
+}
+
 function collectIssues(
   report: YanoteReport | undefined,
   coverage: CoverageResult | undefined,
@@ -565,6 +846,69 @@ function collectIssues(
         severityLabel: "low",
         sortKey: `coverage:${entry.operationKey}`,
         text: `${entry.operationKey} - operation is uncovered`
+      });
+    }
+  }
+
+  for (const failure of failures.filter((item) => item.severity === "error")) {
+    issues.push({
+      severityRank: 0,
+      severityLabel: "high",
+      sortKey: `failure:${failure.failureClass}:${failure.code}:${failure.operationKey ?? ""}`,
+      text: `${failure.code} - ${failure.reason}`
+    });
+  }
+
+  return issues.sort((left, right) => {
+    const severity = left.severityRank - right.severityRank;
+    if (severity !== 0) return severity;
+    if (left.sortKey !== right.sortKey) return left.sortKey.localeCompare(right.sortKey);
+    return left.text.localeCompare(right.text);
+  });
+}
+
+function collectAsyncIssues(
+  report: AsyncYanoteReport | undefined,
+  coverage: AsyncCoverageResult | undefined,
+  failures: CliFailure[],
+  extraIssues: SummaryIssue[]
+): SummaryIssue[] {
+  const issues: SummaryIssue[] = [...extraIssues];
+
+  if (report) {
+    for (const entry of report.coverage.channels.items.filter((item) => item.state === "UNCOVERED")) {
+      issues.push({
+        severityRank: 2,
+        severityLabel: "low",
+        sortKey: `async-channel:${entry.channel}`,
+        text: `${entry.channel} - channel is uncovered`
+      });
+    }
+
+    for (const entry of report.coverage.operations.items.filter((item) => item.operation.state === "UNCOVERED")) {
+      issues.push({
+        severityRank: 2,
+        severityLabel: "low",
+        sortKey: `async-operation:${entry.operationKey}`,
+        text: `${entry.operationKey} - async operation is uncovered`
+      });
+    }
+
+    for (const entry of report.coverage.messages.items.filter((item) => item.state === "UNCOVERED")) {
+      issues.push({
+        severityRank: 2,
+        severityLabel: "low",
+        sortKey: `async-message:${entry.operationKey}:${entry.message}`,
+        text: `${entry.operationKey} - async message ${entry.message} is uncovered`
+      });
+    }
+  } else if (coverage) {
+    for (const entry of coverage.operations.items.filter((item) => item.operation.state === "UNCOVERED")) {
+      issues.push({
+        severityRank: 2,
+        severityLabel: "low",
+        sortKey: `async-operation:${entry.operationKey}`,
+        text: `${entry.operationKey} - async operation is uncovered`
       });
     }
   }
@@ -627,10 +971,17 @@ function diagnosticSeverity(kind: "invalid" | "ambiguous" | "unmatched"): { rank
   return { rank: 2, label: "low" };
 }
 
-function formatFailureOutput(primaryFailure: CliFailure, secondaryFailures: CliFailure[]): string {
-  const lines = [formatFailureLine("YANOTE_ERROR", primaryFailure)];
+function formatFailureOutput(
+  primaryFailure: CliFailure,
+  secondaryFailures: CliFailure[],
+  prefixes: { primaryPrefix: string; secondaryPrefix: string } = {
+    primaryPrefix: "YANOTE_ERROR",
+    secondaryPrefix: "YANOTE_ERROR_SECONDARY"
+  }
+): string {
+  const lines = [formatFailureLine(prefixes.primaryPrefix, primaryFailure)];
   for (const failure of secondaryFailures) {
-    lines.push(formatFailureLine("YANOTE_ERROR_SECONDARY", failure));
+    lines.push(formatFailureLine(prefixes.secondaryPrefix, failure));
   }
   return `${lines.join("\n")}\n`;
 }
@@ -749,16 +1100,22 @@ export async function runCli(argv: string[]): Promise<CliResult> {
       return { code: error.exitCode, stdout, stderr };
     }
 
-    stderr += formatFailureOutput(
-      makeFailure(
-        EXIT.RUNTIME,
-        "runtime",
-        "RUNTIME_UNCAUGHT",
-        error instanceof Error ? error.message : String(error),
-        "Inspect stderr and rerun with deterministic inputs."
-      ),
-      []
+    const failure = makeFailure(
+      EXIT.RUNTIME,
+      "runtime",
+      "RUNTIME_UNCAUGHT",
+      error instanceof Error ? error.message : String(error),
+      "Inspect stderr and rerun with deterministic inputs."
     );
+    const prefixes =
+      argv[0] === "async-report"
+        ? {
+            primaryPrefix: "YANOTE_ASYNC_ERROR",
+            secondaryPrefix: "YANOTE_ASYNC_ERROR_SECONDARY"
+          }
+        : undefined;
+
+    stderr += formatFailureOutput(failure, [], prefixes);
     return { code: EXIT.RUNTIME, stdout, stderr };
   }
 }

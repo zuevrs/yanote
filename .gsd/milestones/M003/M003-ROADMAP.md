@@ -56,7 +56,7 @@ This milestone is complete only when all are true:
 - [x] **S02: Async Coverage And Diagnostics Semantics** `risk:high` `depends:[S01]`
   > After this: Yanote can compute deterministic async coverage across channels, send/receive operations, and message-contract identity while surfacing unmatched/mismatched evidence clearly.
 
-- [ ] **S03: Separate Async Report And Gate Surface** `risk:medium` `depends:[S02]`
+- [x] **S03: Separate Async Report And Gate Surface** `risk:medium` `depends:[S02]`
   > After this: Yanote can emit a separate async report and gate result alongside HTTP, with deterministic output and fail-closed behavior proven by tests.
 
 ## Boundary Map

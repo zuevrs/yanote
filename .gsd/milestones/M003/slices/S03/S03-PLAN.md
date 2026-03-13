@@ -35,19 +35,19 @@
 
 ## Tasks
 
-- [ ] **T01: Define the separate async report and gate contract** `est:45m`
+- [x] **T01: Define the separate async report and gate contract** `est:45m`
   - Why: S03 cannot wire a truthful CLI or gate path until the async artifact shape and fail-closed boundary are pinned in tests instead of being improvised inside command code.
   - Files: `yanote-js/src/report/asyncReport.ts`, `yanote-js/src/report/asyncReport.contract.test.ts`, `yanote-js/src/report/asyncReport.test.ts`, `yanote-js/src/gates/asyncEvaluator.test.ts`
   - Do: Define the deterministic async report JSON shape, its summary/coverage/diagnostic sections, and the async gate expectations for threshold/regression/fail-closed behavior while keeping the HTTP report untouched.
   - Verify: `npm -C yanote-js test -- src/report/asyncReport.test.ts src/report/asyncReport.contract.test.ts src/gates/asyncEvaluator.test.ts`
   - Done when: The async artifact and gate contract are pinned in code and tests, and any remaining failures point directly at the missing builder/evaluator implementation.
-- [ ] **T02: Implement async report building, normalization, and gate evaluation** `est:1h`
+- [x] **T02: Implement async report building, normalization, and gate evaluation** `est:1h`
   - Why: T01 only defines the contract; the slice still needs a real report writer and gate evaluator that consume S02 coverage results deterministically.
   - Files: `yanote-js/src/report/asyncReport.ts`, `yanote-js/src/report/asyncSchema.ts`, `yanote-js/src/report/asyncNormalize.ts`, `yanote-js/src/gates/asyncEvaluator.ts`, `yanote-js/src/report/asyncReport.test.ts`, `yanote-js/src/gates/asyncEvaluator.test.ts`
   - Do: Build a separate async report artifact over `asyncCoverage.ts`, preserve deterministic ordering/rounding/diagnostics, and implement async gate evaluation that fails closed on invalid drift or configured threshold/regression failures without reusing the HTTP artifact surface by accident.
   - Verify: `npm -C yanote-js test -- src/report/asyncReport.test.ts src/report/asyncReport.contract.test.ts src/gates/asyncEvaluator.test.ts`
   - Done when: The async report and async gate tests pass with deterministic output and explicit failure diagnostics.
-- [ ] **T03: Wire the async CLI/report path and prove HTTP non-regression** `est:45m`
+- [x] **T03: Wire the async CLI/report path and prove HTTP non-regression** `est:45m`
   - Why: The milestone is only closed when the separate async report/gate surface is reachable through a real CLI entry point and does not blur or regress the existing HTTP path.
   - Files: `yanote-js/src/cli.ts`, `yanote-js/src/cli.async-report.test.ts`, `yanote-js/src/cli.async-report.contract.test.ts`, `yanote-js/src/report/report.test.ts`, `.gsd/STATE.md`
   - Do: Add a dedicated async CLI/report command or equivalent separate entry path, wire it to AsyncAPI spec loading plus async evidence loading/reporting/gating, rerun HTTP report/coverage tests, and collapse the slice verifier to the truthful final proof stack.

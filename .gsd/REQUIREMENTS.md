@@ -14,17 +14,6 @@ Guidelines:
 
 ## Active
 
-### R041 — Separate async report and gate path alongside HTTP
-- Class: integration
-- Status: active
-- Description: Yanote provides a separate async report and gate path alongside the existing HTTP path instead of forcing one mandatory combined report in the first async release.
-- Why it matters: This keeps the first async rollout legible and reduces coupling while the async semantics mature.
-- Source: user
-- Primary owning slice: M003/S03
-- Supporting slices: M005/S02
-- Validation: mapped
-- Notes: Combined HTTP+async reporting is useful later but should not blur first-wave proof surfaces.
-
 ### R042 — Spring Kafka producer evidence capture
 - Class: integration
 - Status: active
@@ -147,6 +136,17 @@ Guidelines:
 - Supporting slices: M003/S03, M005/S02
 - Validation: validated
 - Notes: Proven by explicit `unmatched` and `mismatched` async diagnostics, including known-channel action drift and message-contract mismatch proof in the S02 verifier stack.
+
+### R041 — Separate async report and gate path alongside HTTP
+- Class: integration
+- Status: validated
+- Description: Yanote provides a separate async report and gate path alongside the existing HTTP path instead of forcing one mandatory combined report in the first async release.
+- Why it matters: This keeps the first async rollout legible and reduces coupling while the async semantics mature.
+- Source: user
+- Primary owning slice: M003/S03
+- Supporting slices: M005/S02
+- Validation: validated
+- Notes: Proven by the S03 verifier stack covering dedicated `async-report` CLI wiring, deterministic `yanote-async-report.json` output, fail-closed async gate behavior, and HTTP report/coverage non-regression.
 
 ### R001 — Canonical OpenAPI specification loading and operation identity
 - Class: core-capability
@@ -680,7 +680,7 @@ Guidelines:
 | R038 | core-capability | validated | M003/S01 | M003/S02, M004/S01 | S01 parity and canonical-key proof |
 | R039 | core-capability | validated | M003/S02 | M003/S03, M005/S02 | S02 async coverage semantics proof (`asyncCoverage`, diagnostics, parity, HTTP non-regression) |
 | R040 | failure-visibility | validated | M003/S02 | M003/S03, M005/S02 | S02 unmatched/mismatched async diagnostic proof (`asyncCoverage.diagnostics`, parity stack) |
-| R041 | integration | active | M003/S03 | M005/S02 | mapped |
+| R041 | integration | validated | M003/S03 | M005/S02 | S03 verifier stack (`asyncReport`, `asyncEvaluator`, `cli.async-report`, HTTP report/coverage non-regression) |
 | R042 | integration | active | M004/S01 | M004/S02, M004/S03 | mapped |
 | R043 | integration | active | M004/S01 | M004/S02, M004/S03 | mapped |
 | R044 | operability | active | M004/S02 | M004/S03, M005/S01 | mapped |
@@ -699,7 +699,7 @@ Guidelines:
 
 ## Coverage Summary
 
-- Active requirements: 8
-- Mapped to slices: 8
-- Validated: 35
+- Active requirements: 7
+- Mapped to slices: 7
+- Validated: 36
 - Unmapped active requirements: 0
