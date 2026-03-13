@@ -1,0 +1,3 @@
+{"kind":"kafka","action":"send","channel":"users.signedup","message":"UserSignedUp","test.run_id":"run-1","test.suite":"suite-a"}
+{"kind":"kafka","action":"receive","channel":"users.deleted","message":"LegacyUserDeleted","test.run_id":"run-1","test.suite":"suite-a"}
+{"kind":"kafka","action":"send","channel":"users.unknown","message":"UserUnknown","test.run_id":"run-3","test.suite":"suite-c"}

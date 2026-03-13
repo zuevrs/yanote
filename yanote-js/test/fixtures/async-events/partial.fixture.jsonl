@@ -1,0 +1,2 @@
+{"kind":"kafka","action":"send","channel":"users.signedup","message":"UserSignedUp","test.run_id":"run-1","test.suite":"suite-a"}
+{"kind":"kafka","action":"send","channel":"users.signedup","message":"UserSignedUp","test.run_id":"run-2","test.suite":"suite-b"}

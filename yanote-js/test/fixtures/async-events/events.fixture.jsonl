@@ -1,0 +1,4 @@
+{"kind":"kafka","ts":1710000000000,"action":" SEND ","channel":" users.signedup ","message":" UserSignedUp ","service":"accounts-service","instance":null,"error":false,"test.run_id":"run-1","test.suite":"  "}
+this is not json
+{"kind":"kafka","action":"receive","channel":"users.deleted","message":"   ","test.run_id":"   ","test.suite":"suite-a"}
+{"kind":"http","method":"GET","route":"/users"}
