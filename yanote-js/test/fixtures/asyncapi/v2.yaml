@@ -1,16 +1,23 @@
 asyncapi: 2.6.0
 info:
-  title: yanote async v2 sample
+  title: yanote async v2 kafka sample
   version: 1.0.0
+servers:
+  kafkaLocal:
+    url: localhost:9092
+    protocol: kafka
 channels:
   users.signedup:
     publish:
+      operationId: sendUserSignedUp
       message:
+        messageId: UserSignedUp
         payload:
           type: object
   users.deleted:
     subscribe:
+      operationId: receiveUserDeleted
       message:
+        messageId: UserDeleted
         payload:
           type: object
-

@@ -36,14 +36,14 @@
 
 ## Tasks
 
-- [ ] **T01: Define the Kafka-oriented async identity and fixture contract** `est:75m`
+- [x] **T01: Define the Kafka-oriented async identity and fixture contract** `est:75m`
   - Why: The slice needs one stable target for both parser normalization and future runtime evidence before implementation details spread through the analyzer.
   - Files: `yanote-js/src/model/operationKey.ts`, `yanote-js/src/spec/diagnostics.ts`, `yanote-js/test/fixtures/asyncapi/v2.yaml`, `yanote-js/test/fixtures/asyncapi/v3.yaml`, `yanote-js/test/fixtures/asyncapi/invalid.yaml`, `yanote-js/test/fixtures/asyncapi/unsupported-rabbitmq.yaml`
   - Do: Replace the shallow `kind:"asyncapi"` identity assumption with a Kafka-oriented async contract shape, decide what belongs in the primary key versus associated message-contract metadata, generalize diagnostics to carry async context, and expand the fixture corpus to cover equivalent v2/v3 operations plus invalid/unsupported cases.
   - Verify: `npm -C yanote-js test -- src/spec/asyncapi.test.ts src/spec/semantics.diagnostics.test.ts`
   - Done when: the type/fixture surface can express the same canonical Kafka operation across v2 and v3, plus deterministic invalid/unsupported diagnostics, without depending on ad hoc string parsing downstream.
 
-- [ ] **T02: Implement deterministic AsyncAPI semantics loading and discovery normalization** `est:90m`
+- [x] **T02: Implement deterministic AsyncAPI semantics loading and discovery normalization** `est:90m`
   - Why: A strong type contract is useless until the real parser/discovery path produces it deterministically from supported AsyncAPI inputs.
   - Files: `yanote-js/src/spec/asyncapi.ts`, `yanote-js/src/spec/discover.ts`, `yanote-js/src/spec/asyncapi.test.ts`, `yanote-js/src/spec/discover.test.ts`
   - Do: Replace the raw operation list/throwing loader with an async semantics bundle that uses `@asyncapi/parser`, normalizes v2 `publish/subscribe` and v3 `action: send|receive` into one canonical Kafka identity surface, preserves message-contract references, translates parser problems into structured diagnostics, and tightens AsyncAPI discovery while keeping OpenAPI behavior green.

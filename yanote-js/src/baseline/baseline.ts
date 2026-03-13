@@ -199,15 +199,17 @@ function deserializeOperationKey(serialized: string): OperationKey {
     }
   }
 
-  if (serialized.startsWith("asyncapi ")) {
-    const rest = serialized.slice("asyncapi ".length);
+  for (const prefix of ["kafka ", "asyncapi "]) {
+    if (!serialized.startsWith(prefix)) continue;
+
+    const rest = serialized.slice(prefix.length);
     const splitAt = rest.indexOf(" ");
-    if (splitAt > 0) {
-      const action = rest.slice(0, splitAt);
-      const channel = rest.slice(splitAt + 1);
-      if (action === "send" || action === "receive") {
-        return { kind: "asyncapi", action, channel };
-      }
+    if (splitAt <= 0) continue;
+
+    const action = rest.slice(0, splitAt);
+    const channel = rest.slice(splitAt + 1);
+    if (action === "send" || action === "receive") {
+      return { kind: "kafka", action, channel };
     }
   }
 

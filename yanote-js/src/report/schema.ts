@@ -166,6 +166,18 @@ const REPORT_SCHEMA = {
               message: { type: "string", minLength: 1 },
               method: { type: "string" },
               route: { type: "string" },
+              async: {
+                type: "object",
+                additionalProperties: false,
+                properties: {
+                  runtime: { type: "string" },
+                  channel: { type: "string" },
+                  action: { enum: ["send", "receive"] },
+                  message: { type: "string" },
+                  asyncapiVersion: { type: "string" },
+                  protocol: { type: "string" }
+                }
+              },
               candidates: { type: "array", items: { type: "string" } }
             }
           }

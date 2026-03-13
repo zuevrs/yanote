@@ -18,9 +18,10 @@
 - Normalize AsyncAPI v2 `publish`/`subscribe` and v3 `send`/`receive` into canonical `send` / `receive` semantics.
 - Keep message-contract references alongside the base async operation identity instead of embedding them in the primary key during S01.
 - Translate AsyncAPI parser and normalization problems into deterministic semantic diagnostics bundles rather than raw thrown parser strings.
+- Expose AsyncAPI normalization as a semantics bundle and fail closed on unsupported protocol or semantic invalidity before returning operations.
 
 ## Blockers
 - None
 
 ## Next Action
-Execute M003/S01/T01 — Define the Kafka-oriented async identity and fixture contract.
+Execute M003/S01/T03 — Add parity and failure-path proof for canonical async identity.

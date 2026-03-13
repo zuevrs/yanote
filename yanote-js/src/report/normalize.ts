@@ -121,11 +121,28 @@ function compareDiagnostics(left: YanoteReport["diagnostics"]["items"][number], 
   const rightKey = `${right.method ?? ""} ${right.route ?? ""}`.trim();
   if (leftKey !== rightKey) return leftKey.localeCompare(rightKey);
 
+  const leftAsync = asyncDiagnosticSortKey(left);
+  const rightAsync = asyncDiagnosticSortKey(right);
+  if (leftAsync !== rightAsync) return leftAsync.localeCompare(rightAsync);
+
   const leftCandidates = left.candidates ? left.candidates.join("|") : "";
   const rightCandidates = right.candidates ? right.candidates.join("|") : "";
   if (leftCandidates !== rightCandidates) return leftCandidates.localeCompare(rightCandidates);
 
   return left.message.localeCompare(right.message);
+}
+
+function asyncDiagnosticSortKey(diagnostic: YanoteReport["diagnostics"]["items"][number]): string {
+  if (!diagnostic.async) return "";
+
+  return [
+    diagnostic.async.runtime ?? "",
+    diagnostic.async.asyncapiVersion ?? "",
+    diagnostic.async.protocol ?? "",
+    diagnostic.async.channel ?? "",
+    diagnostic.async.action ?? "",
+    diagnostic.async.message ?? ""
+  ].join("|");
 }
 
 function severityRank(kind: "invalid" | "ambiguous" | "unmatched"): number {

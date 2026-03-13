@@ -1,95 +1,523 @@
 import { Parser, fromFile } from "@asyncapi/parser";
-import type { OperationKey } from "../model/operationKey.js";
+import {
+  serializeOperationKey,
+  type AsyncAction,
+  type KafkaOperationContract,
+  type OperationKey
+} from "../model/operationKey.js";
+import type { SemanticDiagnostic, SemanticDiagnosticsBundle } from "./diagnostics.js";
 
-export async function loadAsyncApiOperations(specPath: string): Promise<OperationKey[]> {
+const KAFKA_RUNTIME = "kafka";
+
+export type AsyncApiSemanticsBundle = SemanticDiagnosticsBundle & {
+  operations: OperationKey[];
+  operationContractsByKey: Map<string, KafkaOperationContract>;
+};
+
+export async function loadAsyncApiSemanticsBundle(specPath: string): Promise<AsyncApiSemanticsBundle> {
   const parser = new Parser();
   const { document, diagnostics } = await fromFile(parser, specPath).parse();
 
   if (!document) {
-    const message = diagnostics?.map((d: any) => d.message).filter(Boolean).join("; ") || "Invalid AsyncAPI document";
-    throw new Error(message);
+    throw new Error(formatParserDiagnostics(diagnostics));
   }
 
-  const json = document.json() as any;
-  const version = typeof json?.asyncapi === "string" ? json.asyncapi : "";
+  return buildAsyncApiSemantics(document.json());
+}
+
+export async function loadAsyncApiOperations(specPath: string): Promise<OperationKey[]> {
+  const bundle = await loadAsyncApiSemanticsBundle(specPath);
+
+  if (bundle.hasInvalid) {
+    throw new Error(formatSemanticDiagnostics(bundle.diagnostics.filter((diagnostic) => diagnostic.kind === "invalid")));
+  }
+
+  return bundle.operations;
+}
+
+function buildAsyncApiSemantics(spec: unknown): AsyncApiSemanticsBundle {
+  const operations: OperationKey[] = [];
+  const operationContractsByKey = new Map<string, KafkaOperationContract>();
+  const diagnostics: SemanticDiagnostic[] = [];
+  const seen = new Set<string>();
+
+  if (!isRecord(spec)) {
+    diagnostics.push({
+      kind: "invalid",
+      message: "AsyncAPI document is not an object",
+      async: {
+        runtime: KAFKA_RUNTIME
+      }
+    });
+    return toBundle(operations, operationContractsByKey, diagnostics);
+  }
+
+  const version = normalizeNonEmptyString(spec.asyncapi);
+  if (!version) {
+    diagnostics.push({
+      kind: "invalid",
+      message: "AsyncAPI document is missing a valid asyncapi version",
+      async: {
+        runtime: KAFKA_RUNTIME
+      }
+    });
+    return toBundle(operations, operationContractsByKey, diagnostics);
+  }
+
+  const protocol = resolveSupportedProtocol(spec.servers, version, diagnostics);
+  if (!protocol) {
+    return toBundle(operations, operationContractsByKey, diagnostics);
+  }
+
+  if (version.startsWith("2")) {
+    extractV2(spec, version, protocol, seen, operations, operationContractsByKey, diagnostics);
+    return toBundle(operations, operationContractsByKey, diagnostics);
+  }
 
   if (version.startsWith("3")) {
-    return extractV3(json);
+    extractV3(spec, version, protocol, seen, operations, operationContractsByKey, diagnostics);
+    return toBundle(operations, operationContractsByKey, diagnostics);
   }
-  return extractV2(json);
-}
 
-function extractV2(doc: any): OperationKey[] {
-  const channels = doc?.channels ?? {};
-  const ops: OperationKey[] = [];
-
-  for (const [channelName, channel] of Object.entries<any>(channels)) {
-    if (!channel || typeof channel !== "object") continue;
-    if (channel.publish) {
-      ops.push({ kind: "asyncapi", action: "send", channel: String(channelName) });
+  diagnostics.push({
+    kind: "invalid",
+    message: `Unsupported AsyncAPI version: ${version}. Only v2 and v3 are supported.`,
+    async: {
+      runtime: KAFKA_RUNTIME,
+      asyncapiVersion: version,
+      protocol
     }
-    if (channel.subscribe) {
-      ops.push({ kind: "asyncapi", action: "receive", channel: String(channelName) });
+  });
+
+  return toBundle(operations, operationContractsByKey, diagnostics);
+}
+
+function extractV2(
+  doc: Record<string, unknown>,
+  version: string,
+  protocol: string,
+  seen: Set<string>,
+  operations: OperationKey[],
+  operationContractsByKey: Map<string, KafkaOperationContract>,
+  diagnostics: SemanticDiagnostic[]
+): void {
+  const channels = doc.channels;
+  if (!isRecord(channels)) {
+    diagnostics.push({
+      kind: "invalid",
+      message: "AsyncAPI v2 document is missing a valid channels object",
+      async: buildAsyncContext(version, protocol)
+    });
+    return;
+  }
+
+  for (const [rawChannelName, channelValue] of Object.entries(channels)) {
+    const channel = rawChannelName.trim();
+    if (channel.length === 0) {
+      diagnostics.push({
+        kind: "invalid",
+        message: "AsyncAPI v2 channel name must be non-empty",
+        async: buildAsyncContext(version, protocol)
+      });
+      continue;
     }
-  }
 
-  return dedupe(ops);
-}
-
-function extractV3(doc: any): OperationKey[] {
-  const channels = doc?.channels ?? {};
-  const operations = doc?.operations ?? {};
-
-  const ops: OperationKey[] = [];
-
-  for (const [_opId, op] of Object.entries<any>(operations)) {
-    if (!op || typeof op !== "object") continue;
-    const action = op.action === "send" || op.action === "receive" ? op.action : null;
-    if (!action) continue;
-
-    const channel = resolveV3ChannelNameOrAddress(op.channel, channels);
-    if (!channel) continue;
-    ops.push({ kind: "asyncapi", action, channel });
-  }
-
-  return dedupe(ops);
-}
-
-function resolveV3ChannelNameOrAddress(channelRefOrObj: any, channels: any): string | null {
-  if (!channelRefOrObj) return null;
-
-  if (typeof channelRefOrObj === "string") {
-    return channelRefOrObj;
-  }
-
-  if (typeof channelRefOrObj === "object" && typeof channelRefOrObj.address === "string") {
-    return channelRefOrObj.address;
-  }
-
-  if (typeof channelRefOrObj === "object" && typeof channelRefOrObj.$ref === "string") {
-    const ref = channelRefOrObj.$ref as string;
-    const marker = "#/channels/";
-    const idx = ref.indexOf(marker);
-    if (idx >= 0) {
-      const name = ref.slice(idx + marker.length);
-      const ch = channels?.[name];
-      const address = typeof ch?.address === "string" ? ch.address : null;
-      return address ?? name;
+    if (!isRecord(channelValue)) {
+      diagnostics.push({
+        kind: "invalid",
+        message: "AsyncAPI v2 channel must be an object",
+        async: buildAsyncContext(version, protocol, { channel })
+      });
+      continue;
     }
-  }
 
-  return null;
+    appendV2Operation(channelValue.publish, "send", channel, version, protocol, seen, operations, operationContractsByKey, diagnostics);
+    appendV2Operation(
+      channelValue.subscribe,
+      "receive",
+      channel,
+      version,
+      protocol,
+      seen,
+      operations,
+      operationContractsByKey,
+      diagnostics
+    );
+  }
 }
 
-function dedupe(items: OperationKey[]): OperationKey[] {
-  const seen = new Set<string>();
-  const out: OperationKey[] = [];
-  for (const it of items) {
-    const k = `${it.kind} ${(it as any).action ?? ""} ${(it as any).channel ?? ""}`;
-    if (seen.has(k)) continue;
-    seen.add(k);
-    out.push(it);
+function appendV2Operation(
+  operationValue: unknown,
+  action: AsyncAction,
+  channel: string,
+  version: string,
+  protocol: string,
+  seen: Set<string>,
+  operations: OperationKey[],
+  operationContractsByKey: Map<string, KafkaOperationContract>,
+  diagnostics: SemanticDiagnostic[]
+): void {
+  if (operationValue === undefined) {
+    return;
   }
-  return out;
+
+  if (!isRecord(operationValue)) {
+    diagnostics.push({
+      kind: "invalid",
+      message: `AsyncAPI v2 ${action} operation must be an object`,
+      async: buildAsyncContext(version, protocol, { action, channel })
+    });
+    return;
+  }
+
+  const message = extractV2MessageContract(operationValue.message, version, protocol, action, channel, diagnostics);
+  appendKafkaContract({ operation: { kind: KAFKA_RUNTIME, action, channel }, message }, seen, operations, operationContractsByKey);
 }
 
+function extractV3(
+  doc: Record<string, unknown>,
+  version: string,
+  protocol: string,
+  seen: Set<string>,
+  operations: OperationKey[],
+  operationContractsByKey: Map<string, KafkaOperationContract>,
+  diagnostics: SemanticDiagnostic[]
+): void {
+  const channels = doc.channels;
+  const operationsNode = doc.operations;
+
+  if (!isRecord(channels)) {
+    diagnostics.push({
+      kind: "invalid",
+      message: "AsyncAPI v3 document is missing a valid channels object",
+      async: buildAsyncContext(version, protocol)
+    });
+    return;
+  }
+
+  if (!isRecord(operationsNode)) {
+    diagnostics.push({
+      kind: "invalid",
+      message: "AsyncAPI v3 document is missing a valid operations object",
+      async: buildAsyncContext(version, protocol)
+    });
+    return;
+  }
+
+  for (const [, operationValue] of Object.entries(operationsNode)) {
+    if (!isRecord(operationValue)) {
+      diagnostics.push({
+        kind: "invalid",
+        message: "AsyncAPI v3 operation must be an object",
+        async: buildAsyncContext(version, protocol)
+      });
+      continue;
+    }
+
+    const action = parseAsyncAction(operationValue.action);
+    if (!action) {
+      diagnostics.push({
+        kind: "invalid",
+        message: "AsyncAPI v3 operation action must be 'send' or 'receive'",
+        async: buildAsyncContext(version, protocol)
+      });
+      continue;
+    }
+
+    const channel = resolveV3ChannelNameOrAddress(operationValue.channel, channels);
+    if (!channel) {
+      diagnostics.push({
+        kind: "invalid",
+        message: "AsyncAPI v3 operation channel must resolve to a non-empty address",
+        async: buildAsyncContext(version, protocol, { action })
+      });
+      continue;
+    }
+
+    const message = extractV3MessageContract(operationValue.messages, version, protocol, action, channel, diagnostics);
+    appendKafkaContract({ operation: { kind: KAFKA_RUNTIME, action, channel }, message }, seen, operations, operationContractsByKey);
+  }
+}
+
+function resolveSupportedProtocol(
+  serversValue: unknown,
+  version: string,
+  diagnostics: SemanticDiagnostic[]
+): string | null {
+  if (!isRecord(serversValue) || Object.keys(serversValue).length === 0) {
+    diagnostics.push({
+      kind: "invalid",
+      message: "AsyncAPI document must declare at least one server with protocol metadata",
+      async: buildAsyncContext(version, undefined)
+    });
+    return null;
+  }
+
+  const protocols = new Set<string>();
+
+  for (const [, serverValue] of Object.entries(serversValue)) {
+    if (!isRecord(serverValue)) {
+      diagnostics.push({
+        kind: "invalid",
+        message: "AsyncAPI server must be an object",
+        async: buildAsyncContext(version, undefined)
+      });
+      continue;
+    }
+
+    const protocol = normalizeProtocol(serverValue.protocol);
+    if (!protocol) {
+      diagnostics.push({
+        kind: "invalid",
+        message: "AsyncAPI server must declare a non-empty protocol",
+        async: buildAsyncContext(version, undefined)
+      });
+      continue;
+    }
+
+    protocols.add(protocol);
+  }
+
+  const normalizedProtocols = Array.from(protocols).sort();
+  if (normalizedProtocols.length === 0) {
+    return null;
+  }
+
+  if (normalizedProtocols.length !== 1 || normalizedProtocols[0] !== KAFKA_RUNTIME) {
+    const protocolList = normalizedProtocols.join(", ");
+    diagnostics.push({
+      kind: "invalid",
+      message: `Unsupported AsyncAPI protocol${normalizedProtocols.length === 1 ? "" : "s"}: ${protocolList}. Only kafka is supported.`,
+      async: buildAsyncContext(version, protocolList)
+    });
+    return null;
+  }
+
+  return normalizedProtocols[0];
+}
+
+function appendKafkaContract(
+  contract: KafkaOperationContract,
+  seen: Set<string>,
+  operations: OperationKey[],
+  operationContractsByKey: Map<string, KafkaOperationContract>
+): void {
+  const key = serializeOperationKey(contract.operation);
+  if (seen.has(key)) {
+    return;
+  }
+
+  seen.add(key);
+  operations.push(contract.operation);
+  operationContractsByKey.set(key, contract);
+}
+
+function extractV2MessageContract(
+  messageValue: unknown,
+  version: string,
+  protocol: string,
+  action: AsyncAction,
+  channel: string,
+  diagnostics: SemanticDiagnostic[]
+): KafkaOperationContract["message"] | undefined {
+  if (messageValue === undefined) {
+    return undefined;
+  }
+
+  const messageName = extractMessageName(messageValue);
+  if (!messageName) {
+    diagnostics.push({
+      kind: "invalid",
+      message: "AsyncAPI v2 operation message must resolve to a single named message",
+      async: buildAsyncContext(version, protocol, { action, channel })
+    });
+    return undefined;
+  }
+
+  return { name: messageName };
+}
+
+function extractV3MessageContract(
+  messagesValue: unknown,
+  version: string,
+  protocol: string,
+  action: AsyncAction,
+  channel: string,
+  diagnostics: SemanticDiagnostic[]
+): KafkaOperationContract["message"] | undefined {
+  if (messagesValue === undefined) {
+    return undefined;
+  }
+
+  if (!Array.isArray(messagesValue)) {
+    diagnostics.push({
+      kind: "invalid",
+      message: "AsyncAPI v3 operation messages must be an array",
+      async: buildAsyncContext(version, protocol, { action, channel })
+    });
+    return undefined;
+  }
+
+  if (messagesValue.length > 1) {
+    diagnostics.push({
+      kind: "invalid",
+      message: "AsyncAPI v3 operations with multiple messages are not supported yet",
+      async: buildAsyncContext(version, protocol, { action, channel })
+    });
+    return undefined;
+  }
+
+  const messageName = extractMessageName(messagesValue[0]);
+  if (!messageName) {
+    diagnostics.push({
+      kind: "invalid",
+      message: "AsyncAPI v3 operation message must resolve to a single named message",
+      async: buildAsyncContext(version, protocol, { action, channel })
+    });
+    return undefined;
+  }
+
+  return { name: messageName };
+}
+
+function resolveV3ChannelNameOrAddress(channelRefOrObj: unknown, channels: Record<string, unknown>): string | null {
+  const direct = normalizeChannelAddress(channelRefOrObj);
+  if (direct) {
+    return direct;
+  }
+
+  if (!isRecord(channelRefOrObj)) {
+    return null;
+  }
+
+  const ref = normalizeNonEmptyString(channelRefOrObj.$ref);
+  if (!ref) {
+    return null;
+  }
+
+  const marker = "#/channels/";
+  const idx = ref.indexOf(marker);
+  if (idx < 0) {
+    return null;
+  }
+
+  const channelName = ref.slice(idx + marker.length);
+  if (channelName.length === 0) {
+    return null;
+  }
+
+  const channelValue = channels[channelName];
+  const address = normalizeChannelAddress(channelValue);
+  return address ?? channelName;
+}
+
+function normalizeChannelAddress(value: unknown): string | null {
+  if (typeof value === "string") {
+    const channel = value.trim();
+    return channel.length > 0 ? channel : null;
+  }
+
+  if (!isRecord(value)) {
+    return null;
+  }
+
+  return normalizeNonEmptyString(value.address);
+}
+
+function parseAsyncAction(value: unknown): AsyncAction | null {
+  return value === "send" || value === "receive" ? value : null;
+}
+
+function extractMessageName(value: unknown): string | null {
+  if (!isRecord(value)) {
+    return null;
+  }
+
+  return (
+    normalizeNonEmptyString(value["x-parser-message-name"]) ??
+    normalizeNonEmptyString(value.messageId) ??
+    normalizeNonEmptyString(value.name)
+  );
+}
+
+function normalizeProtocol(value: unknown): string | null {
+  if (typeof value !== "string") {
+    return null;
+  }
+
+  const protocol = value.trim().toLowerCase();
+  return protocol.length > 0 ? protocol : null;
+}
+
+function normalizeNonEmptyString(value: unknown): string | null {
+  if (typeof value !== "string") {
+    return null;
+  }
+
+  const normalized = value.trim();
+  return normalized.length > 0 ? normalized : null;
+}
+
+function buildAsyncContext(
+  asyncapiVersion: string,
+  protocol: string | undefined,
+  extra: Partial<NonNullable<SemanticDiagnostic["async"]>> = {}
+): NonNullable<SemanticDiagnostic["async"]> {
+  return {
+    runtime: KAFKA_RUNTIME,
+    asyncapiVersion,
+    ...(protocol ? { protocol } : {}),
+    ...extra
+  };
+}
+
+function toBundle(
+  operations: OperationKey[],
+  operationContractsByKey: Map<string, KafkaOperationContract>,
+  diagnostics: SemanticDiagnostic[]
+): AsyncApiSemanticsBundle {
+  return {
+    operations,
+    operationContractsByKey,
+    diagnostics,
+    hasInvalid: diagnostics.some((diagnostic) => diagnostic.kind === "invalid")
+  };
+}
+
+function formatParserDiagnostics(diagnostics: any[] | undefined): string {
+  const details = diagnostics?.map((diagnostic) => diagnostic?.message).filter((message): message is string => Boolean(message)) ?? [];
+  if (details.length === 0) {
+    return "Invalid AsyncAPI document";
+  }
+
+  return `Invalid AsyncAPI document: ${details.join("; ")}`;
+}
+
+function formatSemanticDiagnostics(diagnostics: SemanticDiagnostic[]): string {
+  if (diagnostics.length === 0) {
+    return "AsyncAPI semantic extraction failed";
+  }
+
+  return `AsyncAPI semantic extraction failed: ${diagnostics.map(formatSemanticDiagnostic).join("; ")}`;
+}
+
+function formatSemanticDiagnostic(diagnostic: SemanticDiagnostic): string {
+  const asyncContext = diagnostic.async
+    ? [
+        diagnostic.async.runtime ? `runtime=${diagnostic.async.runtime}` : null,
+        diagnostic.async.asyncapiVersion ? `version=${diagnostic.async.asyncapiVersion}` : null,
+        diagnostic.async.protocol ? `protocol=${diagnostic.async.protocol}` : null,
+        diagnostic.async.channel ? `channel=${diagnostic.async.channel}` : null,
+        diagnostic.async.action ? `action=${diagnostic.async.action}` : null,
+        diagnostic.async.message ? `message=${diagnostic.async.message}` : null
+      ]
+        .filter((value): value is string => Boolean(value))
+        .join(" ")
+    : "";
+
+  return asyncContext.length > 0 ? `${diagnostic.message} [${asyncContext}]` : diagnostic.message;
+}
+
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === "object" && value !== null && !Array.isArray(value);
+}
