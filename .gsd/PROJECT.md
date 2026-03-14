@@ -10,7 +10,7 @@ Any engineering team running Java services can reliably prove that their scoped 
 
 ## Current State
 
-Yanote v1 delivery, the M002 repository-maturity pass, M003 async coverage foundations, and M004 Kafka evidence capture/integration are complete. The current frontier is M005: async productization and end-to-end proof.
+Yanote v1 delivery, the M002 repository-maturity pass, M003 async coverage foundations, and M004 Kafka evidence capture/integration are complete and now have milestone-level closure summaries. The current frontier is M005: async productization and end-to-end proof, starting with productized Kafka/AsyncAPI onboarding and support boundaries.
 
 What exists now:
 - Deterministic OpenAPI semantic extraction and event-to-operation matching across Node and Java.
@@ -31,7 +31,7 @@ What exists now:
 - The live Kafka proof stack now runs inside the existing `build-and-test` required GitHub check and is backed by workflow contract tests plus retained-failure diagnostics.
 
 Current product-level gap:
-- Async onboarding, CI-grade end-to-end acceptance, and release/support hardening for the Kafka path remain upcoming in M005.
+- Async onboarding, user-facing support boundaries, and the final release-grade end-to-end trust surface for the Kafka path are now explicitly owned by M005/S01 and M005/S02.
 - Payload validation against AsyncAPI message schemas remains deferred.
 
 ## Architecture / Key Patterns
