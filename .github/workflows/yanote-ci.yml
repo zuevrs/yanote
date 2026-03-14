@@ -64,7 +64,46 @@ jobs:
         run: npm -C yanote-js ci && npm -C yanote-js test
 
       - name: Run live Kafka proof stack
-        run: bash scripts/ci/verify-m004-s03-live-kafka-proof.sh
+        id: run-live-kafka-proof
+        run: |
+          mkdir -p .yanote-ci
+          set +e
+          bash scripts/ci/verify-m004-s03-live-kafka-proof.sh
+          exit_code=$?
+          set -e
+          printf '%s\n' "${exit_code}" > .yanote-ci/live-kafka-proof-exit-code.txt
+          echo "exit_code=${exit_code}" >> "${GITHUB_OUTPUT}"
+          exit 0
+
+      - name: Collect async proof artifacts
+        if: ${{ always() }}
+        run: bash scripts/ci/collect-yanote-artifacts.sh "${YANOTE_ARTIFACT_DIR}"
+
+      - name: Render async GitHub summary
+        if: ${{ always() }}
+        run: >
+          node scripts/ci/render-yanote-summary.mjs
+          --report "${YANOTE_ARTIFACT_DIR}/live-kafka-proof/yanote-async-report.json"
+          --stdout "${YANOTE_ARTIFACT_DIR}/live-kafka-proof/async-report.stdout"
+          --stderr "${YANOTE_ARTIFACT_DIR}/live-kafka-proof/async-report.stderr"
+          --artifacts-dir "${YANOTE_ARTIFACT_DIR}/live-kafka-proof"
+          --output "${GITHUB_STEP_SUMMARY}"
+          --exit-code "${{ steps.run-live-kafka-proof.outputs.exit_code }}"
+
+      - name: Upload async proof artifacts
+        if: ${{ always() }}
+        uses: actions/upload-artifact@v4
+        with:
+          name: build-and-test-async-artifacts
+          path: ${{ env.YANOTE_ARTIFACT_DIR }}
+          if-no-files-found: error
+          retention-days: 14
+
+      - name: Enforce live Kafka proof result
+        if: ${{ always() && steps.run-live-kafka-proof.outputs.exit_code != '0' }}
+        run: |
+          echo "Live Kafka proof failed with exit code ${{ steps.run-live-kafka-proof.outputs.exit_code }}" >&2
+          exit "${{ steps.run-live-kafka-proof.outputs.exit_code }}"
 
   yanote-validation:
     runs-on: ubuntu-latest

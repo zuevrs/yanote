@@ -2,6 +2,8 @@
 set -euo pipefail
 
 DEST_DIR="${1:-.yanote-ci/artifacts}"
+ASYNC_BUNDLE_SOURCE_DIR=".yanote-ci/live-kafka-proof"
+ASYNC_BUNDLE_TARGET_NAME="live-kafka-proof"
 mkdir -p "${DEST_DIR}"
 
 copy_if_exists() {
@@ -9,6 +11,19 @@ copy_if_exists() {
   local target_name="$2"
   if [[ -f "${source_path}" ]]; then
     cp "${source_path}" "${DEST_DIR}/${target_name}"
+    return 0
+  fi
+  return 1
+}
+
+copy_directory_if_exists() {
+  local source_dir="$1"
+  local target_name="$2"
+  local target_dir="${DEST_DIR}/${target_name}"
+  if [[ -d "${source_dir}" ]]; then
+    rm -rf "${target_dir}"
+    mkdir -p "${target_dir}"
+    cp -R "${source_dir}/." "${target_dir}/"
     return 0
   fi
   return 1
@@ -57,10 +72,19 @@ if [[ -n "${REPORT_SOURCE}" ]]; then
   report_found="true"
 fi
 
+async_bundle_found="false"
+async_bundle_source="none"
+if copy_directory_if_exists "${ASYNC_BUNDLE_SOURCE_DIR}" "${ASYNC_BUNDLE_TARGET_NAME}"; then
+  async_bundle_found="true"
+  async_bundle_source="${ASYNC_BUNDLE_SOURCE_DIR}"
+fi
+
 manifest_path="${DEST_DIR}/artifact-manifest.txt"
 {
   printf 'created_at=%s\n' "$(date -u +"%Y-%m-%dT%H:%M:%SZ")"
   printf 'report_found=%s\n' "${report_found}"
   printf 'report_source=%s\n' "${REPORT_SOURCE:-none}"
+  printf 'async_bundle_found=%s\n' "${async_bundle_found}"
+  printf 'async_bundle_source=%s\n' "${async_bundle_source}"
   printf 'destination=%s\n' "${DEST_DIR}"
 } > "${manifest_path}"

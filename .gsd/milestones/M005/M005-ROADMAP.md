@@ -50,7 +50,7 @@ This milestone is complete only when all are true:
 
 - [x] **S01: Async Onboarding And Boundary Truth** `risk:high` `depends:[]`
   > After this: a new engineer can discover the supported Kafka/AsyncAPI path and its honest limitations from repo landings, guides, support intake, and release/requirements owner surfaces without reverse-engineering maintainer notes.
-- [ ] **S02: CI-Grade Async Acceptance And Diagnostics** `risk:medium` `depends:[S01]`
+- [x] **S02: CI-Grade Async Acceptance And Diagnostics** `risk:medium` `depends:[S01]`
   > After this: the repo has a CI-grade async acceptance surface that reuses the real Kafka proof stack and makes async failures visible through first-class artifacts and summaries in the existing required workflow topology.
 
 ## Boundary Map

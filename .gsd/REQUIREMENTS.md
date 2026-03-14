@@ -14,16 +14,7 @@ Guidelines:
 
 ## Active
 
-### R048 — CI-ready end-to-end async proof and release-grade trust surface
-- Class: quality-attribute
-- Status: active
-- Description: The async path closes with machine-checked end-to-end proof, CI-ready acceptance, and trust surfaces that make it feel like a first-class product capability.
-- Why it matters: Async support should ship with the same release confidence as the existing HTTP path.
-- Source: inferred
-- Primary owning slice: M005/S02
-- Supporting slices: M004/S03
-- Validation: mapped
-- Notes: Final proof should compose the lower-level async verifiers instead of inventing a separate ungrounded acceptance story.
+- None.
 
 ## Validated
 
@@ -37,6 +28,17 @@ Guidelines:
 - Supporting slices: M005/S02
 - Validation: validated
 - Notes: Proven by the dedicated async guide, aligned owner/support surfaces, thin main-landing pointers, and the combined async/doc verifier stack that keeps the public Kafka-only / Spring Kafka-first story discoverable and honest.
+
+### R048 — CI-ready end-to-end async proof and release-grade trust surface
+- Class: quality-attribute
+- Status: validated
+- Description: The async path closes with machine-checked end-to-end proof, CI-ready acceptance, and trust surfaces that make it feel like a first-class product capability.
+- Why it matters: Async support should ship with the same release confidence as the existing HTTP path.
+- Source: inferred
+- Primary owning slice: M005/S02
+- Supporting slices: M004/S03
+- Validation: validated
+- Notes: Proven by the stage-labeled `scripts/ci/verify-m005-s02-async-acceptance.sh` command, the delegated-order contract in `scripts/ci/verify-m005-s02-async-acceptance.contract.test.mjs`, and the build-job async artifact/summary workflow contracts that publish `.yanote-ci/live-kafka-proof/` diagnostics without changing the required job names.
 
 ### R042 — Spring Kafka producer evidence capture
 - Class: integration
@@ -686,8 +688,8 @@ Guidelines:
 | R044 | operability | validated | M004/S02 | M004/S03, M005/S01 | S02 republish attribution proof plus S03 two-service raw-evidence handoff |
 | R045 | operability | validated | M004/S03 | M005/S02 | Live Kafka proof stack (`KafkaRecorderSingleServiceIntegrationTest`, `KafkaRecorderTwoServiceIntegrationTest`, `verify-m004-s03-live-kafka-proof.sh`) |
 | R046 | quality-attribute | validated | M004/S03 | M003/S01, M003/S02, M003/S03, M005/S02 | M003 async verifier stack plus M004 recorder/merge/live-broker/CI workflow proof |
-| R047 | primary-user-loop | active | M005/S01 | M005/S02 | mapped |
-| R048 | quality-attribute | active | M005/S02 | M004/S03 | mapped |
+| R047 | primary-user-loop | validated | M005/S01 | M005/S02 | M005 S01 async path/boundary verifier stack (`verify-m005-s01-async-path.sh`, `verify-m005-s01-async-boundaries.sh`) |
+| R048 | quality-attribute | validated | M005/S02 | M004/S03 | M005 S02 final acceptance stack (`verify-m005-s02-async-acceptance.sh`, async artifact/summary workflow contracts, live Kafka proof export bundle) |
 | R049 | core-capability | deferred | none | none | unmapped |
 | R050 | primary-user-loop | deferred | none | none | unmapped |
 | R051 | integration | deferred | none | none | unmapped |
@@ -699,7 +701,7 @@ Guidelines:
 
 ## Coverage Summary
 
-- Active requirements: 2
-- Mapped to slices: 2
-- Validated: 41
+- Active requirements: 0
+- Mapped to slices: 0
+- Validated: 43
 - Unmapped active requirements: 0
