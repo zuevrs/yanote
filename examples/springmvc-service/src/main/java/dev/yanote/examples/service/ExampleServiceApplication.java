@@ -11,6 +11,7 @@ import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.boot.SpringApplication;
 import org.springframework.boot.autoconfigure.SpringBootApplication;
+import org.springframework.boot.autoconfigure.condition.ConditionalOnExpression;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.context.annotation.Bean;
 import org.springframework.kafka.annotation.EnableKafka;
@@ -33,6 +34,8 @@ public class ExampleServiceApplication {
     static final String USER_REPUBLISHED_MESSAGE = "UserRepublished";
     static final String RUN_ID_HEADER = "X-Test-Run-Id";
     static final String SUITE_HEADER = "X-Test-Suite";
+    static final String USER_CREATED_LISTENER_ID = "example-user-created-listener";
+    static final String USER_REPUBLISHED_LISTENER_ID = "example-user-republished-listener";
 
     private static final String YANOTE_MESSAGE_HEADER = "yanote.message";
 
@@ -41,7 +44,10 @@ public class ExampleServiceApplication {
     }
 
     @Bean
-    @ConditionalOnProperty(name = "example.kafka.enabled", havingValue = "true")
+    @ConditionalOnExpression(
+            "'${example.kafka.roles.producer.enabled:false}' == 'true'"
+                    + " or '${example.kafka.roles.listeners.user-created.enabled:false}' == 'true'"
+    )
     NewTopic userEventsTopic(
             @Value("${example.kafka.topics.user-created:" + USER_EVENTS_TOPIC + "}") String topic
     ) {
@@ -49,7 +55,10 @@ public class ExampleServiceApplication {
     }
 
     @Bean
-    @ConditionalOnProperty(name = "example.kafka.enabled", havingValue = "true")
+    @ConditionalOnExpression(
+            "'${example.kafka.roles.republish.enabled:false}' == 'true'"
+                    + " or '${example.kafka.roles.listeners.user-republished.enabled:false}' == 'true'"
+    )
     NewTopic userRepublishedTopic(
             @Value("${example.kafka.topics.user-republished:" + USER_REPUBLISHED_TOPIC + "}") String topic
     ) {
@@ -57,7 +66,7 @@ public class ExampleServiceApplication {
     }
 
     @Bean
-    @ConditionalOnProperty(name = "example.kafka.enabled", havingValue = "true")
+    @ConditionalOnProperty(name = "example.kafka.roles.producer.enabled", havingValue = "true")
     UserCreatedPublisher userCreatedPublisher(
             KafkaTemplate<String, String> kafkaTemplate,
             @Value("${example.kafka.topics.user-created:" + USER_EVENTS_TOPIC + "}") String topic
@@ -66,7 +75,7 @@ public class ExampleServiceApplication {
     }
 
     @Bean
-    @ConditionalOnProperty(name = "example.kafka.enabled", havingValue = "true")
+    @ConditionalOnProperty(name = "example.kafka.roles.republish.enabled", havingValue = "true")
     UserRepublishedPublisher userRepublishedPublisher(
             KafkaTemplate<String, String> kafkaTemplate,
             @Value("${example.kafka.topics.user-republished:" + USER_REPUBLISHED_TOPIC + "}") String topic
@@ -75,13 +84,13 @@ public class ExampleServiceApplication {
     }
 
     @Bean
-    @ConditionalOnProperty(name = "example.kafka.enabled", havingValue = "true")
-    UserCreatedListener userCreatedListener(UserRepublishedPublisher republishedPublisher) {
+    @ConditionalOnProperty(name = "example.kafka.roles.listeners.user-created.enabled", havingValue = "true")
+    UserCreatedListener userCreatedListener(ObjectProvider<UserRepublishedPublisher> republishedPublisher) {
         return new UserCreatedListener(republishedPublisher);
     }
 
     @Bean
-    @ConditionalOnProperty(name = "example.kafka.enabled", havingValue = "true")
+    @ConditionalOnProperty(name = "example.kafka.roles.listeners.user-republished.enabled", havingValue = "true")
     UserRepublishedListener userRepublishedListener() {
         return new UserRepublishedListener();
     }
@@ -151,23 +160,34 @@ public class ExampleServiceApplication {
     }
 
     static class UserCreatedListener {
-        private final UserRepublishedPublisher republishedPublisher;
+        private final ObjectProvider<UserRepublishedPublisher> republishedPublisher;
 
-        UserCreatedListener(UserRepublishedPublisher republishedPublisher) {
+        UserCreatedListener(ObjectProvider<UserRepublishedPublisher> republishedPublisher) {
             this.republishedPublisher = republishedPublisher;
         }
 
-        @KafkaListener(topics = "${example.kafka.topics.user-created:users.created}")
+        @KafkaListener(
+                id = USER_CREATED_LISTENER_ID,
+                topics = "${example.kafka.topics.user-created:users.created}",
+                autoStartup = "${example.kafka.roles.listeners.user-created.enabled:false}"
+        )
         void handle(String payload) {
             if (payload == null) {
                 throw new IllegalArgumentException("payload must not be null");
             }
-            republishedPublisher.publish(payload);
+            UserRepublishedPublisher publisher = republishedPublisher.getIfAvailable();
+            if (publisher != null) {
+                publisher.publish(payload);
+            }
         }
     }
 
     static class UserRepublishedListener {
-        @KafkaListener(topics = "${example.kafka.topics.user-republished:users.created.republished}")
+        @KafkaListener(
+                id = USER_REPUBLISHED_LISTENER_ID,
+                topics = "${example.kafka.topics.user-republished:users.created.republished}",
+                autoStartup = "${example.kafka.roles.listeners.user-republished.enabled:false}"
+        )
         void handle(String payload) {
             if (payload == null) {
                 throw new IllegalArgumentException("payload must not be null");

@@ -1,0 +1,28 @@
+asyncapi: 3.0.0
+info:
+  title: spring kafka two-service proof
+  version: '1.0.0'
+servers:
+  kafkaLocal:
+    host: localhost:9092
+    protocol: kafka
+channels:
+  userCreated:
+    address: users.created
+    messages:
+      UserCreated:
+        payload:
+          type: object
+operations:
+  sendUserCreated:
+    action: send
+    channel:
+      $ref: '#/channels/userCreated'
+    messages:
+      - $ref: '#/channels/userCreated/messages/UserCreated'
+  receiveUserCreated:
+    action: receive
+    channel:
+      $ref: '#/channels/userCreated'
+    messages:
+      - $ref: '#/channels/userCreated/messages/UserCreated'

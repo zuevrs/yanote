@@ -14,61 +14,6 @@ Guidelines:
 
 ## Active
 
-### R042 — Spring Kafka producer evidence capture
-- Class: integration
-- Status: active
-- Description: Yanote can capture normalized producer-side Kafka evidence from Spring Kafka applications.
-- Why it matters: Teams need proof for outbound event contracts, not only inbound consumption.
-- Source: user
-- Primary owning slice: M004/S01
-- Supporting slices: M004/S02, M004/S03
-- Validation: mapped
-- Notes: Evidence should preserve enough metadata to link producer facts back to canonical async operations.
-
-### R043 — Spring Kafka consumer evidence capture
-- Class: integration
-- Status: active
-- Description: Yanote can capture normalized consumer-side Kafka evidence from Spring Kafka applications.
-- Why it matters: Real services often both publish and consume, and Yanote must distinguish those directions honestly.
-- Source: user
-- Primary owning slice: M004/S01
-- Supporting slices: M004/S02, M004/S03
-- Validation: mapped
-- Notes: Consumer evidence must not be conflated with producer evidence even when the same service does both.
-
-### R044 — Kafka test metadata propagation via headers
-- Class: operability
-- Status: active
-- Description: Suite/run metadata can propagate through Kafka headers and land in normalized async evidence so coverage attribution remains diagnosable.
-- Why it matters: The current HTTP path already depends on trustworthy test metadata; the async path needs the same debugging and attribution surface.
-- Source: inferred
-- Primary owning slice: M004/S02
-- Supporting slices: M004/S03, M005/S01
-- Validation: mapped
-- Notes: The first version should preserve headers and evidence truth even if the final report surface stays minimal.
-
-### R045 — Real Kafka integration proof for single-service and two-service scenarios
-- Class: operability
-- Status: active
-- Description: Yanote proves its Kafka path in two live scenarios: one service that both publishes and consumes, and a two-service producer-to-consumer flow.
-- Why it matters: The user wants both scenarios covered, and async confidence requires more than unit-only proof.
-- Source: user
-- Primary owning slice: M004/S03
-- Supporting slices: M005/S02
-- Validation: mapped
-- Notes: These proofs should run against a real Kafka runtime, not only mocked broker abstractions.
-
-### R046 — Async verification stack at OpenAPI-quality depth
-- Class: quality-attribute
-- Status: active
-- Description: The async capability is protected by fixture, unit, integration, end-to-end, and CI checks at the same trust depth as the current OpenAPI path.
-- Why it matters: A second-class async test story would make the new capability untrustworthy even if the happy path appears to work.
-- Source: user
-- Primary owning slice: M004/S03
-- Supporting slices: M003/S01, M003/S02, M003/S03, M005/S02
-- Validation: mapped
-- Notes: This is a quality bar, not a stretch goal.
-
 ### R047 — Productized AsyncAPI/Kafka onboarding and support surface
 - Class: primary-user-loop
 - Status: active
@@ -92,6 +37,61 @@ Guidelines:
 - Notes: Final proof should compose the lower-level async verifiers instead of inventing a separate ungrounded acceptance story.
 
 ## Validated
+
+### R042 — Spring Kafka producer evidence capture
+- Class: integration
+- Status: validated
+- Description: Yanote can capture normalized producer-side Kafka evidence from Spring Kafka applications.
+- Why it matters: Teams need proof for outbound event contracts, not only inbound consumption.
+- Source: user
+- Primary owning slice: M004/S01
+- Supporting slices: M004/S02, M004/S03
+- Validation: validated
+- Notes: Proven by the Spring Kafka recorder seam tests plus the live single-service and two-service proof stack, which records broker-acknowledged `kafka send` evidence and feeds it unchanged into `yanote async-report`.
+
+### R043 — Spring Kafka consumer evidence capture
+- Class: integration
+- Status: validated
+- Description: Yanote can capture normalized consumer-side Kafka evidence from Spring Kafka applications.
+- Why it matters: Real services often both publish and consume, and Yanote must distinguish those directions honestly.
+- Source: user
+- Primary owning slice: M004/S01
+- Supporting slices: M004/S02, M004/S03
+- Validation: validated
+- Notes: Proven by the Spring Kafka listener/outcome recorder path plus the live single-service and two-service proof stack, which keeps `kafka receive` evidence separate from producer facts even when the example app republishes.
+
+### R044 — Kafka test metadata propagation via headers
+- Class: operability
+- Status: validated
+- Description: Suite/run metadata can propagate through Kafka headers and land in normalized async evidence so coverage attribution remains diagnosable.
+- Why it matters: The current HTTP path already depends on trustworthy test metadata; the async path needs the same debugging and attribution surface.
+- Source: inferred
+- Primary owning slice: M004/S02
+- Supporting slices: M004/S03, M005/S01
+- Validation: validated
+- Notes: Proven by the S02 republish attribution proof plus the S03 two-service handoff, which preserves `test.run_id` and `test.suite` through HTTP → Kafka and Kafka → Kafka flows into raw JSONL and analyzer inputs.
+
+### R045 — Real Kafka integration proof for single-service and two-service scenarios
+- Class: operability
+- Status: validated
+- Description: Yanote proves its Kafka path in two live scenarios: one service that both publishes and consumes, and a two-service producer-to-consumer flow.
+- Why it matters: The user wants both scenarios covered, and async confidence requires more than unit-only proof.
+- Source: user
+- Primary owning slice: M004/S03
+- Supporting slices: M005/S02
+- Validation: validated
+- Notes: Proven by `KafkaRecorderSingleServiceIntegrationTest`, `KafkaRecorderTwoServiceIntegrationTest`, and `scripts/ci/verify-m004-s03-live-kafka-proof.sh`, all against a real Kafka runtime with raw evidence assertions before analysis.
+
+### R046 — Async verification stack at OpenAPI-quality depth
+- Class: quality-attribute
+- Status: validated
+- Description: The async capability is protected by fixture, unit, integration, end-to-end, and CI checks at the same trust depth as the current OpenAPI path.
+- Why it matters: A second-class async test story would make the new capability untrustworthy even if the happy path appears to work.
+- Source: user
+- Primary owning slice: M004/S03
+- Supporting slices: M003/S01, M003/S02, M003/S03, M005/S02
+- Validation: validated
+- Notes: Proven by the stacked M003 async analyzer/verifier suites plus the M004 recorder, merge, live-broker, retained-failure, and required-workflow checks that now run inside `build-and-test`.
 
 ### R037 — AsyncAPI contract ingestion for Kafka APIs
 - Class: core-capability
@@ -681,11 +681,11 @@ Guidelines:
 | R039 | core-capability | validated | M003/S02 | M003/S03, M005/S02 | S02 async coverage semantics proof (`asyncCoverage`, diagnostics, parity, HTTP non-regression) |
 | R040 | failure-visibility | validated | M003/S02 | M003/S03, M005/S02 | S02 unmatched/mismatched async diagnostic proof (`asyncCoverage.diagnostics`, parity stack) |
 | R041 | integration | validated | M003/S03 | M005/S02 | S03 verifier stack (`asyncReport`, `asyncEvaluator`, `cli.async-report`, HTTP report/coverage non-regression) |
-| R042 | integration | active | M004/S01 | M004/S02, M004/S03 | mapped |
-| R043 | integration | active | M004/S01 | M004/S02, M004/S03 | mapped |
-| R044 | operability | active | M004/S02 | M004/S03, M005/S01 | mapped |
-| R045 | operability | active | M004/S03 | M005/S02 | mapped |
-| R046 | quality-attribute | active | M004/S03 | M003/S01, M003/S02, M003/S03, M005/S02 | mapped |
+| R042 | integration | validated | M004/S01 | M004/S02, M004/S03 | Spring Kafka recorder seam tests plus the live single-service/two-service analyzer proof stack |
+| R043 | integration | validated | M004/S01 | M004/S02, M004/S03 | Spring Kafka listener outcome tests plus the live single-service/two-service analyzer proof stack |
+| R044 | operability | validated | M004/S02 | M004/S03, M005/S01 | S02 republish attribution proof plus S03 two-service raw-evidence handoff |
+| R045 | operability | validated | M004/S03 | M005/S02 | Live Kafka proof stack (`KafkaRecorderSingleServiceIntegrationTest`, `KafkaRecorderTwoServiceIntegrationTest`, `verify-m004-s03-live-kafka-proof.sh`) |
+| R046 | quality-attribute | validated | M004/S03 | M003/S01, M003/S02, M003/S03, M005/S02 | M003 async verifier stack plus M004 recorder/merge/live-broker/CI workflow proof |
 | R047 | primary-user-loop | active | M005/S01 | M005/S02 | mapped |
 | R048 | quality-attribute | active | M005/S02 | M004/S03 | mapped |
 | R049 | core-capability | deferred | none | none | unmapped |
@@ -699,7 +699,7 @@ Guidelines:
 
 ## Coverage Summary
 
-- Active requirements: 7
-- Mapped to slices: 7
-- Validated: 36
+- Active requirements: 2
+- Mapped to slices: 2
+- Validated: 41
 - Unmapped active requirements: 0

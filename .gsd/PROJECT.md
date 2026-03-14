@@ -10,7 +10,7 @@ Any engineering team running Java services can reliably prove that their scoped 
 
 ## Current State
 
-Yanote v1 delivery, the M002 repository-maturity pass, and M003 async coverage foundations are complete. The current frontier is M004: Kafka evidence capture and Java integration.
+Yanote v1 delivery, the M002 repository-maturity pass, M003 async coverage foundations, and M004 Kafka evidence capture/integration are complete. The current frontier is M005: async productization and end-to-end proof.
 
 What exists now:
 - Deterministic OpenAPI semantic extraction and event-to-operation matching across Node and Java.
@@ -26,9 +26,11 @@ What exists now:
 - Normalized Kafka evidence drives separate async coverage semantics for channels, send/receive operations, and message-contract identity, with explicit unmatched and mismatched async drift diagnostics.
 - A dedicated `yanote async-report` path loads AsyncAPI specs plus normalized async evidence, writes deterministic `yanote-async-report.json`, emits typed `YANOTE_ASYNC_*` summary/error lines, and keeps the existing HTTP `yanote report` path separate.
 - Async coverage semantics are parity-proven across equivalent AsyncAPI v2/v3 contracts, and both the async CLI/report path and the existing HTTP coverage/report baseline remain green under the M003 verifier stack.
+- Spring Kafka producer and consumer recorder seams now emit truthful normalized `kafka send` / `kafka receive` evidence against a real broker, including suite/run header propagation across HTTP → Kafka and Kafka → Kafka flows.
+- The example service now proves both the single-service republish path and a split producer-only → consumer-only Kafka handoff, with deterministic per-service JSONL merge and direct `yanote async-report` analyzer handoff.
+- The live Kafka proof stack now runs inside the existing `build-and-test` required GitHub check and is backed by workflow contract tests plus retained-failure diagnostics.
 
 Current product-level gap:
-- Live Spring Kafka evidence capture, Kafka metadata propagation, and end-to-end async runtime proof remain upcoming in M004.
 - Async onboarding, CI-grade end-to-end acceptance, and release/support hardening for the Kafka path remain upcoming in M005.
 - Payload validation against AsyncAPI message schemas remains deferred.
 
@@ -51,5 +53,5 @@ See `.gsd/REQUIREMENTS.md` for the explicit capability contract, requirement sta
 - [x] M001: Yanote v1 Delivery — Deliver deterministic coverage semantics, governance, Java/CI delivery surfaces, and OSS release automation for the full v1 scope.
 - [x] M002: Repository Product Maturity — Present a concept-first, trustable product surface with verified integration guidance, clear release/support boundaries, maintained-product trust signals, and a local-only maintainer agent workflow.
 - [x] M003: AsyncAPI Coverage Foundations — Extend the analyzer and report model so Yanote can understand Kafka-oriented AsyncAPI contracts, compute async coverage semantics, and expose a separate async report/gate path.
-- [ ] M004: Kafka Evidence Capture And Java Integration — Add Spring Kafka producer/consumer evidence capture, Kafka test-metadata propagation, and live runtime proof paths for normalized async evidence.
+- [x] M004: Kafka Evidence Capture And Java Integration — Add Spring Kafka producer/consumer evidence capture, Kafka test-metadata propagation, and live runtime proof paths for normalized async evidence.
 - [ ] M005: Async Productization And End-to-End Proof — Turn the new async capability into a trustable product surface with docs, support boundaries, CI proof, and release-grade acceptance.

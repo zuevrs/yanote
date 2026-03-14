@@ -55,7 +55,7 @@ This milestone is complete only when all are true:
 - [x] **S02: Metadata Propagation And Republish Attribution** `risk:medium` `depends:[S01]`
   > After this: existing test run/suite metadata survives HTTP-triggered publish and listener-triggered republish flows via explicit Kafka headers and lands in normalized async evidence without broad header leakage.
 
-- [ ] **S03: Live Multi-Service Kafka Proof Stack** `risk:medium` `depends:[S01,S02]`
+- [x] **S03: Live Multi-Service Kafka Proof Stack** `risk:medium` `depends:[S01,S02]`
   > After this: the repo has reproducible single-service and two-service Kafka scenarios that collect per-service evidence, merge it deterministically, and prove the async analyzer path in CI-grade automation.
 
 ## Boundary Map
