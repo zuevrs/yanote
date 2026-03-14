@@ -32,5 +32,6 @@ Do not rename these jobs in `.github/workflows/yanote-ci.yml` without updating b
 ## Failure Handling Expectations
 
 - Any failure in `build-and-test` or `yanote-validation` blocks merge.
-- `yanote-validation` retains deterministic artifacts (`yanote-validation-artifacts`) and writes concise diagnostics to `GITHUB_STEP_SUMMARY`.
+- `build-and-test` runs the authoritative live Kafka proof, always uploads deterministic async diagnostics as `build-and-test-async-artifacts`, and writes concise async `GITHUB_STEP_SUMMARY` output from the collected `live-kafka-proof/` bundle before restoring the saved proof exit code.
+- `yanote-validation` remains the HTTP validation job, retains deterministic HTTP artifacts as `yanote-validation-artifacts`, and writes concise HTTP diagnostics to `GITHUB_STEP_SUMMARY`.
 - Java runtime mismatches fail early via `scripts/ci/assert-java21.sh` with actionable `actions/setup-java` remediation guidance.

@@ -12,8 +12,12 @@ PRODUCER_EVENTS_PATH="${TMP_DIR}/01-producer.events.jsonl"
 CONSUMER_EVENTS_PATH="${TMP_DIR}/02-consumer.events.jsonl"
 MERGED_EVENTS_PATH="${TMP_DIR}/merged-two-service.events.jsonl"
 OUT_DIR="${TMP_DIR}/async-report"
+ASYNC_REPORT_PATH="${OUT_DIR}/yanote-async-report.json"
+ASYNC_EXPORT_DIR="${YANOTE_ASYNC_EXPORT_DIR:-${ROOT_DIR}/.yanote-ci/live-kafka-proof}"
 KEEP_TEMP="false"
 SIMULATE_ANALYZER_FAILURE="false"
+ARTIFACT_EXPORT_ATTEMPTED="false"
+ARTIFACT_EXPORT_SUCCEEDED="false"
 
 SINGLE_SERVICE_RUN_ID="${YANOTE_SINGLE_SERVICE_RUN_ID:-m004-s03-single-service-run}"
 SINGLE_SERVICE_SUITE="${YANOTE_SINGLE_SERVICE_SUITE:-m004-s03-single-service-suite}"
@@ -58,9 +62,38 @@ if [[ "${SIMULATE_ANALYZER_FAILURE}" == "true" ]]; then
   ASYNC_SPEC_PATH="yanote-js/test/fixtures/asyncapi/spring-kafka-single-service-republish.yaml"
 fi
 
+export_async_artifacts() {
+  local proof_status="$1"
+  ARTIFACT_EXPORT_ATTEMPTED="true"
+
+  if (
+    cd "${ROOT_DIR}" && \
+    YANOTE_ASYNC_PROOF_STATUS="${proof_status}" \
+    YANOTE_ASYNC_SOURCE_TEMP_DIR="${TMP_DIR}" \
+    YANOTE_ASYNC_SOURCE_SINGLE_SERVICE_LOG="${SINGLE_SERVICE_LOG_PATH}" \
+    YANOTE_ASYNC_SOURCE_TWO_SERVICE_LOG="${TWO_SERVICE_TEST_LOG_PATH}" \
+    YANOTE_ASYNC_SOURCE_PRODUCER_EVENTS="${PRODUCER_EVENTS_PATH}" \
+    YANOTE_ASYNC_SOURCE_CONSUMER_EVENTS="${CONSUMER_EVENTS_PATH}" \
+    YANOTE_ASYNC_SOURCE_MERGE_LOG="${MERGE_LOG_PATH}" \
+    YANOTE_ASYNC_SOURCE_MERGED_EVENTS="${MERGED_EVENTS_PATH}" \
+    YANOTE_ASYNC_SOURCE_ASYNC_STDOUT="${ASYNC_STDOUT_PATH}" \
+    YANOTE_ASYNC_SOURCE_ASYNC_STDERR="${ASYNC_STDERR_PATH}" \
+    YANOTE_ASYNC_SOURCE_ASYNC_REPORT="${ASYNC_REPORT_PATH}" \
+    bash scripts/ci/export-async-proof-artifacts.sh "${ASYNC_EXPORT_DIR}"
+  ); then
+    ARTIFACT_EXPORT_SUCCEEDED="true"
+    return 0
+  fi
+
+  ARTIFACT_EXPORT_SUCCEEDED="false"
+  return 1
+}
+
 print_failure_artifacts() {
   echo "Verification failed. Retained failure artifacts:" >&2
   echo "  temp_dir: ${TMP_DIR}" >&2
+  echo "  exported_async_bundle: ${ASYNC_EXPORT_DIR}" >&2
+  echo "  async_bundle_exported: ${ARTIFACT_EXPORT_SUCCEEDED}" >&2
   echo "  single_service_log: ${SINGLE_SERVICE_LOG_PATH}" >&2
   echo "  two_service_test_log: ${TWO_SERVICE_TEST_LOG_PATH}" >&2
   echo "  producer_events_file: ${PRODUCER_EVENTS_PATH}" >&2
@@ -90,6 +123,11 @@ show_failure_tail() {
 fail() {
   local message="$1"
   echo "ERROR: ${message}" >&2
+  if [[ "${ARTIFACT_EXPORT_ATTEMPTED}" != "true" ]]; then
+    if ! export_async_artifacts "failure"; then
+      echo "WARN: Failed to export async proof artifacts to ${ASYNC_EXPORT_DIR}" >&2
+    fi
+  fi
   KEEP_TEMP="true"
   show_failure_tail
   print_failure_artifacts
@@ -326,7 +364,7 @@ if ! grep -q '^YANOTE_ASYNC_SUMMARY ' "${ASYNC_STDOUT_PATH}"; then
   fail "async-report stdout is missing the final YANOTE_ASYNC_SUMMARY line."
 fi
 
-REPORT_SUMMARY="$(python3 - "${OUT_DIR}/yanote-async-report.json" "${TWO_SERVICE_SUITE}" <<'PY'
+REPORT_SUMMARY="$(python3 - "${ASYNC_REPORT_PATH}" "${TWO_SERVICE_SUITE}" <<'PY'
 import json
 import math
 import pathlib
@@ -383,7 +421,12 @@ print(
 PY
 )" || fail "async-report artifact drifted from the expected two-service Kafka acceptance surface."
 
+if ! export_async_artifacts "success"; then
+  fail "Async proof artifacts exporter failed after the live Kafka proof passed."
+fi
+
 echo "Single-service proof passed."
 echo "Two-service raw proof passed: ${RAW_SUMMARY}"
 echo "Deterministic merge proof passed: ${MERGE_SUMMARY}"
 echo "Async analyzer proof passed: ${REPORT_SUMMARY}"
+echo "Async proof artifacts exported: ${ASYNC_EXPORT_DIR}"
