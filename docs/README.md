@@ -10,9 +10,10 @@
 
 1. [`guides/recorder-spring-mvc.md`](guides/recorder-spring-mvc.md) — подключение Spring MVC рекордера, writable путь до `events.jsonl`, проверка того, что сервис действительно пишет evidence.
 2. [`guides/analyzer-coverage.md`](guides/analyzer-coverage.md) — запуск analyzer по OpenAPI и `events.jsonl`, чтение `Summary`, `YANOTE_SUMMARY` и `yanote-report.json`.
-3. [`guides/test-tagging.md`](guides/test-tagging.md) — contract для `X-Test-Run-Id`, `X-Test-Suite`, `test.run_id`, `test.suite` и `coverage.perOperation[].suites`.
+3. [`guides/asyncapi-kafka.md`](guides/asyncapi-kafka.md) — отдельная ветка первой волны AsyncAPI/Kafka: Kafka evidence inputs, `async-report`, `YANOTE_ASYNC_SUMMARY` и `yanote-async-report.json` без подмены HTTP guide.
+4. [`guides/test-tagging.md`](guides/test-tagging.md) — contract для `X-Test-Run-Id`, `X-Test-Suite`, `test.run_id`, `test.suite` и `coverage.perOperation[].suites`.
 
-Эти три guide-level surface-а остаются каноническими. Если вам нужен fallback bundle или maintainer workflow, не начинайте с них: сначала пройдите этот путь, затем спускайтесь в вторичные ветки.
+Эти четыре guide-level surface-а остаются каноническими, но concept-first HTTP onboarding по-прежнему первичен: для обычного recorder/analyzer цикла идите по пунктам 1 → 2 → 4, а если у вас есть первая волна AsyncAPI/Kafka, ответвляйтесь в пункт 3 к отдельному `async-report` / `yanote-async-report.json` пути. Если вам нужен fallback bundle или maintainer workflow, не начинайте с них: сначала пройдите этот пользовательский маршрут, затем спускайтесь в вторичные ветки.
 
 ## Примеры и демо
 

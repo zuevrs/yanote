@@ -44,6 +44,26 @@
 - проверенный recorder path: dependency-based `yanote-recorder-spring-mvc` для Spring Boot 3.x / Spring MVC с записью в `events.jsonl`;
 - analyzer delivery surface: основной путь — source-built CLI из `yanote-js`, а `dist/node-analyzer/` остаётся вторичным offline bundle для того же analyzer contract.
 
+### Первая волна async относительно релиза и `HEAD`
+
+Первая user-facing async surface уже есть в текущем репозитории, но её нужно читать честно: это **source-built async path** через `yanote-js` на repository `HEAD`, а не отдельная новая стабильная release line поверх `v1.0.x`. Подписанные теги и GitHub Releases по-прежнему определяют публичную release truth; source-built async path просто фиксирует, что текущий `HEAD` уже несёт первую волну AsyncAPI/Kafka onboarding и proof surface.
+
+Эта первая волна поддерживается только в таких границах:
+
+- **Kafka-only**
+- **Spring Kafka-first**
+- **separate async report/gate**
+- **payload-schema enforcement пока нет**
+- **broker-agnostic promise нет**
+
+Поддерживаемые proof/support артефакты для этого async path тоже фиксированы:
+
+- `raw или merged async JSONL`
+- `yanote-async-report.json`
+- analyzer/proof `stderr`
+
+Практически это означает отдельный маршрут `node yanote-js/dist/yanote.cjs async-report` по Kafka evidence. Он дополняет стабильную линию `v1.0.x`, но не переопределяет release truth, не обещает broker-agnostic coverage и не превращает текущий repository `HEAD` в опубликованный стабильный релиз.
+
 Demo/example модули полезны для доказательства пути, но не входят в опубликованную Java release surface.
 
 ## Предположения по совместимости

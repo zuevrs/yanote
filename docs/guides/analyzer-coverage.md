@@ -4,6 +4,8 @@
 
 `dist/node-analyzer/` остаётся только offline fallback, когда в вашем контуре нельзя выполнить `npm -C yanote-js ci && npm -C yanote-js run build`. Командная форма и структура отчёта у fallback-та же; разница только в способе доставки CLI.
 
+Если вам нужен не HTTP/OpenAPI путь, а первая волна AsyncAPI/Kafka, не смешивайте этот guide с async semantics: отдельный onboarding вынесен в [`docs/guides/asyncapi-kafka.md`](asyncapi-kafka.md), где описаны Kafka evidence inputs, `async-report`, `YANOTE_ASYNC_SUMMARY` и `yanote-async-report.json`.
+
 Если хотите сначала перепроверить live-path репозитория, а потом редактировать этот гайд, используйте:
 
 ```bash

@@ -46,6 +46,8 @@ Yanote нужен инженеру, который одновременно от
 
    Если нужен runnable repo demo целиком, используйте [`examples/README.md`](examples/README.md) и [`examples/docker-compose.yml`](examples/docker-compose.yml). Offline fallback для analyzer остаётся вторичным путём в [`dist/node-analyzer/README.md`](dist/node-analyzer/README.md).
 
+   Если вам нужен не HTTP/OpenAPI path, а первая волна AsyncAPI/Kafka, не смешивайте её с этим циклом: отдельный guide [`docs/guides/asyncapi-kafka.md`](docs/guides/asyncapi-kafka.md) ведёт по Kafka evidence, команде `async-report` и отдельному артефакту `yanote-async-report.json`.
+
 4. **Прочитайте отчёт, а не только exit code.**
    `yanote-report.json` показывает не только observed operations, но и пробелы по response statuses и required parameters. В текущем demo-path это особенно важно: `operations = 100%` ещё не означает полный контрактный coverage, если status dimension или aggregate остаются partial.
 
@@ -66,6 +68,7 @@ Yanote нужен инженеру, который одновременно от
 - **Пройти runnable demo по repo assets:** [`examples/README.md`](examples/README.md)
 - **Сразу подключить рекордер к Spring MVC сервису:** [`docs/guides/recorder-spring-mvc.md`](docs/guides/recorder-spring-mvc.md)
 - **Сразу запустить analyzer и научиться читать отчёт:** [`docs/guides/analyzer-coverage.md`](docs/guides/analyzer-coverage.md)
+- **Пройти отдельный AsyncAPI/Kafka path и получить `yanote-async-report.json`:** [`docs/guides/asyncapi-kafka.md`](docs/guides/asyncapi-kafka.md)
 - **Разобрать suite/run metadata и их путь до отчёта:** [`docs/guides/test-tagging.md`](docs/guides/test-tagging.md)
 
 Если нужен самый короткий маршрут «посмотреть продукт в действии», начните с [`examples/README.md`](examples/README.md), затем вернитесь в [`docs/README.md`](docs/README.md) за каноническими guide-level деталями.

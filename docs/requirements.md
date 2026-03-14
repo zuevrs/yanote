@@ -3,11 +3,11 @@
 > Audience: **public requirements owner surface**. Этот файл остаётся каноническим inventory требований, deferred scope и out-of-scope границ. Если вы пришли сюда напрямую и ищете карту всей пользовательской документации, вернитесь в [`docs/README.md`](README.md).
 
 **Defined:** 2026-03-04
-**Core Value:** Any Java service team can reliably prove that every v1 API requirement is covered by executable tests before shipping.
+**Core Value:** Any Java service team can reliably prove that every supported v1 HTTP and first-wave async contract surface is covered by executable tests before shipping.
 
 ## v1 Requirements
 
-Requirements for initial release. Each maps to roadmap phases.
+Requirements for the current public product surface. Each maps to shipped or actively supported roadmap phases.
 
 ### Specification Semantics
 
@@ -48,6 +48,20 @@ Requirements for initial release. Each maps to roadmap phases.
 - [x] **QUAL-02**: CI runs unit, integration, and end-to-end checks for v1 workflow and blocks merges on failure
 - [x] **QUAL-03**: Team verifies Java 21 baseline compatibility in automated checks
 
+### AsyncAPI / Kafka — первая волна
+
+Текущая async surface уже входит в поддерживаемую публичную границу, но остаётся намеренно узкой. Эти клаузы нужно читать буквально:
+
+- **Kafka-only**
+- **Spring Kafka-first**
+- **separate async report/gate**
+- **payload-schema enforcement пока нет**
+- **broker-agnostic promise нет**
+
+Поддерживаемая evidence/support surface для этой первой волны тоже зафиксирована явно: `raw или merged async JSONL`, `yanote-async-report.json` и analyzer/proof `stderr`.
+
+Практически это означает поддержанный путь через `async-report` и `yanote-async-report.json` для AsyncAPI/Kafka coverage, при этом HTTP `report` / `yanote-report.json` остаются отдельной поверхностью и не маскируются под один обязательный combined report.
+
 ## v2 Requirements
 
 Deferred to future release. Tracked but not in current roadmap.
@@ -59,20 +73,28 @@ Deferred to future release. Tracked but not in current roadmap.
 - **INCR-01**: Team can enforce changed-operation-focused PR gating instead of only global percentage
 - **DEEP-01**: Team can evaluate deeper behavior coverage dimensions (examples, media variants, schema-keyword depth)
 
+### Async Follow-ons
+
+- **ASYNC-01**: Team can enforce payload validation against AsyncAPI message schemas and deeper schema-keyword coverage
+- **ASYNC-02**: Team can produce one combined HTTP + async report/gate surface without losing the current truthful split between `report` and `async-report`
+- **ASYNC-03**: Team can support non-Kafka brokers or make a broker-agnostic async runtime promise
+
 ## Out of Scope
 
-Explicitly excluded. Documented to prevent scope creep.
+Explicitly excluded from the current public surface. Documented to prevent scope creep.
 
 | Feature | Reason |
 |---------|--------|
-| AsyncAPI coverage (Kafka, RabbitMQ) | Explicitly deferred by project owner to keep v1 focused on Java HTTP/OpenAPI |
+| Async payload-schema enforcement in the current first wave | Deferred follow-on; current async surface explicitly states `payload-schema enforcement пока нет` |
+| Combined HTTP + async report/gate in the current first wave | Deferred follow-on; current product keeps a `separate async report/gate` |
+| Broker-agnostic or non-Kafka async coverage (RabbitMQ/AMQP/other brokers) | Deferred follow-on; current public boundary is `Kafka-only` and `broker-agnostic promise нет` |
 | Non-Java service ecosystem support | Explicitly deferred until Java-first workflow is stable |
 | Web dashboard/report UI | Not required for v1 value; CLI + file reports are sufficient |
 | Built-in autonomous test generation/fuzzing | High complexity, lower priority than deterministic coverage governance |
 
 ## Traceability
 
-Which phases cover which requirements. Updated during roadmap creation.
+Which phases cover which v1 requirements. Updated during roadmap creation.
 
 | Requirement | Phase | Status |
 |-------------|-------|--------|
@@ -105,4 +127,4 @@ Which phases cover which requirements. Updated during roadmap creation.
 
 ---
 *Requirements defined: 2026-03-04*
-*Last updated: 2026-03-04 after Phase 5 gap-closure execution (05-04)*
+*Last updated: 2026-03-14 after M005 S01 T02 async boundary alignment*
