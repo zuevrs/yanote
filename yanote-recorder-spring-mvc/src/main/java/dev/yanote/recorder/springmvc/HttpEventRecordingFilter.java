@@ -1,6 +1,7 @@
 package dev.yanote.recorder.springmvc;
 
 import dev.yanote.core.events.HttpEvent;
+import dev.yanote.core.testmetadata.TestMetadataContextHolder;
 import jakarta.servlet.FilterChain;
 import jakarta.servlet.ServletException;
 import jakarta.servlet.http.HttpServletRequest;
@@ -28,13 +29,18 @@ public class HttpEventRecordingFilter extends OncePerRequestFilter {
     @Override
     protected void doFilterInternal(HttpServletRequest request, HttpServletResponse response, FilterChain filterChain)
             throws ServletException, IOException {
-        filterChain.doFilter(request, response);
-        record(request, response);
-    }
-
-    private void record(HttpServletRequest request, HttpServletResponse response) {
         String runId = request.getHeader(RUN_ID_HEADER);
         String suite = request.getHeader(SUITE_HEADER);
+        TestMetadataContextHolder.set(runId, suite);
+        try {
+            filterChain.doFilter(request, response);
+            record(request, response, runId, suite);
+        } finally {
+            TestMetadataContextHolder.clear();
+        }
+    }
+
+    private void record(HttpServletRequest request, HttpServletResponse response, String runId, String suite) {
         String route = routeTemplateResolver.resolve(request);
         try {
             new dev.yanote.core.events.EventJsonlWriter(java.nio.file.Path.of(eventsPath)).write(

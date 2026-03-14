@@ -13,6 +13,8 @@ import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.boot.autoconfigure.AutoConfigurations;
 import org.springframework.boot.test.context.runner.ApplicationContextRunner;
+import org.springframework.context.annotation.Bean;
+import org.springframework.context.annotation.Configuration;
 import org.springframework.kafka.config.ConcurrentKafkaListenerContainerFactory;
 import org.springframework.kafka.core.ConsumerFactory;
 import org.springframework.kafka.core.DefaultKafkaConsumerFactory;
@@ -20,8 +22,6 @@ import org.springframework.kafka.core.DefaultKafkaProducerFactory;
 import org.springframework.kafka.core.KafkaTemplate;
 import org.springframework.kafka.core.ProducerFactory;
 import org.springframework.test.util.ReflectionTestUtils;
-import org.springframework.context.annotation.Bean;
-import org.springframework.context.annotation.Configuration;
 
 class KafkaRecorderAutoConfigurationTest {
 
@@ -70,7 +70,7 @@ class KafkaRecorderAutoConfigurationTest {
 
                     assertThat(YanoteKafkaHeaders.readTestRunId(record.headers())).isEqualTo("run-1");
                     assertThat(YanoteKafkaHeaders.readTestSuite(record.headers())).isEqualTo("suite-a");
-                    assertThat(YanoteKafkaHeaders.readMessageHint(record.headers())).isEqualTo("OrderCreated");
+                    assertThat(YanoteKafkaHeaders.readMessageHint(record.headers())).isNull();
                 });
     }
 

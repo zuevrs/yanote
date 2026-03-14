@@ -2,13 +2,12 @@ package dev.yanote.examples.service;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
-import dev.yanote.core.events.EventJsonlReader;
-import dev.yanote.core.events.HttpEvent;
-import dev.yanote.core.events.KafkaEvent;
-import dev.yanote.core.events.YanoteEvent;
+import com.fasterxml.jackson.databind.JsonNode;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.time.Duration;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.UUID;
 import org.awaitility.Awaitility;
@@ -36,6 +35,7 @@ import org.testcontainers.utility.DockerImageName;
 @TestPropertySource(properties = "example.kafka.enabled=true")
 class KafkaRecorderSingleServiceIntegrationTest {
 
+    private static final ObjectMapper OBJECT_MAPPER = new ObjectMapper();
     private static final Path EVENTS_PATH = resolveEventsPath();
     private static final String TEST_RUN_ID = resolveEnv("YANOTE_RUN_ID", "example-kafka-run");
     private static final String TEST_SUITE = resolveEnv("YANOTE_SUITE", "example-kafka-suite");
@@ -53,7 +53,7 @@ class KafkaRecorderSingleServiceIntegrationTest {
     }
 
     @Test
-    void shouldWriteMixedHttpAndKafkaEvidenceForOnePublishConsumeCycle() throws Exception {
+    void shouldWriteRawJsonlProofForHttpKafkaRepublishFlow() throws Exception {
         Files.deleteIfExists(EVENTS_PATH);
 
         HttpHeaders headers = new HttpHeaders();
@@ -71,50 +71,94 @@ class KafkaRecorderSingleServiceIntegrationTest {
         assertThat(response.getBody()).isEqualTo("created:alice");
 
         Awaitility.await()
-                .atMost(Duration.ofSeconds(15))
+                .atMost(Duration.ofSeconds(20))
                 .untilAsserted(() -> {
-                    List<YanoteEvent> events = readEvents();
-                    assertThat(events).hasSize(3);
-                    assertThat(events).filteredOn(KafkaEvent.class::isInstance).hasSize(2);
+                    List<JsonNode> events = readEvents();
+                    assertThat(events).hasSize(5);
+                    assertThat(events.stream().filter(event -> "kafka".equals(text(event, "kind"))).count()).isEqualTo(4);
                 });
 
-        List<YanoteEvent> events = readEvents();
-        HttpEvent httpEvent = events.stream()
-                .filter(HttpEvent.class::isInstance)
-                .map(HttpEvent.class::cast)
-                .findFirst()
-                .orElseThrow();
-        List<KafkaEvent> kafkaEvents = events.stream()
-                .filter(KafkaEvent.class::isInstance)
-                .map(KafkaEvent.class::cast)
-                .toList();
+        List<JsonNode> events = readEvents();
+        JsonNode httpEvent = findSingle(events, "http", null, null);
+        JsonNode firstSend = findSingle(events, "kafka", "send", ExampleServiceApplication.USER_EVENTS_TOPIC);
+        JsonNode firstReceive = findSingle(events, "kafka", "receive", ExampleServiceApplication.USER_EVENTS_TOPIC);
+        JsonNode republishedSend = findSingle(events, "kafka", "send", ExampleServiceApplication.USER_REPUBLISHED_TOPIC);
+        JsonNode republishedReceive = findSingle(events, "kafka", "receive", ExampleServiceApplication.USER_REPUBLISHED_TOPIC);
 
-        assertThat(httpEvent.method()).isEqualTo("POST");
-        assertThat(httpEvent.route()).isEqualTo("/users");
-        assertThat(httpEvent.status()).isEqualTo(200);
-        assertThat(httpEvent.service()).isEqualTo("examples-service");
-        assertThat(httpEvent.testRunId()).isEqualTo(TEST_RUN_ID);
-        assertThat(httpEvent.testSuite()).isEqualTo(TEST_SUITE);
-        assertThat(httpEvent.error()).isFalse();
+        assertThat(text(httpEvent, "method")).isEqualTo("POST");
+        assertThat(text(httpEvent, "route")).isEqualTo("/users");
+        assertThat(httpEvent.get("status").intValue()).isEqualTo(200);
+        assertThat(text(httpEvent, "service")).isEqualTo("examples-service");
+        assertThat(text(httpEvent, "test.run_id")).isEqualTo(TEST_RUN_ID);
+        assertThat(text(httpEvent, "test.suite")).isEqualTo(TEST_SUITE);
+        assertThat(httpEvent.get("error").booleanValue()).isFalse();
 
-        assertThat(kafkaEvents).hasSize(2);
-        assertThat(kafkaEvents).extracting(KafkaEvent::action)
-                .containsExactlyInAnyOrder(KafkaEvent.Action.SEND, KafkaEvent.Action.RECEIVE);
-        assertThat(kafkaEvents).extracting(KafkaEvent::channel)
-                .containsOnly(ExampleServiceApplication.USER_EVENTS_TOPIC);
-        assertThat(kafkaEvents).extracting(KafkaEvent::message)
+        assertKafkaEvent(firstSend, ExampleServiceApplication.USER_EVENTS_TOPIC, ExampleServiceApplication.USER_CREATED_MESSAGE);
+        assertKafkaEvent(firstReceive, ExampleServiceApplication.USER_EVENTS_TOPIC, ExampleServiceApplication.USER_CREATED_MESSAGE);
+        assertKafkaEvent(
+                republishedSend,
+                ExampleServiceApplication.USER_REPUBLISHED_TOPIC,
+                ExampleServiceApplication.USER_REPUBLISHED_MESSAGE
+        );
+        assertKafkaEvent(
+                republishedReceive,
+                ExampleServiceApplication.USER_REPUBLISHED_TOPIC,
+                ExampleServiceApplication.USER_REPUBLISHED_MESSAGE
+        );
+
+        assertThat(messagesForChannel(events, ExampleServiceApplication.USER_EVENTS_TOPIC))
                 .containsOnly(ExampleServiceApplication.USER_CREATED_MESSAGE);
-        assertThat(kafkaEvents).extracting(KafkaEvent::service)
-                .containsOnly("examples-service");
-        assertThat(kafkaEvents).extracting(KafkaEvent::testRunId)
-                .containsOnly(TEST_RUN_ID);
-        assertThat(kafkaEvents).extracting(KafkaEvent::testSuite)
-                .containsOnly(TEST_SUITE);
-        assertThat(kafkaEvents).allSatisfy(event -> assertThat(event.error()).isFalse());
+        assertThat(messagesForChannel(events, ExampleServiceApplication.USER_REPUBLISHED_TOPIC))
+                .containsOnly(ExampleServiceApplication.USER_REPUBLISHED_MESSAGE);
     }
 
-    private static List<YanoteEvent> readEvents() throws Exception {
-        return new EventJsonlReader().read(EVENTS_PATH);
+    private static void assertKafkaEvent(JsonNode event, String channel, String message) {
+        assertThat(text(event, "kind")).isEqualTo("kafka");
+        assertThat(text(event, "channel")).isEqualTo(channel);
+        assertThat(text(event, "message")).isEqualTo(message);
+        assertThat(text(event, "service")).isEqualTo("examples-service");
+        assertThat(text(event, "test.run_id")).isEqualTo(TEST_RUN_ID);
+        assertThat(text(event, "test.suite")).isEqualTo(TEST_SUITE);
+        assertThat(event.get("error").booleanValue()).isFalse();
+    }
+
+    private static JsonNode findSingle(List<JsonNode> events, String kind, String action, String channel) {
+        List<JsonNode> matches = events.stream()
+                .filter(event -> kind.equals(text(event, "kind")))
+                .filter(event -> action == null || action.equals(text(event, "action")))
+                .filter(event -> channel == null || channel.equals(text(event, "channel")))
+                .toList();
+        assertThat(matches)
+                .withFailMessage("Expected one %s event for action=%s channel=%s but found %s", kind, action, channel, matches)
+                .hasSize(1);
+        return matches.get(0);
+    }
+
+    private static List<String> messagesForChannel(List<JsonNode> events, String channel) {
+        return events.stream()
+                .filter(event -> "kafka".equals(text(event, "kind")))
+                .filter(event -> channel.equals(text(event, "channel")))
+                .map(event -> text(event, "message"))
+                .toList();
+    }
+
+    private static List<JsonNode> readEvents() throws Exception {
+        if (!Files.exists(EVENTS_PATH)) {
+            return List.of();
+        }
+
+        List<JsonNode> events = new ArrayList<>();
+        for (String line : Files.readAllLines(EVENTS_PATH)) {
+            if (!line.isBlank()) {
+                events.add(OBJECT_MAPPER.readTree(line));
+            }
+        }
+        return events;
+    }
+
+    private static String text(JsonNode event, String field) {
+        JsonNode value = event.get(field);
+        return value == null || value.isNull() ? null : value.asText();
     }
 
     private static Path resolveEventsPath() {

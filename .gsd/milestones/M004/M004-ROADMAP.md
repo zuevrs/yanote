@@ -52,7 +52,7 @@ This milestone is complete only when all are true:
 - [x] **S01: Truthful Spring Kafka Recorder Path** `risk:high` `depends:[]`
   > After this: one Spring Kafka service can publish and consume against a real Kafka broker while emitting normalized producer and consumer JSONL evidence that the existing async analyzer accepts.
 
-- [ ] **S02: Metadata Propagation And Republish Attribution** `risk:medium` `depends:[S01]`
+- [x] **S02: Metadata Propagation And Republish Attribution** `risk:medium` `depends:[S01]`
   > After this: existing test run/suite metadata survives HTTP-triggered publish and listener-triggered republish flows via explicit Kafka headers and lands in normalized async evidence without broad header leakage.
 
 - [ ] **S03: Live Multi-Service Kafka Proof Stack** `risk:medium` `depends:[S01,S02]`

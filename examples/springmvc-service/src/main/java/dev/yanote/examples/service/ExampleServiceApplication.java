@@ -1,12 +1,14 @@
 package dev.yanote.examples.service;
 
-import dev.yanote.recorder.springkafka.YanoteKafkaContextHolder;
+import java.nio.charset.StandardCharsets;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
 import org.apache.kafka.clients.admin.NewTopic;
 import org.apache.kafka.clients.producer.ProducerRecord;
+import org.apache.kafka.common.header.internals.RecordHeader;
 import org.springframework.beans.factory.ObjectProvider;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.boot.SpringApplication;
 import org.springframework.boot.autoconfigure.SpringBootApplication;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
@@ -19,7 +21,6 @@ import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
-import org.springframework.web.bind.annotation.RequestHeader;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
@@ -27,9 +28,13 @@ import org.springframework.web.bind.annotation.RestController;
 @EnableKafka
 public class ExampleServiceApplication {
     static final String USER_EVENTS_TOPIC = "users.created";
+    static final String USER_REPUBLISHED_TOPIC = "users.created.republished";
     static final String USER_CREATED_MESSAGE = "UserCreated";
+    static final String USER_REPUBLISHED_MESSAGE = "UserRepublished";
     static final String RUN_ID_HEADER = "X-Test-Run-Id";
     static final String SUITE_HEADER = "X-Test-Suite";
+
+    private static final String YANOTE_MESSAGE_HEADER = "yanote.message";
 
     public static void main(String[] args) {
         SpringApplication.run(ExampleServiceApplication.class, args);
@@ -37,20 +42,48 @@ public class ExampleServiceApplication {
 
     @Bean
     @ConditionalOnProperty(name = "example.kafka.enabled", havingValue = "true")
-    NewTopic userEventsTopic() {
-        return TopicBuilder.name(USER_EVENTS_TOPIC).partitions(1).replicas(1).build();
+    NewTopic userEventsTopic(
+            @Value("${example.kafka.topics.user-created:" + USER_EVENTS_TOPIC + "}") String topic
+    ) {
+        return TopicBuilder.name(topic).partitions(1).replicas(1).build();
     }
 
     @Bean
     @ConditionalOnProperty(name = "example.kafka.enabled", havingValue = "true")
-    UserCreatedPublisher userCreatedPublisher(KafkaTemplate<String, String> kafkaTemplate) {
-        return new UserCreatedPublisher(kafkaTemplate);
+    NewTopic userRepublishedTopic(
+            @Value("${example.kafka.topics.user-republished:" + USER_REPUBLISHED_TOPIC + "}") String topic
+    ) {
+        return TopicBuilder.name(topic).partitions(1).replicas(1).build();
     }
 
     @Bean
     @ConditionalOnProperty(name = "example.kafka.enabled", havingValue = "true")
-    UserCreatedListener userCreatedListener() {
-        return new UserCreatedListener();
+    UserCreatedPublisher userCreatedPublisher(
+            KafkaTemplate<String, String> kafkaTemplate,
+            @Value("${example.kafka.topics.user-created:" + USER_EVENTS_TOPIC + "}") String topic
+    ) {
+        return new UserCreatedPublisher(new KafkaMessagePublisher(kafkaTemplate, topic, USER_CREATED_MESSAGE));
+    }
+
+    @Bean
+    @ConditionalOnProperty(name = "example.kafka.enabled", havingValue = "true")
+    UserRepublishedPublisher userRepublishedPublisher(
+            KafkaTemplate<String, String> kafkaTemplate,
+            @Value("${example.kafka.topics.user-republished:" + USER_REPUBLISHED_TOPIC + "}") String topic
+    ) {
+        return new UserRepublishedPublisher(new KafkaMessagePublisher(kafkaTemplate, topic, USER_REPUBLISHED_MESSAGE));
+    }
+
+    @Bean
+    @ConditionalOnProperty(name = "example.kafka.enabled", havingValue = "true")
+    UserCreatedListener userCreatedListener(UserRepublishedPublisher republishedPublisher) {
+        return new UserCreatedListener(republishedPublisher);
+    }
+
+    @Bean
+    @ConditionalOnProperty(name = "example.kafka.enabled", havingValue = "true")
+    UserRepublishedListener userRepublishedListener() {
+        return new UserRepublishedListener();
     }
 
     @RestController
@@ -78,15 +111,11 @@ public class ExampleServiceApplication {
         }
 
         @PostMapping("/users")
-        public String createUser(
-                @RequestBody(required = false) String body,
-                @RequestHeader(value = RUN_ID_HEADER, required = false) String runId,
-                @RequestHeader(value = SUITE_HEADER, required = false) String suite
-        ) {
+        public String createUser(@RequestBody(required = false) String body) {
             String normalizedBody = body == null ? "unknown" : body;
             UserCreatedPublisher publisher = userCreatedPublisher.getIfAvailable();
             if (publisher != null) {
-                publisher.publish(normalizedBody, runId, suite);
+                publisher.publish(normalizedBody);
             }
             return "created:" + normalizedBody;
         }
@@ -98,33 +127,78 @@ public class ExampleServiceApplication {
     }
 
     static class UserCreatedPublisher {
-        private final KafkaTemplate<String, String> kafkaTemplate;
+        private final KafkaMessagePublisher publisher;
 
-        UserCreatedPublisher(KafkaTemplate<String, String> kafkaTemplate) {
-            this.kafkaTemplate = kafkaTemplate;
+        UserCreatedPublisher(KafkaMessagePublisher publisher) {
+            this.publisher = publisher;
         }
 
-        void publish(String payload, String runId, String suite) {
-            YanoteKafkaContextHolder.set(runId, suite, USER_CREATED_MESSAGE);
+        void publish(String payload) {
+            publisher.publish(payload);
+        }
+    }
+
+    static class UserRepublishedPublisher {
+        private final KafkaMessagePublisher publisher;
+
+        UserRepublishedPublisher(KafkaMessagePublisher publisher) {
+            this.publisher = publisher;
+        }
+
+        void publish(String payload) {
+            publisher.publish(payload);
+        }
+    }
+
+    static class UserCreatedListener {
+        private final UserRepublishedPublisher republishedPublisher;
+
+        UserCreatedListener(UserRepublishedPublisher republishedPublisher) {
+            this.republishedPublisher = republishedPublisher;
+        }
+
+        @KafkaListener(topics = "${example.kafka.topics.user-created:users.created}")
+        void handle(String payload) {
+            if (payload == null) {
+                throw new IllegalArgumentException("payload must not be null");
+            }
+            republishedPublisher.publish(payload);
+        }
+    }
+
+    static class UserRepublishedListener {
+        @KafkaListener(topics = "${example.kafka.topics.user-republished:users.created.republished}")
+        void handle(String payload) {
+            if (payload == null) {
+                throw new IllegalArgumentException("payload must not be null");
+            }
+        }
+    }
+
+    static class KafkaMessagePublisher {
+        private final KafkaTemplate<String, String> kafkaTemplate;
+        private final String topic;
+        private final String messageHint;
+
+        KafkaMessagePublisher(KafkaTemplate<String, String> kafkaTemplate, String topic, String messageHint) {
+            this.kafkaTemplate = kafkaTemplate;
+            this.topic = topic;
+            this.messageHint = messageHint;
+        }
+
+        void publish(String payload) {
             try {
-                ProducerRecord<String, String> record = new ProducerRecord<>(USER_EVENTS_TOPIC, payload);
+                ProducerRecord<String, String> record = new ProducerRecord<>(topic, payload);
+                record.headers().add(new RecordHeader(
+                        YANOTE_MESSAGE_HEADER,
+                        messageHint.getBytes(StandardCharsets.UTF_8)
+                ));
                 kafkaTemplate.send(record).get(10, TimeUnit.SECONDS);
             } catch (InterruptedException ex) {
                 Thread.currentThread().interrupt();
                 throw new IllegalStateException("Interrupted while publishing Kafka example event", ex);
             } catch (ExecutionException | TimeoutException ex) {
                 throw new IllegalStateException("Failed to publish Kafka example event", ex);
-            } finally {
-                YanoteKafkaContextHolder.clear();
-            }
-        }
-    }
-
-    static class UserCreatedListener {
-        @KafkaListener(topics = USER_EVENTS_TOPIC)
-        void handle(String payload) {
-            if (payload == null) {
-                throw new IllegalArgumentException("payload must not be null");
             }
         }
     }
