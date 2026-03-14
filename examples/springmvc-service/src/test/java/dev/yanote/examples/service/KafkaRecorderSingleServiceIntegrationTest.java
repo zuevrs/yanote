@@ -32,7 +32,11 @@ import org.testcontainers.utility.DockerImageName;
         classes = ExampleServiceApplication.class,
         webEnvironment = SpringBootTest.WebEnvironment.RANDOM_PORT
 )
-@TestPropertySource(properties = "example.kafka.enabled=true")
+@TestPropertySource(properties = {
+        "example.kafka.roles.producer.enabled=true",
+        "example.kafka.roles.listeners.enabled=true",
+        "example.kafka.roles.republish.enabled=true"
+})
 class KafkaRecorderSingleServiceIntegrationTest {
 
     private static final ObjectMapper OBJECT_MAPPER = new ObjectMapper();

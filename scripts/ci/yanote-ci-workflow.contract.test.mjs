@@ -20,6 +20,12 @@ test("workflow defines stable required check job names", async () => {
   assert.match(source, /^\s*yanote-validation:\s*$/m);
 });
 
+test("workflow keeps required-check dependency topology stable", async () => {
+  const source = await loadWorkflowSource();
+  assert.match(source, /^\s*yanote-validation:\s*$[\s\S]*?^\s*needs:\s*build-and-test\s*$/m);
+  assert.match(source, /^\s*v1-e2e:\s*$[\s\S]*?^\s*needs:\s*yanote-validation\s*$/m);
+});
+
 test("workflow supports pull request and merge-group triggers", async () => {
   const source = await loadWorkflowSource();
   assert.match(source, /^\s*pull_request:\s*$/m);
@@ -29,6 +35,14 @@ test("workflow supports pull request and merge-group triggers", async () => {
 test("workflow pins Java 21 in required jobs", async () => {
   const source = await loadWorkflowSource();
   assert.match(source, /java-version:\s*['"]?21['"]?/);
+});
+
+test("workflow runs live Kafka proof inside build-and-test after analyzer prerequisites", async () => {
+  const source = await loadWorkflowSource();
+  assert.match(
+    source,
+    /build-and-test:[\s\S]*?- name:\s*Run JVM tests[\s\S]*?- name:\s*Run analyzer tests[\s\S]*?- name:\s*Run live Kafka proof stack[\s\S]*?run:\s*bash scripts\/ci\/verify-m004-s03-live-kafka-proof\.sh[\s\S]*?yanote-validation:/
+  );
 });
 
 test("workflow runs Java 21 assertion in required jobs", async () => {

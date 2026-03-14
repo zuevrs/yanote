@@ -63,6 +63,9 @@ jobs:
       - name: Run analyzer tests
         run: npm -C yanote-js ci && npm -C yanote-js test
 
+      - name: Run live Kafka proof stack
+        run: bash scripts/ci/verify-m004-s03-live-kafka-proof.sh
+
   yanote-validation:
     runs-on: ubuntu-latest
     needs: build-and-test
