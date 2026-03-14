@@ -14,17 +14,6 @@ Guidelines:
 
 ## Active
 
-### R047 — Productized AsyncAPI/Kafka onboarding and support surface
-- Class: primary-user-loop
-- Status: active
-- Description: Engineers can understand how to use the new AsyncAPI/Kafka capability, what it supports, and where its current boundaries are without reverse-engineering internal implementation notes.
-- Why it matters: A strong async core still fails adoption if users cannot discover the right path or trust the limits.
-- Source: inferred
-- Primary owning slice: M005/S01
-- Supporting slices: M005/S02
-- Validation: mapped
-- Notes: The first async public story should stay Kafka-only and Spring Kafka-first unless later milestones broaden it.
-
 ### R048 — CI-ready end-to-end async proof and release-grade trust surface
 - Class: quality-attribute
 - Status: active
@@ -37,6 +26,17 @@ Guidelines:
 - Notes: Final proof should compose the lower-level async verifiers instead of inventing a separate ungrounded acceptance story.
 
 ## Validated
+
+### R047 — Productized AsyncAPI/Kafka onboarding and support surface
+- Class: primary-user-loop
+- Status: validated
+- Description: Engineers can understand how to use the new AsyncAPI/Kafka capability, what it supports, and where its current boundaries are without reverse-engineering internal implementation notes.
+- Why it matters: A strong async core still fails adoption if users cannot discover the right path or trust the limits.
+- Source: inferred
+- Primary owning slice: M005/S01
+- Supporting slices: M005/S02
+- Validation: validated
+- Notes: Proven by the dedicated async guide, aligned owner/support surfaces, thin main-landing pointers, and the combined async/doc verifier stack that keeps the public Kafka-only / Spring Kafka-first story discoverable and honest.
 
 ### R042 — Spring Kafka producer evidence capture
 - Class: integration

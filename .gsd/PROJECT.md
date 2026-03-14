@@ -10,7 +10,7 @@ Any engineering team running Java services can reliably prove that their scoped 
 
 ## Current State
 
-Yanote v1 delivery, the M002 repository-maturity pass, M003 async coverage foundations, and M004 Kafka evidence capture/integration are complete and now have milestone-level closure summaries. The current frontier is M005: async productization and end-to-end proof, starting with productized Kafka/AsyncAPI onboarding and support boundaries.
+Yanote v1 delivery, the M002 repository-maturity pass, M003 async coverage foundations, M004 Kafka evidence capture/integration, and M005/S01 async onboarding/boundary productization are complete and now have milestone-level closure summaries. The current frontier is M005/S02: CI-grade async acceptance and diagnostics.
 
 What exists now:
 - Deterministic OpenAPI semantic extraction and event-to-operation matching across Node and Java.
@@ -29,9 +29,10 @@ What exists now:
 - Spring Kafka producer and consumer recorder seams now emit truthful normalized `kafka send` / `kafka receive` evidence against a real broker, including suite/run header propagation across HTTP → Kafka and Kafka → Kafka flows.
 - The example service now proves both the single-service republish path and a split producer-only → consumer-only Kafka handoff, with deterministic per-service JSONL merge and direct `yanote async-report` analyzer handoff.
 - The live Kafka proof stack now runs inside the existing `build-and-test` required GitHub check and is backed by workflow contract tests plus retained-failure diagnostics.
+- `README.md`, `docs/README.md`, `docs/guides/asyncapi-kafka.md`, `docs/release-and-support.md`, `docs/requirements.md`, and `SUPPORT.md` now expose one aligned first-wave async contract, backed by `scripts/docs/verify-m005-s01-async-path.sh` and `scripts/docs/verify-m005-s01-async-boundaries.sh`.
 
 Current product-level gap:
-- Async onboarding, user-facing support boundaries, and the final release-grade end-to-end trust surface for the Kafka path are now explicitly owned by M005/S01 and M005/S02.
+- The remaining async product gap is the CI-grade acceptance layer: one composed M005 runner plus first-class async artifact/summary diagnostics in the existing workflow topology.
 - Payload validation against AsyncAPI message schemas remains deferred.
 
 ## Architecture / Key Patterns
