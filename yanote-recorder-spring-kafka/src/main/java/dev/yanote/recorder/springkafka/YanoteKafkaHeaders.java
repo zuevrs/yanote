@@ -1,5 +1,7 @@
 package dev.yanote.recorder.springkafka;
 
+import dev.yanote.core.testmetadata.TestMetadata;
+import dev.yanote.core.testmetadata.TestMetadataContextHolder;
 import java.nio.charset.StandardCharsets;
 import org.apache.kafka.common.header.Header;
 import org.apache.kafka.common.header.Headers;
@@ -14,13 +16,12 @@ public final class YanoteKafkaHeaders {
     }
 
     public static void applyContextIfAbsent(Headers headers) {
-        YanoteKafkaContextHolder.YanoteKafkaContext context = YanoteKafkaContextHolder.current();
+        TestMetadata context = TestMetadataContextHolder.current();
         if (context == null) {
             return;
         }
         putIfAbsent(headers, TEST_RUN_ID, context.testRunId());
         putIfAbsent(headers, TEST_SUITE, context.testSuite());
-        putIfAbsent(headers, MESSAGE_HINT, context.messageHint());
     }
 
     public static void setHeaders(Headers headers, String testRunId, String testSuite, String messageHint) {
