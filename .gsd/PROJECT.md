@@ -10,7 +10,7 @@ Any engineering team running Java services can reliably prove that their scoped 
 
 ## Current State
 
-Yanote v1 delivery, the M002 repository-maturity pass, M003 async coverage foundations, M004 Kafka evidence capture/integration, and M005/S01 async onboarding/boundary productization are complete and now have milestone-level closure summaries. The current frontier is M005/S02: CI-grade async acceptance and diagnostics.
+Yanote v1 delivery, the M002 repository-maturity pass, M003 async coverage foundations, M004 Kafka evidence capture/integration, and the full M005 async productization milestone are complete and now have milestone-level closure summaries. There is no active in-scope delivery slice left inside the current validated scope; the remaining async follow-ons are the explicitly deferred requirements.
 
 What exists now:
 - Deterministic OpenAPI semantic extraction and event-to-operation matching across Node and Java.
@@ -30,10 +30,12 @@ What exists now:
 - The example service now proves both the single-service republish path and a split producer-only → consumer-only Kafka handoff, with deterministic per-service JSONL merge and direct `yanote async-report` analyzer handoff.
 - The live Kafka proof stack now runs inside the existing `build-and-test` required GitHub check and is backed by workflow contract tests plus retained-failure diagnostics.
 - `README.md`, `docs/README.md`, `docs/guides/asyncapi-kafka.md`, `docs/release-and-support.md`, `docs/requirements.md`, and `SUPPORT.md` now expose one aligned first-wave async contract, backed by `scripts/docs/verify-m005-s01-async-path.sh` and `scripts/docs/verify-m005-s01-async-boundaries.sh`.
+- `scripts/ci/verify-m005-s02-async-acceptance.sh` now composes the public async contract verifiers with the authoritative M004 single-service and live two-service Kafka proofs under stable stage labels.
+- The live Kafka proof now exports `.yanote-ci/live-kafka-proof/`, artifact collection mirrors that bundle, and `build-and-test` can render async-aware summaries while keeping the required `build-and-test` / `yanote-validation` job names unchanged.
 
 Current product-level gap:
-- The remaining async product gap is the CI-grade acceptance layer: one composed M005 runner plus first-class async artifact/summary diagnostics in the existing workflow topology.
-- Payload validation against AsyncAPI message schemas remains deferred.
+- There is no remaining in-scope M005 gap: async onboarding, public boundary truth, composed acceptance, retained diagnostics, and CI-visible async summaries are all in place for the first release scope.
+- Payload validation against AsyncAPI message schemas and broader post-M005 async scope remain deferred.
 
 ## Architecture / Key Patterns
 
@@ -55,4 +57,4 @@ See `.gsd/REQUIREMENTS.md` for the explicit capability contract, requirement sta
 - [x] M002: Repository Product Maturity — Present a concept-first, trustable product surface with verified integration guidance, clear release/support boundaries, maintained-product trust signals, and a local-only maintainer agent workflow.
 - [x] M003: AsyncAPI Coverage Foundations — Extend the analyzer and report model so Yanote can understand Kafka-oriented AsyncAPI contracts, compute async coverage semantics, and expose a separate async report/gate path.
 - [x] M004: Kafka Evidence Capture And Java Integration — Add Spring Kafka producer/consumer evidence capture, Kafka test-metadata propagation, and live runtime proof paths for normalized async evidence.
-- [ ] M005: Async Productization And End-to-End Proof — Turn the new async capability into a trustable product surface with docs, support boundaries, CI proof, and release-grade acceptance.
+- [x] M005: Async Productization And End-to-End Proof — Turn the new async capability into a trustable product surface with docs, support boundaries, CI proof, and release-grade acceptance.
