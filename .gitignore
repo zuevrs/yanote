@@ -10,20 +10,20 @@ build/
 node_modules/
 yanote-js/dist/
 
-# local flatDir bundle output (binary artifacts)
-dist/flatdir-recorder/libs/
-dist/flatdir-recorder.zip
+# local runtime residue
+.bg-shell/
 
-# node analyzer bundle output (binary artifact)
-dist/node-analyzer/bin/
-dist/node-analyzer/node_modules/
-dist/node-analyzer/package.json
-dist/node-analyzer/package-lock.json
+# local distribution/build residue (release assets and bundle outputs are not tracked)
+dist/
 
 # default recorder output (if generated during local runs)
 /events.jsonl
 
+# local proof/runtime artifacts
+.yanote-ci/
+
 # planning / agent state (local-only)
+.gsd
 .gsd/
 .planning/
 Thumbs.db
@@ -36,8 +36,6 @@ Thumbs.db
 .env.*
 !.env.example
 .next/
-dist/*
-!dist/README.md
 __pycache__/
 *.pyc
 .venv/
@@ -59,14 +57,3 @@ tmp/
 .gsd/metrics.json
 .gsd/completed-units.json
 .gsd/STATE.md
-
-# tracked GSD planning artifacts
-!.gsd/
-!.gsd/DECISIONS.md
-!.gsd/PROJECT.md
-!.gsd/REQUIREMENTS.md
-!.gsd/milestones/
-!.gsd/milestones/**
-
-# ── GSD baseline (auto-generated) ──
-dist/

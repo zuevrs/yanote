@@ -113,7 +113,6 @@ if [[ "${boundary_doc_present}" == "true" ]]; then
   require_contains "${BOUNDARY_DOC}" "не авторитетный источник публичной версии релиза" "snapshot disclaimer"
   require_contains "${BOUNDARY_DOC}" '`yanote --version`' "analyzer version-source reference"
   require_contains "${BOUNDARY_DOC}" '`yanote-js/package.json`' "source-built analyzer version-source reference"
-  require_contains "${BOUNDARY_DOC}" '`dist/node-analyzer/package.json`' "dist analyzer version-source reference"
   require_contains "${BOUNDARY_DOC}" '`0.0.0`' "analyzer version marker"
   require_contains "${BOUNDARY_DOC}" "не авторитетный источник стабильного релиза" "analyzer disclaimer"
   require_contains "${BOUNDARY_DOC}" '`yanote-core`' "published Java module"
@@ -130,8 +129,8 @@ if [[ "${boundary_doc_present}" == "true" ]]; then
   require_contains "${BOUNDARY_DOC}" '`.nvmrc` = `22`' "repo/dev Node pin"
   require_contains "${BOUNDARY_DOC}" "Spring Boot 3.x / Spring MVC" "verified recorder path"
   require_contains "${BOUNDARY_DOC}" "source-built CLI" "primary analyzer path"
-  require_contains "${BOUNDARY_DOC}" '`dist/node-analyzer/`' "analyzer fallback bundle"
-  require_contains "${BOUNDARY_DOC}" '`dist/flatdir-recorder/`' "recorder fallback bundle"
+  require_contains "${BOUNDARY_DOC}" "release asset" "fallback release asset wording"
+  require_contains "${BOUNDARY_DOC}" 'tracked `dist/` поверхность default branch' "no-tracked-dist clause"
   require_contains "${BOUNDARY_DOC}" "не-Java onboarding" "non-Java limitation"
   require_contains "${BOUNDARY_DOC}" "runnable Cucumber demo" "Cucumber limitation"
 fi

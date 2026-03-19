@@ -4,6 +4,8 @@ set -euo pipefail
 DEST_DIR="${1:-.yanote-ci/artifacts}"
 ASYNC_BUNDLE_SOURCE_DIR=".yanote-ci/live-kafka-proof"
 ASYNC_BUNDLE_TARGET_NAME="live-kafka-proof"
+V1_E2E_BUNDLE_SOURCE_DIR=".yanote-ci/v1-e2e"
+V1_E2E_BUNDLE_TARGET_NAME="v1-e2e"
 mkdir -p "${DEST_DIR}"
 
 copy_if_exists() {
@@ -66,6 +68,10 @@ copy_if_exists ".yanote-ci/yanote-validation.stdout.log" "yanote-validation.stdo
 copy_if_exists ".yanote-ci/yanote-validation.stderr.log" "yanote-validation.stderr.log" || true
 copy_if_exists ".yanote-ci/yanote-exit-code.txt" "yanote-exit-code.txt" || true
 copy_if_exists ".yanote-ci/yanote-command.txt" "yanote-command.txt" || true
+copy_if_exists ".yanote-ci/delivery-proof-exit-code.txt" "delivery-proof-exit-code.txt" || true
+copy_if_exists ".yanote-ci/delivery-proof-should-run.txt" "delivery-proof-should-run.txt" || true
+copy_if_exists ".yanote-ci/delivery-proof-scope.txt" "delivery-proof-scope.txt" || true
+copy_if_exists ".yanote-ci/delivery-proof-changed-files.txt" "delivery-proof-changed-files.txt" || true
 
 report_found="false"
 if [[ -n "${REPORT_SOURCE}" ]]; then
@@ -79,6 +85,13 @@ if copy_directory_if_exists "${ASYNC_BUNDLE_SOURCE_DIR}" "${ASYNC_BUNDLE_TARGET_
   async_bundle_source="${ASYNC_BUNDLE_SOURCE_DIR}"
 fi
 
+v1_e2e_bundle_found="false"
+v1_e2e_bundle_source="none"
+if copy_directory_if_exists "${V1_E2E_BUNDLE_SOURCE_DIR}" "${V1_E2E_BUNDLE_TARGET_NAME}"; then
+  v1_e2e_bundle_found="true"
+  v1_e2e_bundle_source="${V1_E2E_BUNDLE_SOURCE_DIR}"
+fi
+
 manifest_path="${DEST_DIR}/artifact-manifest.txt"
 {
   printf 'created_at=%s\n' "$(date -u +"%Y-%m-%dT%H:%M:%SZ")"
@@ -86,5 +99,7 @@ manifest_path="${DEST_DIR}/artifact-manifest.txt"
   printf 'report_source=%s\n' "${REPORT_SOURCE:-none}"
   printf 'async_bundle_found=%s\n' "${async_bundle_found}"
   printf 'async_bundle_source=%s\n' "${async_bundle_source}"
+  printf 'v1_e2e_bundle_found=%s\n' "${v1_e2e_bundle_found}"
+  printf 'v1_e2e_bundle_source=%s\n' "${v1_e2e_bundle_source}"
   printf 'destination=%s\n' "${DEST_DIR}"
 } > "${manifest_path}"

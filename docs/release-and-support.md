@@ -16,16 +16,16 @@
 
 ## Последний стабильный релиз
 
-Последний стабильный релиз на момент обновления этого документа — `v1.0.122`.
+Последний стабильный релиз на момент обновления этого документа — `v1.0.123`.
 
 Опубликованные изменения, release notes и release assets нужно смотреть здесь:
 
-- Git tag: `v1.0.122`
+- Git tag: `v1.0.123`
 - GitHub Releases: https://github.com/zuevrs/yanote/releases
 
-`yanote --version`, `yanote-js/package.json` и `dist/node-analyzer/package.json` сейчас показывают `0.0.0`. Это технические version markers для source-built и bundle-варианта analyzer CLI, а не публичная release truth.
+`yanote --version` и `yanote-js/package.json` сейчас показывают `0.0.0`. Это технические version markers для source-built analyzer CLI и локального repository `HEAD`, а не публичная release truth.
 
-Поэтому `yanote --version`, `yanote-js/package.json`, `dist/node-analyzer/package.json` и текущий `0.0.0` — не авторитетный источник стабильного релиза.
+Поэтому `yanote --version`, `yanote-js/package.json` и текущий `0.0.0` — не авторитетный источник стабильного релиза.
 
 ## Текущее состояние репозитория относительно релиза
 
@@ -42,7 +42,7 @@
 - Gradle plugin surface: plugin id `io.github.zuevrs.yanote.gradle`, задачи `yanoteReport` и `yanoteCheck`, плюс ограниченная extension surface вместо произвольного API;
 - report contract: файл `yanote-report.json` со schema version `1.0.0` (`schemaVersion = 1.0.0`);
 - проверенный recorder path: dependency-based `yanote-recorder-spring-mvc` для Spring Boot 3.x / Spring MVC с записью в `events.jsonl`;
-- analyzer delivery surface: основной путь — source-built CLI из `yanote-js`, а `dist/node-analyzer/` остаётся вторичным offline bundle для того же analyzer contract.
+- analyzer delivery surface: основной путь — source-built CLI из `yanote-js`, а offline fallback распространяется как release asset через GitHub Releases, а не как tracked documentation surface default branch.
 
 ### Первая волна async относительно релиза и `HEAD`
 
@@ -85,15 +85,15 @@ Yanote сейчас нужно воспринимать как Java-first пут
 - first-class не-Java onboarding пока нет;
 - отдельного runnable Cucumber demo в репозитории пока нет: текущий Cucumber contract проверяется тестами и документацией, а не живым demo-flow;
 - analyzer version markers (`0.0.0`) полезны только как технический build marker и не должны читаться как публичная release version;
-- examples, fallback bundles и maintainer-only workflow полезны для диагностики и сопровождения, но не равны по статусу опубликованной продуктовой поверхности.
+- examples, fallback release assets и maintainer-only workflow полезны для диагностики и сопровождения, но не равны по статусу опубликованной продуктовой поверхности.
 
 ## Fallback-границы
 
-`dist/flatdir-recorder/` и `dist/node-analyzer/` — вторичные smoke/offline-поверхности.
+Offline fallback для recorder/analyzer не публикуется как tracked `dist/` поверхность default branch. Если dependency-based или source-built путь недоступен, используйте release assets из GitHub Releases как вторичный smoke/offline канал.
 
-Их стоит использовать, когда dependency-based или source-built путь недоступен в вашем контуре:
+Их стоит использовать, когда обычный dependency/source-built путь недоступен в вашем контуре:
 
-- `dist/flatdir-recorder/` — временный recorder fallback для закрытых сетей и быстрых smoke/offline proof;
-- `dist/node-analyzer/` — вторичный offline bundle, когда нельзя выполнить `npm -C yanote-js ci && npm -C yanote-js run build`.
+- release asset для recorder — временный fallback для закрытых сетей и быстрых smoke/offline proof;
+- release asset для analyzer — вторичный offline bundle, когда нельзя выполнить `npm -C yanote-js ci && npm -C yanote-js run build`.
 
 Эти fallback-поверхности не переопределяют публичную release version, не заменяют GitHub Releases и не подменяют основной пользовательский маршрут через опубликованные зависимости, канонические guide-level docs и обычный recorder/analyzer цикл.

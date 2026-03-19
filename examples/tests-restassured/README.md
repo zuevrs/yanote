@@ -39,4 +39,4 @@ test -s "$YANOTE_EVENTS_PATH" && echo "OK: events.jsonl is not empty"
 rg -n 'test\.run_id|test\.suite' "$YANOTE_EVENTS_PATH"
 ```
 
-Если вам нужен runnable сервис для этого тестового клиента, смотрите [`examples/springmvc-service/README.md`](../springmvc-service/README.md). Если нужен канонический разбор contract и того, как suite потом попадает в analyzer report, возвращайтесь к [`docs/guides/test-tagging.md`](../../docs/guides/test-tagging.md). Если нужен только временный smoke/offline путь без публикации зависимостей, используйте fallback [`dist/flatdir-recorder/README.md`](../../dist/flatdir-recorder/README.md).
+Если вам нужен runnable сервис для этого тестового клиента, смотрите [`examples/springmvc-service/README.md`](../springmvc-service/README.md). Если нужен канонический разбор contract и того, как suite потом попадает в analyzer report, возвращайтесь к [`docs/guides/test-tagging.md`](../../docs/guides/test-tagging.md). Если нужен только временный smoke/offline путь без публикации зависимостей, смотрите текущие release/support границы и release assets в [`docs/release-and-support.md`](../../docs/release-and-support.md).

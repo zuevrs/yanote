@@ -33,4 +33,4 @@ head -n 1 "$YANOTE_EVENTS_PATH"
 
 Если запрос пришёл **без** заголовков `X-Test-Run-Id` и `X-Test-Suite`, рекордер всё равно запишет поля `test.run_id` и `test.suite`, но со значением `null`. Для сценария с автоподстановкой заголовков и `yanote.suite` смотрите [`examples/tests-restassured/README.md`](../tests-restassured/README.md).
 
-Если нужна не примерная сборка внутри этого multi-module проекта, а обычное dependency-based подключение к вашему сервису, возвращайтесь к [`docs/guides/recorder-spring-mvc.md`](../../docs/guides/recorder-spring-mvc.md). Если Maven-публикация недоступна и нужен только быстрый smoke/offline прогон, используйте fallback [`dist/flatdir-recorder/README.md`](../../dist/flatdir-recorder/README.md).
+Если нужна не примерная сборка внутри этого multi-module проекта, а обычное dependency-based подключение к вашему сервису, возвращайтесь к [`docs/guides/recorder-spring-mvc.md`](../../docs/guides/recorder-spring-mvc.md). Если Maven-публикация недоступна и нужен только быстрый smoke/offline прогон, используйте release assets GitHub Releases; текущие границы fallback описаны в [`docs/release-and-support.md`](../../docs/release-and-support.md).

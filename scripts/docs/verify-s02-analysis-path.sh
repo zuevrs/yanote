@@ -103,7 +103,7 @@ if ! bash -lc "cd '${ROOT_DIR}' && npm -C yanote-js ci && npm -C yanote-js run b
   fail "yanote-js build failed."
 fi
 
-BOOT_JAR="$(find "${ROOT_DIR}/examples/springmvc-service/build/libs" -maxdepth 1 -type f -name '*.jar' ! -name '*-plain.jar' -print0 | xargs -0 ls -t 2>/dev/null | head -n 1)"
+BOOT_JAR="$("${ROOT_DIR}/examples/resolve-springmvc-boot-jar.sh")"
 if [[ -z "${BOOT_JAR}" || ! -f "${BOOT_JAR}" ]]; then
   fail "Unable to locate Spring Boot example jar in examples/springmvc-service/build/libs."
 fi

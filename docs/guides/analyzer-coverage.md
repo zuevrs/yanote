@@ -2,7 +2,7 @@
 
 Это основной и проверенный путь анализа для `yanote`: собирайте `yanote-js` из исходников в этом репозитории, запускайте `report`, читайте `Summary`/`YANOTE_SUMMARY`, затем открывайте `yanote-report.json`.
 
-`dist/node-analyzer/` остаётся только offline fallback, когда в вашем контуре нельзя выполнить `npm -C yanote-js ci && npm -C yanote-js run build`. Командная форма и структура отчёта у fallback-та же; разница только в способе доставки CLI.
+Если в вашем контуре нельзя выполнить `npm -C yanote-js ci && npm -C yanote-js run build`, fallback остаётся только через release assets GitHub Releases. Командная форма и структура отчёта у такого fallback-та же; меняется только способ доставки CLI. Текущие границы и release truth смотрите в [`docs/release-and-support.md`](../release-and-support.md).
 
 Если вам нужен не HTTP/OpenAPI путь, а первая волна AsyncAPI/Kafka, не смешивайте этот guide с async semantics: отдельный onboarding вынесен в [`docs/guides/asyncapi-kafka.md`](asyncapi-kafka.md), где описаны Kafka evidence inputs, `async-report`, `YANOTE_ASYNC_SUMMARY` и `yanote-async-report.json`.
 
@@ -221,7 +221,7 @@ node yanote-js/dist/yanote.cjs report \
 
 ## 7. Когда использовать offline fallback
 
-`dist/node-analyzer/` нужен только когда основной source-built путь недоступен в вашем контуре. Сам fallback описан в [`dist/node-analyzer/README.md`](../../dist/node-analyzer/README.md), но смысл и интерпретация отчёта остаются теми же.
+Offline fallback нужен только когда основной source-built путь недоступен в вашем контуре. Смысл и интерпретация отчёта остаются теми же; меняется только способ доставки CLI через release assets GitHub Releases. Границы этого пути и актуальную release truth смотрите в [`docs/release-and-support.md`](../release-and-support.md).
 
 ## Связанные поверхности
 
@@ -229,4 +229,4 @@ node yanote-js/dist/yanote.cjs report \
 - Канонический test-tagging contract: [`docs/guides/test-tagging.md`](test-tagging.md)
 - Runnable demo-service: [`examples/springmvc-service/README.md`](../../examples/springmvc-service/README.md)
 - RestAssured handoff для тестовых метаданных: [`examples/tests-restassured/README.md`](../../examples/tests-restassured/README.md)
-- Offline fallback analyzer bundle: [`dist/node-analyzer/README.md`](../../dist/node-analyzer/README.md)
+- Release/support boundary и fallback assets: [`docs/release-and-support.md`](../release-and-support.md)
