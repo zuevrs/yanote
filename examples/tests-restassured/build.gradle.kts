@@ -14,3 +14,21 @@ dependencies {
 tasks.withType<Test>().configureEach {
     useJUnitPlatform()
 }
+
+val resolveTestRuntimeClasspath by tasks.registering {
+    group = "verification"
+    description = "Resolve test runtime classpath for offline demo and CI container runs."
+
+    val runtimeClasspath = configurations.named("testRuntimeClasspath")
+    val markerFile = layout.buildDirectory.file("tmp/resolve-test-runtime-classpath.marker")
+
+    inputs.files(runtimeClasspath)
+    outputs.file(markerFile)
+
+    doLast {
+        runtimeClasspath.get().files.sortedBy { it.name }.forEach { it.length() }
+        val marker = markerFile.get().asFile
+        marker.parentFile.mkdirs()
+        marker.writeText("resolved\n")
+    }
+}
