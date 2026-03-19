@@ -36,7 +36,7 @@ Yanote нужен инженеру, который одновременно от
    - канонический guide: [`docs/guides/recorder-spring-mvc.md`](docs/guides/recorder-spring-mvc.md)
    - runnable service example: [`examples/springmvc-service/README.md`](examples/springmvc-service/README.md)
    - metadata handoff example: [`examples/tests-restassured/README.md`](examples/tests-restassured/README.md)
-   - Smoke/offline fallback: [`dist/flatdir-recorder/README.md`](dist/flatdir-recorder/README.md) — только когда публикация в Maven-репозиторий или `mavenLocal()` недоступна
+   - Smoke/offline fallback: release assets из GitHub Releases — только когда публикация в Maven-репозиторий или `mavenLocal()` недоступна; границы и текущую release truth смотрите в [`docs/release-and-support.md`](docs/release-and-support.md)
 
 2. **Соберите реальные события в `events.jsonl`.**
    После живого HTTP-запроса или прогона тестов проверьте, что файл создан, не пустой и содержит ожидаемые поля маршрута, статуса и сервиса. Это первый доказуемый артефакт цикла, который потом пойдёт в analyzer.
@@ -44,7 +44,7 @@ Yanote нужен инженеру, который одновременно от
 3. **Прогоните analyzer по OpenAPI и событиям.**
    Канонический путь запуска и интерпретации описан в [`docs/guides/analyzer-coverage.md`](docs/guides/analyzer-coverage.md): собрать `yanote-js`, выполнить `report` против OpenAPI и `events.jsonl`, получить stdout с `Summary`, строку `YANOTE_SUMMARY ...` и стабильный файл `yanote-report.json`.
 
-   Если нужен runnable repo demo целиком, используйте [`examples/README.md`](examples/README.md) и [`examples/docker-compose.yml`](examples/docker-compose.yml). Offline fallback для analyzer остаётся вторичным путём в [`dist/node-analyzer/README.md`](dist/node-analyzer/README.md).
+   Если нужен runnable repo demo целиком, используйте [`examples/README.md`](examples/README.md) и [`examples/docker-compose.yml`](examples/docker-compose.yml). Offline fallback для analyzer остаётся вторичным путём через release assets GitHub Releases; публичные tracked `dist/*` docs больше не считаются supported entrypoint, поэтому ориентируйтесь на [`docs/release-and-support.md`](docs/release-and-support.md).
 
    Если вам нужен не HTTP/OpenAPI path, а первая волна AsyncAPI/Kafka, не смешивайте её с этим циклом: отдельный guide [`docs/guides/asyncapi-kafka.md`](docs/guides/asyncapi-kafka.md) ведёт по Kafka evidence, команде `async-report` и отдельному артефакту `yanote-async-report.json`.
 
@@ -82,7 +82,7 @@ Yanote нужен инженеру, который одновременно от
 - traceability map: [`docs/traceability/README.md`](docs/traceability/README.md) — owner map для requirement/test matrix и schema-level reference.
   - direct matrix: [`docs/traceability/v1-requirements-tests.md`](docs/traceability/v1-requirements-tests.md)
 - historical plans map: [`docs/plans/README.md`](docs/plans/README.md) — owner map для design/proof history без подмены текущих guide-level docs.
-- offline/fallback bundles map: [`dist/README.md`](dist/README.md) — secondary маршрут к smoke/offline bundle docs только после канонических guide-level surface-ов.
+- release/support boundary: [`docs/release-and-support.md`](docs/release-and-support.md) — где смотреть текущую stable line, GitHub Releases и границы fallback/release assets без опоры на tracked `dist/` surface.
 
 Состав репозитория тоже остаётся вторичным навигационным слоем:
 

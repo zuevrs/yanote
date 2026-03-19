@@ -3,16 +3,16 @@ set -euo pipefail
 
 ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
 
+ROOT_README="README.md"
+DOCS_README="docs/README.md"
+EXAMPLES_README="examples/README.md"
 MAINTAINERS_README="docs/maintainers/README.md"
 TRACEABILITY_README="docs/traceability/README.md"
 PLANS_README="docs/plans/README.md"
-DIST_README="dist/README.md"
 RELEASE_SUPPORT_DOC="docs/release-and-support.md"
 REQUIREMENTS_DOC="docs/requirements.md"
 RELEASE_SIGNING_DOC="docs/maintainers/release-signing.md"
 TRACEABILITY_MATRIX_DOC="docs/traceability/v1-requirements-tests.md"
-FLATDIR_DOC="dist/flatdir-recorder/README.md"
-NODE_ANALYZER_DOC="dist/node-analyzer/README.md"
 
 failures=0
 
@@ -37,6 +37,21 @@ require_contains() {
   fi
 
   grep -Fq -- "$needle" "${ROOT_DIR}/${path}" || error "${path} is missing ${label}: ${needle}"
+}
+
+require_not_contains() {
+  local path="$1"
+  local needle="$2"
+  local label="$3"
+
+  if [[ ! -f "${ROOT_DIR}/${path}" ]]; then
+    error "Missing required doc for ${label}: ${path}"
+    return
+  fi
+
+  if grep -Fq -- "$needle" "${ROOT_DIR}/${path}"; then
+    error "${path} still exposes ${label}: ${needle}"
+  fi
 }
 
 first_line_of() {
@@ -77,10 +92,16 @@ require_before() {
 }
 
 for path in \
+  "$ROOT_README" \
+  "$DOCS_README" \
+  "$EXAMPLES_README" \
   "$MAINTAINERS_README" \
   "$TRACEABILITY_README" \
   "$PLANS_README" \
-  "$DIST_README"
+  "$RELEASE_SUPPORT_DOC" \
+  "$REQUIREMENTS_DOC" \
+  "$RELEASE_SIGNING_DOC" \
+  "$TRACEABILITY_MATRIX_DOC"
 do
   require_file "$path"
 done
@@ -104,20 +125,10 @@ require_contains "$PLANS_README" "../README.md" "owner-map backlink"
 require_contains "$PLANS_README" "исторические документы" "historical positioning"
 require_before "$PLANS_README" "../README.md" "2026-02-28-yanote.md" "owner-map backlink ordering"
 
-require_contains "$DIST_README" "# Fallback bundles / dist" "dist landing title"
-require_contains "$DIST_README" "offline/fallback-only surface" "fallback audience label"
-require_contains "$DIST_README" "../docs/README.md" "owner-map backlink"
-require_contains "$DIST_README" "../docs/guides/recorder-spring-mvc.md" "canonical recorder guide link"
-require_contains "$DIST_README" "../docs/guides/analyzer-coverage.md" "canonical analyzer guide link"
-require_contains "$DIST_README" 'не начинайте onboarding с `dist/`' "fallback positioning clause"
-require_contains "$DIST_README" "flatdir-recorder/README.md" "recorder fallback bundle link"
-require_contains "$DIST_README" "node-analyzer/README.md" "analyzer fallback bundle link"
-require_before "$DIST_README" "../docs/README.md" "flatdir-recorder/README.md" "owner-map backlink ordering"
-require_before "$DIST_README" "../docs/guides/recorder-spring-mvc.md" "flatdir-recorder/README.md" "canonical guide ordering"
-require_before "$DIST_README" "../docs/guides/analyzer-coverage.md" "node-analyzer/README.md" "canonical guide ordering"
-
 require_contains "$RELEASE_SUPPORT_DOC" "public boundary owner surface" "release/support audience label"
 require_contains "$RELEASE_SUPPORT_DOC" '[`docs/README.md`](README.md)' "docs owner-map backlink"
+require_contains "$RELEASE_SUPPORT_DOC" "release assets" "release-assets wording"
+require_contains "$RELEASE_SUPPORT_DOC" 'tracked `dist/` поверхность default branch' "no-tracked-dist clause"
 require_before "$RELEASE_SUPPORT_DOC" '[`docs/README.md`](README.md)' "## Текущая стабильная линия" "docs owner-map backlink ordering"
 
 require_contains "$REQUIREMENTS_DOC" "public requirements owner surface" "requirements audience label"
@@ -133,21 +144,15 @@ require_contains "$TRACEABILITY_MATRIX_DOC" '[`docs/traceability/README.md`](REA
 require_contains "$TRACEABILITY_MATRIX_DOC" '[`docs/requirements.md`](../requirements.md)' "canonical requirements backlink"
 require_before "$TRACEABILITY_MATRIX_DOC" '[`docs/traceability/README.md`](README.md)' "## Requirement Mapping" "traceability owner-map backlink ordering"
 
-require_contains "$FLATDIR_DOC" "offline/fallback leaf" "flatdir fallback audience label"
-require_contains "$FLATDIR_DOC" '[`dist/README.md`](../README.md)' "dist owner-map backlink"
-require_contains "$FLATDIR_DOC" '[`docs/guides/recorder-spring-mvc.md`](../../docs/guides/recorder-spring-mvc.md)' "canonical recorder backlink"
-require_before "$FLATDIR_DOC" '[`dist/README.md`](../README.md)' '[`docs/guides/recorder-spring-mvc.md`](../../docs/guides/recorder-spring-mvc.md)' "fallback recovery ordering"
-require_before "$FLATDIR_DOC" '[`dist/README.md`](../README.md)' "### Когда этот fallback всё ещё полезен" "dist owner-map backlink ordering"
-
-require_contains "$NODE_ANALYZER_DOC" "offline/fallback leaf" "node analyzer fallback audience label"
-require_contains "$NODE_ANALYZER_DOC" '[`dist/README.md`](../README.md)' "dist owner-map backlink"
-require_contains "$NODE_ANALYZER_DOC" '[`docs/guides/analyzer-coverage.md`](../../docs/guides/analyzer-coverage.md)' "canonical analyzer backlink"
-require_before "$NODE_ANALYZER_DOC" '[`dist/README.md`](../README.md)' '[`docs/guides/analyzer-coverage.md`](../../docs/guides/analyzer-coverage.md)' "fallback recovery ordering"
-require_before "$NODE_ANALYZER_DOC" '[`dist/README.md`](../README.md)' "### 1) Собрать analyzer bundle в этом репо" "dist owner-map backlink ordering"
+require_not_contains "$ROOT_README" "dist/README.md" "tracked dist owner map"
+require_not_contains "$ROOT_README" "dist/flatdir-recorder/README.md" "tracked flatdir fallback doc"
+require_not_contains "$ROOT_README" "dist/node-analyzer/README.md" "tracked analyzer fallback doc"
+require_not_contains "$DOCS_README" "../dist/README.md" "tracked dist owner map"
+require_not_contains "$EXAMPLES_README" "../dist/README.md" "tracked dist owner map"
 
 if (( failures > 0 )); then
   echo "S05 navigation verification failed with ${failures} issue(s)." >&2
   exit 1
 fi
 
-echo "S05 navigation verification passed: secondary directory/leaf docs, owner backlinks, and fallback positioning are wired correctly."
+echo "S05 navigation verification passed: secondary maps and release-asset fallback positioning are wired correctly."

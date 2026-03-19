@@ -16,11 +16,18 @@ Do not rename these jobs in `.github/workflows/yanote-ci.yml` without updating b
 
 | Trigger/Event | Required checks reported | Expected behavior |
 | --- | --- | --- |
-| `pull_request` | `build-and-test`, `yanote-validation` | Fast merge-blocking path for PR review. |
-| `merge_group` | `build-and-test`, `yanote-validation` | Required check reporting for merge queue flows. |
+| `pull_request` | `build-and-test`, `yanote-validation` | Fast merge-blocking path for PR review. `build-and-test` also runs `run-v1-e2e.sh` when delivery-sensitive files changed. |
+| `merge_group` | `build-and-test`, `yanote-validation` | Required check reporting for merge queue flows. `build-and-test` always runs earlier delivery proof on the merge group. |
 | `push` to `main` or `release/**` | `build-and-test`, `yanote-validation` (+ `v1-e2e`) | Main/release hardening path adds blocking full v1 e2e validation. |
 
-`v1-e2e` is an additional quality gate for main/release flows and is intentionally not part of the default PR required-check pair.
+Delivery-sensitive changes currently mean edits under:
+
+- `examples/**`
+- `scripts/ci/**`
+- `yanote-recorder-spring-mvc/**`
+- `yanote-gradle-plugin/**`
+
+`v1-e2e` remains an additional quality gate for main/release flows and is intentionally not part of the default PR required-check pair.
 
 ## GitHub Configuration Steps
 
@@ -32,6 +39,7 @@ Do not rename these jobs in `.github/workflows/yanote-ci.yml` without updating b
 ## Failure Handling Expectations
 
 - Any failure in `build-and-test` or `yanote-validation` blocks merge.
-- `build-and-test` runs the authoritative live Kafka proof, always uploads deterministic async diagnostics as `build-and-test-async-artifacts`, and writes concise async `GITHUB_STEP_SUMMARY` output from the collected `live-kafka-proof/` bundle before restoring the saved proof exit code.
+- `build-and-test` runs the authoritative live Kafka proof, always uploads deterministic diagnostics as `build-and-test-artifacts`, writes concise async `GITHUB_STEP_SUMMARY` output from the collected `live-kafka-proof/` bundle, and now also retains `v1-e2e/` plus delivery-proof scope files when the earlier demo proof runs.
+- Delivery-sensitive `run-v1-e2e.sh` failures are enforced through `build-and-test`, not through a renamed required job.
 - `yanote-validation` remains the HTTP validation job, retains deterministic HTTP artifacts as `yanote-validation-artifacts`, and writes concise HTTP diagnostics to `GITHUB_STEP_SUMMARY`.
 - Java runtime mismatches fail early via `scripts/ci/assert-java21.sh` with actionable `actions/setup-java` remediation guidance.

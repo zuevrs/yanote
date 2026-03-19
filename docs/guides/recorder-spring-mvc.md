@@ -1,6 +1,6 @@
 # Канонический путь: Spring MVC рекордер через зависимость
 
-Это основной и проверенный путь для Spring Boot 3.x сервиса: подключайте `yanote-recorder-spring-mvc` как обычную зависимость из `mavenLocal()` или внутреннего Maven-репозитория. `flatDir` нужен только как запасной smoke/offline-вариант, когда нормальная публикация артефактов недоступна.
+Это основной и проверенный путь для Spring Boot 3.x сервиса: подключайте `yanote-recorder-spring-mvc` как обычную зависимость из `mavenLocal()` или внутреннего Maven-репозитория. Если нормальная публикация артефактов недоступна и нужен только временный smoke/offline-вариант, используйте release assets из GitHub Releases; текущие границы этого fallback описаны в [`docs/release-and-support.md`](../release-and-support.md).
 
 ## 1. Подключите модуль как зависимость
 
@@ -140,4 +140,4 @@ bash scripts/docs/verify-s01-recorder-path.sh
 - Канонический test-tagging contract: [`docs/guides/test-tagging.md`](test-tagging.md)
 - Runnable пример сервиса: [`examples/springmvc-service/README.md`](../../examples/springmvc-service/README.md)
 - Пример текущего RestAssured handoff: [`examples/tests-restassured/README.md`](../../examples/tests-restassured/README.md)
-- `flatDir` smoke/offline fallback: [`dist/flatdir-recorder/README.md`](../../dist/flatdir-recorder/README.md)
+- Smoke/offline fallback через release assets: [`docs/release-and-support.md`](../release-and-support.md)

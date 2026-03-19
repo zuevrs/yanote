@@ -13,7 +13,7 @@
 3. [`guides/asyncapi-kafka.md`](guides/asyncapi-kafka.md) — отдельная ветка первой волны AsyncAPI/Kafka: Kafka evidence inputs, `async-report`, `YANOTE_ASYNC_SUMMARY` и `yanote-async-report.json` без подмены HTTP guide.
 4. [`guides/test-tagging.md`](guides/test-tagging.md) — contract для `X-Test-Run-Id`, `X-Test-Suite`, `test.run_id`, `test.suite` и `coverage.perOperation[].suites`.
 
-Эти четыре guide-level surface-а остаются каноническими, но concept-first HTTP onboarding по-прежнему первичен: для обычного recorder/analyzer цикла идите по пунктам 1 → 2 → 4, а если у вас есть первая волна AsyncAPI/Kafka, ответвляйтесь в пункт 3 к отдельному `async-report` / `yanote-async-report.json` пути. Если вам нужен fallback bundle или maintainer workflow, не начинайте с них: сначала пройдите этот пользовательский маршрут, затем спускайтесь в вторичные ветки.
+Эти четыре guide-level surface-а остаются каноническими, но concept-first HTTP onboarding по-прежнему первичен: для обычного recorder/analyzer цикла идите по пунктам 1 → 2 → 4, а если у вас есть первая волна AsyncAPI/Kafka, ответвляйтесь в пункт 3 к отдельному `async-report` / `yanote-async-report.json` пути. Если вам нужен smoke/offline путь без обычного dependency-based или source-built setup, не начинайте с отдельной bundle-документации: сначала пройдите этот пользовательский маршрут, а затем смотрите release/support границы и release assets в [`release-and-support.md`](release-and-support.md).
 
 ## Примеры и демо
 
@@ -34,7 +34,7 @@
 - [`requirements.md`](requirements.md) — текущий inventory требований Yanote, границы v1/v2 и явный out-of-scope.
 - Корневой [`README.md`](../README.md) — короткий продуктовый маршрут и навигация между основными surface-ами.
 
-Fallback bundles остаются вторичным маршрутом. Если вам действительно нужен smoke/offline путь без dependency-based или source-built setup, идите к нему через канонические гайды recorder/analyzer, где эти отклонения уже помечены как fallback, а не как основной onboarding.
+Если вам действительно нужен smoke/offline путь без dependency-based или source-built setup, идите к нему через канонические гайды recorder/analyzer, а затем уточняйте текущую release/support boundary и release assets в [`release-and-support.md`](release-and-support.md). Отдельный tracked `dist/` owner-map больше не считается supported public entrypoint.
 
 ## Для мейнтейнера и исторического контекста
 
@@ -45,7 +45,7 @@ Fallback bundles остаются вторичным маршрутом. Есл�
 - [`maintainers/README.md`](maintainers/README.md) — owner map maintainer-only workflow-ов и точка входа к release/signing surface-ам.
 - [`traceability/README.md`](traceability/README.md) — owner map requirement/test traceability, machine-readable snapshots и schema-level reference.
 - [`plans/README.md`](plans/README.md) — owner map historical design/proof notes.
-- [`../dist/README.md`](../dist/README.md) — owner map offline/fallback bundles; открывайте его только после канонических guide-level docs, если dependency/source-built путь недоступен.
+- [`release-and-support.md`](release-and-support.md) — owner map для стабильной линии, GitHub Releases и границ fallback/release assets; открывайте его только после канонических guide-level docs, если обычный dependency/source-built путь недоступен.
 
 ### Только для мейнтейнера
 

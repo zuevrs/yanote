@@ -62,35 +62,58 @@ test("workflow pins Java 21 in required jobs", async () => {
   assert.match(source, /java-version:\s*['"]?21['"]?/);
 });
 
-test("workflow runs live Kafka proof inside build-and-test after analyzer prerequisites", async () => {
+test("build-and-test checks out full history for path-sensitive proof decisions", async () => {
   const source = await loadWorkflowSource();
   const buildJob = extractJobBlock(source, "build-and-test", "yanote-validation");
-  assert.match(
-    buildJob,
-    /- name:\s*Run JVM tests[\s\S]*?- name:\s*Run analyzer tests[\s\S]*?- name:\s*Run live Kafka proof stack[\s\S]*?run:\s*\|[\s\S]*?bash scripts\/ci\/verify-m004-s03-live-kafka-proof\.sh/
-  );
+  assert.match(buildJob, /uses:\s*actions\/checkout@v5[\s\S]*?fetch-depth:\s*0/);
 });
 
-test("workflow keeps always-on async triage in build-and-test before saved-exit enforcement", async () => {
+test("workflow runs script and release contract suites in CI", async () => {
+  const source = await loadWorkflowSource();
+  const buildJob = extractJobBlock(source, "build-and-test", "yanote-validation");
+  assert.match(buildJob, /- name:\s*Run script and release contract suites/);
+  assert.match(buildJob, /node --test scripts\/ci\/\*\.test\.mjs scripts\/release\/\*\.test\.mjs/);
+});
+
+test("workflow determines delivery-sensitive scope from PR changes and merge_group", async () => {
+  const source = await loadWorkflowSource();
+  const buildJob = extractJobBlock(source, "build-and-test", "yanote-validation");
+  assert.match(buildJob, /- name:\s*Determine delivery-sensitive proof scope/);
+  assert.match(buildJob, /id:\s*detect-delivery-proof/);
+  assert.match(buildJob, /case "\$\{GITHUB_EVENT_NAME\}" in/);
+  assert.match(buildJob, /merge_group\)[\s\S]*?should_run=true/);
+  assert.match(buildJob, /pull_request\)[\s\S]*?github\.event\.pull_request\.base\.sha/);
+  assert.match(buildJob, /git diff --name-only/);
+  assert.match(buildJob, /examples\/\|scripts\/ci\/\|yanote-recorder-spring-mvc\/\|yanote-gradle-plugin\//);
+});
+
+test("workflow runs delivery-sensitive v1 e2e proof inside build-and-test without adding a required job", async () => {
+  const source = await loadWorkflowSource();
+  const buildJob = extractJobBlock(source, "build-and-test", "yanote-validation");
+  assert.match(buildJob, /- name:\s*Run delivery-sensitive v1 e2e proof/);
+  assert.match(buildJob, /id:\s*run-delivery-proof/);
+  assert.match(buildJob, /bash scripts\/ci\/run-v1-e2e\.sh/);
+  assert.match(buildJob, /delivery-proof-exit-code\.txt/);
+  assert.doesNotMatch(source, /^\s*delivery-sensitive-v1-e2e:\s*$/m);
+});
+
+test("workflow keeps always-on async triage in build-and-test before combined enforcement", async () => {
   const source = await loadWorkflowSource();
   const buildJob = extractJobBlock(source, "build-and-test", "yanote-validation");
 
   assert.match(
     buildJob,
-    /- name:\s*Run live Kafka proof stack[\s\S]*?- name:\s*Collect async proof artifacts[\s\S]*?- name:\s*Render async GitHub summary[\s\S]*?- name:\s*Upload async proof artifacts[\s\S]*?- name:\s*Enforce live Kafka proof result/
+    /- name:\s*Run live Kafka proof stack[\s\S]*?- name:\s*Collect build-and-test artifacts[\s\S]*?- name:\s*Render async GitHub summary[\s\S]*?- name:\s*Upload build-and-test artifacts[\s\S]*?- name:\s*Enforce build-and-test proof results/
   );
   assert.match(buildJob, /id:\s*run-live-kafka-proof/);
   assert.match(buildJob, /echo "exit_code=\$\{exit_code\}" >> "\$\{GITHUB_OUTPUT\}"/);
-  assert.match(buildJob, /- name:\s*Collect async proof artifacts[\s\S]*?if:\s*\$\{\{\s*always\(\)\s*\}\}/);
+  assert.match(buildJob, /- name:\s*Collect build-and-test artifacts[\s\S]*?if:\s*\$\{\{\s*always\(\)\s*\}\}/);
   assert.match(buildJob, /- name:\s*Render async GitHub summary[\s\S]*?if:\s*\$\{\{\s*always\(\)\s*\}\}/);
   assert.match(buildJob, /- name:\s*Render async GitHub summary[\s\S]*?yanote-async-report\.json/);
-  assert.match(buildJob, /- name:\s*Render async GitHub summary[\s\S]*?--stdout "\$\{YANOTE_ARTIFACT_DIR\}\/live-kafka-proof\/async-report\.stdout"/);
-  assert.match(buildJob, /- name:\s*Render async GitHub summary[\s\S]*?--stderr "\$\{YANOTE_ARTIFACT_DIR\}\/live-kafka-proof\/async-report\.stderr"/);
-  assert.match(buildJob, /- name:\s*Upload async proof artifacts[\s\S]*?if:\s*\$\{\{\s*always\(\)\s*\}\}/);
-  assert.match(buildJob, /name:\s*build-and-test-async-artifacts/);
+  assert.match(buildJob, /- name:\s*Upload build-and-test artifacts[\s\S]*?name:\s*build-and-test-artifacts/);
   assert.match(
     buildJob,
-    /- name:\s*Enforce live Kafka proof result[\s\S]*?if:\s*\$\{\{\s*always\(\)\s*&&\s*steps\.run-live-kafka-proof\.outputs\.exit_code != '0'\s*\}\}/
+    /- name:\s*Enforce build-and-test proof results[\s\S]*?steps\.run-live-kafka-proof\.outputs\.exit_code != '0' \|\| steps\.run-delivery-proof\.outputs\.exit_code != '0'/
   );
 });
 
@@ -139,10 +162,13 @@ test("workflow no longer runs direct CLI report command as primary validation pa
   assert.doesNotMatch(source, /node\s+yanote-js\/dist\/yanote\.cjs\s+report/);
 });
 
-test("branch protection documents the split between build async triage and HTTP validation", async () => {
+test("branch protection documents the split between async proof, delivery proof, and HTTP validation", async () => {
   const source = await loadBranchProtectionSource();
+  assert.match(source, /`build-and-test`.*runs `run-v1-e2e\.sh` when delivery-sensitive files changed/);
+  assert.match(source, /`build-and-test`.*always runs earlier delivery proof on the merge group/);
   assert.match(source, /`build-and-test` runs the authoritative live Kafka proof/);
-  assert.match(source, /`build-and-test-async-artifacts`/);
+  assert.match(source, /`build-and-test-artifacts`/);
+  assert.match(source, /retains `v1-e2e\/` plus delivery-proof scope files/);
   assert.match(source, /`yanote-validation` remains the HTTP validation job/);
   assert.match(source, /`yanote-validation-artifacts`/);
 });
