@@ -4,11 +4,18 @@ set -euo pipefail
 ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
 ARTIFACT_DIR="${ROOT_DIR}/.yanote-ci/v1-e2e"
 COMPOSE_FILE="examples/docker-compose.yml"
+HOST_GRADLE_HOME="${YANOTE_GRADLE_HOME:-${GRADLE_USER_HOME:-${HOME}/.gradle}}"
+
+export YANOTE_GRADLE_HOME="${HOST_GRADLE_HOME}"
 
 cd "${ROOT_DIR}"
 
 prepare_demo_assets() {
-  ./gradlew --no-daemon :examples:springmvc-service:bootJar :examples:tests-restassured:testClasses
+  mkdir -p "${HOST_GRADLE_HOME}"
+  ./gradlew --no-daemon -g "${HOST_GRADLE_HOME}" \
+    :examples:springmvc-service:bootJar \
+    :examples:tests-restassured:testClasses \
+    :examples:tests-restassured:resolveTestRuntimeClasspath
   npm -C yanote-js ci
   npm -C yanote-js run build
 }

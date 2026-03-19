@@ -26,7 +26,7 @@ services:
     volumes:
       - ../:/workspace-tests
       - yanote-events:/data/yanote
-      - ${HOME}/.gradle:/data/gradle
+      - ${YANOTE_GRADLE_HOME:-${HOME}/.gradle}:/data/gradle
     environment:
       YANOTE_RUN_ID: compose-run-1
       YANOTE_SUITE: restassured-suite
