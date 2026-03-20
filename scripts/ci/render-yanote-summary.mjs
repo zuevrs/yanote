@@ -5,6 +5,24 @@ import path from "node:path";
 
 const DEFAULT_MAX_ISSUES = 5;
 const ASYNC_REPORT_BASENAME = "yanote-async-report.json";
+const ASYNC_DIAGNOSTIC_CODE_BY_KIND = {
+  "unsupported-content-type": "ASYNC_SEMANTIC_UNSUPPORTED_CONTENT_TYPE",
+  "unsupported-schema-format": "ASYNC_SEMANTIC_UNSUPPORTED_SCHEMA_FORMAT",
+  "missing-payload": "ASYNC_SEMANTIC_MISSING_PAYLOAD",
+  "invalid-payload": "ASYNC_SEMANTIC_INVALID_PAYLOAD",
+  "unverifiable-headers": "ASYNC_SEMANTIC_UNVERIFIABLE_HEADERS",
+  mismatched: "ASYNC_SEMANTIC_MESSAGE_MISMATCH",
+  unmatched: "ASYNC_SEMANTIC_UNMATCHED_EVIDENCE"
+};
+const ASYNC_DIAGNOSTIC_PRECEDENCE = {
+  "unsupported-content-type": 1,
+  "unsupported-schema-format": 2,
+  "missing-payload": 3,
+  "invalid-payload": 4,
+  "unverifiable-headers": 5,
+  mismatched: 6,
+  unmatched: 7
+};
 
 function formatPercent(value) {
   if (value == null || Number.isNaN(Number(value))) {
@@ -224,7 +242,150 @@ function parseCoveredRatio(value) {
   };
 }
 
-function formatAsyncClassCounts(failures, machineSummary) {
+function asyncDiagnosticPrecedence(kind) {
+  return ASYNC_DIAGNOSTIC_PRECEDENCE[safeString(kind)] ?? 100;
+}
+
+function asyncDiagnosticIdentity(diagnostic) {
+  if (typeof diagnostic?.operationKey === "string" && diagnostic.operationKey.trim().length > 0) {
+    return diagnostic.operationKey.trim();
+  }
+
+  return `${safeString(diagnostic?.action)} ${safeString(diagnostic?.channel)}`;
+}
+
+function compareAsyncDiagnostics(left, right) {
+  const precedence = asyncDiagnosticPrecedence(left?.kind) - asyncDiagnosticPrecedence(right?.kind);
+  if (precedence !== 0) {
+    return precedence;
+  }
+
+  const leftIdentity = asyncDiagnosticIdentity(left);
+  const rightIdentity = asyncDiagnosticIdentity(right);
+  if (leftIdentity !== rightIdentity) {
+    return leftIdentity.localeCompare(rightIdentity);
+  }
+
+  const leftMessage = safeString(left?.message, "");
+  const rightMessage = safeString(right?.message, "");
+  if (leftMessage !== rightMessage) {
+    return leftMessage.localeCompare(rightMessage);
+  }
+
+  return safeString(left?.reason, "").localeCompare(safeString(right?.reason, ""));
+}
+
+function formatAsyncOperation(operationKey) {
+  return `Async evidence ${operationKey}`;
+}
+
+function formatAsyncSchemaId(schemaId) {
+  return schemaId ?? "(unknown-schema)";
+}
+
+function formatAsyncPointer(pointer) {
+  if (!pointer) {
+    return "";
+  }
+
+  return ` at ${pointer}`;
+}
+
+function formatAsyncDiagnosticIssueText(diagnostic) {
+  const actionChannel = `${safeString(diagnostic?.action)} ${safeString(diagnostic?.channel)}`;
+  const schema = diagnostic?.schemaId ? ` schema=${diagnostic.schemaId}` : "";
+  const pointer = diagnostic?.pointer ? ` pointer=${diagnostic.pointer}` : "";
+
+  switch (diagnostic?.kind) {
+    case "unsupported-content-type":
+    case "unsupported-schema-format":
+    case "missing-payload":
+    case "invalid-payload":
+    case "unverifiable-headers":
+      return `${asyncDiagnosticIdentity(diagnostic)} - ${safeString(diagnostic.kind)}${schema}${pointer} reason=${safeString(
+        diagnostic.reason
+      )}`;
+    case "mismatched":
+      return `${actionChannel} - mismatched expected=${safeString(diagnostic.expectedMessage)} observed=${safeString(
+        diagnostic.observedMessage
+      )} reason=${safeString(diagnostic.message)}`;
+    case "unmatched":
+      return `${actionChannel} - unmatched reason=${safeString(diagnostic.message)}`;
+    default:
+      return `${actionChannel} - ${safeString(diagnostic?.message)}`;
+  }
+}
+
+function formatAsyncFailureReasonFromDiagnostic(diagnostic) {
+  switch (diagnostic?.kind) {
+    case "unsupported-content-type":
+      return `${formatAsyncOperation(asyncDiagnosticIdentity(diagnostic))} cannot validate payload schema ${formatAsyncSchemaId(
+        diagnostic.schemaId
+      )} because ${safeString(diagnostic.reason)}`;
+    case "unsupported-schema-format":
+      return `${formatAsyncOperation(asyncDiagnosticIdentity(diagnostic))} cannot validate payload schema ${formatAsyncSchemaId(
+        diagnostic.schemaId
+      )} because ${safeString(diagnostic.reason)}`;
+    case "missing-payload":
+      return `${formatAsyncOperation(asyncDiagnosticIdentity(diagnostic))} is missing payload required by schema ${formatAsyncSchemaId(
+        diagnostic.schemaId
+      )}${formatAsyncPointer(diagnostic.pointer)}: ${safeString(diagnostic.reason)}`;
+    case "invalid-payload":
+      return `${formatAsyncOperation(asyncDiagnosticIdentity(diagnostic))} failed payload validation against schema ${formatAsyncSchemaId(
+        diagnostic.schemaId
+      )}${formatAsyncPointer(diagnostic.pointer)}: ${safeString(diagnostic.reason)}`;
+    case "unverifiable-headers":
+      return `${formatAsyncOperation(asyncDiagnosticIdentity(diagnostic))} cannot verify header schema ${formatAsyncSchemaId(
+        diagnostic.schemaId
+      )}: ${safeString(diagnostic.reason)}`;
+    case "mismatched":
+      return `Observed async evidence ${safeString(diagnostic.action)} ${safeString(diagnostic.channel)} reported message ${safeString(
+        diagnostic.observedMessage,
+        "(unknown)"
+      )}, expected ${safeString(diagnostic.expectedMessage, "(unknown)")}.`;
+    case "unmatched":
+      return `Observed async evidence ${safeString(diagnostic.action)} ${safeString(
+        diagnostic.channel
+      )} did not match any canonical AsyncAPI operation.`;
+    default:
+      return safeString(diagnostic?.message);
+  }
+}
+
+function synthesizeAsyncFailuresFromReport(report, exitCode) {
+  if (!report || !Number.isFinite(exitCode) || exitCode === 0) {
+    return [];
+  }
+
+  return [...(report.diagnostics?.items ?? [])].sort(compareAsyncDiagnostics).map((diagnostic, index) => {
+    const code = ASYNC_DIAGNOSTIC_CODE_BY_KIND[safeString(diagnostic.kind)] ?? "ASYNC_SEMANTIC_UNKNOWN";
+    const reason = formatAsyncFailureReasonFromDiagnostic(diagnostic);
+    return {
+      kind: index === 0 ? "primary" : "secondary",
+      failureClass: "semantic",
+      code,
+      reason,
+      text: `${code} - ${reason}`
+    };
+  });
+}
+
+function countAsyncSemanticDiagnostics(report) {
+  if (!report) {
+    return 0;
+  }
+
+  if (Array.isArray(report.diagnostics?.items)) {
+    return report.diagnostics.items.length;
+  }
+
+  return Object.values(report.diagnostics?.counts ?? {}).reduce((total, value) => {
+    const numeric = Number(value);
+    return total + (Number.isFinite(numeric) ? numeric : 0);
+  }, 0);
+}
+
+function formatAsyncClassCounts(failures, machineSummary, report, exitCode) {
   if (machineSummary?.class_counts) {
     return safeString(machineSummary.class_counts, "input:0,semantic:0,gate:0,runtime:0");
   }
@@ -240,6 +401,21 @@ function formatAsyncClassCounts(failures, machineSummary) {
     if (Object.prototype.hasOwnProperty.call(counts, failure.failureClass)) {
       counts[failure.failureClass] += 1;
     }
+  }
+
+  const semanticCountFromReport = countAsyncSemanticDiagnostics(report);
+  if (
+    semanticCountFromReport > counts.semantic &&
+    counts.input === 0 &&
+    counts.gate === 0 &&
+    counts.runtime === 0
+  ) {
+    counts.semantic = semanticCountFromReport;
+  }
+
+  const countedFailures = counts.input + counts.semantic + counts.gate + counts.runtime;
+  if (countedFailures === 0 && Number.isFinite(exitCode) && exitCode !== 0) {
+    counts.runtime = 1;
   }
 
   return `input:${counts.input},semantic:${counts.semantic},gate:${counts.gate},runtime:${counts.runtime}`;
@@ -270,10 +446,14 @@ function resolveAsyncSummarySource(report, machineSummary, failures) {
   return "exit-code fallback";
 }
 
-function collectAsyncIssues(report, failures, fallbackPrimaryFailure) {
+function collectAsyncIssues(report, failures, fallbackPrimaryFailure, options = {}) {
   const issues = [];
 
   failures.forEach((failure, index) => {
+    if (options.omitSecondaryFailures === true && failure.kind !== "primary") {
+      return;
+    }
+
     issues.push({
       severityRank: failure.kind === "primary" ? 0 : 1,
       categoryRank: 0,
@@ -283,14 +463,15 @@ function collectAsyncIssues(report, failures, fallbackPrimaryFailure) {
     });
   });
 
-  for (const diagnostic of report?.diagnostics?.items ?? []) {
-    const severity = diagnostic.kind === "mismatched" ? "high" : "medium";
+  for (const diagnostic of [...(report?.diagnostics?.items ?? [])].sort(compareAsyncDiagnostics)) {
     issues.push({
-      severityRank: severity === "high" ? 0 : 1,
+      severityRank: 1,
       categoryRank: 1,
-      severity,
-      sortKey: `diagnostic:${diagnostic.kind}:${safeString(diagnostic.action)}:${safeString(diagnostic.channel)}:${safeString(diagnostic.message)}`,
-      text: `${safeString(diagnostic.action)} ${safeString(diagnostic.channel)} - ${safeString(diagnostic.message)}`
+      severity: "medium",
+      sortKey: `diagnostic:${String(asyncDiagnosticPrecedence(diagnostic.kind)).padStart(2, "0")}:${asyncDiagnosticIdentity(
+        diagnostic
+      )}:${safeString(diagnostic.kind)}`,
+      text: formatAsyncDiagnosticIssueText(diagnostic)
     });
   }
 
@@ -355,7 +536,11 @@ function resolveAsyncPrimaryFailure(issues, machineSummary, failures, exitCode) 
     return firstHighIssue.text;
   }
 
+  const machinePrimaryReason = typeof machineSummary?.primary_reason === "string" ? machineSummary.primary_reason.trim() : "";
   if (machineSummary?.primary && machineSummary.primary !== "none") {
+    if (machinePrimaryReason && machinePrimaryReason !== "none") {
+      return `${safeString(machineSummary.primary)} - ${machinePrimaryReason}`;
+    }
     return `${safeString(machineSummary.primary)} - see async proof logs`;
   }
 
@@ -426,18 +611,22 @@ function renderHttpSummary({ report, reportPath, stderrText, artifactNames, maxI
 }
 
 function renderAsyncSummary({ report, reportPath, stdoutText, stderrText, artifactNames, maxIssues, exitCode }) {
-  const failures = [
+  const parsedFailures = [
     ...parseTypedFailures(stderrText, "YANOTE_ASYNC_ERROR", "YANOTE_ASYNC_ERROR_SECONDARY"),
     ...parseTypedFailures(stdoutText, "YANOTE_ASYNC_ERROR", "YANOTE_ASYNC_ERROR_SECONDARY")
   ];
   const machineSummary = findMachineLine(stdoutText, "YANOTE_ASYNC_SUMMARY") ?? findMachineLine(stderrText, "YANOTE_ASYNC_SUMMARY");
+  const synthesizedFailures = parsedFailures.length > 0 ? [] : synthesizeAsyncFailuresFromReport(report, exitCode);
+  const failures = parsedFailures.length > 0 ? parsedFailures : synthesizedFailures;
   const fallbackPrimaryFailure = resolveAsyncPrimaryFailure([], machineSummary, failures, exitCode);
-  const issues = collectAsyncIssues(report, failures, fallbackPrimaryFailure);
+  const issues = collectAsyncIssues(report, failures, fallbackPrimaryFailure, {
+    omitSecondaryFailures: synthesizedFailures.length > 0
+  });
   const shownIssues = issues.slice(0, maxIssues);
   const hiddenCount = Math.max(0, issues.length - shownIssues.length);
   const primaryFailure = resolveAsyncPrimaryFailure(issues, machineSummary, failures, exitCode);
   const metrics = buildAsyncMetrics(report, machineSummary);
-  const classCounts = formatAsyncClassCounts(failures, machineSummary);
+  const classCounts = formatAsyncClassCounts(failures, machineSummary, report, exitCode);
   const reportName = resolveAsyncReportName(report, reportPath, machineSummary);
   const summarySource = resolveAsyncSummarySource(report, machineSummary, failures);
   const status = safeString(report?.status ?? machineSummary?.status, exitCode === 0 ? "ok" : "unknown");

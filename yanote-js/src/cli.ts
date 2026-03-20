@@ -6,7 +6,11 @@ import {
   type BaselineDimensionsSnapshot,
   writeBaseline
 } from "./baseline/baseline.js";
-import { computeAsyncCoverage, type AsyncCoverageResult } from "./coverage/asyncCoverage.js";
+import {
+  computeAsyncCoverage,
+  type AsyncCoverageDiagnostic,
+  type AsyncCoverageResult
+} from "./coverage/asyncCoverage.js";
 import { computeCoverage, type CoverageResult } from "./coverage/coverage.js";
 import { readAsyncEventsJsonl } from "./events/readAsyncEventsJsonl.js";
 import { readHttpEventsJsonl } from "./events/readJsonl.js";
@@ -810,6 +814,7 @@ function formatAsyncSummaryOutput(input: {
       `diagnostics=${input.report?.diagnostics.items.length ?? 0}`,
       `report=${input.reportPath ?? "none"}`,
       `primary=${primaryFailure?.code ?? "none"}`,
+      `primary_reason=${quote(primaryFailure?.reason ?? "none")}`,
       `class_counts=${formatClassCounts(input.failures)}`
     ].join(" ")
   );
@@ -874,6 +879,11 @@ function collectAsyncIssues(
   extraIssues: SummaryIssue[]
 ): SummaryIssue[] {
   const issues: SummaryIssue[] = [...extraIssues];
+  const diagnostics = report?.diagnostics.items ?? coverage?.diagnostics ?? [];
+
+  for (const [index, diagnostic] of diagnostics.entries()) {
+    issues.push(toAsyncDiagnosticSummaryIssue(diagnostic, index));
+  }
 
   if (report) {
     for (const entry of report.coverage.channels.items.filter((item) => item.state === "UNCOVERED")) {
@@ -962,6 +972,18 @@ function toSummaryIssueFromFailure(failure: CliFailure): SummaryIssue {
     severityLabel: label,
     sortKey: `failure:${failure.failureClass}:${failure.code}:${failure.operationKey ?? ""}`,
     text: `${failure.code} - ${failure.reason}`
+  };
+}
+
+function toAsyncDiagnosticSummaryIssue(diagnostic: AsyncCoverageDiagnostic, index: number): SummaryIssue {
+  const operationKey = "operationKey" in diagnostic ? diagnostic.operationKey : `${diagnostic.action} ${diagnostic.channel}`;
+  const schema = "schemaId" in diagnostic && diagnostic.schemaId ? ` schema=${diagnostic.schemaId}` : "";
+  const pointer = "pointer" in diagnostic && diagnostic.pointer ? ` pointer=${diagnostic.pointer}` : "";
+  return {
+    severityRank: 1,
+    severityLabel: "medium",
+    sortKey: `async-diagnostic:${index.toString().padStart(4, "0")}:${operationKey}:${diagnostic.kind}`,
+    text: `${operationKey} - ${diagnostic.kind}${schema}${pointer} reason=${diagnostic.reason}`
   };
 }
 

@@ -53,6 +53,65 @@ const VALID_ASYNCAPI = [
   "      - $ref: '#/channels/usersDeleted/messages/UserDeleted'"
 ].join("\n");
 
+const SCHEMA_DEPTH_ASYNCAPI = [
+  "asyncapi: 3.0.0",
+  "info:",
+  "  title: cli-contract-schema-depth",
+  "  version: 1.0.0",
+  "servers:",
+  "  kafkaLocal:",
+  "    host: localhost:9092",
+  "    protocol: kafka",
+  "channels:",
+  "  orderCreated:",
+  "    address: orders.created",
+  "    messages:",
+  "      OrderCreatedEnvelope:",
+  "        name: OrderCreatedEnvelope",
+  "        contentType: application/json",
+  "        headers:",
+  "          $ref: '#/components/schemas/OrderEventHeaders'",
+  "        payload:",
+  "          $ref: '#/components/schemas/OrderCreatedPayload'",
+  "operations:",
+  "  sendOrderCreated:",
+  "    action: send",
+  "    channel:",
+  "      $ref: '#/channels/orderCreated'",
+  "    messages:",
+  "      - $ref: '#/channels/orderCreated/messages/OrderCreatedEnvelope'",
+  "components:",
+  "  schemas:",
+  "    OrderEventHeaders:",
+  "      type: object",
+  "      required:",
+  "        - tenantId",
+  "        - traceId",
+  "      properties:",
+  "        tenantId:",
+  "          type: string",
+  "        traceId:",
+  "          type: string",
+  "    OrderCreatedPayload:",
+  "      type: object",
+  "      required:",
+  "        - eventId",
+  "        - order",
+  "      properties:",
+  "        eventId:",
+  "          type: string",
+  "        order:",
+  "          type: object",
+  "          required:",
+  "            - id",
+  "            - total",
+  "          properties:",
+  "            id:",
+  "              type: string",
+  "            total:",
+  "              type: number"
+].join("\n");
+
 describe("cli async-report contract", () => {
   it("prints fixed section order and one final async machine summary line", async () => {
     const fixture = await createFixture(
@@ -90,6 +149,7 @@ describe("cli async-report contract", () => {
       const lines = output.trimEnd().split("\n");
       expect(lines[lines.length - 1].startsWith("YANOTE_ASYNC_SUMMARY ")).toBe(true);
       expect((output.match(/YANOTE_ASYNC_SUMMARY /g) ?? []).length).toBe(1);
+      expect(output).toContain('primary_reason="none"');
       expect(output).not.toMatch(/\u001b\[[0-9;]*m/);
     } finally {
       await rm(fixture.dir, { recursive: true, force: true });
@@ -118,6 +178,7 @@ describe("cli async-report contract", () => {
       expect(result.stderr).toContain("class=input");
       expect(result.stderr).toContain("INPUT_ASYNC_EVENTS_INVALID_LINES");
       expect(result.stdout).toContain("YANOTE_ASYNC_SUMMARY");
+      expect(result.stdout).toContain('primary_reason="1 invalid JSONL line(s) detected at line(s) 2."');
     } finally {
       await rm(fixture.dir, { recursive: true, force: true });
     }
@@ -151,6 +212,7 @@ describe("cli async-report contract", () => {
       expect(result.code).toBe(5);
       expect(result.stderr).toContain("YANOTE_ASYNC_ERROR class=semantic code=ASYNC_SEMANTIC_SPEC_INVALID");
       expect(result.stdout).toContain("report=none");
+      expect(result.stdout).toContain("primary=ASYNC_SEMANTIC_SPEC_INVALID");
       expect(result.stdout.trimEnd().split("\n").at(-1)?.startsWith("YANOTE_ASYNC_SUMMARY ")).toBe(true);
     } finally {
       await rm(fixture.dir, { recursive: true, force: true });
@@ -182,7 +244,46 @@ describe("cli async-report contract", () => {
       expect(stderrLines[1]).toContain("YANOTE_ASYNC_ERROR_SECONDARY class=gate code=ASYNC_GATE_MIN_COVERAGE");
       expect(stderrLines.filter((line) => line.startsWith("YANOTE_ASYNC_ERROR "))).toHaveLength(1);
       expect(result.stdout).toContain("primary=INPUT_ASYNC_EVENTS_INVALID_LINES");
+      expect(result.stdout).toContain('primary_reason="1 invalid JSONL line(s) detected at line(s) 2."');
       expect(result.stdout).toContain("class_counts=input:1,semantic:0,gate:1,runtime:0");
+    } finally {
+      await rm(fixture.dir, { recursive: true, force: true });
+    }
+  });
+
+  it("keeps one primary semantic async error line and deterministic schema-depth secondary ordering", async () => {
+    const fixture = await createFixture(
+      SCHEMA_DEPTH_ASYNCAPI,
+      [
+        '{"kind":"kafka","ts":1710000001100,"action":"send","channel":"orders.created","message":"OrderCreatedEnvelope","payload":{"eventId":"evt-101","order":{"id":"ord-101"}},"service":"orders-service","test.run_id":"run-schema-invalid","test.suite":"suite-schema-invalid"}',
+        '{"kind":"kafka","ts":1710000001200,"action":"send","channel":"orders.created","message":"OrderCreatedEnvelope","service":"orders-service","test.run_id":"run-schema-missing","test.suite":"suite-schema-missing"}'
+      ].join("\n")
+    );
+
+    try {
+      const result = await runCli([
+        "async-report",
+        "--spec",
+        fixture.specPath,
+        "--events",
+        fixture.eventsPath,
+        "--out",
+        fixture.outDir,
+        "--profile",
+        "local"
+      ]);
+
+      expect(result.code).toBe(5);
+      const stderrLines = result.stderr.trim().split("\n");
+      expect(stderrLines[0]).toContain("YANOTE_ASYNC_ERROR class=semantic code=ASYNC_SEMANTIC_MISSING_PAYLOAD");
+      expect(stderrLines[1]).toContain("YANOTE_ASYNC_ERROR_SECONDARY class=semantic code=ASYNC_SEMANTIC_INVALID_PAYLOAD");
+      expect(stderrLines[2]).toContain("YANOTE_ASYNC_ERROR_SECONDARY class=semantic code=ASYNC_SEMANTIC_UNVERIFIABLE_HEADERS");
+      expect(stderrLines.filter((line) => line.startsWith("YANOTE_ASYNC_ERROR "))).toHaveLength(1);
+      expect(result.stdout).toContain("primary=ASYNC_SEMANTIC_MISSING_PAYLOAD");
+      expect(result.stdout).toContain(
+        'primary_reason="Async evidence kafka send orders.created is missing payload required by schema OrderCreatedPayload at /: Observed kafka evidence did not include a payload."'
+      );
+      expect(result.stdout).toContain("class_counts=input:0,semantic:3,gate:0,runtime:0");
     } finally {
       await rm(fixture.dir, { recursive: true, force: true });
     }

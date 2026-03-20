@@ -1,0 +1,1 @@
+{"kind":"kafka","ts":1710000001100,"action":"send","channel":"orders.created","message":"OrderCreatedEnvelope","payload":{"eventId":"evt-101","order":{"id":"ord-101"}},"service":"orders-service","test.run_id":"run-schema-invalid","test.suite":"suite-schema-invalid"}

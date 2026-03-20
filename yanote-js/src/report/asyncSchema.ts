@@ -6,6 +6,62 @@ export const ASYNC_REPORT_PHASE = {
   slug: "async-report-and-gate-surface"
 } as const;
 
+const ROUTING_DIAGNOSTIC_SCHEMA = {
+  oneOf: [
+    {
+      type: "object",
+      additionalProperties: false,
+      required: ["kind", "message", "channel", "action"],
+      properties: {
+        kind: { const: "unmatched" },
+        message: { type: "string", minLength: 1 },
+        channel: { type: "string", minLength: 1 },
+        action: { enum: ["send", "receive"] },
+        observedMessage: { type: "string" }
+      }
+    },
+    {
+      type: "object",
+      additionalProperties: false,
+      required: ["kind", "message", "channel", "action"],
+      properties: {
+        kind: { const: "mismatched" },
+        message: { type: "string", minLength: 1 },
+        channel: { type: "string", minLength: 1 },
+        action: { enum: ["send", "receive"] },
+        observedMessage: { type: "string" },
+        expectedMessage: { type: "string" }
+      }
+    }
+  ]
+} as const;
+
+const SCHEMA_DIAGNOSTIC_SCHEMA = {
+  type: "object",
+  additionalProperties: false,
+  required: ["kind", "validationKind", "operationKey", "message", "channel", "action", "reason"],
+  properties: {
+    kind: {
+      enum: [
+        "missing-payload",
+        "invalid-payload",
+        "unsupported-content-type",
+        "unsupported-schema-format",
+        "unverifiable-headers"
+      ]
+    },
+    validationKind: { enum: ["payload", "headers", "contentType", "schemaFormat"] },
+    operationKey: { type: "string", minLength: 1 },
+    message: { type: "string", minLength: 1 },
+    channel: { type: "string", minLength: 1 },
+    action: { enum: ["send", "receive"] },
+    messageName: { type: "string", minLength: 1 },
+    schemaId: { type: "string", minLength: 1 },
+    pointer: { type: "string", minLength: 1 },
+    reason: { type: "string", minLength: 1 }
+  }
+} as const;
+
 const ASYNC_REPORT_SCHEMA = {
   type: "object",
   additionalProperties: false,
@@ -117,8 +173,21 @@ const ASYNC_REPORT_SCHEMA = {
         counts: {
           type: "object",
           additionalProperties: false,
-          required: ["unmatched", "mismatched"],
+          required: [
+            "unsupported-content-type",
+            "unsupported-schema-format",
+            "missing-payload",
+            "invalid-payload",
+            "unverifiable-headers",
+            "unmatched",
+            "mismatched"
+          ],
           properties: {
+            "unsupported-content-type": { type: "integer", minimum: 0 },
+            "unsupported-schema-format": { type: "integer", minimum: 0 },
+            "missing-payload": { type: "integer", minimum: 0 },
+            "invalid-payload": { type: "integer", minimum: 0 },
+            "unverifiable-headers": { type: "integer", minimum: 0 },
             unmatched: { type: "integer", minimum: 0 },
             mismatched: { type: "integer", minimum: 0 }
           }
@@ -126,17 +195,7 @@ const ASYNC_REPORT_SCHEMA = {
         items: {
           type: "array",
           items: {
-            type: "object",
-            additionalProperties: false,
-            required: ["kind", "message", "channel", "action"],
-            properties: {
-              kind: { enum: ["unmatched", "mismatched"] },
-              message: { type: "string", minLength: 1 },
-              channel: { type: "string", minLength: 1 },
-              action: { enum: ["send", "receive"] },
-              observedMessage: { type: "string" },
-              expectedMessage: { type: "string" }
-            }
+            oneOf: [ROUTING_DIAGNOSTIC_SCHEMA, SCHEMA_DIAGNOSTIC_SCHEMA]
           }
         }
       }

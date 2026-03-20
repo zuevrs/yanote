@@ -8,11 +8,15 @@ TWO_SERVICE_TEST_LOG_PATH="${TMP_DIR}/two-service-test.log"
 MERGE_LOG_PATH="${TMP_DIR}/merge.log"
 ASYNC_STDOUT_PATH="${TMP_DIR}/async-report.stdout"
 ASYNC_STDERR_PATH="${TMP_DIR}/async-report.stderr"
+SCHEMA_FAILURE_ASYNC_STDOUT_PATH="${TMP_DIR}/schema-failure-async-report.stdout"
+SCHEMA_FAILURE_ASYNC_STDERR_PATH="${TMP_DIR}/schema-failure-async-report.stderr"
 PRODUCER_EVENTS_PATH="${TMP_DIR}/01-producer.events.jsonl"
 CONSUMER_EVENTS_PATH="${TMP_DIR}/02-consumer.events.jsonl"
 MERGED_EVENTS_PATH="${TMP_DIR}/merged-two-service.events.jsonl"
 OUT_DIR="${TMP_DIR}/async-report"
 ASYNC_REPORT_PATH="${OUT_DIR}/yanote-async-report.json"
+SCHEMA_FAILURE_OUT_DIR="${TMP_DIR}/schema-failure-async-report"
+SCHEMA_FAILURE_ASYNC_REPORT_PATH="${SCHEMA_FAILURE_OUT_DIR}/yanote-async-report.json"
 ASYNC_EXPORT_DIR="${YANOTE_ASYNC_EXPORT_DIR:-${ROOT_DIR}/.yanote-ci/live-kafka-proof}"
 KEEP_TEMP="false"
 SIMULATE_ANALYZER_FAILURE="false"
@@ -29,6 +33,7 @@ EXPECTED_CHANNEL="users.created"
 EXPECTED_MESSAGE="UserCreated"
 EXPECTED_HTTP_ROUTE="/users"
 ASYNC_SPEC_PATH="yanote-js/test/fixtures/asyncapi/spring-kafka-two-service.yaml"
+SCHEMA_FAILURE_ASYNC_SPEC_PATH="yanote-js/test/fixtures/asyncapi/spring-kafka-two-service-invalid-payload.yaml"
 
 usage() {
   cat <<'EOF'
@@ -79,6 +84,9 @@ export_async_artifacts() {
     YANOTE_ASYNC_SOURCE_ASYNC_STDOUT="${ASYNC_STDOUT_PATH}" \
     YANOTE_ASYNC_SOURCE_ASYNC_STDERR="${ASYNC_STDERR_PATH}" \
     YANOTE_ASYNC_SOURCE_ASYNC_REPORT="${ASYNC_REPORT_PATH}" \
+    YANOTE_ASYNC_SOURCE_SCHEMA_FAILURE_ASYNC_STDOUT="${SCHEMA_FAILURE_ASYNC_STDOUT_PATH}" \
+    YANOTE_ASYNC_SOURCE_SCHEMA_FAILURE_ASYNC_STDERR="${SCHEMA_FAILURE_ASYNC_STDERR_PATH}" \
+    YANOTE_ASYNC_SOURCE_SCHEMA_FAILURE_ASYNC_REPORT="${SCHEMA_FAILURE_ASYNC_REPORT_PATH}" \
     bash scripts/ci/export-async-proof-artifacts.sh "${ASYNC_EXPORT_DIR}"
   ); then
     ARTIFACT_EXPORT_SUCCEEDED="true"
@@ -103,6 +111,9 @@ print_failure_artifacts() {
   echo "  async_stdout: ${ASYNC_STDOUT_PATH}" >&2
   echo "  async_stderr: ${ASYNC_STDERR_PATH}" >&2
   echo "  async_report_dir: ${OUT_DIR}" >&2
+  echo "  schema_failure_async_stdout: ${SCHEMA_FAILURE_ASYNC_STDOUT_PATH}" >&2
+  echo "  schema_failure_async_stderr: ${SCHEMA_FAILURE_ASYNC_STDERR_PATH}" >&2
+  echo "  schema_failure_async_report_dir: ${SCHEMA_FAILURE_OUT_DIR}" >&2
 }
 
 show_failure_tail() {
@@ -112,7 +123,9 @@ show_failure_tail() {
     "${TWO_SERVICE_TEST_LOG_PATH}" \
     "${MERGE_LOG_PATH}" \
     "${ASYNC_STDOUT_PATH}" \
-    "${ASYNC_STDERR_PATH}"; do
+    "${ASYNC_STDERR_PATH}" \
+    "${SCHEMA_FAILURE_ASYNC_STDOUT_PATH}" \
+    "${SCHEMA_FAILURE_ASYNC_STDERR_PATH}"; do
     if [[ -s "${file}" ]]; then
       echo "--- $(basename "${file}") (tail) ---" >&2
       tail -n 80 "${file}" >&2 || true
@@ -395,8 +408,16 @@ expect_close(summary.get('channelCoveragePercent'), 100, 'channelCoveragePercent
 expect_close(summary.get('operationCoveragePercent'), 100, 'operationCoveragePercent')
 expect_close(summary.get('messageCoveragePercent'), 100, 'messageCoveragePercent')
 
-if report.get('diagnostics', {}).get('counts') != {'unmatched': 0, 'mismatched': 0}:
-    raise SystemExit(f"Expected zero async diagnostics, got {report.get('diagnostics')!r}")
+if report.get('diagnostics', {}).get('counts') != {
+    'unsupported-content-type': 0,
+    'unsupported-schema-format': 0,
+    'missing-payload': 0,
+    'invalid-payload': 0,
+    'unverifiable-headers': 0,
+    'unmatched': 0,
+    'mismatched': 0,
+}:
+    raise SystemExit(f"Expected widened zero async diagnostics contract, got {report.get('diagnostics')!r}")
 
 operations = {entry['operationKey']: entry for entry in coverage.get('operations', {}).get('items', [])}
 expected_keys = {'kafka send users.created', 'kafka receive users.created'}
@@ -421,6 +442,101 @@ print(
 PY
 )" || fail "async-report artifact drifted from the expected two-service Kafka acceptance surface."
 
+echo "Running intentional schema-failure async-report against the same merged evidence..."
+schema_failure_exit_code=0
+if (
+  cd "${ROOT_DIR}" && \
+  node yanote-js/dist/yanote.cjs async-report \
+    --spec "${SCHEMA_FAILURE_ASYNC_SPEC_PATH}" \
+    --events "${MERGED_EVENTS_PATH}" \
+    --out "${SCHEMA_FAILURE_OUT_DIR}" \
+    --min-coverage 100
+) >"${SCHEMA_FAILURE_ASYNC_STDOUT_PATH}" 2>"${SCHEMA_FAILURE_ASYNC_STDERR_PATH}"; then
+  schema_failure_exit_code=0
+else
+  schema_failure_exit_code=$?
+fi
+
+if [[ "${schema_failure_exit_code}" -eq 0 ]]; then
+  fail "Intentional schema-failure async-report unexpectedly succeeded."
+fi
+if [[ ! -s "${SCHEMA_FAILURE_ASYNC_STDERR_PATH}" ]]; then
+  fail "Intentional schema-failure async-report did not write typed stderr diagnostics."
+fi
+if ! grep -q 'ASYNC_SEMANTIC_INVALID_PAYLOAD' "${SCHEMA_FAILURE_ASYNC_STDERR_PATH}"; then
+  fail "Intentional schema-failure stderr is missing ASYNC_SEMANTIC_INVALID_PAYLOAD."
+fi
+if [[ ! -f "${SCHEMA_FAILURE_ASYNC_REPORT_PATH}" ]]; then
+  fail "Intentional schema-failure async-report did not retain yanote-async-report.json."
+fi
+if ! grep -q '^YANOTE_ASYNC_SUMMARY ' "${SCHEMA_FAILURE_ASYNC_STDOUT_PATH}"; then
+  fail "Intentional schema-failure stdout is missing the final YANOTE_ASYNC_SUMMARY line."
+fi
+if ! grep -q 'invalid-payload' "${SCHEMA_FAILURE_ASYNC_STDOUT_PATH}"; then
+  fail "Intentional schema-failure stdout is missing invalid-payload truth."
+fi
+
+SCHEMA_FAILURE_REPORT_SUMMARY="$(python3 - "${SCHEMA_FAILURE_ASYNC_REPORT_PATH}" "${TWO_SERVICE_SUITE}" "${schema_failure_exit_code}" <<'PY'
+import json
+import pathlib
+import sys
+
+path = pathlib.Path(sys.argv[1])
+expected_suite = sys.argv[2]
+expected_exit_code = int(sys.argv[3])
+report = json.loads(path.read_text(encoding='utf-8'))
+diagnostics = report.get('diagnostics', {})
+counts = diagnostics.get('counts', {})
+items = diagnostics.get('items', [])
+
+if report.get('status') != 'partial':
+    raise SystemExit(f"Expected schema-failure report status 'partial', got {report.get('status')!r}")
+if counts.get('invalid-payload') != 2:
+    raise SystemExit(f"Expected invalid-payload count 2, got {counts.get('invalid-payload')!r}")
+invalid_payload_items = [item for item in items if item.get('kind') == 'invalid-payload']
+if len(invalid_payload_items) != 2:
+    raise SystemExit(f"Expected 2 invalid-payload diagnostics, got {len(invalid_payload_items)}")
+expected_operations = {'kafka send users.created', 'kafka receive users.created'}
+actual_operations = {item.get('operationKey') for item in invalid_payload_items}
+if actual_operations != expected_operations:
+    raise SystemExit(f"Unexpected invalid-payload operations: {sorted(actual_operations)!r}")
+for item in invalid_payload_items:
+    if item.get('schemaId') != 'UserCreatedPayload':
+        raise SystemExit(f"Expected schemaId UserCreatedPayload, got {item!r}")
+    if item.get('validationKind') != 'payload':
+        raise SystemExit(f"Expected payload validationKind, got {item!r}")
+    if item.get('pointer') != '/':
+        raise SystemExit(f"Expected root pointer '/', got {item!r}")
+    if item.get('messageName') != 'UserCreated':
+        raise SystemExit(f"Expected messageName UserCreated, got {item!r}")
+    reason = item.get('reason')
+    if not isinstance(reason, str) or 'must be object' not in reason:
+        raise SystemExit(f"Expected 'must be object' reason, got {item!r}")
+
+coverage_items = report.get('coverage', {}).get('operations', {}).get('items', [])
+coverage_by_key = {entry.get('operationKey'): entry for entry in coverage_items}
+if set(coverage_by_key) != expected_operations:
+    raise SystemExit(f"Unexpected coverage operation keys: {sorted(coverage_by_key)!r}")
+for key, entry in coverage_by_key.items():
+    if entry.get('operation', {}).get('state') != 'COVERED':
+        raise SystemExit(f"Expected covered operation for {key}, got {entry!r}")
+    if entry.get('messageContract', {}).get('state') != 'COVERED':
+        raise SystemExit(f"Expected covered message contract for {key}, got {entry!r}")
+    if entry.get('messageContract', {}).get('name') != 'UserCreated':
+        raise SystemExit(f"Expected UserCreated message contract for {key}, got {entry!r}")
+    if entry.get('suites') != [expected_suite]:
+        raise SystemExit(f"Expected suites [{expected_suite!r}] for {key}, got {entry.get('suites')!r}")
+
+print(
+    'exit_code={exit_code} invalid_payload=2 operations=2 suite={suite} report={report}'.format(
+        exit_code=expected_exit_code,
+        suite=expected_suite,
+        report=path,
+    )
+)
+PY
+)" || fail "Intentional schema-failure async-report drifted from the expected invalid-payload diagnostics surface."
+
 if ! export_async_artifacts "success"; then
   fail "Async proof artifacts exporter failed after the live Kafka proof passed."
 fi
@@ -429,4 +545,5 @@ echo "Single-service proof passed."
 echo "Two-service raw proof passed: ${RAW_SUMMARY}"
 echo "Deterministic merge proof passed: ${MERGE_SUMMARY}"
 echo "Async analyzer proof passed: ${REPORT_SUMMARY}"
+echo "Intentional schema-failure proof retained: ${SCHEMA_FAILURE_REPORT_SUMMARY}"
 echo "Async proof artifacts exported: ${ASYNC_EXPORT_DIR}"

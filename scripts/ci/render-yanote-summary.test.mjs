@@ -50,7 +50,7 @@ function createHttpReportFixture() {
   };
 }
 
-function createAsyncReportFixture() {
+function createAsyncHappyPathReportFixture() {
   return {
     schemaVersion: "1.0.0",
     generatedAt: "2026-03-14T00:00:00.000Z",
@@ -123,8 +123,153 @@ function createAsyncReportFixture() {
       }
     },
     diagnostics: {
-      counts: { unmatched: 0, mismatched: 0 },
+      counts: {
+        "unsupported-content-type": 0,
+        "unsupported-schema-format": 0,
+        "missing-payload": 0,
+        "invalid-payload": 0,
+        "unverifiable-headers": 0,
+        unmatched: 0,
+        mismatched: 0
+      },
       items: []
+    },
+    rawPayload: "SECRET_ASYNC_PAYLOAD_MUST_NOT_APPEAR"
+  };
+}
+
+function createAsyncDiagnosticReportFixture() {
+  return {
+    schemaVersion: "1.0.0",
+    generatedAt: "2026-03-20T00:00:00.000Z",
+    toolVersion: "0.0.0",
+    phase: { id: "03", slug: "async-report-and-gate-surface" },
+    status: "partial",
+    summary: {
+      totalChannels: 1,
+      coveredChannels: 1,
+      channelCoveragePercent: 100,
+      totalOperations: 1,
+      coveredOperations: 1,
+      operationCoveragePercent: 100,
+      totalMessages: 1,
+      coveredMessages: 1,
+      messageCoveragePercent: 100
+    },
+    coverage: {
+      channels: {
+        state: "COVERED",
+        percent: 100,
+        items: [{ channel: "orders.created", state: "COVERED", coveredActions: ["send"], missingActions: [] }]
+      },
+      operations: {
+        state: "COVERED",
+        percent: 100,
+        items: [
+          {
+            operationKey: "kafka send orders.created",
+            channel: "orders.created",
+            action: "send",
+            operation: { state: "COVERED" },
+            messageContract: { name: "OrderCreated", state: "COVERED" },
+            suites: ["suite-a"]
+          }
+        ]
+      },
+      messages: {
+        state: "COVERED",
+        percent: 100,
+        items: [
+          {
+            operationKey: "kafka send orders.created",
+            channel: "orders.created",
+            action: "send",
+            message: "OrderCreated",
+            state: "COVERED",
+            suites: ["suite-a"]
+          }
+        ]
+      }
+    },
+    diagnostics: {
+      counts: {
+        "unsupported-content-type": 1,
+        "unsupported-schema-format": 1,
+        "missing-payload": 1,
+        "invalid-payload": 1,
+        "unverifiable-headers": 1,
+        unmatched: 1,
+        mismatched: 1
+      },
+      items: [
+        {
+          kind: "unmatched",
+          channel: "payments.refunds",
+          action: "send",
+          message: "Observed async evidence did not match any canonical AsyncAPI operation.",
+          observedMessage: "RefundRequested"
+        },
+        {
+          kind: "invalid-payload",
+          validationKind: "payload",
+          operationKey: "kafka send orders.created",
+          message: "OrderCreated",
+          channel: "orders.created",
+          action: "send",
+          schemaId: "OrderCreatedPayload",
+          pointer: "/id",
+          reason: "must be integer"
+        },
+        {
+          kind: "unsupported-schema-format",
+          validationKind: "schemaFormat",
+          operationKey: "kafka send orders.created",
+          message: "OrderCreated",
+          channel: "orders.created",
+          action: "send",
+          schemaId: "OrderCreatedPayload",
+          reason: "Unsupported schema format avro for AsyncAPI payload validation."
+        },
+        {
+          kind: "mismatched",
+          channel: "orders.created",
+          action: "receive",
+          message: "Observed message OrderReplayed did not match AsyncAPI contract.",
+          observedMessage: "OrderReplayed",
+          expectedMessage: "OrderCreated"
+        },
+        {
+          kind: "missing-payload",
+          validationKind: "payload",
+          operationKey: "kafka send orders.created",
+          message: "OrderCreated",
+          channel: "orders.created",
+          action: "send",
+          schemaId: "OrderCreatedPayload",
+          pointer: "/",
+          reason: "Observed kafka evidence did not include a payload."
+        },
+        {
+          kind: "unsupported-content-type",
+          validationKind: "contentType",
+          operationKey: "kafka send orders.created",
+          message: "OrderCreated",
+          channel: "orders.created",
+          action: "send",
+          schemaId: "OrderCreatedPayload",
+          reason: "Unsupported content type application/xml for AsyncAPI message payload validation."
+        },
+        {
+          kind: "unverifiable-headers",
+          validationKind: "headers",
+          operationKey: "kafka send orders.created",
+          message: "OrderCreated",
+          channel: "orders.created",
+          action: "send",
+          schemaId: "OrderCreatedHeaders",
+          reason: "Observed kafka evidence did not include headers."
+        }
+      ]
     },
     rawPayload: "SECRET_ASYNC_PAYLOAD_MUST_NOT_APPEAR"
   };
@@ -190,7 +335,7 @@ test("renders the existing HTTP summary contract without payload leaks", async (
   }
 });
 
-test("renders async report artifacts with typed stderr failures and no payload leaks", async () => {
+test("renders async report artifacts with typed stderr failures and widened zero-count diagnostics contract", async () => {
   const workDir = await mkdtemp(path.join(os.tmpdir(), "yanote-summary-async-report-"));
   try {
     const artifactsDir = path.join(workDir, "live-kafka-proof");
@@ -202,7 +347,7 @@ test("renders async report artifacts with typed stderr failures and no payload l
     await writeArtifactFiles(artifactsDir, {
       "artifact-manifest.txt": "proof_status=failure\nreport_found=true\n",
       "artifact-source-paths.txt": "temp_dir=/tmp/yanote-proof\n",
-      "yanote-async-report.json": JSON.stringify(createAsyncReportFixture()),
+      "yanote-async-report.json": JSON.stringify(createAsyncHappyPathReportFixture()),
       "async-report.stdout": [
         "Summary",
         "- status: partial",
@@ -262,14 +407,68 @@ test("renders async report artifacts with typed stderr failures and no payload l
   }
 });
 
-test("renders async no-report fallback from YANOTE_ASYNC stderr/stdout signals", async () => {
+test("renders async report-only schema and routing diagnostics with explicit semantic precedence and no payload leaks", async () => {
+  const workDir = await mkdtemp(path.join(os.tmpdir(), "yanote-summary-async-diagnostics-"));
+  try {
+    const artifactsDir = path.join(workDir, "async-report");
+    const reportPath = path.join(artifactsDir, "yanote-async-report.json");
+    const summaryPath = path.join(workDir, "summary.md");
+
+    await writeArtifactFiles(artifactsDir, {
+      "yanote-async-report.json": JSON.stringify(createAsyncDiagnosticReportFixture())
+    });
+
+    const markdown = await renderSummary({
+      reportPath,
+      artifactsDir,
+      outputPath: summaryPath,
+      exitCode: 5
+    });
+
+    const expected = [
+      "## Yanote Async Summary",
+      "- status: partial",
+      "- channels: 1/1 (100.00%)",
+      "- operations: 1/1 (100.00%)",
+      "- messages: 1/1 (100.00%)",
+      "- primary failure: ASYNC_SEMANTIC_UNSUPPORTED_CONTENT_TYPE - Async evidence kafka send orders.created cannot validate payload schema OrderCreatedPayload because Unsupported content type application/xml for AsyncAPI message payload validation.",
+      "- class counts: input:0,semantic:7,gate:0,runtime:0",
+      "- proof exit code: 5",
+      "- report: yanote-async-report.json",
+      "- summary source: report file",
+      "- artifacts: yanote-async-report.json",
+      "",
+      "### Coverage Dimensions",
+      "- channels: 100.00% (COVERED)",
+      "- operations: 100.00% (COVERED)",
+      "- messages: 100.00% (COVERED)",
+      "",
+      "### Top Issues",
+      "1. high: ASYNC_SEMANTIC_UNSUPPORTED_CONTENT_TYPE - Async evidence kafka send orders.created cannot validate payload schema OrderCreatedPayload because Unsupported content type application/xml for AsyncAPI message payload validation.",
+      "2. medium: kafka send orders.created - unsupported-content-type schema=OrderCreatedPayload reason=Unsupported content type application/xml for AsyncAPI message payload validation.",
+      "3. medium: kafka send orders.created - unsupported-schema-format schema=OrderCreatedPayload reason=Unsupported schema format avro for AsyncAPI payload validation.",
+      "4. medium: kafka send orders.created - missing-payload schema=OrderCreatedPayload pointer=/ reason=Observed kafka evidence did not include a payload.",
+      "5. medium: kafka send orders.created - invalid-payload schema=OrderCreatedPayload pointer=/id reason=must be integer",
+      "... +3 more issues in async artifacts",
+      ""
+    ].join("\n");
+
+    assert.equal(markdown, expected);
+    assert.equal(markdown.includes("SECRET_ASYNC_PAYLOAD_MUST_NOT_APPEAR"), false);
+    assert.equal(markdown.includes("rawPayload"), false);
+    assert.equal(await readFile(summaryPath, "utf8"), markdown);
+  } finally {
+    await rm(workDir, { recursive: true, force: true });
+  }
+});
+
+test("renders async no-report fallback from YANOTE_ASYNC summary signals using primary_reason", async () => {
   const workDir = await mkdtemp(path.join(os.tmpdir(), "yanote-summary-async-fallback-"));
   try {
     const artifactsDir = path.join(workDir, "live-kafka-proof");
     const reportPath = path.join(artifactsDir, "yanote-async-report.json");
     const summaryPath = path.join(workDir, "summary.md");
     const stdoutPath = path.join(artifactsDir, "async-report.stdout");
-    const stderrPath = path.join(artifactsDir, "async-report.stderr");
 
     await writeArtifactFiles(artifactsDir, {
       "artifact-manifest.txt": "proof_status=failure\nreport_found=false\n",
@@ -278,11 +477,7 @@ test("renders async no-report fallback from YANOTE_ASYNC stderr/stdout signals",
         "Summary",
         "- status: invalid",
         "",
-        "YANOTE_ASYNC_SUMMARY status=invalid channels=NA operations=NA messages=NA covered_channels=0/0 covered_operations=0/0 covered_messages=0/0 diagnostics=0 report=none primary=ASYNC_SEMANTIC_SPEC_INVALID class_counts=input:0,semantic:1,gate:0,runtime:0",
-        ""
-      ].join("\n"),
-      "async-report.stderr": [
-        'YANOTE_ASYNC_ERROR class=semantic code=ASYNC_SEMANTIC_SPEC_INVALID reason="AsyncAPI document is invalid" hint="fix spec"',
+        'YANOTE_ASYNC_SUMMARY status=invalid channels=NA operations=NA messages=NA covered_channels=0/0 covered_operations=0/0 covered_messages=0/0 diagnostics=0 report=none primary=ASYNC_SEMANTIC_SPEC_INVALID primary_reason="AsyncAPI document is invalid" class_counts=input:0,semantic:1,gate:0,runtime:0',
         ""
       ].join("\n")
     });
@@ -290,7 +485,6 @@ test("renders async no-report fallback from YANOTE_ASYNC stderr/stdout signals",
     const markdown = await renderSummary({
       reportPath,
       stdoutPath,
-      stderrPath,
       artifactsDir,
       outputPath: summaryPath,
       exitCode: 5
@@ -307,7 +501,7 @@ test("renders async no-report fallback from YANOTE_ASYNC stderr/stdout signals",
       "- proof exit code: 5",
       "- report: none",
       "- summary source: YANOTE_ASYNC_* fallback",
-      "- artifacts: artifact-manifest.txt, artifact-source-paths.txt, async-report.stderr, async-report.stdout",
+      "- artifacts: artifact-manifest.txt, artifact-source-paths.txt, async-report.stdout",
       "",
       "### Coverage Dimensions",
       "- channels: N/A (N/A)",

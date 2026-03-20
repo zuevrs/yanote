@@ -22,6 +22,19 @@ describe("asyncCoverage parity", () => {
     expect(snapshotCoverage(v2Partial)).toEqual(snapshotCoverage(v3Partial));
     expect(snapshotCoverage(v2Drift)).toEqual(snapshotCoverage(v3Drift));
   });
+
+  it("keeps schema-depth fixture coverage identical across equivalent v2 and v3 contracts", async () => {
+    const [v2, v3, invalid, missing] = await Promise.all([
+      loadAsyncApiSemanticsBundle("test/fixtures/asyncapi/schema-depth-v2.yaml"),
+      loadAsyncApiSemanticsBundle("test/fixtures/asyncapi/schema-depth-v3.yaml"),
+      readAsyncEventsJsonl("test/fixtures/async-events/schema-invalid.fixture.jsonl"),
+      readAsyncEventsJsonl("test/fixtures/async-events/schema-missing-payload.fixture.jsonl")
+    ]);
+
+    expect(snapshotCoverage(computeAsyncCoverage(v2, [...invalid.items, ...missing.items]))).toEqual(
+      snapshotCoverage(computeAsyncCoverage(v3, [...invalid.items, ...missing.items]))
+    );
+  });
 });
 
 function snapshotCoverage(coverage: ReturnType<typeof computeAsyncCoverage>) {

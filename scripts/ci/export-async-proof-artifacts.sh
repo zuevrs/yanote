@@ -69,6 +69,9 @@ copy_or_note "merged-two-service.events.jsonl" "${YANOTE_ASYNC_SOURCE_MERGED_EVE
 copy_or_note "async-report.stdout" "${YANOTE_ASYNC_SOURCE_ASYNC_STDOUT:-}" "true"
 copy_or_note "async-report.stderr" "${YANOTE_ASYNC_SOURCE_ASYNC_STDERR:-}" "true"
 copy_or_note "yanote-async-report.json" "${YANOTE_ASYNC_SOURCE_ASYNC_REPORT:-}" "true"
+copy_or_note "schema-failure-async-report.stdout" "${YANOTE_ASYNC_SOURCE_SCHEMA_FAILURE_ASYNC_STDOUT:-}" "true"
+copy_or_note "schema-failure-async-report.stderr" "${YANOTE_ASYNC_SOURCE_SCHEMA_FAILURE_ASYNC_STDERR:-}" "true"
+copy_or_note "schema-failure-yanote-async-report.json" "${YANOTE_ASYNC_SOURCE_SCHEMA_FAILURE_ASYNC_REPORT:-}" "true"
 
 artifacts_csv="none"
 if [[ "${#exported_artifacts[@]}" -gt 0 ]]; then

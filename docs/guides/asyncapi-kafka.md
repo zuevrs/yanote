@@ -11,7 +11,9 @@
 - AsyncAPI как источник объявленного async-контракта;
 - Kafka evidence как реальный источник наблюдений;
 - source-built CLI из `yanote-js` с командой `async-report`;
-- стабильные async outputs: human-readable stdout, строка `YANOTE_ASYNC_SUMMARY ...` и файл `yanote-async-report.json`.
+- поддержанные входы: `raw` или `merged` async JSONL с Kafka evidence (`kind: "kafka"`, `action: "send" | "receive"`, `channel`, `message`);
+- канонический happy-path bundle из `bash scripts/ci/verify-m004-s03-live-kafka-proof.sh`: `async-report.stdout`, `async-report.stderr`, `yanote-async-report.json`;
+- retained schema-failure bundle из того же proof path: `schema-failure-async-report.stdout`, `schema-failure-async-report.stderr`, `schema-failure-yanote-async-report.json`.
 
 Если вам нужен user-facing путь, который уже доказан live-proof скриптами из репозитория, считайте поддержанным именно этот маршрут, а не абстрактный «любой AsyncAPI в любом брокере».
 
@@ -27,7 +29,14 @@ bash scripts/ci/verify-m004-s03-live-kafka-proof.sh
 Что именно они доказывают:
 
 - [`scripts/ci/verify-m004-s02-metadata-propagation.sh`](../../scripts/ci/verify-m004-s02-metadata-propagation.sh) — single-service proof для HTTP → Kafka → Kafka republish: проверяет raw `events.jsonl`, наличие Kafka `send`/`receive` evidence, propagation `test.run_id` / `test.suite` и успешный `async-report` с артефактом `yanote-async-report.json`.
-- [`scripts/ci/verify-m004-s03-live-kafka-proof.sh`](../../scripts/ci/verify-m004-s03-live-kafka-proof.sh) — two-service live Kafka proof: проверяет producer/consumer raw JSONL, детерминированный merge и успешный `async-report` по merged evidence.
+- [`scripts/ci/verify-m004-s03-live-kafka-proof.sh`](../../scripts/ci/verify-m004-s03-live-kafka-proof.sh) — two-service live Kafka proof: проверяет producer/consumer raw JSONL, детерминированный merge, успешный happy-path `async-report` по merged evidence и retained schema-failure pass по той же merged evidence.
+
+После T02 второй proof-скрипт экспортирует в `.yanote-ci/live-kafka-proof/` сразу две правдивые поверхности:
+
+- happy path: `async-report.stdout`, `async-report.stderr`, `yanote-async-report.json`;
+- intentional schema failure: `schema-failure-async-report.stdout`, `schema-failure-async-report.stderr`, `schema-failure-yanote-async-report.json`.
+
+Это и есть текущая публичная truth для payload-schema drift на proven Kafka path: зелёный прогон показывает канонический coverage bundle, а retained red sidecar показывает typed `ASYNC_SEMANTIC_INVALID_PAYLOAD` и `diagnostics.counts.invalid-payload` для той же merged Kafka evidence.
 
 Если эти proof-скрипты падают, сначала разбирайте их failure artifacts и `stderr`, а уже потом меняйте документацию или интеграцию.
 
@@ -115,15 +124,20 @@ YANOTE_ASYNC_ERROR class=gate code=ASYNC_GATE_MIN_COVERAGE ...
 - `summary.totalOperations` / `summary.coveredOperations`
 - `summary.totalMessages` / `summary.coveredMessages`
 - `coverage.operations.items[]` и их `operationKey`
-- `diagnostics.counts.unmatched` и `diagnostics.counts.mismatched`
+- `diagnostics.counts.unmatched`, `diagnostics.counts.mismatched`, `diagnostics.counts.invalid-payload`
 
 Для CI и support surface самый удобный набор такой:
 
 - `YANOTE_ASYNC_SUMMARY ...` — быстрая grep-friendly строка;
 - `yanote-async-report.json` — стабильный machine-readable артефакт;
-- `stderr` analyzer-а или proof-скрипта — typed причина, если путь упал fail-closed.
+- `stderr` analyzer-а или proof-скрипта — typed причина, если путь упал fail-closed;
+- для proven Kafka schema-failure path — `schema-failure-async-report.stderr` и `schema-failure-yanote-async-report.json` из `.yanote-ci/live-kafka-proof/`.
 
-Важно не переинтерпретировать async цифры: `messageCoveragePercent = 100%` означает, что нужные message contracts были наблюдены по имени и operation/channel wiring, но **не означает payload-schema enforcement**.
+Важно не переинтерпретировать async цифры: routing percentages remain routing-first. `channelCoveragePercent`, `operationCoveragePercent` и `messageCoveragePercent` показывают, что channel/operation/message wiring был наблюдён и сопоставлен, но не превращают зелёный happy path в обещание полной schema-keyword coverage.
+
+Payload-schema drift surfaced on the proven Kafka path, но только в тех границах, которые реально экспортирует live proof: retained invalid-payload sidecar показывает типизированный drift для той же merged Kafka evidence, а не абстрактную broker-agnostic schema validation для любых AsyncAPI runtime-ов.
+
+Отдельная честная граница касается headers: retained Kafka headers remain unverifiable. Текущий публичный proof bundle не сохраняет заголовки в user-facing artifacts, поэтому не надо читать зелёный `yanote-async-report.json` или red sidecar как доказательство header-schema coverage.
 
 ## 7. Честная граница первой волны
 
@@ -132,13 +146,15 @@ YANOTE_ASYNC_ERROR class=gate code=ASYNC_GATE_MIN_COVERAGE ...
 - **Kafka-only** — текущий user-facing async path поддерживает Kafka evidence и Kafka-oriented AsyncAPI proof; это не promise про любые брокеры.
 - **Spring Kafka-first** — live-proof в репозитории проходит через Spring Kafka integration path; другие runtime/framework surface-ы здесь не обещаны как проверенные.
 - **separate async report/gate** — async onboarding идёт через `async-report`, `YANOTE_ASYNC_SUMMARY`, `YANOTE_ASYNC_ERROR` и `yanote-async-report.json`; HTTP `report` / `yanote-report.json` остаются отдельной surface.
-- **payload-schema enforcement пока нет** — текущая первая волна не валидирует payload по всей AsyncAPI schema глубине и не обещает schema-keyword coverage.
-- **broker-agnostic promise нет** — RabbitMQ/AMQP и другие неброкерно-агностичные расширения остаются follow-on scope, а не текущая поддерживаемая поверхность.
+- **payload-schema drift surfaced on the proven Kafka path** — текущая первая волна уже умеет публиковать retained `invalid-payload` drift для live Kafka evidence через `schema-failure-*` артефакты, но не обещает полную schema-keyword coverage или broker-agnostic payload enforcement.
+- **routing percentages remain routing-first** — проценты покрытия по-прежнему описывают прежде всего channel/operation/message wiring и не подменяют более глубокую schema semantics surface.
+- **retained Kafka headers remain unverifiable** — user-facing bundle не сохраняет Kafka headers, поэтому header drift и header schema coverage пока не доказываются публичным proof path.
+- **broker-agnostic promise нет** — RabbitMQ/AMQP и другие расширения остаются follow-on scope, а не текущая поддерживаемая поверхность.
 
 Из этого следуют два практических запрета:
 
 1. Не называйте текущий path «общим async analyzer для любого брокера».
-2. Не трактуйте `yanote-async-report.json` как доказательство полной валидации payload schema.
+2. Не трактуйте `yanote-async-report.json` или `schema-failure-*` bundle как доказательство полной broker-agnostic или header-level schema validation.
 
 ## Связанные поверхности
 

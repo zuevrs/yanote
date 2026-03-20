@@ -55,12 +55,14 @@ Requirements for the current public product surface. Each maps to shipped or act
 - **Kafka-only**
 - **Spring Kafka-first**
 - **separate async report/gate**
-- **payload-schema enforcement пока нет**
+- **payload-schema drift surfaced on the proven Kafka path**
+- **routing percentages remain routing-first**
+- **retained Kafka headers remain unverifiable**
 - **broker-agnostic promise нет**
 
-Поддерживаемая evidence/support surface для этой первой волны тоже зафиксирована явно: `raw или merged async JSONL`, `yanote-async-report.json` и analyzer/proof `stderr`.
+Поддерживаемая evidence/support surface для этой первой волны тоже зафиксирована явно: `raw или merged async JSONL`, `yanote-async-report.json`, analyzer/proof `stderr` и retained `schema-failure-async-report.stderr` / `schema-failure-yanote-async-report.json` для proven Kafka payload drift.
 
-Практически это означает поддержанный путь через `async-report` и `yanote-async-report.json` для AsyncAPI/Kafka coverage, при этом HTTP `report` / `yanote-report.json` остаются отдельной поверхностью и не маскируются под один обязательный combined report.
+Практически это означает поддержанный путь через `async-report` и `yanote-async-report.json` для AsyncAPI/Kafka coverage, при этом HTTP `report` / `yanote-report.json` остаются отдельной поверхностью и не маскируются под один обязательный combined report. Happy-path coverage проценты остаются routing-first, а payload drift публично считается доказанным только для того Kafka evidence path, который экспортирует `bash scripts/ci/verify-m004-s03-live-kafka-proof.sh`.
 
 ## v2 Requirements
 
@@ -75,7 +77,7 @@ Deferred to future release. Tracked but not in current roadmap.
 
 ### Async Follow-ons
 
-- **ASYNC-01**: Team can enforce payload validation against AsyncAPI message schemas and deeper schema-keyword coverage
+- **ASYNC-01**: Team can extend the proven Kafka payload-drift proof to deeper AsyncAPI schema-keyword coverage and retained header validation
 - **ASYNC-02**: Team can produce one combined HTTP + async report/gate surface without losing the current truthful split between `report` and `async-report`
 - **ASYNC-03**: Team can support non-Kafka brokers or make a broker-agnostic async runtime promise
 
@@ -85,7 +87,7 @@ Explicitly excluded from the current public surface. Documented to prevent scope
 
 | Feature | Reason |
 |---------|--------|
-| Async payload-schema enforcement in the current first wave | Deferred follow-on; current async surface explicitly states `payload-schema enforcement пока нет` |
+| Async deeper schema-keyword coverage and retained header validation beyond the current Kafka payload-drift proof | Deferred follow-on; current public async surface proves payload drift only for the retained Kafka path and still treats headers as unverifiable |
 | Combined HTTP + async report/gate in the current first wave | Deferred follow-on; current product keeps a `separate async report/gate` |
 | Broker-agnostic or non-Kafka async coverage (RabbitMQ/AMQP/other brokers) | Deferred follow-on; current public boundary is `Kafka-only` and `broker-agnostic promise нет` |
 | Non-Java service ecosystem support | Explicitly deferred until Java-first workflow is stable |
@@ -127,4 +129,4 @@ Which phases cover which v1 requirements. Updated during roadmap creation.
 
 ---
 *Requirements defined: 2026-03-04*
-*Last updated: 2026-03-14 after M005 S01 T02 async boundary alignment*
+*Last updated: 2026-03-20 after M007 S04 T03 async boundary refresh*

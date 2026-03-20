@@ -19,12 +19,17 @@ async function seedAsyncProofSources(workDir, options = {}) {
     includeMergedEvents = true,
     includeAsyncStdout = true,
     includeAsyncStderr = true,
-    includeReport = true
+    includeReport = true,
+    includeSchemaFailureAsyncStdout = true,
+    includeSchemaFailureAsyncStderr = true,
+    includeSchemaFailureReport = true
   } = options;
 
   const tmpDir = path.join(workDir, "proof-temp");
   const reportDir = path.join(tmpDir, "async-report");
+  const schemaFailureReportDir = path.join(tmpDir, "schema-failure-async-report");
   await mkdir(reportDir, { recursive: true });
+  await mkdir(schemaFailureReportDir, { recursive: true });
 
   const paths = {
     singleServiceLog: path.join(tmpDir, "single-service-proof.log"),
@@ -35,7 +40,10 @@ async function seedAsyncProofSources(workDir, options = {}) {
     mergedEvents: path.join(tmpDir, "merged-two-service.events.jsonl"),
     asyncStdout: path.join(tmpDir, "async-report.stdout"),
     asyncStderr: path.join(tmpDir, "async-report.stderr"),
-    asyncReport: path.join(reportDir, "yanote-async-report.json")
+    asyncReport: path.join(reportDir, "yanote-async-report.json"),
+    schemaFailureAsyncStdout: path.join(tmpDir, "schema-failure-async-report.stdout"),
+    schemaFailureAsyncStderr: path.join(tmpDir, "schema-failure-async-report.stderr"),
+    schemaFailureAsyncReport: path.join(schemaFailureReportDir, "yanote-async-report.json")
   };
 
   await writeFile(paths.singleServiceLog, "single-service ok\n", "utf8");
@@ -66,6 +74,19 @@ async function seedAsyncProofSources(workDir, options = {}) {
   if (includeReport) {
     await writeFile(paths.asyncReport, '{"status":"ok"}\n', "utf8");
   }
+  if (includeSchemaFailureAsyncStdout) {
+    await writeFile(paths.schemaFailureAsyncStdout, "Summary\nYANOTE_ASYNC_SUMMARY status=error\n", "utf8");
+  }
+  if (includeSchemaFailureAsyncStderr) {
+    await writeFile(
+      paths.schemaFailureAsyncStderr,
+      'YANOTE_ERROR code=ASYNC_SEMANTIC_INVALID_PAYLOAD class=semantic reason="invalid-payload must be object"\n',
+      "utf8"
+    );
+  }
+  if (includeSchemaFailureReport) {
+    await writeFile(paths.schemaFailureAsyncReport, '{"status":"error"}\n', "utf8");
+  }
 
   return {
     tmpDir,
@@ -79,16 +100,23 @@ async function seedAsyncProofSources(workDir, options = {}) {
       YANOTE_ASYNC_SOURCE_MERGED_EVENTS: paths.mergedEvents,
       YANOTE_ASYNC_SOURCE_ASYNC_STDOUT: paths.asyncStdout,
       YANOTE_ASYNC_SOURCE_ASYNC_STDERR: paths.asyncStderr,
-      YANOTE_ASYNC_SOURCE_ASYNC_REPORT: paths.asyncReport
+      YANOTE_ASYNC_SOURCE_ASYNC_REPORT: paths.asyncReport,
+      YANOTE_ASYNC_SOURCE_SCHEMA_FAILURE_ASYNC_STDOUT: paths.schemaFailureAsyncStdout,
+      YANOTE_ASYNC_SOURCE_SCHEMA_FAILURE_ASYNC_STDERR: paths.schemaFailureAsyncStderr,
+      YANOTE_ASYNC_SOURCE_SCHEMA_FAILURE_ASYNC_REPORT: paths.schemaFailureAsyncReport
     }
   };
 }
 
-test("exports a deterministic allowlisted async bundle when the report exists", async () => {
+test("exports a deterministic widened async bundle when both happy-path and schema-failure reports exist", async () => {
   const workDir = await mkdtemp(path.join(os.tmpdir(), "yanote-async-export-"));
   try {
     const outDir = path.join(workDir, ".yanote-ci/live-kafka-proof");
     const { tmpDir, env } = await seedAsyncProofSources(workDir, { includeReport: true });
+
+    await mkdir(outDir, { recursive: true });
+    await writeFile(path.join(outDir, "stale.txt"), "stale", "utf8");
+    await writeFile(path.join(outDir, "schema-failure-yanote-async-report.json"), "stale", "utf8");
 
     const result = spawnSync("bash", [scriptPath, outDir], {
       cwd: workDir,
@@ -110,6 +138,9 @@ test("exports a deterministic allowlisted async bundle when the report exists", 
       "async-report.stdout",
       "merge.log",
       "merged-two-service.events.jsonl",
+      "schema-failure-async-report.stderr",
+      "schema-failure-async-report.stdout",
+      "schema-failure-yanote-async-report.json",
       "single-service-proof.log",
       "two-service-test.log",
       "yanote-async-report.json"
@@ -118,8 +149,11 @@ test("exports a deterministic allowlisted async bundle when the report exists", 
     const manifest = await readFile(path.join(outDir, "artifact-manifest.txt"), "utf8");
     assert.match(manifest, /proof_status=success/);
     assert.match(manifest, /report_found=true/);
-    assert.match(manifest, /artifact_count=9/);
+    assert.match(manifest, /artifact_count=12/);
     assert.match(manifest, /missing_artifacts=none/);
+    assert.match(manifest, /artifacts=.*schema-failure-async-report\.stdout/);
+    assert.match(manifest, /artifacts=.*schema-failure-async-report\.stderr/);
+    assert.match(manifest, /artifacts=.*schema-failure-yanote-async-report\.json/);
     assert.match(manifest, /source_paths_note=artifact-source-paths.txt/);
     assert.match(manifest, new RegExp(`destination=${escapeRegExp(outDir)}`));
 
@@ -127,13 +161,17 @@ test("exports a deterministic allowlisted async bundle when the report exists", 
     assert.match(sourcePaths, new RegExp(`temp_dir=${escapeRegExp(tmpDir)}`));
     assert.match(sourcePaths, /single-service-proof\.log=.*single-service-proof\.log/);
     assert.match(sourcePaths, /merged-two-service\.events\.jsonl=.*merged-two-service\.events\.jsonl/);
-    assert.match(sourcePaths, /yanote-async-report\.json=.*yanote-async-report\.json/);
+    assert.match(sourcePaths, /yanote-async-report\.json=.*async-report\/yanote-async-report\.json/);
+    assert.match(
+      sourcePaths,
+      /schema-failure-yanote-async-report\.json=.*schema-failure-async-report\/yanote-async-report\.json/
+    );
   } finally {
     await rm(workDir, { recursive: true, force: true });
   }
 });
 
-test("retains a deterministic failure bundle without inventing a missing async report", async () => {
+test("retains a deterministic failure bundle without inventing schema-failure artifacts when the proof aborts early", async () => {
   const workDir = await mkdtemp(path.join(os.tmpdir(), "yanote-async-export-"));
   try {
     const outDir = path.join(workDir, ".yanote-ci/live-kafka-proof");
@@ -142,11 +180,15 @@ test("retains a deterministic failure bundle without inventing a missing async r
       includeMergedEvents: false,
       includeAsyncStdout: false,
       includeAsyncStderr: false,
-      includeReport: false
+      includeReport: false,
+      includeSchemaFailureAsyncStdout: false,
+      includeSchemaFailureAsyncStderr: false,
+      includeSchemaFailureReport: false
     });
 
     await mkdir(outDir, { recursive: true });
     await writeFile(path.join(outDir, "yanote-async-report.json"), "stale", "utf8");
+    await writeFile(path.join(outDir, "schema-failure-yanote-async-report.json"), "stale", "utf8");
 
     const result = spawnSync("bash", [scriptPath, outDir], {
       cwd: workDir,
@@ -178,6 +220,9 @@ test("retains a deterministic failure bundle without inventing a missing async r
     assert.match(manifest, /missing_artifacts=.*async-report\.stdout/);
     assert.match(manifest, /missing_artifacts=.*async-report\.stderr/);
     assert.match(manifest, /missing_artifacts=.*yanote-async-report\.json/);
+    assert.match(manifest, /missing_artifacts=.*schema-failure-async-report\.stdout/);
+    assert.match(manifest, /missing_artifacts=.*schema-failure-async-report\.stderr/);
+    assert.match(manifest, /missing_artifacts=.*schema-failure-yanote-async-report\.json/);
 
     const sourcePaths = await readFile(path.join(outDir, "artifact-source-paths.txt"), "utf8");
     assert.match(sourcePaths, /merge\.log=none/);
@@ -185,6 +230,9 @@ test("retains a deterministic failure bundle without inventing a missing async r
     assert.match(sourcePaths, /async-report\.stdout=none/);
     assert.match(sourcePaths, /async-report\.stderr=none/);
     assert.match(sourcePaths, /yanote-async-report\.json=none/);
+    assert.match(sourcePaths, /schema-failure-async-report\.stdout=none/);
+    assert.match(sourcePaths, /schema-failure-async-report\.stderr=none/);
+    assert.match(sourcePaths, /schema-failure-yanote-async-report\.json=none/);
   } finally {
     await rm(workDir, { recursive: true, force: true });
   }

@@ -15,7 +15,9 @@ const expectedContracts = [
       payloadSchema: {
         type: "object",
         "x-parser-schema-id": "<anonymous-schema-1>"
-      }
+      },
+      payloadSchemaId: "<anonymous-schema-1>",
+      headerValidationCapability: "none"
     }
   },
   {
@@ -30,18 +32,69 @@ const expectedContracts = [
       payloadSchema: {
         type: "object",
         "x-parser-schema-id": "<anonymous-schema-2>"
-      }
+      },
+      payloadSchemaId: "<anonymous-schema-2>",
+      headerValidationCapability: "none"
+    }
+  }
+] satisfies KafkaOperationContract[];
+
+const expectedSchemaDepthContracts = [
+  {
+    operation: {
+      kind: "kafka",
+      action: "send",
+      channel: "orders.created"
+    },
+    message: {
+      name: "OrderCreatedEnvelope",
+      contentType: "application/json",
+      payloadSchema: {
+        type: "object",
+        required: ["eventId", "order"],
+        properties: {
+          eventId: {
+            type: "string",
+            "x-parser-schema-id": "<anonymous-schema-3>"
+          },
+          order: {
+            type: "object",
+            required: ["id", "total"],
+            properties: {
+              id: {
+                type: "string",
+                "x-parser-schema-id": "<anonymous-schema-5>"
+              },
+              total: {
+                type: "number",
+                "x-parser-schema-id": "<anonymous-schema-6>"
+              }
+            },
+            "x-parser-schema-id": "<anonymous-schema-4>"
+          }
+        },
+        "x-parser-schema-id": "OrderCreatedPayload"
+      },
+      payloadSchemaId: "OrderCreatedPayload",
+      headersSchemaId: "OrderEventHeaders",
+      headerValidationCapability: "unverifiable"
     }
   }
 ] satisfies KafkaOperationContract[];
 
 const expectedKeys = expectedContracts.map((contract) => serializeOperationKey(contract.operation));
+const expectedSchemaDepthKeys = expectedSchemaDepthContracts.map((contract) => serializeOperationKey(contract.operation));
 
 describe("asyncapi parity contract", () => {
   it("keeps message-contract metadata beside the kafka identity instead of inside the serialized key", () => {
     expect(expectedKeys).toEqual(["kafka send users.signedup", "kafka receive users.deleted"]);
     expect(expectedContracts.map((contract) => contract.message?.name)).toEqual(["UserSignedUp", "UserDeleted"]);
     expect(expectedContracts.map((contract) => contract.message?.contentType)).toEqual(["application/json", "application/json"]);
+    expect(expectedContracts.map((contract) => contract.message?.payloadSchemaId)).toEqual([
+      "<anonymous-schema-1>",
+      "<anonymous-schema-2>"
+    ]);
+    expect(expectedContracts.map((contract) => contract.message?.headerValidationCapability)).toEqual(["none", "none"]);
   });
 
   it("expects equivalent AsyncAPI v2 and v3 fixtures to normalize into the same kafka operation contracts", async () => {
@@ -62,6 +115,26 @@ describe("asyncapi parity contract", () => {
 
     expect(contractsInOrder(v2)).toEqual(expectedContracts);
     expect(contractsInOrder(v3)).toEqual(expectedContracts);
+  });
+
+  it("expects schema-depth fixtures to preserve identical routing keys and retained metadata across AsyncAPI versions", async () => {
+    const v2 = await loadAsyncApiSemanticsBundle("test/fixtures/asyncapi/schema-depth-v2.yaml");
+    const v3 = await loadAsyncApiSemanticsBundle("test/fixtures/asyncapi/schema-depth-v3.yaml");
+
+    expect(v2.hasInvalid).toBe(false);
+    expect(v3.hasInvalid).toBe(false);
+    expect(v2.diagnostics).toEqual([]);
+    expect(v3.diagnostics).toEqual([]);
+
+    expect(serializedOperationKeys(v2)).toEqual(expectedSchemaDepthKeys);
+    expect(serializedOperationKeys(v3)).toEqual(expectedSchemaDepthKeys);
+    expect(serializedOperationKeys(v2)).toEqual(serializedOperationKeys(v3));
+
+    expect(contractKeysInOrder(v2)).toEqual(expectedSchemaDepthKeys);
+    expect(contractKeysInOrder(v3)).toEqual(expectedSchemaDepthKeys);
+
+    expect(contractsInOrder(v2)).toEqual(expectedSchemaDepthContracts);
+    expect(contractsInOrder(v3)).toEqual(expectedSchemaDepthContracts);
   });
 });
 

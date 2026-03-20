@@ -1,4 +1,5 @@
-import type { AsyncAction, AsyncCoverageDiagnostic } from "../coverage/asyncCoverage.js";
+import type { AsyncAction } from "../coverage/asyncCoverage.js";
+import { compareAsyncCoverageDiagnostics } from "../coverage/asyncCoverage.js";
 import type { AsyncYanoteReport } from "./asyncReport.js";
 
 const DECIMALS = 2;
@@ -55,35 +56,21 @@ export function normalizeAsyncReport(report: AsyncYanoteReport): AsyncYanoteRepo
     },
     diagnostics: {
       counts: {
-        unmatched: report.diagnostics.counts.unmatched,
-        mismatched: report.diagnostics.counts.mismatched
+        "unsupported-content-type": report.diagnostics.counts["unsupported-content-type"],
+        "unsupported-schema-format": report.diagnostics.counts["unsupported-schema-format"],
+        "missing-payload": report.diagnostics.counts["missing-payload"],
+        "invalid-payload": report.diagnostics.counts["invalid-payload"],
+        "unverifiable-headers": report.diagnostics.counts["unverifiable-headers"],
+        mismatched: report.diagnostics.counts.mismatched,
+        unmatched: report.diagnostics.counts.unmatched
       },
-      items: [...report.diagnostics.items].sort(compareDiagnostics)
+      items: [...report.diagnostics.items].sort(compareAsyncCoverageDiagnostics)
     }
   };
 }
 
 function normalizeNullablePercent(value: number | null): number | null {
   return typeof value === "number" ? roundCoverage(value) : value;
-}
-
-function compareDiagnostics(left: AsyncCoverageDiagnostic, right: AsyncCoverageDiagnostic): number {
-  const kind = diagnosticKindRank(left.kind) - diagnosticKindRank(right.kind);
-  if (kind !== 0) return kind;
-  if (left.channel !== right.channel) return left.channel.localeCompare(right.channel);
-  const action = compareAsyncAction(left.action, right.action);
-  if (action !== 0) return action;
-  const leftObserved = left.observedMessage ?? "";
-  const rightObserved = right.observedMessage ?? "";
-  if (leftObserved !== rightObserved) return leftObserved.localeCompare(rightObserved);
-  const leftExpected = left.expectedMessage ?? "";
-  const rightExpected = right.expectedMessage ?? "";
-  if (leftExpected !== rightExpected) return leftExpected.localeCompare(rightExpected);
-  return left.message.localeCompare(right.message);
-}
-
-function diagnosticKindRank(kind: AsyncCoverageDiagnostic["kind"]): number {
-  return kind === "mismatched" ? 0 : 1;
 }
 
 function compareAsyncAction(left: AsyncAction, right: AsyncAction): number {

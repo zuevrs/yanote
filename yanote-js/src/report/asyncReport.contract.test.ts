@@ -70,6 +70,11 @@ const baseReport: AsyncYanoteReport = {
   },
   diagnostics: {
     counts: {
+      "unsupported-content-type": 0,
+      "unsupported-schema-format": 0,
+      "missing-payload": 0,
+      "invalid-payload": 0,
+      "unverifiable-headers": 0,
       unmatched: 0,
       mismatched: 0
     },
@@ -93,7 +98,7 @@ describe("async report schema contract", () => {
     expect(validateAsyncReport(withUnknown).ok).toBe(false);
   });
 
-  it("validates schemaVersion independently from toolVersion", () => {
+  it("validates schemaVersion independently from toolVersion and requires the widened diagnostic union", () => {
     const wrongSchema = {
       ...baseReport,
       schemaVersion: "999.0.0",
@@ -108,6 +113,85 @@ describe("async report schema contract", () => {
         toolVersion: "2.0.0"
       }).ok
     ).toBe(true);
+
+    const missingCount = {
+      ...baseReport,
+      diagnostics: {
+        ...baseReport.diagnostics,
+        counts: {
+          "unsupported-content-type": 0,
+          "unsupported-schema-format": 0,
+          "missing-payload": 0,
+          "invalid-payload": 0,
+          unmatched: 0,
+          mismatched: 0
+        }
+      }
+    } as any;
+
+    expect(validateAsyncReport(missingCount).ok).toBe(false);
+
+    const invalidSchemaDiagnostic = {
+      ...baseReport,
+      status: "partial",
+      diagnostics: {
+        counts: {
+          "unsupported-content-type": 0,
+          "unsupported-schema-format": 0,
+          "missing-payload": 1,
+          "invalid-payload": 0,
+          "unverifiable-headers": 0,
+          unmatched: 0,
+          mismatched: 0
+        },
+        items: [
+          {
+            kind: "missing-payload",
+            validationKind: "payload",
+            operationKey: "kafka send orders.created",
+            channel: "orders.created",
+            action: "send",
+            schemaId: "OrderCreatedPayload",
+            pointer: "/",
+            message: "Observed kafka evidence is missing the payload required for AsyncAPI schema validation"
+          }
+        ]
+      }
+    } as any;
+
+    expect(validateAsyncReport(invalidSchemaDiagnostic).ok).toBe(false);
+
+    const validSchemaDiagnostic = {
+      ...baseReport,
+      status: "partial",
+      diagnostics: {
+        counts: {
+          "unsupported-content-type": 0,
+          "unsupported-schema-format": 0,
+          "missing-payload": 1,
+          "invalid-payload": 0,
+          "unverifiable-headers": 0,
+          unmatched: 0,
+          mismatched: 0
+        },
+        items: [
+          {
+            kind: "missing-payload",
+            validationKind: "payload",
+            operationKey: "kafka send orders.created",
+            channel: "orders.created",
+            action: "send",
+            messageName: "OrderCreatedEnvelope",
+            schemaId: "OrderCreatedPayload",
+            pointer: "/",
+            reason: "Observed kafka evidence did not include a payload.",
+            message: "Observed kafka evidence is missing the payload required for AsyncAPI schema validation"
+          }
+        ]
+      }
+    } satisfies AsyncYanoteReport;
+
+    expect(validateAsyncReport(validSchemaDiagnostic).ok).toBe(true);
   });
 
   it("normalizes ordering and rounds async coverage values deterministically", () => {
@@ -190,7 +274,15 @@ describe("async report schema contract", () => {
         }
       },
       diagnostics: {
-        counts: { unmatched: 1, mismatched: 1 },
+        counts: {
+          "unsupported-content-type": 1,
+          "unsupported-schema-format": 0,
+          "missing-payload": 1,
+          "invalid-payload": 0,
+          "unverifiable-headers": 0,
+          unmatched: 1,
+          mismatched: 1
+        },
         items: [
           {
             kind: "unmatched",
@@ -206,6 +298,29 @@ describe("async report schema contract", () => {
             observedMessage: "LegacyUserDeleted",
             expectedMessage: "UserDeleted",
             message: "Observed async message contract did not match the canonical AsyncAPI message contract"
+          },
+          {
+            kind: "missing-payload",
+            validationKind: "payload",
+            operationKey: "kafka send orders.created",
+            channel: "orders.created",
+            action: "send",
+            messageName: "OrderCreatedEnvelope",
+            schemaId: "OrderCreatedPayload",
+            pointer: "/",
+            reason: "Observed kafka evidence did not include a payload.",
+            message: "Observed kafka evidence is missing the payload required for AsyncAPI schema validation"
+          },
+          {
+            kind: "unsupported-content-type",
+            validationKind: "contentType",
+            operationKey: "kafka send orders.created",
+            channel: "orders.created",
+            action: "send",
+            messageName: "OrderCreatedEnvelope",
+            schemaId: "OrderCreatedPayload",
+            reason: "Unsupported AsyncAPI payload content type: application/xml.",
+            message: "Retained AsyncAPI payload content type is outside the current schema-validation scope"
           }
         ]
       }
@@ -225,6 +340,20 @@ describe("async report schema contract", () => {
       "kafka receive users.deleted",
       "kafka send users.signedup"
     ]);
-    expect(normalized.diagnostics.items.map((entry) => entry.kind)).toEqual(["mismatched", "unmatched"]);
+    expect(normalized.diagnostics.counts).toEqual({
+      "unsupported-content-type": 1,
+      "unsupported-schema-format": 0,
+      "missing-payload": 1,
+      "invalid-payload": 0,
+      "unverifiable-headers": 0,
+      mismatched: 1,
+      unmatched: 1
+    });
+    expect(normalized.diagnostics.items.map((entry) => entry.kind)).toEqual([
+      "unsupported-content-type",
+      "missing-payload",
+      "mismatched",
+      "unmatched"
+    ]);
   });
 });
