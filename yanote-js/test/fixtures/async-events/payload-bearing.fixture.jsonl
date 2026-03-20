@@ -1,0 +1,5 @@
+{"kind":"kafka","ts":1710000000200,"action":" SEND ","channel":" users.created ","message":" UserCreated ","payload":{"user":{"id":"alice","roles":["admin"]},"active":true},"service":"accounts-service","test.run_id":"run-payload-1","test.suite":"suite-payload"}
+this is not json
+{"kind":"kafka","action":"receive","channel":"users.deleted","payload":"alice","test.run_id":"   ","test.suite":"suite-payload"}
+{"kind":"kafka","action":"send","channel":"users.compacted","payload":["alice",{"deleted":false},3],"test.run_id":"run-payload-2","test.suite":"suite-payload"}
+{"kind":"http","method":"GET","route":"/users"}

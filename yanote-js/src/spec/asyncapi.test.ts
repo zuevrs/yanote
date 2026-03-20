@@ -13,6 +13,28 @@ describe("asyncapi contract", () => {
     ).toBe("kafka send users.signedup");
   });
 
+  it("retains payload schema metadata beside the canonical kafka identity", async () => {
+    const bundle = await loadAsyncApiSemanticsBundle("test/fixtures/asyncapi/v3.yaml");
+
+    expect(bundle.hasInvalid).toBe(false);
+    expect(bundle.diagnostics).toEqual([]);
+    expect(bundle.operationContractsByKey.get("kafka send users.signedup")).toEqual({
+      operation: {
+        kind: "kafka",
+        action: "send",
+        channel: "users.signedup"
+      },
+      message: {
+        name: "UserSignedUp",
+        contentType: "application/json",
+        payloadSchema: {
+          type: "object",
+          "x-parser-schema-id": "<anonymous-schema-1>"
+        }
+      }
+    });
+  });
+
   it("surfaces structured async diagnostics when a kafka-scoped contract is semantically invalid", async () => {
     const bundle = await loadAsyncApiSemanticsBundle("test/fixtures/asyncapi/invalid.yaml");
 

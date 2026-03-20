@@ -3,6 +3,7 @@ import readline from "node:readline";
 import {
   normalizeAsyncAction,
   normalizeChannel,
+  normalizeJsonValue,
   normalizeMessageContract,
   type AsyncEvent
 } from "../model/asyncEvent.js";
@@ -50,6 +51,7 @@ export async function readAsyncEventsJsonl(filePath: string): Promise<ReadAsyncJ
       message: normalizeMessageContract(obj.message),
       service: typeof obj.service === "string" ? obj.service : obj.service === null ? null : undefined,
       instance: typeof obj.instance === "string" ? obj.instance : obj.instance === null ? null : undefined,
+      payload: normalizeJsonValue(obj.payload),
       error: typeof obj.error === "boolean" ? obj.error : undefined,
       testRunId: normalizeRunId(obj["test.run_id"]),
       testSuite: normalizeSuite(obj["test.suite"])

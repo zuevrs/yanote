@@ -97,17 +97,19 @@ class KafkaRecorderSingleServiceIntegrationTest {
         assertThat(text(httpEvent, "test.suite")).isEqualTo(TEST_SUITE);
         assertThat(httpEvent.get("error").booleanValue()).isFalse();
 
-        assertKafkaEvent(firstSend, ExampleServiceApplication.USER_EVENTS_TOPIC, ExampleServiceApplication.USER_CREATED_MESSAGE);
-        assertKafkaEvent(firstReceive, ExampleServiceApplication.USER_EVENTS_TOPIC, ExampleServiceApplication.USER_CREATED_MESSAGE);
+        assertKafkaEvent(firstSend, ExampleServiceApplication.USER_EVENTS_TOPIC, ExampleServiceApplication.USER_CREATED_MESSAGE, "alice");
+        assertKafkaEvent(firstReceive, ExampleServiceApplication.USER_EVENTS_TOPIC, ExampleServiceApplication.USER_CREATED_MESSAGE, "alice");
         assertKafkaEvent(
                 republishedSend,
                 ExampleServiceApplication.USER_REPUBLISHED_TOPIC,
-                ExampleServiceApplication.USER_REPUBLISHED_MESSAGE
+                ExampleServiceApplication.USER_REPUBLISHED_MESSAGE,
+                "alice"
         );
         assertKafkaEvent(
                 republishedReceive,
                 ExampleServiceApplication.USER_REPUBLISHED_TOPIC,
-                ExampleServiceApplication.USER_REPUBLISHED_MESSAGE
+                ExampleServiceApplication.USER_REPUBLISHED_MESSAGE,
+                "alice"
         );
 
         assertThat(messagesForChannel(events, ExampleServiceApplication.USER_EVENTS_TOPIC))
@@ -116,10 +118,11 @@ class KafkaRecorderSingleServiceIntegrationTest {
                 .containsOnly(ExampleServiceApplication.USER_REPUBLISHED_MESSAGE);
     }
 
-    private static void assertKafkaEvent(JsonNode event, String channel, String message) {
+    private static void assertKafkaEvent(JsonNode event, String channel, String message, String payload) {
         assertThat(text(event, "kind")).isEqualTo("kafka");
         assertThat(text(event, "channel")).isEqualTo(channel);
         assertThat(text(event, "message")).isEqualTo(message);
+        assertThat(text(event, "payload")).isEqualTo(payload);
         assertThat(text(event, "service")).isEqualTo("examples-service");
         assertThat(text(event, "test.run_id")).isEqualTo(TEST_RUN_ID);
         assertThat(text(event, "test.suite")).isEqualTo(TEST_SUITE);

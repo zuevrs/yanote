@@ -12,6 +12,7 @@ channels:
       operationId: sendUserSignedUp
       message:
         messageId: UserSignedUp
+        contentType: application/json
         payload:
           type: object
   users.deleted:
@@ -19,5 +20,6 @@ channels:
       operationId: receiveUserDeleted
       message:
         messageId: UserDeleted
+        contentType: application/json
         payload:
           type: object

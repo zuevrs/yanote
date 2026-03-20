@@ -1,5 +1,7 @@
 package dev.yanote.core.events;
 
+import com.fasterxml.jackson.databind.JsonNode;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import org.junit.jupiter.api.Test;
 
 import java.nio.charset.StandardCharsets;
@@ -11,9 +13,13 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertInstanceOf;
 
 class KafkaEventJsonlRoundTripTest {
+    private static final ObjectMapper OBJECT_MAPPER = new ObjectMapper();
 
     @Test
-    void shouldSerializeMetadataOnlyKafkaEvidence() throws Exception {
+    void shouldSerializePayloadBearingKafkaEvidence() throws Exception {
+        JsonNode payload = json("""
+                {"user":{"id":"alice","roles":["admin"]},"active":true}
+                """);
         KafkaEvent event = new KafkaEvent(
                 1710000000000L,
                 KafkaEvent.Action.SEND,
@@ -21,6 +27,7 @@ class KafkaEventJsonlRoundTripTest {
                 " UserSignedUp ",
                 "accounts-service",
                 null,
+                payload,
                 false,
                 "run-1",
                 "suite-a"
@@ -34,7 +41,7 @@ class KafkaEventJsonlRoundTripTest {
 
         String jsonlLine = Files.readString(tempFile, StandardCharsets.UTF_8).trim();
         assertEquals(
-                "{\"kind\":\"kafka\",\"ts\":1710000000000,\"action\":\"send\",\"channel\":\"users.signedup\",\"message\":\"UserSignedUp\",\"service\":\"accounts-service\",\"error\":false,\"test.run_id\":\"run-1\",\"test.suite\":\"suite-a\"}",
+                "{\"kind\":\"kafka\",\"ts\":1710000000000,\"action\":\"send\",\"channel\":\"users.signedup\",\"message\":\"UserSignedUp\",\"service\":\"accounts-service\",\"payload\":{\"user\":{\"id\":\"alice\",\"roles\":[\"admin\"]},\"active\":true},\"error\":false,\"test.run_id\":\"run-1\",\"test.suite\":\"suite-a\"}",
                 jsonlLine
         );
 
@@ -49,6 +56,7 @@ class KafkaEventJsonlRoundTripTest {
                         "UserSignedUp",
                         "accounts-service",
                         null,
+                        payload,
                         false,
                         "run-1",
                         "suite-a"
@@ -64,6 +72,7 @@ class KafkaEventJsonlRoundTripTest {
                 KafkaEvent.Action.RECEIVE,
                 "users.deleted",
                 "   ",
+                null,
                 null,
                 null,
                 null,
@@ -94,10 +103,15 @@ class KafkaEventJsonlRoundTripTest {
                         null,
                         null,
                         null,
+                        null,
                         "run-2",
                         "suite-b"
                 ),
                 events.get(0)
         );
+    }
+
+    private static JsonNode json(String value) throws Exception {
+        return OBJECT_MAPPER.readTree(value);
     }
 }

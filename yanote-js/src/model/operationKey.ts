@@ -1,3 +1,5 @@
+import type { JsonValue } from "./asyncEvent.js";
+
 export type AsyncAction = "send" | "receive";
 
 export type HttpOperationKey = {
@@ -14,6 +16,9 @@ export type KafkaOperationKey = {
 
 export type KafkaMessageContract = {
   name: string;
+  payloadSchema?: JsonValue;
+  contentType?: string;
+  schemaFormat?: string;
 };
 
 export type KafkaOperationContract = {

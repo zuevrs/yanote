@@ -11,6 +11,7 @@ import dev.yanote.core.testmetadata.TestMetadataContextHolder;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.List;
+import java.util.Map;
 import org.apache.kafka.clients.consumer.ConsumerRecord;
 import org.apache.kafka.clients.producer.ProducerRecord;
 import org.junit.jupiter.api.AfterEach;
@@ -59,7 +60,7 @@ class KafkaMetadataPropagationContractTest {
         YanoteKafkaRecordInterceptor interceptor = new YanoteKafkaRecordInterceptor(
                 new YanoteKafkaEventRecorder(eventsPath, "kafka-contract-service")
         );
-        ConsumerRecord<Object, Object> record = consumerRecord("payload", "run-1", "suite-a", "InboundMessage");
+        ConsumerRecord<Object, Object> record = consumerRecord(Map.of("userId", "alice", "active", true), "run-1", "suite-a", "InboundMessage");
 
         interceptor.intercept(record, null);
 
@@ -80,9 +81,35 @@ class KafkaMetadataPropagationContractTest {
         assertThat(event.action()).isEqualTo(KafkaEvent.Action.RECEIVE);
         assertThat(event.channel()).isEqualTo(TOPIC);
         assertThat(event.message()).isEqualTo("InboundMessage");
+        assertThat(event.payload()).isNotNull();
+        assertThat(event.payload().get("userId").asText()).isEqualTo("alice");
+        assertThat(event.payload().get("active").asBoolean()).isTrue();
         assertThat(event.error()).isFalse();
         assertThat(event.testRunId()).isEqualTo("run-1");
         assertThat(event.testSuite()).isEqualTo("suite-a");
+    }
+
+    @Test
+    void shouldOmitUnsupportedPayloadsWithoutBreakingMetadataCapture() throws Exception {
+        Path eventsPath = tempDir.resolve("unsupported-payload-events.jsonl");
+        YanoteKafkaRecordInterceptor interceptor = new YanoteKafkaRecordInterceptor(
+                new YanoteKafkaEventRecorder(eventsPath, "kafka-contract-service")
+        );
+        ConsumerRecord<Object, Object> record = consumerRecord(new Object(), "run-unsupported", "suite-x", "InboundMessage");
+
+        assertThatCode(() -> {
+            interceptor.intercept(record, null);
+            interceptor.success(record, null);
+            interceptor.afterRecord(record, null);
+        }).doesNotThrowAnyException();
+
+        List<KafkaEvent> events = readKafkaEvents(eventsPath);
+        assertThat(events).hasSize(1);
+        KafkaEvent event = events.get(0);
+        assertThat(event.message()).isEqualTo("InboundMessage");
+        assertThat(event.payload()).isNull();
+        assertThat(event.testRunId()).isEqualTo("run-unsupported");
+        assertThat(event.testSuite()).isEqualTo("suite-x");
     }
 
     @Test
@@ -110,7 +137,7 @@ class KafkaMetadataPropagationContractTest {
     }
 
     private static ConsumerRecord<Object, Object> consumerRecord(
-            String payload,
+            Object payload,
             String runId,
             String suite,
             String messageHint
