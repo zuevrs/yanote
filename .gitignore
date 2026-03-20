@@ -47,7 +47,8 @@ coverage/
 .cache/
 tmp/
 
-# ── GSD runtime (tracked artifacts live under .gsd; ignore only generated state) ──
+# ── GSD local project state (keep the whole tree out of the public repo surface) ──
+.gsd
 .gsd/activity/
 .gsd/runtime/
 .gsd/worktrees/
