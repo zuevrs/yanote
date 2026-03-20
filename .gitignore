@@ -22,9 +22,7 @@ dist/
 # local proof/runtime artifacts
 .yanote-ci/
 
-# planning / agent state (local-only)
-.gsd
-.gsd/
+# local planning caches
 .planning/
 Thumbs.db
 *.swp
@@ -49,11 +47,15 @@ coverage/
 .cache/
 tmp/
 
-# ── GSD baseline (auto-generated) ──
+# ── GSD runtime (tracked artifacts live under .gsd; ignore only generated state) ──
 .gsd/activity/
 .gsd/runtime/
 .gsd/worktrees/
+.gsd/parallel/
 .gsd/auto.lock
 .gsd/metrics.json
 .gsd/completed-units.json
 .gsd/STATE.md
+.gsd/gsd.db
+.gsd/gsd.db-shm
+.gsd/gsd.db-wal
