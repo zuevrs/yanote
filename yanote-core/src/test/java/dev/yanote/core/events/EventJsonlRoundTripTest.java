@@ -1,5 +1,6 @@
 package dev.yanote.core.events;
 
+import com.fasterxml.jackson.databind.ObjectMapper;
 import org.junit.jupiter.api.Test;
 
 import java.nio.file.Files;
@@ -9,6 +10,7 @@ import java.util.List;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 
 class EventJsonlRoundTripTest {
+    private static final ObjectMapper OBJECT_MAPPER = new ObjectMapper();
 
     @Test
     void shouldWriteAndReadHttpEventRoundTrip() throws Exception {
@@ -38,6 +40,9 @@ class EventJsonlRoundTripTest {
                 null,
                 "accounts-service",
                 null,
+                OBJECT_MAPPER.readTree("""
+                        {"userId":"alice","roles":["admin"]}
+                        """),
                 false,
                 "run-1",
                 "suite-a"

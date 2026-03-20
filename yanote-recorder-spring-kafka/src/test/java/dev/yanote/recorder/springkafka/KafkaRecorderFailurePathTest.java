@@ -3,6 +3,7 @@ package dev.yanote.recorder.springkafka;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatCode;
 
+import java.io.UncheckedIOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.Map;
@@ -64,6 +65,34 @@ class KafkaRecorderFailurePathTest {
         assertThat(output.getOut())
                 .contains("Failed to write yanote kafka event")
                 .contains("dropping event");
+    }
+
+    @Test
+    void shouldWarnAndOmitUnsupportedPayloads(CapturedOutput output) throws Exception {
+        Path eventsPath = Files.createTempFile("yanote-kafka-recorder-events-", ".jsonl");
+
+        contextRunner
+                .withPropertyValues(
+                        "yanote.recorder.enabled=true",
+                        "yanote.recorder.events-path=" + eventsPath,
+                        "yanote.recorder.service-name=failure-service"
+                )
+                .run(context -> {
+                    YanoteKafkaProducerListener producerListener = context.getBean(YanoteKafkaProducerListener.class);
+                    ProducerRecord<Object, Object> producerRecord = new ProducerRecord<>("orders", new Object());
+                    YanoteKafkaHeaders.setHeaders(producerRecord.headers(), "run-unsupported", "suite-a", null);
+
+                    assertThatCode(() -> producerListener.onSuccess(producerRecord, null)).doesNotThrowAnyException();
+                    String jsonl;
+                    try {
+                        jsonl = Files.readString(eventsPath);
+                    } catch (java.io.IOException ex) {
+                        throw new UncheckedIOException(ex);
+                    }
+                    assertThat(jsonl).doesNotContain("payload");
+                });
+
+        assertThat(output.getOut()).contains("Omitting yanote kafka payload");
     }
 
     @Configuration(proxyBeanMethods = false)

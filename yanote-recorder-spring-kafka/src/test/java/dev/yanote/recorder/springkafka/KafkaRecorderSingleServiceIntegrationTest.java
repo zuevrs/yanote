@@ -125,26 +125,31 @@ class KafkaRecorderSingleServiceIntegrationTest {
 
         assertThat(sendSuccess.error()).isFalse();
         assertThat(sendSuccess.message()).isEqualTo("OrderCreated");
+        assertThat(sendSuccess.payload().asText()).isEqualTo("ok");
         assertThat(sendSuccess.testRunId()).isEqualTo("run-success");
         assertThat(sendSuccess.testSuite()).isEqualTo("suite-a");
 
         assertThat(receiveSuccess.error()).isFalse();
         assertThat(receiveSuccess.message()).isEqualTo("OrderCreated");
+        assertThat(receiveSuccess.payload().asText()).isEqualTo("ok");
         assertThat(receiveSuccess.testRunId()).isEqualTo("run-success");
         assertThat(receiveSuccess.testSuite()).isEqualTo("suite-a");
 
         assertThat(sendBeforeListenerFailure.error()).isFalse();
         assertThat(sendBeforeListenerFailure.message()).isNull();
+        assertThat(sendBeforeListenerFailure.payload().asText()).isEqualTo("boom");
         assertThat(sendBeforeListenerFailure.testRunId()).isEqualTo("run-failure");
         assertThat(sendBeforeListenerFailure.testSuite()).isEqualTo("suite-b");
 
         assertThat(receiveFailure.error()).isTrue();
         assertThat(receiveFailure.message()).isNull();
+        assertThat(receiveFailure.payload().asText()).isEqualTo("boom");
         assertThat(receiveFailure.testRunId()).isEqualTo("run-failure");
         assertThat(receiveFailure.testSuite()).isEqualTo("suite-b");
 
         assertThat(sendFailure.error()).isTrue();
         assertThat(sendFailure.message()).isNull();
+        assertThat(sendFailure.payload().asText()).isEqualTo("offline");
         assertThat(sendFailure.testRunId()).isEqualTo("run-send-failure");
         assertThat(sendFailure.testSuite()).isEqualTo("suite-c");
     }

@@ -11,12 +11,14 @@ channels:
     address: users.signedup
     messages:
       UserSignedUp:
+        contentType: application/json
         payload:
           type: object
   usersDeleted:
     address: users.deleted
     messages:
       UserDeleted:
+        contentType: application/json
         payload:
           type: object
 operations:

@@ -15,6 +15,7 @@ public class YanoteKafkaEventRecorder {
 
     private final Path eventsPath;
     private final String serviceName;
+    private final KafkaPayloadCapture payloadCapture = new KafkaPayloadCapture();
 
     public YanoteKafkaEventRecorder(Path eventsPath, String serviceName) {
         this.eventsPath = eventsPath;
@@ -22,14 +23,25 @@ public class YanoteKafkaEventRecorder {
     }
 
     public void recordSend(ProducerRecord<?, ?> record, boolean error) {
-        record(KafkaEvent.Action.SEND, record.topic(), record.headers(), error);
+        record(KafkaEvent.Action.SEND, record.topic(), record.value(), record.headers(), error);
     }
 
     public void recordReceive(ConsumerRecord<?, ?> record, boolean error) {
-        record(KafkaEvent.Action.RECEIVE, record.topic(), record.headers(), error);
+        record(KafkaEvent.Action.RECEIVE, record.topic(), record.value(), record.headers(), error);
     }
 
-    private void record(KafkaEvent.Action action, String channel, Headers headers, boolean error) {
+    private void record(KafkaEvent.Action action, String channel, Object payloadValue, Headers headers, boolean error) {
+        KafkaPayloadCapture.CaptureResult captureResult = payloadCapture.capture(payloadValue);
+        if (captureResult.warning() != null) {
+            log.warn(
+                    "Omitting yanote kafka payload for action={} channel={} at {} ({})",
+                    action.jsonValue(),
+                    channel,
+                    eventsPath,
+                    captureResult.warning()
+            );
+        }
+
         KafkaEvent event = new KafkaEvent(
                 System.currentTimeMillis(),
                 action,
@@ -37,6 +49,7 @@ public class YanoteKafkaEventRecorder {
                 YanoteKafkaHeaders.readMessageHint(headers),
                 serviceName,
                 null,
+                captureResult.payload(),
                 error,
                 YanoteKafkaHeaders.readTestRunId(headers),
                 YanoteKafkaHeaders.readTestSuite(headers)

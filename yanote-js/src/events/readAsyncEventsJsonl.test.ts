@@ -19,6 +19,7 @@ describe("readAsyncEventsJsonl", () => {
         message: "UserSignedUp",
         service: "accounts-service",
         instance: null,
+        payload: undefined,
         error: false,
         testRunId: "run-1",
         testSuite: "unknown"
@@ -31,9 +32,64 @@ describe("readAsyncEventsJsonl", () => {
         message: undefined,
         service: undefined,
         instance: undefined,
+        payload: undefined,
         error: undefined,
         testRunId: "unknown",
         testSuite: "suite-a"
+      }
+    ]);
+  });
+
+  it("keeps payload-bearing kafka evidence while ignoring invalid and non-kafka lines", async () => {
+    const result = await readAsyncEventsJsonl("test/fixtures/async-events/payload-bearing.fixture.jsonl");
+
+    expect(result.invalidLines).toBe(1);
+    expect(result.invalidLineNumbers).toEqual([2]);
+    expect(result.items).toEqual([
+      {
+        kind: "kafka",
+        ts: 1710000000200,
+        action: "send",
+        channel: "users.created",
+        message: "UserCreated",
+        service: "accounts-service",
+        instance: undefined,
+        payload: {
+          user: {
+            id: "alice",
+            roles: ["admin"]
+          },
+          active: true
+        },
+        error: undefined,
+        testRunId: "run-payload-1",
+        testSuite: "suite-payload"
+      },
+      {
+        kind: "kafka",
+        ts: undefined,
+        action: "receive",
+        channel: "users.deleted",
+        message: undefined,
+        service: undefined,
+        instance: undefined,
+        payload: "alice",
+        error: undefined,
+        testRunId: "unknown",
+        testSuite: "suite-payload"
+      },
+      {
+        kind: "kafka",
+        ts: undefined,
+        action: "send",
+        channel: "users.compacted",
+        message: undefined,
+        service: undefined,
+        instance: undefined,
+        payload: ["alice", { deleted: false }, 3],
+        error: undefined,
+        testRunId: "run-payload-2",
+        testSuite: "suite-payload"
       }
     ]);
   });
@@ -50,6 +106,13 @@ describe("readAsyncEventsJsonl", () => {
         message: ["bad"],
         service: 42,
         instance: { host: "bad" },
+        payload: {
+          user: {
+            id: "42"
+          },
+          flags: [true, false],
+          active: true
+        },
         error: "nope",
         "test.run_id": null,
         "test.suite": "  "
@@ -80,6 +143,13 @@ describe("readAsyncEventsJsonl", () => {
           message: undefined,
           service: undefined,
           instance: undefined,
+          payload: {
+            user: {
+              id: "42"
+            },
+            flags: [true, false],
+            active: true
+          },
           error: undefined,
           testRunId: "unknown",
           testSuite: "unknown"

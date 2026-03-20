@@ -10,7 +10,12 @@ const expectedContracts = [
       channel: "users.signedup"
     },
     message: {
-      name: "UserSignedUp"
+      name: "UserSignedUp",
+      contentType: "application/json",
+      payloadSchema: {
+        type: "object",
+        "x-parser-schema-id": "<anonymous-schema-1>"
+      }
     }
   },
   {
@@ -20,7 +25,12 @@ const expectedContracts = [
       channel: "users.deleted"
     },
     message: {
-      name: "UserDeleted"
+      name: "UserDeleted",
+      contentType: "application/json",
+      payloadSchema: {
+        type: "object",
+        "x-parser-schema-id": "<anonymous-schema-2>"
+      }
     }
   }
 ] satisfies KafkaOperationContract[];
@@ -31,6 +41,7 @@ describe("asyncapi parity contract", () => {
   it("keeps message-contract metadata beside the kafka identity instead of inside the serialized key", () => {
     expect(expectedKeys).toEqual(["kafka send users.signedup", "kafka receive users.deleted"]);
     expect(expectedContracts.map((contract) => contract.message?.name)).toEqual(["UserSignedUp", "UserDeleted"]);
+    expect(expectedContracts.map((contract) => contract.message?.contentType)).toEqual(["application/json", "application/json"]);
   });
 
   it("expects equivalent AsyncAPI v2 and v3 fixtures to normalize into the same kafka operation contracts", async () => {

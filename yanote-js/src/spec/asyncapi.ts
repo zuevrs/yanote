@@ -2,9 +2,11 @@ import { Parser, fromFile } from "@asyncapi/parser";
 import {
   serializeOperationKey,
   type AsyncAction,
+  type KafkaMessageContract,
   type KafkaOperationContract,
   type OperationKey
 } from "../model/operationKey.js";
+import { normalizeJsonValue } from "../model/asyncEvent.js";
 import type { SemanticDiagnostic, SemanticDiagnosticsBundle } from "./diagnostics.js";
 
 const KAFKA_RUNTIME = "kafka";
@@ -324,8 +326,8 @@ function extractV2MessageContract(
     return undefined;
   }
 
-  const messageName = extractMessageName(messageValue);
-  if (!messageName) {
+  const message = buildMessageContract(messageValue);
+  if (!message) {
     diagnostics.push({
       kind: "invalid",
       message: "AsyncAPI v2 operation message must resolve to a single named message",
@@ -334,7 +336,7 @@ function extractV2MessageContract(
     return undefined;
   }
 
-  return { name: messageName };
+  return message;
 }
 
 function extractV3MessageContract(
@@ -367,8 +369,8 @@ function extractV3MessageContract(
     return undefined;
   }
 
-  const messageName = extractMessageName(messagesValue[0]);
-  if (!messageName) {
+  const message = buildMessageContract(messagesValue[0]);
+  if (!message) {
     diagnostics.push({
       kind: "invalid",
       message: "AsyncAPI v3 operation message must resolve to a single named message",
@@ -377,7 +379,31 @@ function extractV3MessageContract(
     return undefined;
   }
 
-  return { name: messageName };
+  return message;
+}
+
+function buildMessageContract(value: unknown): KafkaMessageContract | null {
+  if (!isRecord(value)) {
+    return null;
+  }
+
+  const name = extractMessageName(value);
+  if (!name) {
+    return null;
+  }
+
+  const payloadSchema = normalizeJsonValue(value.payload);
+  const contentType = normalizeNonEmptyString(value.contentType) ?? undefined;
+  const schemaFormat =
+    normalizeNonEmptyString(value.schemaFormat) ??
+    (isRecord(value.payload) ? normalizeNonEmptyString(value.payload.schemaFormat) ?? undefined : undefined);
+
+  return {
+    name,
+    ...(payloadSchema !== undefined ? { payloadSchema } : {}),
+    ...(contentType ? { contentType } : {}),
+    ...(schemaFormat ? { schemaFormat } : {})
+  };
 }
 
 function resolveV3ChannelNameOrAddress(channelRefOrObj: unknown, channels: Record<string, unknown>): string | null {
