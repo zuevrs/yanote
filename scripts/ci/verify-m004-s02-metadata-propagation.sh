@@ -233,8 +233,16 @@ expect_close(summary.get("channelCoveragePercent"), 100, "channelCoveragePercent
 expect_close(summary.get("operationCoveragePercent"), 100, "operationCoveragePercent")
 expect_close(summary.get("messageCoveragePercent"), 100, "messageCoveragePercent")
 
-if report.get("diagnostics", {}).get("counts") != {"unmatched": 0, "mismatched": 0}:
-    raise SystemExit(f"Expected zero async diagnostics, got {report.get('diagnostics')!r}")
+if report.get("diagnostics", {}).get("counts") != {
+    "unsupported-content-type": 0,
+    "unsupported-schema-format": 0,
+    "missing-payload": 0,
+    "invalid-payload": 0,
+    "unverifiable-headers": 0,
+    "unmatched": 0,
+    "mismatched": 0,
+}:
+    raise SystemExit(f"Expected widened zero async diagnostics contract, got {report.get('diagnostics')!r}")
 
 operations = {entry["operationKey"]: entry for entry in coverage.get("operations", {}).get("items", [])}
 if set(operations) != set(expected_operations):

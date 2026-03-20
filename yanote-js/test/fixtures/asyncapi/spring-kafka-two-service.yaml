@@ -12,7 +12,7 @@ channels:
     messages:
       UserCreated:
         payload:
-          type: object
+          $ref: '#/components/schemas/UserCreatedPayload'
 operations:
   sendUserCreated:
     action: send
@@ -26,3 +26,7 @@ operations:
       $ref: '#/channels/userCreated'
     messages:
       - $ref: '#/channels/userCreated/messages/UserCreated'
+components:
+  schemas:
+    UserCreatedPayload:
+      type: string

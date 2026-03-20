@@ -43,6 +43,21 @@ require_contains() {
   grep -Fq -- "$needle" "${ROOT_DIR}/${path}" || error "${path} is missing ${label}: ${needle}"
 }
 
+reject_contains() {
+  local path="$1"
+  local needle="$2"
+  local label="$3"
+
+  if [[ ! -f "${ROOT_DIR}/${path}" ]]; then
+    error "Missing required surface for ${label}: ${path}"
+    return
+  fi
+
+  if grep -Fq -- "$needle" "${ROOT_DIR}/${path}"; then
+    error "${path} still contains stale ${label}: ${needle}"
+  fi
+}
+
 first_line_of() {
   local path="$1"
   local needle="$2"
@@ -163,8 +178,16 @@ require_contains "${ASYNC_GUIDE}" "merge-async-events-jsonl.mjs" "merge helper l
 require_contains "${ASYNC_GUIDE}" "Kafka-only" "first-wave boundary clause"
 require_contains "${ASYNC_GUIDE}" "Spring Kafka-first" "first-wave boundary clause"
 require_contains "${ASYNC_GUIDE}" "separate async report/gate" "first-wave boundary clause"
-require_contains "${ASYNC_GUIDE}" "payload-schema enforcement пока нет" "first-wave boundary clause"
+require_contains "${ASYNC_GUIDE}" "payload-schema drift surfaced on the proven Kafka path" "proven Kafka payload-drift clause"
+require_contains "${ASYNC_GUIDE}" "routing percentages remain routing-first" "routing-first async coverage clause"
+require_contains "${ASYNC_GUIDE}" "retained Kafka headers remain unverifiable" "header boundary clause"
 require_contains "${ASYNC_GUIDE}" "broker-agnostic promise нет" "first-wave boundary clause"
+require_contains "${ASYNC_GUIDE}" ".yanote-ci/live-kafka-proof/" "live proof bundle location"
+require_contains "${ASYNC_GUIDE}" "schema-failure-async-report.stderr" "retained schema-failure artifact wording"
+require_contains "${ASYNC_GUIDE}" "schema-failure-yanote-async-report.json" "retained schema-failure artifact wording"
+require_contains "${ASYNC_GUIDE}" "ASYNC_SEMANTIC_INVALID_PAYLOAD" "typed schema-failure wording"
+require_contains "${ASYNC_GUIDE}" "diagnostics.counts.invalid-payload" "schema-failure report wording"
+reject_contains "${ASYNC_GUIDE}" "payload-schema enforcement пока нет" "payload-schema underclaim wording"
 
 require_contains "${ANALYZER_GUIDE}" "asyncapi-kafka.md" "dedicated async guide pointer"
 require_contains "${ANALYZER_GUIDE}" "не смешивайте этот guide с async semantics" "surface-separation wording"

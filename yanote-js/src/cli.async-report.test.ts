@@ -1,8 +1,67 @@
-import { mkdtemp, readFile, rm } from "node:fs/promises";
+import { mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
 import { describe, expect, it } from "vitest";
 import { runCli } from "./cli.js";
+
+const SCHEMA_DEPTH_ASYNCAPI = [
+  "asyncapi: 3.0.0",
+  "info:",
+  "  title: yanote schema-depth v3 kafka sample",
+  "  version: '1.0.0'",
+  "servers:",
+  "  kafkaLocal:",
+  "    host: localhost:9092",
+  "    protocol: kafka",
+  "channels:",
+  "  orderCreated:",
+  "    address: orders.created",
+  "    messages:",
+  "      OrderCreatedEnvelope:",
+  "        name: OrderCreatedEnvelope",
+  "        contentType: application/json",
+  "        headers:",
+  "          $ref: '#/components/schemas/OrderEventHeaders'",
+  "        payload:",
+  "          $ref: '#/components/schemas/OrderCreatedPayload'",
+  "operations:",
+  "  sendOrderCreated:",
+  "    action: send",
+  "    channel:",
+  "      $ref: '#/channels/orderCreated'",
+  "    messages:",
+  "      - $ref: '#/channels/orderCreated/messages/OrderCreatedEnvelope'",
+  "components:",
+  "  schemas:",
+  "    OrderEventHeaders:",
+  "      type: object",
+  "      required:",
+  "        - tenantId",
+  "        - traceId",
+  "      properties:",
+  "        tenantId:",
+  "          type: string",
+  "        traceId:",
+  "          type: string",
+  "    OrderCreatedPayload:",
+  "      type: object",
+  "      required:",
+  "        - eventId",
+  "        - order",
+  "      properties:",
+  "        eventId:",
+  "          type: string",
+  "        order:",
+  "          type: object",
+  "          required:",
+  "            - id",
+  "            - total",
+  "          properties:",
+  "            id:",
+  "              type: string",
+  "            total:",
+  "              type: number"
+].join("\n");
 
 async function createOutDir() {
   const dir = await mkdtemp(path.join(os.tmpdir(), "yanote-cli-async-"));
@@ -10,6 +69,18 @@ async function createOutDir() {
     dir,
     outDir: path.join(dir, "out")
   };
+}
+
+async function createAsyncFixture(specYaml: string, eventsJsonl: string) {
+  const dir = await mkdtemp(path.join(os.tmpdir(), "yanote-cli-async-schema-"));
+  const specPath = path.join(dir, "asyncapi.yaml");
+  const eventsPath = path.join(dir, "events.jsonl");
+  const outDir = path.join(dir, "out");
+
+  await writeFile(specPath, specYaml, "utf8");
+  await writeFile(eventsPath, eventsJsonl, "utf8");
+
+  return { dir, specPath, eventsPath, outDir };
 }
 
 describe("cli async-report", () => {
@@ -84,6 +155,150 @@ describe("cli async-report", () => {
     }
   });
 
+  it("fails closed on public schema-depth payload and header diagnostics with a shared primary failure across stdout and stderr", async () => {
+    const [invalidEvent, missingEvent] = await Promise.all([
+      readFile("test/fixtures/async-events/schema-invalid.fixture.jsonl", "utf8"),
+      readFile("test/fixtures/async-events/schema-missing-payload.fixture.jsonl", "utf8")
+    ]);
+    const fixture = await createAsyncFixture(SCHEMA_DEPTH_ASYNCAPI, `${invalidEvent.trim()}\n${missingEvent.trim()}\n`);
+
+    try {
+      const result = await runCli([
+        "async-report",
+        "--spec",
+        fixture.specPath,
+        "--events",
+        fixture.eventsPath,
+        "--out",
+        fixture.outDir,
+        "--profile",
+        "local"
+      ]);
+
+      expect(result.code).toBe(5);
+      expect(result.stderr).toContain("YANOTE_ASYNC_ERROR class=semantic code=ASYNC_SEMANTIC_MISSING_PAYLOAD");
+      expect(result.stderr).toContain("YANOTE_ASYNC_ERROR_SECONDARY class=semantic code=ASYNC_SEMANTIC_INVALID_PAYLOAD");
+      expect(result.stderr).toContain("YANOTE_ASYNC_ERROR_SECONDARY class=semantic code=ASYNC_SEMANTIC_UNVERIFIABLE_HEADERS");
+      expect(result.stdout).toContain("primary=ASYNC_SEMANTIC_MISSING_PAYLOAD");
+      expect(result.stdout).toContain(
+        'primary_reason="Async evidence kafka send orders.created is missing payload required by schema OrderCreatedPayload at /: Observed kafka evidence did not include a payload."'
+      );
+      expect(result.stdout).toContain(
+        "- high: ASYNC_SEMANTIC_MISSING_PAYLOAD - Async evidence kafka send orders.created is missing payload required by schema OrderCreatedPayload at /: Observed kafka evidence did not include a payload."
+      );
+      expect(result.stdout).toContain(
+        "- medium: kafka send orders.created - missing-payload schema=OrderCreatedPayload pointer=/ reason=Observed kafka evidence did not include a payload."
+      );
+
+      const report = JSON.parse(await readFile(path.join(fixture.outDir, "yanote-async-report.json"), "utf8"));
+      expect(report.status).toBe("partial");
+      expect(report.diagnostics.counts).toEqual({
+        "unsupported-content-type": 0,
+        "unsupported-schema-format": 0,
+        "missing-payload": 1,
+        "invalid-payload": 1,
+        "unverifiable-headers": 1,
+        unmatched: 0,
+        mismatched: 0
+      });
+    } finally {
+      await rm(fixture.dir, { recursive: true, force: true });
+    }
+  });
+
+  it("fails closed on unsupported payload content types before header capability gaps", async () => {
+    const eventsJsonl = await readFile("test/fixtures/async-events/schema-unsupported-format.fixture.jsonl", "utf8");
+    const fixture = await createAsyncFixture(
+      SCHEMA_DEPTH_ASYNCAPI.replace("contentType: application/json", "contentType: application/xml"),
+      eventsJsonl
+    );
+
+    try {
+      const result = await runCli([
+        "async-report",
+        "--spec",
+        fixture.specPath,
+        "--events",
+        fixture.eventsPath,
+        "--out",
+        fixture.outDir,
+        "--profile",
+        "local"
+      ]);
+
+      expect(result.code).toBe(5);
+      expect(result.stderr).toContain("YANOTE_ASYNC_ERROR class=semantic code=ASYNC_SEMANTIC_UNSUPPORTED_CONTENT_TYPE");
+      expect(result.stderr).toContain("YANOTE_ASYNC_ERROR_SECONDARY class=semantic code=ASYNC_SEMANTIC_UNVERIFIABLE_HEADERS");
+      expect(result.stdout).toContain("primary=ASYNC_SEMANTIC_UNSUPPORTED_CONTENT_TYPE");
+      expect(result.stdout).toContain(
+        'primary_reason="Async evidence kafka send orders.created cannot validate payload schema OrderCreatedPayload because Unsupported AsyncAPI payload content type: application/xml."'
+      );
+
+      const report = JSON.parse(await readFile(path.join(fixture.outDir, "yanote-async-report.json"), "utf8"));
+      expect(report.diagnostics.counts).toEqual({
+        "unsupported-content-type": 1,
+        "unsupported-schema-format": 0,
+        "missing-payload": 0,
+        "invalid-payload": 0,
+        "unverifiable-headers": 1,
+        unmatched: 0,
+        mismatched: 0
+      });
+    } finally {
+      await rm(fixture.dir, { recursive: true, force: true });
+    }
+  });
+
+  it("fails closed on unsupported payload schema formats before header capability gaps", async () => {
+    const eventsJsonl = await readFile("test/fixtures/async-events/schema-unsupported-format.fixture.jsonl", "utf8");
+    const fixture = await createAsyncFixture(
+      SCHEMA_DEPTH_ASYNCAPI.replace(
+        "    OrderCreatedPayload:\n      type: object",
+        [
+          "    OrderCreatedPayload:",
+          "      schemaFormat: application/vnd.apache.avro;version=1.11.0",
+          "      type: object"
+        ].join("\n")
+      ),
+      eventsJsonl
+    );
+
+    try {
+      const result = await runCli([
+        "async-report",
+        "--spec",
+        fixture.specPath,
+        "--events",
+        fixture.eventsPath,
+        "--out",
+        fixture.outDir,
+        "--profile",
+        "local"
+      ]);
+
+      expect(result.code).toBe(5);
+      expect(result.stderr).toContain("YANOTE_ASYNC_ERROR class=semantic code=ASYNC_SEMANTIC_UNSUPPORTED_SCHEMA_FORMAT");
+      expect(result.stderr).toContain("YANOTE_ASYNC_ERROR_SECONDARY class=semantic code=ASYNC_SEMANTIC_UNVERIFIABLE_HEADERS");
+      expect(result.stdout).toContain("primary=ASYNC_SEMANTIC_UNSUPPORTED_SCHEMA_FORMAT");
+      expect(result.stdout).toContain(
+        'primary_reason="Async evidence kafka send orders.created cannot validate payload schema OrderCreatedPayload because Unsupported AsyncAPI payload schema format: application/vnd.apache.avro;version=1.11.0."'
+      );
+
+      const report = JSON.parse(await readFile(path.join(fixture.outDir, "yanote-async-report.json"), "utf8"));
+      expect(report.diagnostics.counts).toEqual({
+        "unsupported-content-type": 0,
+        "unsupported-schema-format": 1,
+        "missing-payload": 0,
+        "invalid-payload": 0,
+        "unverifiable-headers": 1,
+        unmatched: 0,
+        mismatched: 0
+      });
+    } finally {
+      await rm(fixture.dir, { recursive: true, force: true });
+    }
+  });
+
   it("fails closed on async drift with semantic error ordering and a written async artifact", async () => {
     const fixture = await createOutDir();
 
@@ -106,10 +321,21 @@ describe("cli async-report", () => {
         "YANOTE_ASYNC_ERROR_SECONDARY class=semantic code=ASYNC_SEMANTIC_UNMATCHED_EVIDENCE"
       );
       expect(result.stdout).toContain("primary=ASYNC_SEMANTIC_MESSAGE_MISMATCH");
+      expect(result.stdout).toContain(
+        'primary_reason="Observed async evidence receive users.deleted reported message LegacyUserDeleted, expected UserDeleted."'
+      );
 
       const report = JSON.parse(await readFile(path.join(fixture.outDir, "yanote-async-report.json"), "utf8"));
       expect(report.status).toBe("partial");
-      expect(report.diagnostics.counts).toEqual({ unmatched: 1, mismatched: 1 });
+      expect(report.diagnostics.counts).toEqual({
+        "unsupported-content-type": 0,
+        "unsupported-schema-format": 0,
+        "missing-payload": 0,
+        "invalid-payload": 0,
+        "unverifiable-headers": 0,
+        unmatched: 1,
+        mismatched: 1
+      });
     } finally {
       await rm(fixture.dir, { recursive: true, force: true });
     }

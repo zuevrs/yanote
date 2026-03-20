@@ -14,11 +14,16 @@ export type KafkaOperationKey = {
   channel: string;
 };
 
+export type KafkaHeaderValidationCapability = "none" | "unverifiable";
+
 export type KafkaMessageContract = {
   name: string;
   payloadSchema?: JsonValue;
+  payloadSchemaId?: string;
   contentType?: string;
   schemaFormat?: string;
+  headersSchemaId?: string;
+  headerValidationCapability: KafkaHeaderValidationCapability;
 };
 
 export type KafkaOperationContract = {

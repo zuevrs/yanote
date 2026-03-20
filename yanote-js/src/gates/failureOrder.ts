@@ -25,6 +25,17 @@ const GATE_KIND_RANK: Record<GateFailureKind, number> = {
   threshold: 1
 };
 
+const SEMANTIC_CODE_RANK: Record<string, number> = {
+  ASYNC_SEMANTIC_SPEC_INVALID: 0,
+  ASYNC_SEMANTIC_UNSUPPORTED_CONTENT_TYPE: 1,
+  ASYNC_SEMANTIC_UNSUPPORTED_SCHEMA_FORMAT: 2,
+  ASYNC_SEMANTIC_MISSING_PAYLOAD: 3,
+  ASYNC_SEMANTIC_INVALID_PAYLOAD: 4,
+  ASYNC_SEMANTIC_UNVERIFIABLE_HEADERS: 5,
+  ASYNC_SEMANTIC_MESSAGE_MISMATCH: 6,
+  ASYNC_SEMANTIC_UNMATCHED_EVIDENCE: 7
+};
+
 export function sortFailuresByPrecedence(failures: GovernanceFailure[]): GovernanceFailure[] {
   return [...failures].sort((left, right) => {
     const severity = severityRank(left.severity) - severityRank(right.severity);
@@ -35,6 +46,9 @@ export function sortFailuresByPrecedence(failures: GovernanceFailure[]): Governa
 
     const gateKind = gateRank(left) - gateRank(right);
     if (gateKind !== 0) return gateKind;
+
+    const semanticRank = semanticCodeRank(left) - semanticCodeRank(right);
+    if (semanticRank !== 0) return semanticRank;
 
     if (left.code !== right.code) return left.code.localeCompare(right.code);
 
@@ -61,4 +75,9 @@ function gateRank(failure: GovernanceFailure): number {
   if (failure.failureClass !== "gate") return 0;
   if (!failure.gateKind) return 2;
   return GATE_KIND_RANK[failure.gateKind];
+}
+
+function semanticCodeRank(failure: GovernanceFailure): number {
+  if (failure.failureClass !== "semantic") return 0;
+  return SEMANTIC_CODE_RANK[failure.code] ?? 100;
 }

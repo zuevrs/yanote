@@ -30,7 +30,57 @@ describe("asyncapi contract", () => {
         payloadSchema: {
           type: "object",
           "x-parser-schema-id": "<anonymous-schema-1>"
-        }
+        },
+        payloadSchemaId: "<anonymous-schema-1>",
+        headerValidationCapability: "none"
+      }
+    });
+  });
+
+  it("retains schema-depth payload and header metadata beside the unchanged kafka routing key", async () => {
+    const bundle = await loadAsyncApiSemanticsBundle("test/fixtures/asyncapi/schema-depth-v3.yaml");
+
+    expect(bundle.hasInvalid).toBe(false);
+    expect(bundle.diagnostics).toEqual([]);
+    expect(bundle.operations.map((operation) => serializeOperationKey(operation))).toEqual(["kafka send orders.created"]);
+    expect(bundle.operationContractsByKey.get("kafka send orders.created")).toEqual({
+      operation: {
+        kind: "kafka",
+        action: "send",
+        channel: "orders.created"
+      },
+      message: {
+        name: "OrderCreatedEnvelope",
+        contentType: "application/json",
+        payloadSchema: {
+          type: "object",
+          required: ["eventId", "order"],
+          properties: {
+            eventId: {
+              type: "string",
+              "x-parser-schema-id": "<anonymous-schema-3>"
+            },
+            order: {
+              type: "object",
+              required: ["id", "total"],
+              properties: {
+                id: {
+                  type: "string",
+                  "x-parser-schema-id": "<anonymous-schema-5>"
+                },
+                total: {
+                  type: "number",
+                  "x-parser-schema-id": "<anonymous-schema-6>"
+                }
+              },
+              "x-parser-schema-id": "<anonymous-schema-4>"
+            }
+          },
+          "x-parser-schema-id": "OrderCreatedPayload"
+        },
+        payloadSchemaId: "OrderCreatedPayload",
+        headersSchemaId: "OrderEventHeaders",
+        headerValidationCapability: "unverifiable"
       }
     });
   });

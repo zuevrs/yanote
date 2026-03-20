@@ -1,0 +1,49 @@
+asyncapi: 2.6.0
+info:
+  title: yanote schema-depth v2 kafka sample
+  version: '1.0.0'
+servers:
+  kafkaLocal:
+    url: localhost:9092
+    protocol: kafka
+channels:
+  orders.created:
+    publish:
+      operationId: sendOrderCreated
+      message:
+        messageId: OrderCreatedEnvelope
+        contentType: application/json
+        headers:
+          $ref: '#/components/schemas/OrderEventHeaders'
+        payload:
+          $ref: '#/components/schemas/OrderCreatedPayload'
+components:
+  schemas:
+    OrderEventHeaders:
+      type: object
+      required:
+        - tenantId
+        - traceId
+      properties:
+        tenantId:
+          type: string
+        traceId:
+          type: string
+    OrderCreatedPayload:
+      type: object
+      required:
+        - eventId
+        - order
+      properties:
+        eventId:
+          type: string
+        order:
+          type: object
+          required:
+            - id
+            - total
+          properties:
+            id:
+              type: string
+            total:
+              type: number

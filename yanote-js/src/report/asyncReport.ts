@@ -1,6 +1,7 @@
 import type { CoverageDimensionState } from "../coverage/dimensions.js";
 import type {
   AsyncCoverageDiagnostic,
+  AsyncCoverageDiagnosticKind,
   AsyncCoverageResult,
   AsyncCoverageSummary,
   AsyncMessageCoverage,
@@ -12,6 +13,8 @@ import { ASYNC_REPORT_PHASE, ASYNC_REPORT_SCHEMA_VERSION, validateAsyncReport } 
 export { normalizeAsyncReport, roundCoverage, ASYNC_REPORT_PHASE, ASYNC_REPORT_SCHEMA_VERSION, validateAsyncReport };
 
 export type AsyncReportStatus = "ok" | "partial" | "invalid";
+
+export type AsyncDiagnosticCounts = Record<AsyncCoverageDiagnosticKind, number>;
 
 export type AsyncYanoteReport = {
   schemaVersion: string;
@@ -75,10 +78,7 @@ export type AsyncYanoteReport = {
     };
   };
   diagnostics: {
-    counts: {
-      unmatched: number;
-      mismatched: number;
-    };
+    counts: AsyncDiagnosticCounts;
     items: AsyncCoverageDiagnostic[];
   };
 };
@@ -166,16 +166,14 @@ export function resolveAsyncCoverageState(summary: AsyncCoverageSummary): Covera
   return "PARTIAL";
 }
 
-export function countAsyncDiagnostics(diagnostics: AsyncCoverageDiagnostic[]): AsyncYanoteReport["diagnostics"]["counts"] {
-  let unmatched = 0;
-  let mismatched = 0;
+export function countAsyncDiagnostics(diagnostics: AsyncCoverageDiagnostic[]): AsyncDiagnosticCounts {
+  const counts = createEmptyAsyncDiagnosticCounts();
 
   for (const diagnostic of diagnostics) {
-    if (diagnostic.kind === "unmatched") unmatched += 1;
-    if (diagnostic.kind === "mismatched") mismatched += 1;
+    counts[diagnostic.kind] += 1;
   }
 
-  return { unmatched, mismatched };
+  return counts;
 }
 
 export function buildAsyncReportSummary(coverage: AsyncCoverageResult): AsyncYanoteReport["summary"] {
@@ -202,11 +200,8 @@ export function resolveGeneratedAt(eventTimestamps: number[] | undefined): strin
   return new Date(min).toISOString();
 }
 
-function resolveAsyncReportStatus(
-  coverage: AsyncCoverageResult,
-  counts: AsyncYanoteReport["diagnostics"]["counts"]
-): AsyncReportStatus {
-  if (counts.mismatched > 0 || counts.unmatched > 0) {
+function resolveAsyncReportStatus(coverage: AsyncCoverageResult, counts: AsyncDiagnosticCounts): AsyncReportStatus {
+  if (hasAsyncDiagnostics(counts)) {
     return "partial";
   }
 
@@ -223,6 +218,22 @@ function resolveAsyncReportStatus(
   }
 
   return "ok";
+}
+
+function hasAsyncDiagnostics(counts: AsyncDiagnosticCounts): boolean {
+  return Object.values(counts).some((count) => count > 0);
+}
+
+function createEmptyAsyncDiagnosticCounts(): AsyncDiagnosticCounts {
+  return {
+    "unsupported-content-type": 0,
+    "unsupported-schema-format": 0,
+    "missing-payload": 0,
+    "invalid-payload": 0,
+    "unverifiable-headers": 0,
+    mismatched: 0,
+    unmatched: 0
+  };
 }
 
 export type AsyncReportOperationItem = AsyncOperationCoverage;

@@ -1,4 +1,8 @@
-import type { AsyncCoverageDiagnostic, AsyncCoverageResult } from "../coverage/asyncCoverage.js";
+import {
+  compareAsyncCoverageDiagnostics,
+  type AsyncCoverageDiagnostic,
+  type AsyncCoverageResult
+} from "../coverage/asyncCoverage.js";
 import type { GovernanceFailure } from "./failureOrder.js";
 import type { GatePolicy } from "./policy.js";
 
@@ -139,35 +143,111 @@ export function evaluateAsyncGateFailures(input: {
 }
 
 function evaluateAsyncSemanticFailures(coverage: AsyncCoverageResult): GovernanceFailure[] {
-  return [...coverage.diagnostics]
-    .sort(compareCoverageDiagnostic)
-    .map((diagnostic) => toSemanticFailure(diagnostic));
+  return [...coverage.diagnostics].sort(compareAsyncCoverageDiagnostics).map((diagnostic) => toSemanticFailure(diagnostic));
 }
 
 function toSemanticFailure(diagnostic: AsyncCoverageDiagnostic): GovernanceFailure {
-  if (diagnostic.kind === "mismatched") {
-    const observed = diagnostic.observedMessage ?? "(unknown)";
-    const expected = diagnostic.expectedMessage ?? "(unknown)";
-    return {
-      failureClass: "semantic",
-      code: "ASYNC_SEMANTIC_MESSAGE_MISMATCH",
-      reason: `Observed async evidence ${diagnostic.action} ${diagnostic.channel} reported message ${observed}, expected ${expected}.`,
-      hint: "Align the emitted message contract with AsyncAPI or update the AsyncAPI contract intentionally.",
-      exitCode: 5,
-      severity: "error",
-      operationKey: `${diagnostic.action} ${diagnostic.channel}`
-    };
+  switch (diagnostic.kind) {
+    case "unsupported-content-type":
+      return {
+        failureClass: "semantic",
+        code: "ASYNC_SEMANTIC_UNSUPPORTED_CONTENT_TYPE",
+        reason: `${formatAsyncOperation(diagnostic.operationKey)} cannot validate payload schema ${formatSchemaId(
+          diagnostic.schemaId
+        )} because ${diagnostic.reason}`,
+        hint: "Use JSON-compatible AsyncAPI payload content types or widen validator support intentionally.",
+        exitCode: 5,
+        severity: "error",
+        operationKey: diagnostic.operationKey
+      };
+    case "unsupported-schema-format":
+      return {
+        failureClass: "semantic",
+        code: "ASYNC_SEMANTIC_UNSUPPORTED_SCHEMA_FORMAT",
+        reason: `${formatAsyncOperation(diagnostic.operationKey)} cannot validate payload schema ${formatSchemaId(
+          diagnostic.schemaId
+        )} because ${diagnostic.reason}`,
+        hint: "Use JSON Schema-compatible AsyncAPI payload formats or widen validator support intentionally.",
+        exitCode: 5,
+        severity: "error",
+        operationKey: diagnostic.operationKey
+      };
+    case "missing-payload":
+      return {
+        failureClass: "semantic",
+        code: "ASYNC_SEMANTIC_MISSING_PAYLOAD",
+        reason: `${formatAsyncOperation(diagnostic.operationKey)} is missing payload required by schema ${formatSchemaId(
+          diagnostic.schemaId
+        )}${formatPointer(diagnostic.pointer)}: ${diagnostic.reason}`,
+        hint: "Capture async payloads in evidence or stop declaring a payload schema for this operation intentionally.",
+        exitCode: 5,
+        severity: "error",
+        operationKey: diagnostic.operationKey
+      };
+    case "invalid-payload":
+      return {
+        failureClass: "semantic",
+        code: "ASYNC_SEMANTIC_INVALID_PAYLOAD",
+        reason: `${formatAsyncOperation(diagnostic.operationKey)} failed payload validation against schema ${formatSchemaId(
+          diagnostic.schemaId
+        )}${formatPointer(diagnostic.pointer)}: ${diagnostic.reason}`,
+        hint: "Align emitted async payloads with the retained AsyncAPI schema or update the AsyncAPI contract intentionally.",
+        exitCode: 5,
+        severity: "error",
+        operationKey: diagnostic.operationKey
+      };
+    case "unverifiable-headers":
+      return {
+        failureClass: "semantic",
+        code: "ASYNC_SEMANTIC_UNVERIFIABLE_HEADERS",
+        reason: `${formatAsyncOperation(diagnostic.operationKey)} cannot verify header schema ${formatSchemaId(
+          diagnostic.schemaId
+        )}: ${diagnostic.reason}`,
+        hint: "Capture Kafka headers in async evidence before relying on AsyncAPI header-schema conformance.",
+        exitCode: 5,
+        severity: "error",
+        operationKey: diagnostic.operationKey
+      };
+    case "mismatched": {
+      const observed = diagnostic.observedMessage ?? "(unknown)";
+      const expected = diagnostic.expectedMessage ?? "(unknown)";
+      return {
+        failureClass: "semantic",
+        code: "ASYNC_SEMANTIC_MESSAGE_MISMATCH",
+        reason: `Observed async evidence ${diagnostic.action} ${diagnostic.channel} reported message ${observed}, expected ${expected}.`,
+        hint: "Align the emitted message contract with AsyncAPI or update the AsyncAPI contract intentionally.",
+        exitCode: 5,
+        severity: "error",
+        operationKey: `${diagnostic.action} ${diagnostic.channel}`
+      };
+    }
+    case "unmatched":
+      return {
+        failureClass: "semantic",
+        code: "ASYNC_SEMANTIC_UNMATCHED_EVIDENCE",
+        reason: `Observed async evidence ${diagnostic.action} ${diagnostic.channel} did not match any canonical AsyncAPI operation.`,
+        hint: "Add the missing AsyncAPI operation or stop emitting unmatched async evidence.",
+        exitCode: 5,
+        severity: "error",
+        operationKey: `${diagnostic.action} ${diagnostic.channel}`
+      };
+  }
+}
+
+function formatAsyncOperation(operationKey: string): string {
+  return `Async evidence ${operationKey}`;
+}
+
+function formatSchemaId(schemaId: string | undefined): string {
+  return schemaId ?? "(unknown-schema)";
+}
+
+function formatPointer(pointer: string | undefined): string {
+  if (!pointer) {
+    return "";
   }
 
-  return {
-    failureClass: "semantic",
-    code: "ASYNC_SEMANTIC_UNMATCHED_EVIDENCE",
-    reason: `Observed async evidence ${diagnostic.action} ${diagnostic.channel} did not match any canonical AsyncAPI operation.`,
-    hint: "Add the missing AsyncAPI operation or stop emitting unmatched async evidence.",
-    exitCode: 5,
-    severity: "error",
-    operationKey: `${diagnostic.action} ${diagnostic.channel}`
-  };
+  return ` at ${pointer}`;
 }
 
 function computeRawOperationCoverage(coverage: AsyncCoverageResult): number | null {
@@ -185,22 +265,4 @@ function compareDimensionRegression(
   if (left.dimension !== right.dimension) return left.dimension.localeCompare(right.dimension);
   if (left.baseline !== right.baseline) return left.baseline - right.baseline;
   return left.current - right.current;
-}
-
-function compareCoverageDiagnostic(left: AsyncCoverageDiagnostic, right: AsyncCoverageDiagnostic): number {
-  const kind = diagnosticKindRank(left.kind) - diagnosticKindRank(right.kind);
-  if (kind !== 0) return kind;
-  if (left.channel !== right.channel) return left.channel.localeCompare(right.channel);
-  if (left.action !== right.action) return left.action.localeCompare(right.action);
-  const leftObserved = left.observedMessage ?? "";
-  const rightObserved = right.observedMessage ?? "";
-  if (leftObserved !== rightObserved) return leftObserved.localeCompare(rightObserved);
-  const leftExpected = left.expectedMessage ?? "";
-  const rightExpected = right.expectedMessage ?? "";
-  if (leftExpected !== rightExpected) return leftExpected.localeCompare(rightExpected);
-  return left.message.localeCompare(right.message);
-}
-
-function diagnosticKindRank(kind: AsyncCoverageDiagnostic["kind"]): number {
-  return kind === "mismatched" ? 0 : 1;
 }

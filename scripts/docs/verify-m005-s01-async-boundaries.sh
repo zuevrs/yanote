@@ -46,7 +46,9 @@ common_boundary_clauses=(
   "Kafka-only"
   "Spring Kafka-first"
   "separate async report/gate"
-  "payload-schema enforcement пока нет"
+  "payload-schema drift surfaced on the proven Kafka path"
+  "routing percentages remain routing-first"
+  "retained Kafka headers remain unverifiable"
   "broker-agnostic promise нет"
 )
 
@@ -54,6 +56,8 @@ common_artifact_clauses=(
   "raw или merged async JSONL"
   "yanote-async-report.json"
   "stderr"
+  "schema-failure-async-report.stderr"
+  "schema-failure-yanote-async-report.json"
 )
 
 for path in \
@@ -68,6 +72,8 @@ do
   for needle in "${common_artifact_clauses[@]}"; do
     require_contains "${path}" "${needle}" "async intake artifact wording"
   done
+
+  reject_contains "${path}" "payload-schema enforcement пока нет" "payload-schema underclaim wording"
 done
 
 require_contains "${BOUNDARY_DOC}" "source-built async path" "release-vs-HEAD async wording"
@@ -78,12 +84,15 @@ require_contains "${BOUNDARY_DOC}" "Первая волна async относит
 reject_contains "${REQUIREMENTS_DOC}" "AsyncAPI coverage (Kafka, RabbitMQ) | Explicitly deferred by project owner to keep v1 focused on Java HTTP/OpenAPI |" "broad deferred AsyncAPI row"
 require_contains "${REQUIREMENTS_DOC}" "### AsyncAPI / Kafka — первая волна" "current async scope section"
 require_contains "${REQUIREMENTS_DOC}" "### Async Follow-ons" "deferred async follow-ons section"
-require_contains "${REQUIREMENTS_DOC}" "payload validation against AsyncAPI message schemas" "deferred async follow-on"
+require_contains "${REQUIREMENTS_DOC}" "deeper AsyncAPI schema-keyword coverage and retained header validation" "deferred async follow-on"
 require_contains "${REQUIREMENTS_DOC}" "combined HTTP + async report/gate" "deferred async follow-on"
 require_contains "${REQUIREMENTS_DOC}" "non-Kafka brokers" "deferred async follow-on"
+require_contains "${REQUIREMENTS_DOC}" "current public async surface proves payload drift only for the retained Kafka path and still treats headers as unverifiable" "out-of-scope async boundary wording"
 
 require_contains "${SUPPORT_DOC}" "какая команда или proof-script упала" "async repro guidance"
 require_contains "${SUPPORT_DOC}" "live-proof path" "async support scope trigger"
+require_contains "${SUPPORT_DOC}" ".yanote-ci/live-kafka-proof/" "retained sidecar intake location"
+require_contains "${SUPPORT_DOC}" "operation keys, schema ids, счётчиков и redacted reason text" "support redaction guidance"
 
 if (( failures > 0 )); then
   echo "M005 S01 async boundary verification failed with ${failures} issue(s)." >&2

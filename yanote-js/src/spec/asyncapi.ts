@@ -393,17 +393,30 @@ function buildMessageContract(value: unknown): KafkaMessageContract | null {
   }
 
   const payloadSchema = normalizeJsonValue(value.payload);
+  const payloadSchemaId = extractSchemaId(value.payload);
   const contentType = normalizeNonEmptyString(value.contentType) ?? undefined;
   const schemaFormat =
     normalizeNonEmptyString(value.schemaFormat) ??
     (isRecord(value.payload) ? normalizeNonEmptyString(value.payload.schemaFormat) ?? undefined : undefined);
+  const headersSchemaId = extractSchemaId(value.headers);
 
   return {
     name,
+    headerValidationCapability: headersSchemaId ? "unverifiable" : "none",
     ...(payloadSchema !== undefined ? { payloadSchema } : {}),
+    ...(payloadSchemaId ? { payloadSchemaId } : {}),
     ...(contentType ? { contentType } : {}),
-    ...(schemaFormat ? { schemaFormat } : {})
+    ...(schemaFormat ? { schemaFormat } : {}),
+    ...(headersSchemaId ? { headersSchemaId } : {})
   };
+}
+
+function extractSchemaId(value: unknown): string | undefined {
+  if (!isRecord(value)) {
+    return undefined;
+  }
+
+  return normalizeNonEmptyString(value["x-parser-schema-id"]) ?? undefined;
 }
 
 function resolveV3ChannelNameOrAddress(channelRefOrObj: unknown, channels: Record<string, unknown>): string | null {

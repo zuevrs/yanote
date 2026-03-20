@@ -31,7 +31,7 @@
 
 Рабочий `HEAD` может быть впереди последнего стабильного тега. Это означает только то, что в репозитории уже есть новые коммиты — например, документационные, инфраструктурные или product-maturity изменения. Сам по себе `HEAD` не означает, что появился новый опубликованный релиз.
 
-Пока не появился новый подписанный тег и соответствующий GitHub Release, публичной истиной остаются последняя стабильная линия `v1.0.x` и последний стабильный тег `v1.0.122`. Поэтому текущий `HEAD` нельзя автоматически считать эквивалентом последнего публичного релиза.
+Пока не появился новый подписанный тег и соответствующий GitHub Release, публичной истиной остаются последняя стабильная линия `v1.0.x` и последний стабильный тег `v1.0.123`. Поэтому текущий `HEAD` нельзя автоматически считать эквивалентом последнего публичного релиза.
 
 ## Стабильные поверхности
 
@@ -53,7 +53,9 @@
 - **Kafka-only**
 - **Spring Kafka-first**
 - **separate async report/gate**
-- **payload-schema enforcement пока нет**
+- **payload-schema drift surfaced on the proven Kafka path**
+- **routing percentages remain routing-first**
+- **retained Kafka headers remain unverifiable**
 - **broker-agnostic promise нет**
 
 Поддерживаемые proof/support артефакты для этого async path тоже фиксированы:
@@ -61,8 +63,9 @@
 - `raw или merged async JSONL`
 - `yanote-async-report.json`
 - analyzer/proof `stderr`
+- retained `schema-failure-async-report.stderr` и `schema-failure-yanote-async-report.json` для proven Kafka payload drift
 
-Практически это означает отдельный маршрут `node yanote-js/dist/yanote.cjs async-report` по Kafka evidence. Он дополняет стабильную линию `v1.0.x`, но не переопределяет release truth, не обещает broker-agnostic coverage и не превращает текущий repository `HEAD` в опубликованный стабильный релиз.
+Практически это означает отдельный маршрут `node yanote-js/dist/yanote.cjs async-report` по Kafka evidence и авторитетный live-proof bundle из `bash scripts/ci/verify-m004-s03-live-kafka-proof.sh`. Зелёный bundle остаётся routing-first proof surface, а retained `schema-failure-*` sidecar показывает typed `invalid-payload` drift только для того Kafka evidence path, который уже доказан в репозитории. Это дополняет стабильную линию `v1.0.x`, но не переопределяет release truth, не обещает broker-agnostic coverage, не делает headers публично проверяемыми и не превращает текущий repository `HEAD` в опубликованный стабильный релиз.
 
 Demo/example модули полезны для доказательства пути, но не входят в опубликованную Java release surface.
 

@@ -11,11 +11,36 @@ async function seedAsyncBundle(workDir) {
   const asyncBundleDir = path.join(workDir, ".yanote-ci/live-kafka-proof");
   await mkdir(asyncBundleDir, { recursive: true });
 
-  await writeFile(path.join(asyncBundleDir, "artifact-manifest.txt"), "proof_status=failure\nreport_found=false\n", "utf8");
+  await writeFile(
+    path.join(asyncBundleDir, "artifact-manifest.txt"),
+    "proof_status=success\nreport_found=true\nartifact_count=12\n",
+    "utf8"
+  );
   await writeFile(path.join(asyncBundleDir, "artifact-source-paths.txt"), "temp_dir=/tmp/proof\n", "utf8");
   await writeFile(path.join(asyncBundleDir, "single-service-proof.log"), "single\n", "utf8");
+  await writeFile(path.join(asyncBundleDir, "two-service-test.log"), "two-service\n", "utf8");
+  await writeFile(path.join(asyncBundleDir, "01-producer.events.jsonl"), '{"kind":"kafka","service":"producer"}\n', "utf8");
+  await writeFile(path.join(asyncBundleDir, "02-consumer.events.jsonl"), '{"kind":"kafka","service":"consumer"}\n', "utf8");
+  await writeFile(path.join(asyncBundleDir, "merge.log"), "merged\n", "utf8");
   await writeFile(path.join(asyncBundleDir, "merged-two-service.events.jsonl"), '{"kind":"kafka"}\n', "utf8");
-  await writeFile(path.join(asyncBundleDir, "async-report.stderr"), "YANOTE_ASYNC_ERROR code=ASYNC_GATE\n", "utf8");
+  await writeFile(path.join(asyncBundleDir, "async-report.stdout"), "Summary\nYANOTE_ASYNC_SUMMARY status=ok\n", "utf8");
+  await writeFile(path.join(asyncBundleDir, "async-report.stderr"), "", "utf8");
+  await writeFile(path.join(asyncBundleDir, "yanote-async-report.json"), '{"status":"ok"}\n', "utf8");
+  await writeFile(
+    path.join(asyncBundleDir, "schema-failure-async-report.stdout"),
+    "Summary\nYANOTE_ASYNC_SUMMARY status=error\n",
+    "utf8"
+  );
+  await writeFile(
+    path.join(asyncBundleDir, "schema-failure-async-report.stderr"),
+    'YANOTE_ERROR code=ASYNC_SEMANTIC_INVALID_PAYLOAD class=semantic reason="invalid-payload must be object"\n',
+    "utf8"
+  );
+  await writeFile(
+    path.join(asyncBundleDir, "schema-failure-yanote-async-report.json"),
+    '{"status":"error"}\n',
+    "utf8"
+  );
 }
 
 async function seedV1E2eBundle(workDir) {
@@ -30,7 +55,7 @@ async function seedV1E2eBundle(workDir) {
   await writeFile(path.join(workDir, ".yanote-ci/delivery-proof-changed-files.txt"), "examples/docker-compose.yml\n", "utf8");
 }
 
-test("collects exported async and v1 e2e proof bundles alongside deterministic HTTP artifact names", async () => {
+test("collects the widened async proof bundle and replaces stale copied directories deterministically", async () => {
   const workDir = await mkdtemp(path.join(os.tmpdir(), "yanote-artifacts-"));
   try {
     const sourceDir = path.join(workDir, "build/yanote/aggregate/check");
@@ -44,6 +69,9 @@ test("collects exported async and v1 e2e proof bundles alongside deterministic H
     await writeFile(path.join(ciLogsDir, "yanote-validation.stderr.log"), "stderr output", "utf8");
     await seedAsyncBundle(workDir);
     await seedV1E2eBundle(workDir);
+
+    await mkdir(path.join(outDir, "live-kafka-proof"), { recursive: true });
+    await writeFile(path.join(outDir, "live-kafka-proof", "stale.txt"), "stale", "utf8");
 
     const result = spawnSync("bash", [scriptPath, outDir], { cwd: workDir, encoding: "utf8" });
     assert.equal(result.status, 0, result.stderr);
@@ -63,17 +91,23 @@ test("collects exported async and v1 e2e proof bundles alongside deterministic H
     ]);
 
     assert.deepEqual((await readdir(path.join(outDir, "live-kafka-proof"))).sort(), [
+      "01-producer.events.jsonl",
+      "02-consumer.events.jsonl",
       "artifact-manifest.txt",
       "artifact-source-paths.txt",
       "async-report.stderr",
+      "async-report.stdout",
+      "merge.log",
       "merged-two-service.events.jsonl",
-      "single-service-proof.log"
+      "schema-failure-async-report.stderr",
+      "schema-failure-async-report.stdout",
+      "schema-failure-yanote-async-report.json",
+      "single-service-proof.log",
+      "two-service-test.log",
+      "yanote-async-report.json"
     ]);
 
-    assert.deepEqual((await readdir(path.join(outDir, "v1-e2e"))).sort(), [
-      "compose.log",
-      "out"
-    ]);
+    assert.deepEqual((await readdir(path.join(outDir, "v1-e2e"))).sort(), ["compose.log", "out"]);
 
     const manifest = await readFile(path.join(outDir, "artifact-manifest.txt"), "utf8");
     assert.match(manifest, /report_found=true/);
