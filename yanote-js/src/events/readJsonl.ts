@@ -8,6 +8,10 @@ import {
   normalizeSuite,
   type HttpEvent
 } from "../model/httpEvent.js";
+import {
+  normalizePayloadCaptureReason,
+  normalizePayloadCaptureState
+} from "../model/payloadCapture.js";
 
 export type ReadJsonlResult<T> = {
   items: T[];
@@ -52,8 +56,12 @@ export async function readHttpEventsJsonl(filePath: string): Promise<ReadJsonlRe
       route,
       status: typeof obj.status === "number" ? obj.status : undefined,
       requestBody: normalizeJsonValue(obj.requestBody),
+      requestBodyState: normalizePayloadCaptureState(obj.requestBodyState),
+      requestBodyReason: normalizePayloadCaptureReason(obj.requestBodyReason),
       requestContentType: normalizeOptionalHttpText(obj.requestContentType),
       responseBody: normalizeJsonValue(obj.responseBody),
+      responseBodyState: normalizePayloadCaptureState(obj.responseBodyState),
+      responseBodyReason: normalizePayloadCaptureReason(obj.responseBodyReason),
       responseContentType: normalizeOptionalHttpText(obj.responseContentType),
       service: typeof obj.service === "string" ? obj.service : obj.service ?? undefined,
       instance: typeof obj.instance === "string" ? obj.instance : obj.instance ?? undefined,

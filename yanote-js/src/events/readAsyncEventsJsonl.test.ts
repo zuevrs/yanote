@@ -20,6 +20,8 @@ describe("readAsyncEventsJsonl", () => {
         service: "accounts-service",
         instance: null,
         payload: undefined,
+        payloadState: undefined,
+        payloadReason: undefined,
         error: false,
         testRunId: "run-1",
         testSuite: "unknown"
@@ -33,11 +35,84 @@ describe("readAsyncEventsJsonl", () => {
         service: undefined,
         instance: undefined,
         payload: undefined,
+        payloadState: undefined,
+        payloadReason: undefined,
         error: undefined,
         testRunId: "unknown",
         testSuite: "suite-a"
       }
     ]);
+  });
+
+  it("normalizes additive kafka payload provenance while keeping legacy files readable", async () => {
+    const dir = await mkdtemp(path.join(os.tmpdir(), "yanote-async-provenance-"));
+    const file = path.join(dir, "events.jsonl");
+
+    const lines = [
+      JSON.stringify({
+        kind: "kafka",
+        ts: 1710000001100,
+        action: " SEND ",
+        channel: " users.created ",
+        message: " UserCreated ",
+        payload: { id: "alice" },
+        payloadState: " captured ",
+        payloadReason: "oversized",
+        "test.run_id": "run-new",
+        "test.suite": "suite-new"
+      }),
+      JSON.stringify({
+        kind: "kafka",
+        ts: 1710000001101,
+        action: "receive",
+        channel: "users.legacy",
+        message: "LegacyEvent",
+        payload: { ok: true },
+        "test.run_id": "run-legacy",
+        "test.suite": "suite-legacy"
+      })
+    ];
+
+    try {
+      await writeFile(file, `${lines.join("\n")}\n`, "utf8");
+
+      const result = await readAsyncEventsJsonl(file);
+      expect(result.invalidLines).toBe(0);
+      expect(result.items).toEqual([
+        {
+          kind: "kafka",
+          ts: 1710000001100,
+          action: "send",
+          channel: "users.created",
+          message: "UserCreated",
+          service: undefined,
+          instance: undefined,
+          payload: { id: "alice" },
+          payloadState: "captured",
+          payloadReason: "oversized",
+          error: undefined,
+          testRunId: "run-new",
+          testSuite: "suite-new"
+        },
+        {
+          kind: "kafka",
+          ts: 1710000001101,
+          action: "receive",
+          channel: "users.legacy",
+          message: "LegacyEvent",
+          service: undefined,
+          instance: undefined,
+          payload: { ok: true },
+          payloadState: undefined,
+          payloadReason: undefined,
+          error: undefined,
+          testRunId: "run-legacy",
+          testSuite: "suite-legacy"
+        }
+      ]);
+    } finally {
+      await rm(dir, { recursive: true, force: true });
+    }
   });
 
   it("keeps payload-bearing kafka evidence while ignoring invalid and non-kafka lines", async () => {
@@ -61,6 +136,8 @@ describe("readAsyncEventsJsonl", () => {
           },
           active: true
         },
+        payloadState: undefined,
+        payloadReason: undefined,
         error: undefined,
         testRunId: "run-payload-1",
         testSuite: "suite-payload"
@@ -74,6 +151,8 @@ describe("readAsyncEventsJsonl", () => {
         service: undefined,
         instance: undefined,
         payload: "alice",
+        payloadState: undefined,
+        payloadReason: undefined,
         error: undefined,
         testRunId: "unknown",
         testSuite: "suite-payload"
@@ -87,6 +166,8 @@ describe("readAsyncEventsJsonl", () => {
         service: undefined,
         instance: undefined,
         payload: ["alice", { deleted: false }, 3],
+        payloadState: undefined,
+        payloadReason: undefined,
         error: undefined,
         testRunId: "run-payload-2",
         testSuite: "suite-payload"
@@ -150,6 +231,8 @@ describe("readAsyncEventsJsonl", () => {
             flags: [true, false],
             active: true
           },
+          payloadState: undefined,
+          payloadReason: undefined,
           error: undefined,
           testRunId: "unknown",
           testSuite: "unknown"

@@ -1,3 +1,4 @@
+import type { PayloadCaptureReason, PayloadCaptureState } from "./payloadCapture.js";
 import type { AsyncAction } from "./operationKey.js";
 
 export type JsonPrimitive = string | number | boolean | null;
@@ -12,6 +13,8 @@ export type AsyncEvent = {
   service?: string | null;
   instance?: string | null;
   payload?: JsonValue;
+  payloadState?: PayloadCaptureState;
+  payloadReason?: PayloadCaptureReason;
   error?: boolean;
   testRunId: string;
   testSuite: string;
