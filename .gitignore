@@ -50,3 +50,6 @@ tmp/
 # ── GSD: local-only project state ───────────────────────────────────────────
 # Keep the whole .gsd tree inside the repo working copy, but out of git.
 /.gsd/
+
+# ── GSD baseline (auto-generated) ──
+.gsd
