@@ -35,7 +35,12 @@ import org.testcontainers.utility.DockerImageName;
 @TestPropertySource(properties = {
         "example.kafka.roles.producer.enabled=true",
         "example.kafka.roles.listeners.enabled=true",
-        "example.kafka.roles.republish.enabled=true"
+        "example.kafka.roles.republish.enabled=true",
+        "spring.kafka.producer.key-serializer=org.apache.kafka.common.serialization.StringSerializer",
+        "spring.kafka.producer.value-serializer=org.springframework.kafka.support.serializer.JsonSerializer",
+        "spring.kafka.consumer.key-deserializer=org.apache.kafka.common.serialization.StringDeserializer",
+        "spring.kafka.consumer.value-deserializer=org.springframework.kafka.support.serializer.JsonDeserializer",
+        "spring.kafka.consumer.properties.spring.json.trusted.packages=dev.yanote.examples.service"
 })
 class KafkaRecorderSingleServiceIntegrationTest {
 
@@ -100,6 +105,10 @@ class KafkaRecorderSingleServiceIntegrationTest {
         assertThat(httpEvent.get("status").intValue()).isEqualTo(201);
         assertThat(text(httpEvent, "requestContentType")).isEqualTo("application/json");
         assertThat(text(httpEvent, "responseContentType")).isEqualTo("application/json");
+        assertThat(text(httpEvent, "requestBodyState")).isEqualTo("captured");
+        assertThat(httpEvent.get("requestBodyReason")).isNull();
+        assertThat(text(httpEvent, "responseBodyState")).isEqualTo("captured");
+        assertThat(httpEvent.get("responseBodyReason")).isNull();
         assertThat(httpEvent.get("requestBody")).isEqualTo(expectedCreateUserRequest());
         assertThat(httpEvent.get("responseBody")).isEqualTo(expectedCreateUserResponse());
         assertThat(text(httpEvent, "service")).isEqualTo("examples-service");
@@ -107,19 +116,17 @@ class KafkaRecorderSingleServiceIntegrationTest {
         assertThat(text(httpEvent, "test.suite")).isEqualTo(TEST_SUITE);
         assertThat(httpEvent.get("error").booleanValue()).isFalse();
 
-        assertKafkaEvent(firstSend, ExampleServiceApplication.USER_EVENTS_TOPIC, ExampleServiceApplication.USER_CREATED_MESSAGE, "alice");
-        assertKafkaEvent(firstReceive, ExampleServiceApplication.USER_EVENTS_TOPIC, ExampleServiceApplication.USER_CREATED_MESSAGE, "alice");
+        assertKafkaEvent(firstSend, ExampleServiceApplication.USER_EVENTS_TOPIC, ExampleServiceApplication.USER_CREATED_MESSAGE);
+        assertKafkaEvent(firstReceive, ExampleServiceApplication.USER_EVENTS_TOPIC, ExampleServiceApplication.USER_CREATED_MESSAGE);
         assertKafkaEvent(
                 republishedSend,
                 ExampleServiceApplication.USER_REPUBLISHED_TOPIC,
-                ExampleServiceApplication.USER_REPUBLISHED_MESSAGE,
-                "alice"
+                ExampleServiceApplication.USER_REPUBLISHED_MESSAGE
         );
         assertKafkaEvent(
                 republishedReceive,
                 ExampleServiceApplication.USER_REPUBLISHED_TOPIC,
-                ExampleServiceApplication.USER_REPUBLISHED_MESSAGE,
-                "alice"
+                ExampleServiceApplication.USER_REPUBLISHED_MESSAGE
         );
 
         assertThat(messagesForChannel(events, ExampleServiceApplication.USER_EVENTS_TOPIC))
@@ -128,11 +135,13 @@ class KafkaRecorderSingleServiceIntegrationTest {
                 .containsOnly(ExampleServiceApplication.USER_REPUBLISHED_MESSAGE);
     }
 
-    private static void assertKafkaEvent(JsonNode event, String channel, String message, String payload) {
+    private static void assertKafkaEvent(JsonNode event, String channel, String message) throws Exception {
         assertThat(text(event, "kind")).isEqualTo("kafka");
         assertThat(text(event, "channel")).isEqualTo(channel);
         assertThat(text(event, "message")).isEqualTo(message);
-        assertThat(text(event, "payload")).isEqualTo(payload);
+        assertThat(text(event, "payloadState")).isEqualTo("captured");
+        assertThat(event.get("payloadReason")).isNull();
+        assertThat(event.get("payload")).isEqualTo(expectedKafkaPayload());
         assertThat(text(event, "service")).isEqualTo("examples-service");
         assertThat(text(event, "test.run_id")).isEqualTo(TEST_RUN_ID);
         assertThat(text(event, "test.suite")).isEqualTo(TEST_SUITE);
@@ -184,6 +193,15 @@ class KafkaRecorderSingleServiceIntegrationTest {
                   "name": "alice",
                   "email": "alice@example.com",
                   "created": true
+                }
+                """);
+    }
+
+    private static JsonNode expectedKafkaPayload() throws Exception {
+        return OBJECT_MAPPER.readTree("""
+                {
+                  "name": "alice",
+                  "email": "alice@example.com"
                 }
                 """);
     }

@@ -72,7 +72,7 @@ public class ExampleServiceApplication {
     @Bean
     @ConditionalOnProperty(name = "example.kafka.roles.producer.enabled", havingValue = "true")
     UserCreatedPublisher userCreatedPublisher(
-            KafkaTemplate<String, String> kafkaTemplate,
+            KafkaTemplate<String, Object> kafkaTemplate,
             @Value("${example.kafka.topics.user-created:" + USER_EVENTS_TOPIC + "}") String topic
     ) {
         return new UserCreatedPublisher(new KafkaMessagePublisher(kafkaTemplate, topic, USER_CREATED_MESSAGE));
@@ -81,7 +81,7 @@ public class ExampleServiceApplication {
     @Bean
     @ConditionalOnProperty(name = "example.kafka.roles.republish.enabled", havingValue = "true")
     UserRepublishedPublisher userRepublishedPublisher(
-            KafkaTemplate<String, String> kafkaTemplate,
+            KafkaTemplate<String, Object> kafkaTemplate,
             @Value("${example.kafka.topics.user-republished:" + USER_REPUBLISHED_TOPIC + "}") String topic
     ) {
         return new UserRepublishedPublisher(new KafkaMessagePublisher(kafkaTemplate, topic, USER_REPUBLISHED_MESSAGE));
@@ -132,9 +132,10 @@ public class ExampleServiceApplication {
         public CreateUserResponse createUser(@RequestBody CreateUserRequest requestBody) {
             String normalizedName = requestBody.normalizedName();
             String normalizedEmail = requestBody.normalizedEmail();
+            CreateUserRequest kafkaPayload = new CreateUserRequest(normalizedName, normalizedEmail);
             UserCreatedPublisher publisher = userCreatedPublisher.getIfAvailable();
             if (publisher != null) {
-                publisher.publish(normalizedName);
+                publisher.publish(kafkaPayload);
             }
             return new CreateUserResponse(
                     "user-" + normalizedName.toLowerCase(Locale.ROOT),
@@ -157,7 +158,7 @@ public class ExampleServiceApplication {
             this.publisher = publisher;
         }
 
-        void publish(String payload) {
+        void publish(CreateUserRequest payload) {
             publisher.publish(payload);
         }
     }
@@ -182,7 +183,7 @@ public class ExampleServiceApplication {
             this.publisher = publisher;
         }
 
-        void publish(String payload) {
+        void publish(CreateUserRequest payload) {
             publisher.publish(payload);
         }
     }
@@ -199,7 +200,7 @@ public class ExampleServiceApplication {
                 topics = "${example.kafka.topics.user-created:users.created}",
                 autoStartup = "${example.kafka.roles.listeners.user-created.enabled:false}"
         )
-        void handle(String payload) {
+        void handle(CreateUserRequest payload) {
             if (payload == null) {
                 throw new IllegalArgumentException("payload must not be null");
             }
@@ -216,7 +217,7 @@ public class ExampleServiceApplication {
                 topics = "${example.kafka.topics.user-republished:users.created.republished}",
                 autoStartup = "${example.kafka.roles.listeners.user-republished.enabled:false}"
         )
-        void handle(String payload) {
+        void handle(CreateUserRequest payload) {
             if (payload == null) {
                 throw new IllegalArgumentException("payload must not be null");
             }
@@ -224,19 +225,19 @@ public class ExampleServiceApplication {
     }
 
     static class KafkaMessagePublisher {
-        private final KafkaTemplate<String, String> kafkaTemplate;
+        private final KafkaTemplate<String, Object> kafkaTemplate;
         private final String topic;
         private final String messageHint;
 
-        KafkaMessagePublisher(KafkaTemplate<String, String> kafkaTemplate, String topic, String messageHint) {
+        KafkaMessagePublisher(KafkaTemplate<String, Object> kafkaTemplate, String topic, String messageHint) {
             this.kafkaTemplate = kafkaTemplate;
             this.topic = topic;
             this.messageHint = messageHint;
         }
 
-        void publish(String payload) {
+        void publish(Object payload) {
             try {
-                ProducerRecord<String, String> record = new ProducerRecord<>(topic, payload);
+                ProducerRecord<String, Object> record = new ProducerRecord<>(topic, payload);
                 record.headers().add(new RecordHeader(
                         YANOTE_MESSAGE_HEADER,
                         messageHint.getBytes(StandardCharsets.UTF_8)

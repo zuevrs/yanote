@@ -5,6 +5,8 @@ import static org.assertj.core.api.Assertions.assertThatCode;
 
 import dev.yanote.core.events.EventJsonlReader;
 import dev.yanote.core.events.KafkaEvent;
+import dev.yanote.core.events.PayloadCaptureReason;
+import dev.yanote.core.events.PayloadCaptureState;
 import dev.yanote.core.events.YanoteEvent;
 import dev.yanote.core.testmetadata.TestMetadata;
 import dev.yanote.core.testmetadata.TestMetadataContextHolder;
@@ -55,12 +57,17 @@ class KafkaMetadataPropagationContractTest {
     }
 
     @Test
-    void shouldSeedListenerContextForHandlingAndClearItAfterSuccess() throws Exception {
+    void shouldCapturePojoPayloadsAndPreserveListenerAttribution() throws Exception {
         Path eventsPath = tempDir.resolve("events.jsonl");
         YanoteKafkaRecordInterceptor interceptor = new YanoteKafkaRecordInterceptor(
                 new YanoteKafkaEventRecorder(eventsPath, "kafka-contract-service")
         );
-        ConsumerRecord<Object, Object> record = consumerRecord(Map.of("userId", "alice", "active", true), "run-1", "suite-a", "InboundMessage");
+        ConsumerRecord<Object, Object> record = consumerRecord(
+                new UserPayload("alice", "alice@example.com"),
+                "run-1",
+                "suite-a",
+                "InboundMessage"
+        );
 
         interceptor.intercept(record, null);
 
@@ -81,16 +88,18 @@ class KafkaMetadataPropagationContractTest {
         assertThat(event.action()).isEqualTo(KafkaEvent.Action.RECEIVE);
         assertThat(event.channel()).isEqualTo(TOPIC);
         assertThat(event.message()).isEqualTo("InboundMessage");
+        assertThat(event.payloadState()).isEqualTo(PayloadCaptureState.CAPTURED);
+        assertThat(event.payloadReason()).isNull();
         assertThat(event.payload()).isNotNull();
-        assertThat(event.payload().get("userId").asText()).isEqualTo("alice");
-        assertThat(event.payload().get("active").asBoolean()).isTrue();
+        assertThat(event.payload().get("name").asText()).isEqualTo("alice");
+        assertThat(event.payload().get("email").asText()).isEqualTo("alice@example.com");
         assertThat(event.error()).isFalse();
         assertThat(event.testRunId()).isEqualTo("run-1");
         assertThat(event.testSuite()).isEqualTo("suite-a");
     }
 
     @Test
-    void shouldOmitUnsupportedPayloadsWithoutBreakingMetadataCapture() throws Exception {
+    void shouldMarkUnsupportedPayloadOmissionsWithoutBreakingMetadataCapture() throws Exception {
         Path eventsPath = tempDir.resolve("unsupported-payload-events.jsonl");
         YanoteKafkaRecordInterceptor interceptor = new YanoteKafkaRecordInterceptor(
                 new YanoteKafkaEventRecorder(eventsPath, "kafka-contract-service")
@@ -108,6 +117,8 @@ class KafkaMetadataPropagationContractTest {
         KafkaEvent event = events.get(0);
         assertThat(event.message()).isEqualTo("InboundMessage");
         assertThat(event.payload()).isNull();
+        assertThat(event.payloadState()).isEqualTo(PayloadCaptureState.OMITTED);
+        assertThat(event.payloadReason()).isEqualTo(PayloadCaptureReason.UNSUPPORTED);
         assertThat(event.testRunId()).isEqualTo("run-unsupported");
         assertThat(event.testSuite()).isEqualTo("suite-x");
     }
@@ -150,5 +161,8 @@ class KafkaMetadataPropagationContractTest {
     private static List<KafkaEvent> readKafkaEvents(Path eventsPath) throws Exception {
         List<YanoteEvent> events = new EventJsonlReader().read(eventsPath);
         return events.stream().map(KafkaEvent.class::cast).toList();
+    }
+
+    private record UserPayload(String name, String email) {
     }
 }

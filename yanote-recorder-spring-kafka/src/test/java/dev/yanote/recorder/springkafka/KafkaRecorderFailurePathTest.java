@@ -3,9 +3,16 @@ package dev.yanote.recorder.springkafka;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatCode;
 
+import com.fasterxml.jackson.databind.ObjectMapper;
+import dev.yanote.core.events.EventJsonlReader;
+import dev.yanote.core.events.KafkaEvent;
+import dev.yanote.core.events.PayloadCaptureReason;
+import dev.yanote.core.events.PayloadCaptureState;
+import dev.yanote.core.events.YanoteEvent;
 import java.io.UncheckedIOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.util.List;
 import java.util.Map;
 import org.apache.kafka.clients.consumer.ConsumerConfig;
 import org.apache.kafka.clients.consumer.ConsumerRecord;
@@ -30,6 +37,7 @@ import org.springframework.kafka.core.ProducerFactory;
 
 @ExtendWith(OutputCaptureExtension.class)
 class KafkaRecorderFailurePathTest {
+    private static final ObjectMapper OBJECT_MAPPER = new ObjectMapper();
 
     private final ApplicationContextRunner contextRunner = new ApplicationContextRunner()
             .withConfiguration(AutoConfigurations.of(YanoteKafkaRecorderAutoConfiguration.class))
@@ -68,7 +76,7 @@ class KafkaRecorderFailurePathTest {
     }
 
     @Test
-    void shouldWarnAndOmitUnsupportedPayloads(CapturedOutput output) throws Exception {
+    void shouldWarnAndMarkUnsupportedPayloadOmissions(CapturedOutput output) throws Exception {
         Path eventsPath = Files.createTempFile("yanote-kafka-recorder-events-", ".jsonl");
 
         contextRunner
@@ -83,16 +91,41 @@ class KafkaRecorderFailurePathTest {
                     YanoteKafkaHeaders.setHeaders(producerRecord.headers(), "run-unsupported", "suite-a", null);
 
                     assertThatCode(() -> producerListener.onSuccess(producerRecord, null)).doesNotThrowAnyException();
-                    String jsonl;
-                    try {
-                        jsonl = Files.readString(eventsPath);
-                    } catch (java.io.IOException ex) {
-                        throw new UncheckedIOException(ex);
-                    }
-                    assertThat(jsonl).doesNotContain("payload");
+                    KafkaEvent event = readSingleEvent(eventsPath);
+                    assertThat(event.payload()).isNull();
+                    assertThat(event.payloadState()).isEqualTo(PayloadCaptureState.OMITTED);
+                    assertThat(event.payloadReason()).isEqualTo(PayloadCaptureReason.UNSUPPORTED);
                 });
 
         assertThat(output.getOut()).contains("Omitting yanote kafka payload");
+    }
+
+    @Test
+    void shouldWarnAndMarkOversizedPayloadOmissions(CapturedOutput output) throws Exception {
+        Path eventsPath = Files.createTempFile("yanote-kafka-recorder-oversized-", ".jsonl");
+        String oversizedPayload = "x".repeat(70 * 1024);
+
+        contextRunner
+                .withPropertyValues(
+                        "yanote.recorder.enabled=true",
+                        "yanote.recorder.events-path=" + eventsPath,
+                        "yanote.recorder.service-name=failure-service"
+                )
+                .run(context -> {
+                    YanoteKafkaProducerListener producerListener = context.getBean(YanoteKafkaProducerListener.class);
+                    ProducerRecord<Object, Object> producerRecord = new ProducerRecord<>("orders", oversizedPayload);
+                    YanoteKafkaHeaders.setHeaders(producerRecord.headers(), "run-oversized", "suite-a", null);
+
+                    assertThatCode(() -> producerListener.onSuccess(producerRecord, null)).doesNotThrowAnyException();
+                    KafkaEvent event = readSingleEvent(eventsPath);
+                    assertThat(event.payload()).isNull();
+                    assertThat(event.payloadState()).isEqualTo(PayloadCaptureState.OMITTED);
+                    assertThat(event.payloadReason()).isEqualTo(PayloadCaptureReason.OVERSIZED);
+                });
+
+        assertThat(output.getOut())
+                .contains("Omitting yanote kafka payload")
+                .contains("safe capture limit");
     }
 
     @Configuration(proxyBeanMethods = false)
@@ -130,6 +163,16 @@ class KafkaRecorderFailurePathTest {
                     new ConcurrentKafkaListenerContainerFactory<>();
             factory.setConsumerFactory(consumerFactory);
             return factory;
+        }
+    }
+
+    private static KafkaEvent readSingleEvent(Path eventsPath) {
+        try {
+            List<YanoteEvent> events = new EventJsonlReader().read(eventsPath);
+            assertThat(events).hasSize(1);
+            return (KafkaEvent) events.get(0);
+        } catch (Exception ex) {
+            throw new RuntimeException(ex);
         }
     }
 }

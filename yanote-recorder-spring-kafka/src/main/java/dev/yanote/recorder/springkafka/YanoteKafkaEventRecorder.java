@@ -50,8 +50,8 @@ public class YanoteKafkaEventRecorder {
                 serviceName,
                 null,
                 captureResult.payload(),
-                null,
-                null,
+                captureResult.state(),
+                captureResult.reason(),
                 error,
                 YanoteKafkaHeaders.readTestRunId(headers),
                 YanoteKafkaHeaders.readTestSuite(headers)

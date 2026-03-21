@@ -20,6 +20,8 @@ import org.springframework.kafka.core.DefaultKafkaConsumerFactory;
 import org.springframework.kafka.core.DefaultKafkaProducerFactory;
 import org.springframework.kafka.core.KafkaTemplate;
 import org.springframework.kafka.core.ProducerFactory;
+import org.springframework.kafka.support.serializer.JsonDeserializer;
+import org.springframework.kafka.support.serializer.JsonSerializer;
 
 class KafkaRoleScopedConfigurationTest {
 
@@ -98,35 +100,36 @@ class KafkaRoleScopedConfigurationTest {
     @Configuration(proxyBeanMethods = false)
     static class TestKafkaConfiguration {
         @Bean
-        ProducerFactory<String, String> producerFactory() {
+        ProducerFactory<String, Object> producerFactory() {
             return new DefaultKafkaProducerFactory<>(Map.of(
                     ProducerConfig.BOOTSTRAP_SERVERS_CONFIG, "localhost:9092",
                     ProducerConfig.KEY_SERIALIZER_CLASS_CONFIG, StringSerializer.class,
-                    ProducerConfig.VALUE_SERIALIZER_CLASS_CONFIG, StringSerializer.class
+                    ProducerConfig.VALUE_SERIALIZER_CLASS_CONFIG, JsonSerializer.class
             ));
         }
 
         @Bean
-        KafkaTemplate<String, String> kafkaTemplate(ProducerFactory<String, String> producerFactory) {
+        KafkaTemplate<String, Object> kafkaTemplate(ProducerFactory<String, Object> producerFactory) {
             return new KafkaTemplate<>(producerFactory);
         }
 
         @Bean
-        ConsumerFactory<String, String> consumerFactory() {
+        ConsumerFactory<String, Object> consumerFactory() {
             return new DefaultKafkaConsumerFactory<>(Map.of(
                     ConsumerConfig.BOOTSTRAP_SERVERS_CONFIG, "localhost:9092",
                     ConsumerConfig.GROUP_ID_CONFIG, "yanote-example-config-test",
                     ConsumerConfig.AUTO_OFFSET_RESET_CONFIG, "earliest",
                     ConsumerConfig.KEY_DESERIALIZER_CLASS_CONFIG, StringDeserializer.class,
-                    ConsumerConfig.VALUE_DESERIALIZER_CLASS_CONFIG, StringDeserializer.class
+                    ConsumerConfig.VALUE_DESERIALIZER_CLASS_CONFIG, JsonDeserializer.class,
+                    JsonDeserializer.TRUSTED_PACKAGES, "dev.yanote.examples.service"
             ));
         }
 
         @Bean
-        ConcurrentKafkaListenerContainerFactory<String, String> kafkaListenerContainerFactory(
-                ConsumerFactory<String, String> consumerFactory
+        ConcurrentKafkaListenerContainerFactory<String, Object> kafkaListenerContainerFactory(
+                ConsumerFactory<String, Object> consumerFactory
         ) {
-            ConcurrentKafkaListenerContainerFactory<String, String> factory =
+            ConcurrentKafkaListenerContainerFactory<String, Object> factory =
                     new ConcurrentKafkaListenerContainerFactory<>();
             factory.setConsumerFactory(consumerFactory);
             factory.setAutoStartup(false);

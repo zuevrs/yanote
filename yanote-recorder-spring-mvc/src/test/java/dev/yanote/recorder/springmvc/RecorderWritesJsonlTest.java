@@ -10,6 +10,8 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import dev.yanote.core.events.HttpEvent;
+import dev.yanote.core.events.PayloadCaptureReason;
+import dev.yanote.core.events.PayloadCaptureState;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.Map;
@@ -22,6 +24,7 @@ import org.springframework.boot.web.servlet.FilterRegistrationBean;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.core.Ordered;
+import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
 import org.springframework.test.context.TestPropertySource;
 import org.springframework.test.web.servlet.MockMvc;
@@ -30,7 +33,6 @@ import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.ResponseStatus;
 import org.springframework.web.bind.annotation.RestController;
-import org.springframework.http.HttpStatus;
 
 @SpringBootTest(
         classes = {RecorderWritesJsonlTest.TestApp.class, RecorderWritesJsonlTest.TestConfig.class},
@@ -73,6 +75,10 @@ class RecorderWritesJsonlTest {
         assertEquals(201, event.status());
         assertTrue(event.requestContentType().startsWith(MediaType.APPLICATION_JSON_VALUE));
         assertTrue(event.responseContentType().startsWith(MediaType.APPLICATION_JSON_VALUE));
+        assertEquals(PayloadCaptureState.CAPTURED, event.requestBodyState());
+        assertNull(event.requestBodyReason());
+        assertEquals(PayloadCaptureState.CAPTURED, event.responseBodyState());
+        assertNull(event.responseBodyReason());
         assertJsonEquals("""
                 {"name":"Ada"}
                 """, event.requestBody());
@@ -82,7 +88,7 @@ class RecorderWritesJsonlTest {
     }
 
     @Test
-    void shouldOmitUnsupportedPayloadButKeepContentTypeFacts() throws Exception {
+    void shouldMarkPolicyFilteredPayloadOmissionsExplicitly() throws Exception {
         Files.deleteIfExists(EVENTS_PATH);
 
         mockMvc.perform(
@@ -105,7 +111,11 @@ class RecorderWritesJsonlTest {
         assertTrue(event.requestContentType().startsWith(MediaType.TEXT_PLAIN_VALUE));
         assertTrue(event.responseContentType().startsWith(MediaType.TEXT_PLAIN_VALUE));
         assertNull(event.requestBody());
+        assertEquals(PayloadCaptureState.OMITTED, event.requestBodyState());
+        assertEquals(PayloadCaptureReason.POLICY_FILTERED, event.requestBodyReason());
         assertNull(event.responseBody());
+        assertEquals(PayloadCaptureState.OMITTED, event.responseBodyState());
+        assertEquals(PayloadCaptureReason.POLICY_FILTERED, event.responseBodyReason());
     }
 
     private static HttpEvent readSingleEvent() throws Exception {
