@@ -6,7 +6,6 @@ import com.fasterxml.jackson.annotation.JsonInclude;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.annotation.JsonValue;
 import com.fasterxml.jackson.databind.JsonNode;
-
 import java.util.Locale;
 
 @JsonIgnoreProperties(ignoreUnknown = true)
@@ -19,6 +18,8 @@ public record KafkaEvent(
         String service,
         String instance,
         JsonNode payload,
+        PayloadCaptureState payloadState,
+        PayloadCaptureReason payloadReason,
         Boolean error,
         @JsonProperty("test.run_id") String testRunId,
         @JsonProperty("test.suite") String testSuite
@@ -33,6 +34,8 @@ public record KafkaEvent(
         service = normalizeOptional(service);
         instance = normalizeOptional(instance);
         payload = normalizePayload(payload);
+        payloadState = normalizeOptionalState(payloadState);
+        payloadReason = normalizeOptionalReason(payloadReason);
     }
 
     public enum Action {
@@ -85,5 +88,13 @@ public record KafkaEvent(
             return null;
         }
         return payload;
+    }
+
+    private static PayloadCaptureState normalizeOptionalState(PayloadCaptureState value) {
+        return value;
+    }
+
+    private static PayloadCaptureReason normalizeOptionalReason(PayloadCaptureReason value) {
+        return value;
     }
 }

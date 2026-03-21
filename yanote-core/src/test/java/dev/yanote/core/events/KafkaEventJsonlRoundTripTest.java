@@ -10,7 +10,9 @@ import java.nio.file.Path;
 import java.util.List;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertInstanceOf;
+import static org.junit.jupiter.api.Assertions.assertNull;
 
 class KafkaEventJsonlRoundTripTest {
     private static final ObjectMapper OBJECT_MAPPER = new ObjectMapper();
@@ -28,6 +30,8 @@ class KafkaEventJsonlRoundTripTest {
                 "accounts-service",
                 null,
                 payload,
+                PayloadCaptureState.CAPTURED,
+                null,
                 false,
                 "run-1",
                 "suite-a"
@@ -41,9 +45,10 @@ class KafkaEventJsonlRoundTripTest {
 
         String jsonlLine = Files.readString(tempFile, StandardCharsets.UTF_8).trim();
         assertEquals(
-                "{\"kind\":\"kafka\",\"ts\":1710000000000,\"action\":\"send\",\"channel\":\"users.signedup\",\"message\":\"UserSignedUp\",\"service\":\"accounts-service\",\"payload\":{\"user\":{\"id\":\"alice\",\"roles\":[\"admin\"]},\"active\":true},\"error\":false,\"test.run_id\":\"run-1\",\"test.suite\":\"suite-a\"}",
+                "{\"kind\":\"kafka\",\"ts\":1710000000000,\"action\":\"send\",\"channel\":\"users.signedup\",\"message\":\"UserSignedUp\",\"service\":\"accounts-service\",\"payload\":{\"user\":{\"id\":\"alice\",\"roles\":[\"admin\"]},\"active\":true},\"payloadState\":\"captured\",\"error\":false,\"test.run_id\":\"run-1\",\"test.suite\":\"suite-a\"}",
                 jsonlLine
         );
+        assertFalse(jsonlLine.contains("\"payloadReason\":null"));
 
         List<YanoteEvent> events = new EventJsonlReader().read(tempFile);
         assertEquals(1, events.size());
@@ -57,6 +62,8 @@ class KafkaEventJsonlRoundTripTest {
                         "accounts-service",
                         null,
                         payload,
+                        PayloadCaptureState.CAPTURED,
+                        null,
                         false,
                         "run-1",
                         "suite-a"
@@ -66,7 +73,7 @@ class KafkaEventJsonlRoundTripTest {
     }
 
     @Test
-    void shouldKeepMessageOptionalWithoutInferringIt() throws Exception {
+    void shouldKeepOmittedPayloadProvenanceWithoutSerializingNullPlaceholders() throws Exception {
         KafkaEvent event = new KafkaEvent(
                 1710000000100L,
                 KafkaEvent.Action.RECEIVE,
@@ -75,6 +82,8 @@ class KafkaEventJsonlRoundTripTest {
                 null,
                 null,
                 null,
+                PayloadCaptureState.OMITTED,
+                PayloadCaptureReason.UNSUPPORTED,
                 null,
                 "run-2",
                 "suite-b"
@@ -88,9 +97,12 @@ class KafkaEventJsonlRoundTripTest {
 
         String jsonlLine = Files.readString(tempFile, StandardCharsets.UTF_8).trim();
         assertEquals(
-                "{\"kind\":\"kafka\",\"ts\":1710000000100,\"action\":\"receive\",\"channel\":\"users.deleted\",\"test.run_id\":\"run-2\",\"test.suite\":\"suite-b\"}",
+                "{\"kind\":\"kafka\",\"ts\":1710000000100,\"action\":\"receive\",\"channel\":\"users.deleted\",\"payloadState\":\"omitted\",\"payloadReason\":\"unsupported\",\"test.run_id\":\"run-2\",\"test.suite\":\"suite-b\"}",
                 jsonlLine
         );
+        assertFalse(jsonlLine.contains("\"payload\":null"));
+        assertFalse(jsonlLine.contains("\"payloadState\":null"));
+        assertFalse(jsonlLine.contains("\"payloadReason\":null"));
 
         List<YanoteEvent> events = new EventJsonlReader().read(tempFile);
         assertEquals(1, events.size());
@@ -103,12 +115,31 @@ class KafkaEventJsonlRoundTripTest {
                         null,
                         null,
                         null,
+                        PayloadCaptureState.OMITTED,
+                        PayloadCaptureReason.UNSUPPORTED,
                         null,
                         "run-2",
                         "suite-b"
                 ),
                 events.get(0)
         );
+    }
+
+    @Test
+    void shouldReadLegacyKafkaEventWithoutCaptureProvenance() throws Exception {
+        Path tempFile = Files.createTempFile("yanote-kafka-legacy-", ".jsonl");
+        Files.writeString(
+                tempFile,
+                "{\"kind\":\"kafka\",\"ts\":1710000000200,\"action\":\"send\",\"channel\":\"users.legacy\",\"message\":\"LegacyEvent\",\"payload\":{\"ok\":true},\"test.run_id\":\"run-legacy\",\"test.suite\":\"suite-legacy\"}\n",
+                StandardCharsets.UTF_8
+        );
+
+        List<YanoteEvent> events = new EventJsonlReader().read(tempFile);
+        assertEquals(1, events.size());
+        KafkaEvent event = assertInstanceOf(KafkaEvent.class, events.get(0));
+        assertNull(event.payloadState());
+        assertNull(event.payloadReason());
+        assertEquals(json("{\"ok\":true}"), event.payload());
     }
 
     private static JsonNode json(String value) throws Exception {

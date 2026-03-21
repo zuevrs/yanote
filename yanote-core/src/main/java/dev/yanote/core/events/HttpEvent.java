@@ -20,8 +20,12 @@ public record HttpEvent(
         @JsonProperty("test.suite") String testSuite,
         Integer status,
         @JsonInclude(JsonInclude.Include.NON_NULL) JsonNode requestBody,
+        @JsonInclude(JsonInclude.Include.NON_NULL) PayloadCaptureState requestBodyState,
+        @JsonInclude(JsonInclude.Include.NON_NULL) PayloadCaptureReason requestBodyReason,
         @JsonInclude(JsonInclude.Include.NON_NULL) String requestContentType,
         @JsonInclude(JsonInclude.Include.NON_NULL) JsonNode responseBody,
+        @JsonInclude(JsonInclude.Include.NON_NULL) PayloadCaptureState responseBodyState,
+        @JsonInclude(JsonInclude.Include.NON_NULL) PayloadCaptureReason responseBodyReason,
         @JsonInclude(JsonInclude.Include.NON_NULL) String responseContentType,
         String service,
         String instance,
@@ -32,8 +36,12 @@ public record HttpEvent(
         method = method == null ? null : method.toUpperCase(Locale.ROOT);
         route = route == null ? null : route;
         requestBody = normalizeJsonValue(requestBody);
+        requestBodyState = normalizeOptionalState(requestBodyState);
+        requestBodyReason = normalizeOptionalReason(requestBodyReason);
         requestContentType = normalizeOptionalString(requestContentType);
         responseBody = normalizeJsonValue(responseBody);
+        responseBodyState = normalizeOptionalState(responseBodyState);
+        responseBodyReason = normalizeOptionalReason(responseBodyReason);
         responseContentType = normalizeOptionalString(responseContentType);
         if (error == null) {
             error = false;
@@ -41,19 +49,19 @@ public record HttpEvent(
     }
 
     public static HttpEvent of(String method, String route, String testRunId, String testSuite) {
-        return new HttpEvent(System.currentTimeMillis(), method, route, testRunId, testSuite, null, null, null, null, null, null, null, false);
+        return new HttpEvent(System.currentTimeMillis(), method, route, testRunId, testSuite, null, null, null, null, null, null, null, null, null, null, null, false);
     }
 
     public static HttpEvent of(String method, String route, String testRunId, String testSuite, Integer status) {
-        return new HttpEvent(System.currentTimeMillis(), method, route, testRunId, testSuite, status, null, null, null, null, null, null, false);
+        return new HttpEvent(System.currentTimeMillis(), method, route, testRunId, testSuite, status, null, null, null, null, null, null, null, null, null, null, false);
     }
 
     public static HttpEvent of(String method, String route, String testRunId, String testSuite, Integer status, String service, String instance) {
-        return new HttpEvent(System.currentTimeMillis(), method, route, testRunId, testSuite, status, null, null, null, null, service, instance, false);
+        return new HttpEvent(System.currentTimeMillis(), method, route, testRunId, testSuite, status, null, null, null, null, null, null, null, null, service, instance, false);
     }
 
     public static HttpEvent of(long ts, String method, String route, String testRunId, String testSuite, Integer status) {
-        return new HttpEvent(ts, method, route, testRunId, testSuite, status, null, null, null, null, null, null, false);
+        return new HttpEvent(ts, method, route, testRunId, testSuite, status, null, null, null, null, null, null, null, null, null, null, false);
     }
 
     public static HttpEvent of(
@@ -76,8 +84,12 @@ public record HttpEvent(
                 testSuite,
                 status,
                 requestBody,
+                null,
+                null,
                 requestContentType,
                 responseBody,
+                null,
+                null,
                 responseContentType,
                 null,
                 null,
@@ -117,6 +129,14 @@ public record HttpEvent(
             return value;
         }
         return null;
+    }
+
+    private static PayloadCaptureState normalizeOptionalState(PayloadCaptureState value) {
+        return value;
+    }
+
+    private static PayloadCaptureReason normalizeOptionalReason(PayloadCaptureReason value) {
+        return value;
     }
 
     private static String normalizeOptionalString(String value) {

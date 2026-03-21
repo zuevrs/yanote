@@ -1,3 +1,5 @@
+import type { PayloadCaptureReason, PayloadCaptureState } from "./payloadCapture.js";
+
 export type JsonPrimitive = string | number | boolean | null;
 export type JsonValue = JsonPrimitive | JsonValue[] | { [key: string]: JsonValue };
 
@@ -8,8 +10,12 @@ export type HttpEvent = {
   route: string;
   status?: number;
   requestBody?: JsonValue;
+  requestBodyState?: PayloadCaptureState;
+  requestBodyReason?: PayloadCaptureReason;
   requestContentType?: string | null;
   responseBody?: JsonValue;
+  responseBodyState?: PayloadCaptureState;
+  responseBodyReason?: PayloadCaptureReason;
   responseContentType?: string | null;
   service?: string | null;
   instance?: string | null;

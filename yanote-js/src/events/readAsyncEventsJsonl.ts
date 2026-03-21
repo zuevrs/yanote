@@ -8,6 +8,10 @@ import {
   type AsyncEvent
 } from "../model/asyncEvent.js";
 import { normalizeRunId, normalizeSuite } from "../model/httpEvent.js";
+import {
+  normalizePayloadCaptureReason,
+  normalizePayloadCaptureState
+} from "../model/payloadCapture.js";
 
 export type ReadAsyncJsonlResult<T> = {
   items: T[];
@@ -52,6 +56,8 @@ export async function readAsyncEventsJsonl(filePath: string): Promise<ReadAsyncJ
       service: typeof obj.service === "string" ? obj.service : obj.service === null ? null : undefined,
       instance: typeof obj.instance === "string" ? obj.instance : obj.instance === null ? null : undefined,
       payload: normalizeJsonValue(obj.payload),
+      payloadState: normalizePayloadCaptureState(obj.payloadState),
+      payloadReason: normalizePayloadCaptureReason(obj.payloadReason),
       error: typeof obj.error === "boolean" ? obj.error : undefined,
       testRunId: normalizeRunId(obj["test.run_id"]),
       testSuite: normalizeSuite(obj["test.suite"])
