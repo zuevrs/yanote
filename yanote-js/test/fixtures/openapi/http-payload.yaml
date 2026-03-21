@@ -1,0 +1,173 @@
+openapi: 3.0.0
+info:
+  title: http payload sample
+  version: 1.0.0
+paths:
+  /users:
+    post:
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              required:
+                - email
+                - profile
+              properties:
+                email:
+                  type: string
+                profile:
+                  type: object
+                  additionalProperties: false
+                  required:
+                    - active
+                    - age
+                    - tags
+                  properties:
+                    active:
+                      type: boolean
+                    age:
+                      type: integer
+                      minimum: 0
+                    tags:
+                      type: array
+                      items:
+                        type: string
+      responses:
+        '201':
+          description: created
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: false
+                required:
+                  - id
+                  - created
+                properties:
+                  id:
+                    type: string
+                  created:
+                    type: boolean
+        '415':
+          description: unsupported media type
+          content:
+            application/problem+json:
+              schema:
+                type: object
+                additionalProperties: false
+                required:
+                  - title
+                properties:
+                  title:
+                    type: string
+  /notes:
+    post:
+      requestBody:
+        required: true
+        content:
+          text/plain:
+            schema:
+              type: string
+      responses:
+        '202':
+          description: accepted
+          content:
+            text/plain:
+              schema:
+                type: string
+  /profiles:
+    post:
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              required:
+                - name
+              properties:
+                name:
+                  type: string
+      responses:
+        '204':
+          description: updated
+  /drafts:
+    post:
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              properties:
+                body:
+                  type: string
+      responses:
+        '202':
+          description: queued
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: false
+                required:
+                  - queued
+                properties:
+                  queued:
+                    type: boolean
+  /audits:
+    get:
+      responses:
+        '200':
+          description: ok
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: false
+                required:
+                  - entries
+                properties:
+                  entries:
+                    type: array
+                    items:
+                      type: string
+  /orders:
+    post:
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              required:
+                - sku
+                - quantity
+              properties:
+                sku:
+                  type: string
+                quantity:
+                  type: integer
+                  minimum: 1
+      responses:
+        '201':
+          description: created
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: false
+                required:
+                  - id
+                  - status
+                properties:
+                  id:
+                    type: string
+                  status:
+                    type: string

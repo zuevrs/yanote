@@ -9,7 +9,7 @@
 Это основной пользовательский путь. Если нужно понять и воспроизвести Yanote без fallback-first навигации, идите в таком порядке:
 
 1. [`guides/recorder-spring-mvc.md`](guides/recorder-spring-mvc.md) — подключение Spring MVC рекордера, writable путь до `events.jsonl`, проверка того, что сервис действительно пишет evidence.
-2. [`guides/analyzer-coverage.md`](guides/analyzer-coverage.md) — запуск analyzer по OpenAPI и `events.jsonl`, чтение `Summary`, `YANOTE_SUMMARY` и `yanote-report.json`.
+2. [`guides/analyzer-coverage.md`](guides/analyzer-coverage.md) — запуск analyzer по OpenAPI и `events.jsonl`, чтение `Summary`, `HTTP Payload Conformance`, `YANOTE_SUMMARY`, `yanote-report.json` и retained `.yanote-ci/v1-e2e/` proof bundle.
 3. [`guides/asyncapi-kafka.md`](guides/asyncapi-kafka.md) — отдельная ветка первой волны AsyncAPI/Kafka: Kafka evidence inputs, `async-report`, `YANOTE_ASYNC_SUMMARY` и `yanote-async-report.json` без подмены HTTP guide.
 4. [`guides/test-tagging.md`](guides/test-tagging.md) — contract для `X-Test-Run-Id`, `X-Test-Suite`, `test.run_id`, `test.suite` и `coverage.perOperation[].suites`.
 
@@ -19,7 +19,7 @@
 
 Когда нужен runnable demo-path по реальным repo assets, а не только guide-level объяснение, переходите сюда:
 
-- [`../examples/README.md`](../examples/README.md) — карта demo-активов и их роли в полном цикле.
+- [`../examples/README.md`](../examples/README.md) — карта demo-активов, включая public proof `bash scripts/ci/run-v1-e2e.sh` и retained bundle `.yanote-ci/v1-e2e/`.
 - [`../examples/docker-compose.yml`](../examples/docker-compose.yml) — самый короткий repo demo: поднимает сервис, прогоняет тесты, собирает `events.jsonl` и запускает analyzer.
 - [`../examples/springmvc-service/README.md`](../examples/springmvc-service/README.md) — сервисная сторона recorder path, где видно, как появляется `events.jsonl`.
 - [`../examples/tests-restassured/README.md`](../examples/tests-restassured/README.md) — тестовая сторона metadata handoff для `X-Test-Run-Id` / `X-Test-Suite`.
@@ -30,7 +30,7 @@
 
 Эта секция для инженера, который уже понял основной путь и хочет увидеть текущие продуктовые границы и проверяемые ожидания.
 
-- [`release-and-support.md`](release-and-support.md) — текущая публичная стабильная линия `v1.0.x`, последний стабильный тег, опубликованные изменения в GitHub Releases, совместимость, ограничения и граница между текущим `HEAD` репозитория и опубликованным релизом.
+- [`release-and-support.md`](release-and-support.md) — текущая публичная стабильная линия `v1.0.x`, последний стабильный тег, опубликованные изменения в GitHub Releases, совместимость, ограничения, retained green/red proof artifacts и граница между текущим `HEAD` репозитория и опубликованным релизом.
 - [`requirements.md`](requirements.md) — текущий inventory требований Yanote, границы v1/v2 и явный out-of-scope.
 - Корневой [`README.md`](../README.md) — короткий продуктовый маршрут и навигация между основными surface-ами.
 

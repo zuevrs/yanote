@@ -1,5 +1,6 @@
 package dev.yanote.recorder.springmvc;
 
+import dev.yanote.core.events.EventJsonlWriter;
 import dev.yanote.core.events.HttpEvent;
 import dev.yanote.core.testmetadata.TestMetadataContextHolder;
 import jakarta.servlet.FilterChain;
@@ -7,9 +8,12 @@ import jakarta.servlet.ServletException;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import java.io.IOException;
+import java.nio.file.Path;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.web.filter.OncePerRequestFilter;
+import org.springframework.web.util.ContentCachingRequestWrapper;
+import org.springframework.web.util.ContentCachingResponseWrapper;
 
 public class HttpEventRecordingFilter extends OncePerRequestFilter {
     private static final Logger log = LoggerFactory.getLogger(HttpEventRecordingFilter.class);
@@ -19,11 +23,22 @@ public class HttpEventRecordingFilter extends OncePerRequestFilter {
     private final String eventsPath;
     private final String serviceName;
     private final RouteTemplateResolver routeTemplateResolver;
+    private final HttpPayloadCapture payloadCapture;
 
     public HttpEventRecordingFilter(String eventsPath, String serviceName, RouteTemplateResolver routeTemplateResolver) {
+        this(eventsPath, serviceName, routeTemplateResolver, new HttpPayloadCapture());
+    }
+
+    HttpEventRecordingFilter(
+            String eventsPath,
+            String serviceName,
+            RouteTemplateResolver routeTemplateResolver,
+            HttpPayloadCapture payloadCapture
+    ) {
         this.eventsPath = eventsPath;
         this.serviceName = serviceName;
         this.routeTemplateResolver = routeTemplateResolver;
+        this.payloadCapture = payloadCapture;
     }
 
     @Override
@@ -32,28 +47,54 @@ public class HttpEventRecordingFilter extends OncePerRequestFilter {
         String runId = request.getHeader(RUN_ID_HEADER);
         String suite = request.getHeader(SUITE_HEADER);
         TestMetadataContextHolder.set(runId, suite);
+        ContentCachingRequestWrapper requestWrapper = wrapRequest(request);
+        ContentCachingResponseWrapper responseWrapper = wrapResponse(response);
         try {
-            filterChain.doFilter(request, response);
-            record(request, response, runId, suite);
+            filterChain.doFilter(requestWrapper, responseWrapper);
+            record(requestWrapper, responseWrapper, runId, suite);
         } finally {
-            TestMetadataContextHolder.clear();
+            try {
+                responseWrapper.copyBodyToResponse();
+            } finally {
+                TestMetadataContextHolder.clear();
+            }
         }
     }
 
-    private void record(HttpServletRequest request, HttpServletResponse response, String runId, String suite) {
+    private ContentCachingRequestWrapper wrapRequest(HttpServletRequest request) {
+        if (request instanceof ContentCachingRequestWrapper wrapper) {
+            return wrapper;
+        }
+        return new ContentCachingRequestWrapper(request);
+    }
+
+    private ContentCachingResponseWrapper wrapResponse(HttpServletResponse response) {
+        if (response instanceof ContentCachingResponseWrapper wrapper) {
+            return wrapper;
+        }
+        return new ContentCachingResponseWrapper(response);
+    }
+
+    private void record(ContentCachingRequestWrapper request, ContentCachingResponseWrapper response, String runId, String suite) {
         String route = routeTemplateResolver.resolve(request);
+        HttpPayloadCapture.PayloadSnapshot requestPayload = payloadCapture.captureRequest(request);
+        HttpPayloadCapture.PayloadSnapshot responsePayload = payloadCapture.captureResponse(request, response);
         try {
-            new dev.yanote.core.events.EventJsonlWriter(java.nio.file.Path.of(eventsPath)).write(
-                    HttpEvent.of(
-                            request.getMethod(),
-                            route,
-                            runId,
-                            suite,
-                            response.getStatus(),
-                            serviceName,
-                            null
-                    )
-            );
+            new EventJsonlWriter(Path.of(eventsPath)).write(new HttpEvent(
+                    System.currentTimeMillis(),
+                    request.getMethod(),
+                    route,
+                    runId,
+                    suite,
+                    response.getStatus(),
+                    requestPayload.body(),
+                    requestPayload.contentType(),
+                    responsePayload.body(),
+                    responsePayload.contentType(),
+                    serviceName,
+                    null,
+                    false
+            ));
         } catch (IOException ex) {
             log.warn("Failed to write yanote event to {} (dropping event)", eventsPath, ex);
         }

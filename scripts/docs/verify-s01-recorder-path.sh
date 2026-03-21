@@ -16,8 +16,18 @@ EXPECTED_METHOD="${YANOTE_EXPECTED_METHOD:-GET}"
 EXPECTED_ROUTE="${YANOTE_EXPECTED_ROUTE:-/orders/{orderId}}"
 EXPECTED_STATUS="${YANOTE_EXPECTED_STATUS:-200}"
 EXPECTED_SERVICE_NAME="${YANOTE_EXPECTED_SERVICE_NAME:-${ACTUAL_SERVICE_NAME}}"
+HOST_GRADLE_HOME="${TMP_DIR}/gradle-home"
+FALLBACK_GRADLE_DIST_HOME="${HOME}/.gradle/wrapper/dists"
 KEEP_TEMP="false"
 APP_PID=""
+
+mkdir -p "${HOST_GRADLE_HOME}"
+if [[ -d "${FALLBACK_GRADLE_DIST_HOME}" ]]; then
+  mkdir -p "${HOST_GRADLE_HOME}/wrapper"
+  ln -s "${FALLBACK_GRADLE_DIST_HOME}" "${HOST_GRADLE_HOME}/wrapper/dists"
+fi
+export GRADLE_USER_HOME="${HOST_GRADLE_HOME}"
+export YANOTE_GRADLE_HOME="${HOST_GRADLE_HOME}"
 
 reserve_port() {
   python3 - <<'PY'
@@ -83,7 +93,7 @@ if [[ ! -d "${FIXTURE_DIR}" ]]; then
 fi
 
 echo "Publishing ${YANOTE_GROUP}:yanote-core:${YANOTE_VERSION} and recorder module to mavenLocal..."
-if ! "${ROOT_DIR}/gradlew" --no-daemon :yanote-core:publishToMavenLocal :yanote-recorder-spring-mvc:publishToMavenLocal >"${PUBLISH_LOG_PATH}" 2>&1; then
+if ! "${ROOT_DIR}/gradlew" --no-daemon -g "${HOST_GRADLE_HOME}" :yanote-core:publishToMavenLocal :yanote-recorder-spring-mvc:publishToMavenLocal >"${PUBLISH_LOG_PATH}" 2>&1; then
   fail "Gradle publishToMavenLocal failed."
 fi
 
@@ -93,7 +103,7 @@ echo "Starting Spring smoke fixture from published local artifacts..."
   SERVER_PORT="${PORT}" \
   YANOTE_EVENTS_PATH="${EVENTS_PATH}" \
   YANOTE_SERVICE_NAME="${ACTUAL_SERVICE_NAME}" \
-  "${ROOT_DIR}/gradlew" --no-daemon -p "${FIXTURE_DIR}" --refresh-dependencies -PyanoteVersion="${YANOTE_VERSION}" bootRun
+  "${ROOT_DIR}/gradlew" --no-daemon -g "${HOST_GRADLE_HOME}" -p "${FIXTURE_DIR}" --refresh-dependencies -PyanoteVersion="${YANOTE_VERSION}" bootRun
 ) >"${APP_LOG_PATH}" 2>&1 &
 APP_PID=$!
 

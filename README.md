@@ -42,14 +42,16 @@ Yanote нужен инженеру, который одновременно от
    После живого HTTP-запроса или прогона тестов проверьте, что файл создан, не пустой и содержит ожидаемые поля маршрута, статуса и сервиса. Это первый доказуемый артефакт цикла, который потом пойдёт в analyzer.
 
 3. **Прогоните analyzer по OpenAPI и событиям.**
-   Канонический путь запуска и интерпретации описан в [`docs/guides/analyzer-coverage.md`](docs/guides/analyzer-coverage.md): собрать `yanote-js`, выполнить `report` против OpenAPI и `events.jsonl`, получить stdout с `Summary`, строку `YANOTE_SUMMARY ...` и стабильный файл `yanote-report.json`.
+   Канонический путь запуска и интерпретации описан в [`docs/guides/analyzer-coverage.md`](docs/guides/analyzer-coverage.md): собрать `yanote-js`, выполнить `report` против OpenAPI и `events.jsonl`, получить stdout с `Summary`, секцией `HTTP Payload Conformance`, строку `YANOTE_SUMMARY ...` и стабильный файл `yanote-report.json`.
 
-   Если нужен runnable repo demo целиком, используйте [`examples/README.md`](examples/README.md) и [`examples/docker-compose.yml`](examples/docker-compose.yml). Offline fallback для analyzer остаётся вторичным путём через release assets GitHub Releases; публичные tracked `dist/*` docs больше не считаются supported entrypoint, поэтому ориентируйтесь на [`docs/release-and-support.md`](docs/release-and-support.md).
+   Если нужен runnable repo demo целиком, используйте [`examples/README.md`](examples/README.md) и [`examples/docker-compose.yml`](examples/docker-compose.yml). Для публичного proof-bundle в репозитории есть `bash scripts/ci/run-v1-e2e.sh`: он сохраняет happy-path артефакт `.yanote-ci/v1-e2e/out/yanote-report.json` и рядом удерживает `semantic-red.stdout`, `semantic-red.stderr` и `semantic-red-yanote-report.json`, чтобы можно было проверить fail-closed путь `SEMANTIC_HTTP_UNSUPPORTED_SCHEMA` на тех же live events.
+
+   Offline fallback для analyzer остаётся вторичным путём через release assets GitHub Releases; публичные tracked `dist/*` docs больше не считаются supported entrypoint, поэтому ориентируйтесь на [`docs/release-and-support.md`](docs/release-and-support.md).
 
    Если вам нужен не HTTP/OpenAPI path, а первая волна AsyncAPI/Kafka, не смешивайте её с этим циклом: отдельный guide [`docs/guides/asyncapi-kafka.md`](docs/guides/asyncapi-kafka.md) ведёт по Kafka evidence, команде `async-report` и отдельному артефакту `yanote-async-report.json`.
 
 4. **Прочитайте отчёт, а не только exit code.**
-   `yanote-report.json` показывает не только observed operations, но и пробелы по response statuses и required parameters. В текущем demo-path это особенно важно: `operations = 100%` ещё не означает полный контрактный coverage, если status dimension или aggregate остаются partial.
+   В текущем публичном demo-path happy path показывает `operations/status/parameters/aggregate = 100.00%`, но это не отменяет отдельную поверхность `HTTP Payload Conformance`. Для `POST /users` она подтверждает JSON request/response payload на зелёном пути, а для `GET`-ответов без declared content честно сохраняет `NO_DECLARED_CONTENT` как benign `SKIPPED`-diagnostics, а не как контрактную ошибку. Retained semantic-red sidecars из `.yanote-ci/v1-e2e/` отдельно показывают, что при unsupported schema observation coverage остаётся `100%`, но payload boundary fail-closed возвращает `SEMANTIC_HTTP_UNSUPPORTED_SCHEMA`.
 
 ### Канонический путь тестовых метаданных
 
@@ -65,9 +67,9 @@ Yanote нужен инженеру, который одновременно от
 ## Куда идти дальше
 
 - **Понять пользовательскую документацию целиком:** [`docs/README.md`](docs/README.md)
-- **Пройти runnable demo по repo assets:** [`examples/README.md`](examples/README.md)
+- **Пройти runnable demo по repo assets и retained proof bundle:** [`examples/README.md`](examples/README.md)
 - **Сразу подключить рекордер к Spring MVC сервису:** [`docs/guides/recorder-spring-mvc.md`](docs/guides/recorder-spring-mvc.md)
-- **Сразу запустить analyzer и научиться читать отчёт:** [`docs/guides/analyzer-coverage.md`](docs/guides/analyzer-coverage.md)
+- **Сразу запустить analyzer и научиться читать observation coverage и `HTTP Payload Conformance`:** [`docs/guides/analyzer-coverage.md`](docs/guides/analyzer-coverage.md)
 - **Пройти отдельный AsyncAPI/Kafka path и получить `yanote-async-report.json`:** [`docs/guides/asyncapi-kafka.md`](docs/guides/asyncapi-kafka.md)
 - **Разобрать suite/run metadata и их путь до отчёта:** [`docs/guides/test-tagging.md`](docs/guides/test-tagging.md)
 

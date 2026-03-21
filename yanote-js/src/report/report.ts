@@ -1,11 +1,30 @@
-import type { CoverageDimensionState } from "../coverage/dimensions.js";
+import type {
+  HttpPayloadConformanceCode,
+  HttpPayloadConformanceDiagnostic,
+  HttpPayloadConformanceResult,
+  HttpPayloadConformanceState
+} from "../coverage/httpPayloadConformance.js";
+import type { CoverageDimensionState, DeclaredStatusToken } from "../coverage/dimensions.js";
 import type { CoverageResult } from "../coverage/coverage.js";
 import type { AppliedExclusionRule, UnmatchedExclusionRuleWarning } from "../gates/exclusions.js";
 import type { GovernanceFailure } from "../gates/failureOrder.js";
+import { evaluateHttpPayloadSemanticFailures } from "../gates/httpPayloadSemantics.js";
 import type { SemanticDiagnostic } from "../spec/diagnostics.js";
 import { REPORT_SCHEMA_VERSION } from "./schema.js";
 
 export type ReportStatus = "ok" | "partial" | "invalid";
+
+export type HttpPayloadTargetAggregate = {
+  coveredOperations: number;
+  partialOperations: number;
+  uncoveredOperations: number;
+  skippedOperations: number;
+  notApplicableOperations: number;
+  observedCount: number;
+  validCount: number;
+  invalidCount: number;
+  skippedCount: number;
+};
 
 export type YanoteReport = {
   schemaVersion: string;
@@ -70,6 +89,62 @@ export type YanoteReport = {
       suites: string[];
     }>;
   };
+  httpPayloadConformance: {
+    summary: {
+      request: HttpPayloadTargetAggregate;
+      response: HttpPayloadTargetAggregate;
+    };
+    perOperation: Array<{
+      operationKey: string;
+      method: string;
+      route: string;
+      request: {
+        state: HttpPayloadConformanceState;
+        observedCount: number;
+        validCount: number;
+        invalidCount: number;
+        skippedCount: number;
+        declaredMediaTypes: string[];
+        observedMediaTypes: string[];
+      };
+      response: {
+        state: HttpPayloadConformanceState;
+        observedCount: number;
+        validCount: number;
+        invalidCount: number;
+        skippedCount: number;
+        declaredMediaTypes: string[];
+        observedMediaTypes: string[];
+        declaredContent: Array<{
+          declaredStatus: DeclaredStatusToken;
+          mediaTypes: string[];
+        }>;
+      };
+      suites: string[];
+    }>;
+    diagnostics: {
+      counts: {
+        covered: number;
+        uncovered: number;
+        skipped: number;
+      };
+      items: Array<{
+        operationKey: string;
+        method: string;
+        route: string;
+        target: "request" | "response";
+        suite: string;
+        state: "COVERED" | "UNCOVERED" | "SKIPPED";
+        code: HttpPayloadConformanceCode;
+        message: string;
+        declaredStatus?: DeclaredStatusToken;
+        observedStatus?: number;
+        observedMediaType?: string;
+        declaredMediaTypes: string[];
+        errors?: string[];
+      }>;
+    };
+  };
   diagnostics: {
     counts: {
       invalid: number;
@@ -118,6 +193,7 @@ export function buildReport(
   opts: {
     toolVersion: string;
     eventTimestamps?: number[];
+    payloadConformance?: HttpPayloadConformanceResult;
     governance?: {
       exclusions?: {
         appliedRules: AppliedExclusionRule[];
@@ -129,7 +205,9 @@ export function buildReport(
 ): YanoteReport {
   const diagnostics = sortDiagnostics(coverage.diagnostics);
   const counts = countDiagnostics(diagnostics);
-  const status = resolveReportStatus(coverage, counts);
+  const payloadSemanticDiagnostics = evaluateHttpPayloadSemanticFailures(opts.payloadConformance?.diagnostics ?? []);
+  const governanceDiagnostics = mergeGovernanceDiagnostics(payloadSemanticDiagnostics, opts.governance?.diagnostics ?? []);
+  const status = resolveReportStatus(coverage, counts, payloadSemanticDiagnostics.length > 0);
 
   return {
     schemaVersion: REPORT_SCHEMA_VERSION,
@@ -194,6 +272,7 @@ export function buildReport(
         suites: [...entry.suites]
       }))
     },
+    httpPayloadConformance: buildHttpPayloadConformanceSection(coverage, opts.payloadConformance),
     diagnostics: {
       counts,
       items: diagnostics
@@ -203,7 +282,7 @@ export function buildReport(
         appliedRules: sortAppliedRules(opts.governance?.exclusions?.appliedRules ?? []),
         unmatchedRules: sortUnmatchedRules(opts.governance?.exclusions?.unmatchedRules ?? [])
       },
-      diagnostics: sortGovernanceDiagnostics(opts.governance?.diagnostics ?? [])
+      diagnostics: sortGovernanceDiagnostics(governanceDiagnostics)
     }
   };
 }
@@ -216,6 +295,187 @@ function resolveGeneratedAt(eventTimestamps: number[] | undefined): string {
 
   const min = Math.min(...timestamps);
   return new Date(min).toISOString();
+}
+
+function buildHttpPayloadConformanceSection(
+  coverage: CoverageResult,
+  payloadConformance: HttpPayloadConformanceResult | undefined
+): YanoteReport["httpPayloadConformance"] {
+  const perOperation = sortPayloadPerOperation(
+    payloadConformance?.perOperation.map((entry) => ({
+      operationKey: entry.operationKey,
+      method: entry.method,
+      route: entry.route,
+      request: {
+        state: entry.request.state,
+        observedCount: entry.request.observedCount,
+        validCount: entry.request.validCount,
+        invalidCount: entry.request.invalidCount,
+        skippedCount: entry.request.skippedCount,
+        declaredMediaTypes: [...entry.request.declaredMediaTypes],
+        observedMediaTypes: [...entry.request.observedMediaTypes]
+      },
+      response: {
+        state: entry.response.state,
+        observedCount: entry.response.observedCount,
+        validCount: entry.response.validCount,
+        invalidCount: entry.response.invalidCount,
+        skippedCount: entry.response.skippedCount,
+        declaredMediaTypes: [...entry.response.declaredMediaTypes],
+        observedMediaTypes: [...entry.response.observedMediaTypes],
+        declaredContent: entry.response.declaredContent.map((content) => ({
+          declaredStatus: content.declaredStatus,
+          mediaTypes: [...content.mediaTypes]
+        }))
+      },
+      suites: [...entry.suites]
+    })) ??
+      coverage.perOperation.map((entry) => ({
+        operationKey: entry.operationKey,
+        method: entry.method,
+        route: entry.route,
+        request: {
+          state: "N/A" as const,
+          observedCount: 0,
+          validCount: 0,
+          invalidCount: 0,
+          skippedCount: 0,
+          declaredMediaTypes: [],
+          observedMediaTypes: []
+        },
+        response: {
+          state: "N/A" as const,
+          observedCount: 0,
+          validCount: 0,
+          invalidCount: 0,
+          skippedCount: 0,
+          declaredMediaTypes: [],
+          observedMediaTypes: [],
+          declaredContent: []
+        },
+        suites: [...entry.suites]
+      }))
+  );
+
+  const diagnostics = sortPayloadDiagnostics(payloadConformance?.diagnostics ?? []);
+
+  return {
+    summary: {
+      request: summarizePayloadTarget(perOperation.map((entry) => entry.request)),
+      response: summarizePayloadTarget(perOperation.map((entry) => entry.response))
+    },
+    perOperation,
+    diagnostics: {
+      counts: countPayloadDiagnostics(diagnostics),
+      items: diagnostics
+    }
+  };
+}
+
+function summarizePayloadTarget(
+  targets: Array<YanoteReport["httpPayloadConformance"]["perOperation"][number]["request"]>
+): HttpPayloadTargetAggregate {
+  const summary: HttpPayloadTargetAggregate = {
+    coveredOperations: 0,
+    partialOperations: 0,
+    uncoveredOperations: 0,
+    skippedOperations: 0,
+    notApplicableOperations: 0,
+    observedCount: 0,
+    validCount: 0,
+    invalidCount: 0,
+    skippedCount: 0
+  };
+
+  for (const target of targets) {
+    if (target.state === "COVERED") summary.coveredOperations += 1;
+    else if (target.state === "PARTIAL") summary.partialOperations += 1;
+    else if (target.state === "UNCOVERED") summary.uncoveredOperations += 1;
+    else if (target.state === "SKIPPED") summary.skippedOperations += 1;
+    else summary.notApplicableOperations += 1;
+
+    summary.observedCount += target.observedCount;
+    summary.validCount += target.validCount;
+    summary.invalidCount += target.invalidCount;
+    summary.skippedCount += target.skippedCount;
+  }
+
+  return summary;
+}
+
+function countPayloadDiagnostics(
+  diagnostics: HttpPayloadConformanceDiagnostic[]
+): YanoteReport["httpPayloadConformance"]["diagnostics"]["counts"] {
+  let covered = 0;
+  let uncovered = 0;
+  let skipped = 0;
+
+  for (const diagnostic of diagnostics) {
+    if (diagnostic.state === "COVERED") covered += 1;
+    else if (diagnostic.state === "UNCOVERED") uncovered += 1;
+    else skipped += 1;
+  }
+
+  return { covered, uncovered, skipped };
+}
+
+function sortPayloadPerOperation(
+  perOperation: YanoteReport["httpPayloadConformance"]["perOperation"]
+): YanoteReport["httpPayloadConformance"]["perOperation"] {
+  return [...perOperation]
+    .map((entry) => ({
+      ...entry,
+      request: {
+        ...entry.request,
+        declaredMediaTypes: [...entry.request.declaredMediaTypes].sort((left, right) => left.localeCompare(right)),
+        observedMediaTypes: [...entry.request.observedMediaTypes].sort((left, right) => left.localeCompare(right))
+      },
+      response: {
+        ...entry.response,
+        declaredMediaTypes: [...entry.response.declaredMediaTypes].sort((left, right) => left.localeCompare(right)),
+        observedMediaTypes: [...entry.response.observedMediaTypes].sort((left, right) => left.localeCompare(right)),
+        declaredContent: [...entry.response.declaredContent]
+          .map((content) => ({
+            declaredStatus: content.declaredStatus,
+            mediaTypes: [...content.mediaTypes].sort((left, right) => left.localeCompare(right))
+          }))
+          .sort((left, right) => compareDeclaredStatuses(left.declaredStatus, right.declaredStatus))
+      },
+      suites: [...entry.suites].sort((left, right) => left.localeCompare(right))
+    }))
+    .sort((left, right) => left.operationKey.localeCompare(right.operationKey));
+}
+
+function sortPayloadDiagnostics(
+  diagnostics: HttpPayloadConformanceDiagnostic[]
+): YanoteReport["httpPayloadConformance"]["diagnostics"]["items"] {
+  return [...diagnostics]
+    .map((diagnostic) => ({
+      ...diagnostic,
+      declaredMediaTypes: [...diagnostic.declaredMediaTypes].sort((left, right) => left.localeCompare(right)),
+      errors: diagnostic.errors ? [...diagnostic.errors].sort((left, right) => left.localeCompare(right)) : undefined
+    }))
+    .sort(comparePayloadDiagnostics);
+}
+
+function comparePayloadDiagnostics(left: HttpPayloadConformanceDiagnostic, right: HttpPayloadConformanceDiagnostic): number {
+  if (left.operationKey !== right.operationKey) return left.operationKey.localeCompare(right.operationKey);
+  if (left.target !== right.target) return left.target.localeCompare(right.target);
+
+  const leftStatus = `${left.declaredStatus ?? ""}\u0000${left.observedStatus ?? ""}`;
+  const rightStatus = `${right.declaredStatus ?? ""}\u0000${right.observedStatus ?? ""}`;
+  if (leftStatus !== rightStatus) return leftStatus.localeCompare(rightStatus);
+
+  if (left.code !== right.code) return left.code.localeCompare(right.code);
+  if ((left.observedMediaType ?? "") !== (right.observedMediaType ?? "")) {
+    return (left.observedMediaType ?? "").localeCompare(right.observedMediaType ?? "");
+  }
+
+  return left.suite.localeCompare(right.suite);
+}
+
+function compareDeclaredStatuses(left: DeclaredStatusToken, right: DeclaredStatusToken): number {
+  return left.localeCompare(right, undefined, { numeric: true });
 }
 
 function countDiagnostics(diagnostics: SemanticDiagnostic[]): YanoteReport["diagnostics"]["counts"] {
@@ -232,11 +492,39 @@ function countDiagnostics(diagnostics: SemanticDiagnostic[]): YanoteReport["diag
   return { invalid, ambiguous, unmatched };
 }
 
+function mergeGovernanceDiagnostics(
+  payloadSemanticDiagnostics: GovernanceFailure[],
+  governanceDiagnostics: GovernanceFailure[]
+): GovernanceFailure[] {
+  const deduped = new Map<string, GovernanceFailure>();
+
+  for (const diagnostic of [...payloadSemanticDiagnostics, ...governanceDiagnostics]) {
+    const key = [
+      diagnostic.failureClass,
+      diagnostic.code,
+      diagnostic.severity,
+      diagnostic.reason,
+      diagnostic.hint,
+      String(diagnostic.exitCode),
+      diagnostic.gateKind ?? "",
+      diagnostic.operationKey ?? ""
+    ].join("\u0000");
+
+    if (!deduped.has(key)) {
+      deduped.set(key, diagnostic);
+    }
+  }
+
+  return [...deduped.values()];
+}
+
 function resolveReportStatus(
   coverage: CoverageResult,
-  counts: YanoteReport["diagnostics"]["counts"]
+  counts: YanoteReport["diagnostics"]["counts"],
+  hasPayloadSemanticFailure: boolean
 ): ReportStatus {
   if (counts.invalid > 0 || counts.ambiguous > 0) return "invalid";
+  if (hasPayloadSemanticFailure) return "partial";
   if (coverage.uncoveredOperations.length > 0) return "partial";
   if (coverage.dimensions.aggregate.state !== "COVERED") return "partial";
   if (counts.unmatched > 0) return "partial";

@@ -1,7 +1,236 @@
+import { mkdtemp, rm, writeFile } from "node:fs/promises";
+import os from "node:os";
+import path from "node:path";
 import { describe, expect, it } from "vitest";
+import { computeCoverage } from "../coverage/coverage.js";
+import { computeHttpPayloadConformance } from "../coverage/httpPayloadConformance.js";
+import { readHttpEventsJsonl } from "../events/readJsonl.js";
+import { loadOpenApiCoverageModel } from "../spec/openapi.js";
 import type { YanoteReport } from "./report.js";
+import { buildReport } from "./report.js";
 import { normalizeReport, roundCoverage } from "./normalize.js";
 import { REPORT_SCHEMA_VERSION, validateReport } from "./schema.js";
+
+async function buildPayloadFixtureReport(eventsPath: string): Promise<YanoteReport> {
+  const model = await loadOpenApiCoverageModel("test/fixtures/openapi/http-payload.yaml");
+  const events = await readHttpEventsJsonl(eventsPath);
+
+  const coverage = computeCoverage(model.operations, events.items, [], {
+    operationContractsByKey: model.operationContractsByKey
+  });
+  const payloadConformance = computeHttpPayloadConformance(model.operations, events.items, {
+    operationContractsByKey: model.operationContractsByKey
+  });
+
+  return buildReport(coverage, {
+    toolVersion: "test",
+    eventTimestamps: events.items
+      .map((event) => event.ts)
+      .filter((timestamp): timestamp is number => typeof timestamp === "number"),
+    payloadConformance
+  });
+}
+
+async function buildFullObservationPayloadTruthReport(
+  scenario: "invalid-body" | "unsupported-media" | "unsupported-schema"
+): Promise<YanoteReport> {
+  const tempDir = await mkdtemp(path.join(os.tmpdir(), "yanote-report-contract-truth-"));
+  const specPath = path.join(tempDir, `${scenario}.yaml`);
+  const eventsPath = path.join(tempDir, `${scenario}.fixture.jsonl`);
+
+  const specByScenario = {
+    "invalid-body": [
+      "openapi: 3.0.0",
+      "info:",
+      "  title: invalid body truth fixture",
+      "  version: 1.0.0",
+      "paths:",
+      "  /users/{id}:",
+      "    post:",
+      "      parameters:",
+      "        - name: id",
+      "          in: path",
+      "          required: true",
+      "          schema: { type: string }",
+      "      requestBody:",
+      "        required: true",
+      "        content:",
+      "          application/json:",
+      "            schema:",
+      "              type: object",
+      "              required: [profile]",
+      "              properties:",
+      "                profile:",
+      "                  type: object",
+      "                  required: [active]",
+      "                  properties:",
+      "                    active: { type: boolean }",
+      "      responses:",
+      "        '201':",
+      "          description: created",
+      "          content:",
+      "            application/json:",
+      "              schema:",
+      "                type: object",
+      "                required: [id]",
+      "                properties:",
+      "                  id: { type: string }"
+    ].join("\n"),
+    "unsupported-media": [
+      "openapi: 3.0.0",
+      "info:",
+      "  title: unsupported media truth fixture",
+      "  version: 1.0.0",
+      "paths:",
+      "  /notes/{id}:",
+      "    post:",
+      "      parameters:",
+      "        - name: id",
+      "          in: path",
+      "          required: true",
+      "          schema: { type: string }",
+      "      requestBody:",
+      "        required: true",
+      "        content:",
+      "          text/plain:",
+      "            schema:",
+      "              type: string",
+      "      responses:",
+      "        '202':",
+      "          description: accepted",
+      "          content:",
+      "            text/plain:",
+      "              schema:",
+      "                type: string"
+    ].join("\n"),
+    "unsupported-schema": [
+      "openapi: 3.0.0",
+      "info:",
+      "  title: unsupported schema truth fixture",
+      "  version: 1.0.0",
+      "paths:",
+      "  /compile-fail/{id}:",
+      "    post:",
+      "      parameters:",
+      "        - name: id",
+      "          in: path",
+      "          required: true",
+      "          schema: { type: string }",
+      "      requestBody:",
+      "        required: true",
+      "        content:",
+      "          application/json:",
+      "            schema:",
+      "              type: string",
+      "              pattern: '['",
+      "      responses:",
+      "        '202':",
+      "          description: accepted",
+      "          content:",
+      "            application/json:",
+      "              schema:",
+      "                type: string",
+      "                pattern: '['"
+    ].join("\n")
+  } as const;
+
+  const eventByScenario = {
+    "invalid-body": {
+      kind: "http",
+      ts: 1772449310001,
+      method: "POST",
+      route: "/users/123",
+      status: 201,
+      requestBody: {},
+      requestContentType: "application/json",
+      responseBody: { id: "123" },
+      responseContentType: "application/json",
+      queryKeys: [],
+      headerKeys: ["content-type"],
+      "test.run_id": "run-invalid-body",
+      "test.suite": "suite-invalid-body"
+    },
+    "unsupported-media": {
+      kind: "http",
+      ts: 1772449310002,
+      method: "POST",
+      route: "/notes/123",
+      status: 202,
+      requestBody: "hello",
+      requestContentType: "text/plain",
+      responseBody: "accepted",
+      responseContentType: "text/plain",
+      queryKeys: [],
+      headerKeys: ["content-type"],
+      "test.run_id": "run-unsupported-media",
+      "test.suite": "suite-unsupported-media"
+    },
+    "unsupported-schema": {
+      kind: "http",
+      ts: 1772449310003,
+      method: "POST",
+      route: "/compile-fail/123",
+      status: 202,
+      requestBody: "hello",
+      requestContentType: "application/json",
+      responseBody: "accepted",
+      responseContentType: "application/json",
+      queryKeys: [],
+      headerKeys: ["content-type"],
+      "test.run_id": "run-unsupported-schema",
+      "test.suite": "suite-unsupported-schema"
+    }
+  } as const;
+
+  await writeFile(specPath, specByScenario[scenario], "utf8");
+  await writeFile(eventsPath, `${JSON.stringify(eventByScenario[scenario])}\n`, "utf8");
+
+  try {
+    const model = await loadOpenApiCoverageModel(specPath);
+    const events = await readHttpEventsJsonl(eventsPath);
+    const coverage = computeCoverage(model.operations, events.items, [], {
+      operationContractsByKey: model.operationContractsByKey
+    });
+    const payloadConformance = computeHttpPayloadConformance(model.operations, events.items, {
+      operationContractsByKey: model.operationContractsByKey
+    });
+
+    return buildReport(coverage, {
+      toolVersion: "test",
+      eventTimestamps: events.items
+        .map((event) => event.ts)
+        .filter((timestamp): timestamp is number => typeof timestamp === "number"),
+      payloadConformance
+    });
+  } finally {
+    await rm(tempDir, { recursive: true, force: true });
+  }
+}
+
+function summarizePayloadStates(report: YanoteReport) {
+  return report.httpPayloadConformance.perOperation
+    .filter((entry) => entry.request.state !== "N/A" || entry.response.state !== "N/A")
+    .map((entry) => ({
+      operationKey: entry.operationKey,
+      request: entry.request.state,
+      response: entry.response.state,
+      suites: entry.suites
+    }));
+}
+
+function summarizePayloadDiagnostics(report: YanoteReport) {
+  return report.httpPayloadConformance.diagnostics.items.map((item) => ({
+    operationKey: item.operationKey,
+    target: item.target,
+    state: item.state,
+    code: item.code,
+    suite: item.suite,
+    declaredStatus: item.declaredStatus,
+    observedStatus: item.observedStatus,
+    observedMediaType: item.observedMediaType,
+    errors: item.errors
+  }));
+}
 
 const baseReport: YanoteReport = {
   schemaVersion: REPORT_SCHEMA_VERSION,
@@ -39,6 +268,67 @@ const baseReport: YanoteReport = {
         suites: ["suite-a"]
       }
     ]
+  },
+  httpPayloadConformance: {
+    summary: {
+      request: {
+        coveredOperations: 0,
+        partialOperations: 0,
+        uncoveredOperations: 0,
+        skippedOperations: 0,
+        notApplicableOperations: 1,
+        observedCount: 0,
+        validCount: 0,
+        invalidCount: 0,
+        skippedCount: 0
+      },
+      response: {
+        coveredOperations: 0,
+        partialOperations: 0,
+        uncoveredOperations: 0,
+        skippedOperations: 0,
+        notApplicableOperations: 1,
+        observedCount: 0,
+        validCount: 0,
+        invalidCount: 0,
+        skippedCount: 0
+      }
+    },
+    perOperation: [
+      {
+        operationKey: "http GET /users/{param}",
+        method: "GET",
+        route: "/users/{param}",
+        request: {
+          state: "N/A",
+          observedCount: 0,
+          validCount: 0,
+          invalidCount: 0,
+          skippedCount: 0,
+          declaredMediaTypes: [],
+          observedMediaTypes: []
+        },
+        response: {
+          state: "N/A",
+          observedCount: 0,
+          validCount: 0,
+          invalidCount: 0,
+          skippedCount: 0,
+          declaredMediaTypes: [],
+          observedMediaTypes: [],
+          declaredContent: []
+        },
+        suites: ["suite-a"]
+      }
+    ],
+    diagnostics: {
+      counts: {
+        covered: 0,
+        uncovered: 0,
+        skipped: 0
+      },
+      items: []
+    }
   },
   diagnostics: {
     counts: {
@@ -116,6 +406,94 @@ describe("report schema contract", () => {
           }
         ]
       },
+      httpPayloadConformance: {
+        summary: {
+          request: {
+            coveredOperations: 1,
+            partialOperations: 0,
+            uncoveredOperations: 0,
+            skippedOperations: 1,
+            notApplicableOperations: 0,
+            observedCount: 2,
+            validCount: 1,
+            invalidCount: 0,
+            skippedCount: 1
+          },
+          response: {
+            coveredOperations: 1,
+            partialOperations: 0,
+            uncoveredOperations: 0,
+            skippedOperations: 1,
+            notApplicableOperations: 0,
+            observedCount: 2,
+            validCount: 1,
+            invalidCount: 0,
+            skippedCount: 1
+          }
+        },
+        perOperation: [
+          {
+            ...baseReport.httpPayloadConformance.perOperation[0],
+            operationKey: "http GET /z",
+            route: "/z",
+            suites: ["suite-b", "suite-a"],
+            request: {
+              ...baseReport.httpPayloadConformance.perOperation[0].request,
+              state: "SKIPPED",
+              declaredMediaTypes: ["text/plain", "application/json"],
+              observedMediaTypes: ["text/plain", "application/json"]
+            },
+            response: {
+              ...baseReport.httpPayloadConformance.perOperation[0].response,
+              state: "COVERED",
+              declaredMediaTypes: ["application/json", "application/problem+json"],
+              observedMediaTypes: ["application/json"],
+              declaredContent: [
+                { declaredStatus: "415", mediaTypes: ["application/problem+json", "application/json"] },
+                { declaredStatus: "201", mediaTypes: ["application/json"] }
+              ]
+            }
+          },
+          {
+            ...baseReport.httpPayloadConformance.perOperation[0],
+            operationKey: "http GET /a",
+            route: "/a",
+            suites: ["suite-c"]
+          }
+        ],
+        diagnostics: {
+          counts: { covered: 1, uncovered: 0, skipped: 1 },
+          items: [
+            {
+              operationKey: "http GET /z",
+              method: "GET",
+              route: "/z",
+              target: "response",
+              suite: "suite-b",
+              state: "COVERED",
+              code: "VALID",
+              message: "ok",
+              declaredStatus: "201",
+              observedStatus: 201,
+              observedMediaType: "application/json",
+              declaredMediaTypes: ["application/json"]
+            },
+            {
+              operationKey: "http GET /a",
+              method: "GET",
+              route: "/a",
+              target: "request",
+              suite: "suite-a",
+              state: "SKIPPED",
+              code: "UNSUPPORTED_MEDIA_TYPE",
+              message: "skip",
+              observedMediaType: "text/plain",
+              declaredMediaTypes: ["text/plain", "application/json"],
+              errors: ["/b error", "/a error"]
+            }
+          ]
+        }
+      },
       diagnostics: {
         counts: { invalid: 1, ambiguous: 1, unmatched: 1 },
         items: [
@@ -184,8 +562,548 @@ describe("report schema contract", () => {
     expect(normalized.coverage.perOperation.map((entry) => entry.operationKey)).toEqual(["http GET /a", "http GET /z"]);
     expect(normalized.coverage.perOperation[1].suites).toEqual(["suite-a", "suite-b"]);
     expect(normalized.coverage.perOperation[1].status.declared).toEqual(["200", "404"]);
+    expect(normalized.httpPayloadConformance.perOperation.map((entry) => entry.operationKey)).toEqual(["http GET /a", "http GET /z"]);
+    expect(normalized.httpPayloadConformance.perOperation[1].request.declaredMediaTypes).toEqual([
+      "application/json",
+      "text/plain"
+    ]);
+    expect(normalized.httpPayloadConformance.perOperation[1].response.declaredContent).toEqual([
+      { declaredStatus: "201", mediaTypes: ["application/json"] },
+      { declaredStatus: "415", mediaTypes: ["application/json", "application/problem+json"] }
+    ]);
+    expect(normalized.httpPayloadConformance.diagnostics.items[0].declaredMediaTypes).toEqual([
+      "application/json",
+      "text/plain"
+    ]);
+    expect(normalized.httpPayloadConformance.diagnostics.items[0].errors).toEqual(["/a error", "/b error"]);
     expect(normalized.diagnostics.items.map((item) => item.kind)).toEqual(["invalid", "ambiguous", "unmatched"]);
     expect(normalized.governance.exclusions.appliedRules.map((rule) => rule.id)).toEqual(["rule-1", "rule-2"]);
     expect(normalized.governance.diagnostics.map((item) => item.code)).toEqual(["ERR_A", "WARN_B"]);
+  });
+
+  it.each([
+    {
+      name: "unsupported media",
+      eventsPath: "test/fixtures/events/http-payload-unsupported.fixture.jsonl",
+      coverage: { state: "PARTIAL", percent: 16.67 },
+      requestSummary: {
+        coveredOperations: 0,
+        partialOperations: 0,
+        uncoveredOperations: 0,
+        skippedOperations: 1,
+        notApplicableOperations: 5,
+        observedCount: 1,
+        validCount: 0,
+        invalidCount: 0,
+        skippedCount: 1
+      },
+      responseSummary: {
+        coveredOperations: 0,
+        partialOperations: 0,
+        uncoveredOperations: 0,
+        skippedOperations: 1,
+        notApplicableOperations: 5,
+        observedCount: 1,
+        validCount: 0,
+        invalidCount: 0,
+        skippedCount: 1
+      },
+      diagnosticsCounts: { covered: 0, uncovered: 0, skipped: 2 },
+      states: [{ operationKey: "http POST /notes", request: "SKIPPED", response: "SKIPPED", suites: ["suite-notes"] }],
+      diagnostics: [
+        {
+          operationKey: "http POST /notes",
+          target: "request",
+          state: "SKIPPED",
+          code: "UNSUPPORTED_MEDIA_TYPE",
+          suite: "suite-notes",
+          declaredStatus: undefined,
+          observedStatus: undefined,
+          observedMediaType: "text/plain",
+          errors: undefined
+        },
+        {
+          operationKey: "http POST /notes",
+          target: "response",
+          state: "SKIPPED",
+          code: "UNSUPPORTED_MEDIA_TYPE",
+          suite: "suite-notes",
+          declaredStatus: "202",
+          observedStatus: 202,
+          observedMediaType: "text/plain",
+          errors: undefined
+        }
+      ]
+    },
+    {
+      name: "invalid bodies",
+      eventsPath: "test/fixtures/events/http-payload-invalid.fixture.jsonl",
+      coverage: { state: "PARTIAL", percent: 33.33 },
+      requestSummary: {
+        coveredOperations: 0,
+        partialOperations: 0,
+        uncoveredOperations: 1,
+        skippedOperations: 0,
+        notApplicableOperations: 5,
+        observedCount: 1,
+        validCount: 0,
+        invalidCount: 1,
+        skippedCount: 0
+      },
+      responseSummary: {
+        coveredOperations: 1,
+        partialOperations: 0,
+        uncoveredOperations: 1,
+        skippedOperations: 0,
+        notApplicableOperations: 4,
+        observedCount: 2,
+        validCount: 1,
+        invalidCount: 1,
+        skippedCount: 0
+      },
+      diagnosticsCounts: { covered: 1, uncovered: 2, skipped: 0 },
+      states: [
+        { operationKey: "http GET /audits", request: "N/A", response: "UNCOVERED", suites: ["suite-invalid-response"] },
+        { operationKey: "http POST /users", request: "UNCOVERED", response: "COVERED", suites: ["suite-invalid-request"] }
+      ],
+      diagnostics: [
+        {
+          operationKey: "http GET /audits",
+          target: "response",
+          state: "UNCOVERED",
+          code: "INVALID_BODY",
+          suite: "suite-invalid-response",
+          declaredStatus: "200",
+          observedStatus: 200,
+          observedMediaType: "application/json",
+          errors: ["/entries/0 must be string"]
+        },
+        {
+          operationKey: "http POST /users",
+          target: "request",
+          state: "UNCOVERED",
+          code: "INVALID_BODY",
+          suite: "suite-invalid-request",
+          declaredStatus: undefined,
+          observedStatus: undefined,
+          observedMediaType: "application/json",
+          errors: ["/ must have required property 'profile'"]
+        },
+        {
+          operationKey: "http POST /users",
+          target: "response",
+          state: "COVERED",
+          code: "VALID",
+          suite: "suite-invalid-request",
+          declaredStatus: "201",
+          observedStatus: 201,
+          observedMediaType: "application/json",
+          errors: undefined
+        }
+      ]
+    },
+    {
+      name: "missing body and content type evidence",
+      eventsPath: "test/fixtures/events/http-payload-missing.fixture.jsonl",
+      coverage: { state: "PARTIAL", percent: 66.67 },
+      requestSummary: {
+        coveredOperations: 0,
+        partialOperations: 0,
+        uncoveredOperations: 2,
+        skippedOperations: 0,
+        notApplicableOperations: 4,
+        observedCount: 2,
+        validCount: 0,
+        invalidCount: 2,
+        skippedCount: 0
+      },
+      responseSummary: {
+        coveredOperations: 2,
+        partialOperations: 0,
+        uncoveredOperations: 1,
+        skippedOperations: 0,
+        notApplicableOperations: 3,
+        observedCount: 4,
+        validCount: 2,
+        invalidCount: 2,
+        skippedCount: 0
+      },
+      diagnosticsCounts: { covered: 2, uncovered: 4, skipped: 0 },
+      states: [
+        {
+          operationKey: "http GET /audits",
+          request: "N/A",
+          response: "UNCOVERED",
+          suites: ["suite-missing-response", "suite-missing-response-content-type"]
+        },
+        { operationKey: "http POST /drafts", request: "N/A", response: "COVERED", suites: ["suite-optional-request"] },
+        { operationKey: "http POST /profiles", request: "UNCOVERED", response: "N/A", suites: ["suite-missing-request"] },
+        {
+          operationKey: "http POST /users",
+          request: "UNCOVERED",
+          response: "COVERED",
+          suites: ["suite-missing-request-content-type"]
+        }
+      ],
+      diagnostics: [
+        {
+          operationKey: "http GET /audits",
+          target: "response",
+          state: "UNCOVERED",
+          code: "MISSING_BODY",
+          suite: "suite-missing-response",
+          declaredStatus: "200",
+          observedStatus: 200,
+          observedMediaType: undefined,
+          errors: undefined
+        },
+        {
+          operationKey: "http GET /audits",
+          target: "response",
+          state: "UNCOVERED",
+          code: "MISSING_CONTENT_TYPE",
+          suite: "suite-missing-response-content-type",
+          declaredStatus: "200",
+          observedStatus: 200,
+          observedMediaType: undefined,
+          errors: undefined
+        },
+        {
+          operationKey: "http POST /drafts",
+          target: "response",
+          state: "COVERED",
+          code: "VALID",
+          suite: "suite-optional-request",
+          declaredStatus: "202",
+          observedStatus: 202,
+          observedMediaType: "application/json",
+          errors: undefined
+        },
+        {
+          operationKey: "http POST /profiles",
+          target: "request",
+          state: "UNCOVERED",
+          code: "MISSING_BODY",
+          suite: "suite-missing-request",
+          declaredStatus: undefined,
+          observedStatus: undefined,
+          observedMediaType: undefined,
+          errors: undefined
+        },
+        {
+          operationKey: "http POST /users",
+          target: "request",
+          state: "UNCOVERED",
+          code: "MISSING_CONTENT_TYPE",
+          suite: "suite-missing-request-content-type",
+          declaredStatus: undefined,
+          observedStatus: undefined,
+          observedMediaType: undefined,
+          errors: undefined
+        },
+        {
+          operationKey: "http POST /users",
+          target: "response",
+          state: "COVERED",
+          code: "VALID",
+          suite: "suite-missing-request-content-type",
+          declaredStatus: "201",
+          observedStatus: 201,
+          observedMediaType: "application/json",
+          errors: undefined
+        }
+      ]
+    },
+    {
+      name: "partial request and response evidence",
+      eventsPath: "test/fixtures/events/http-payload-partial.fixture.jsonl",
+      coverage: { state: "PARTIAL", percent: 16.67 },
+      requestSummary: {
+        coveredOperations: 0,
+        partialOperations: 1,
+        uncoveredOperations: 0,
+        skippedOperations: 0,
+        notApplicableOperations: 5,
+        observedCount: 2,
+        validCount: 1,
+        invalidCount: 1,
+        skippedCount: 0
+      },
+      responseSummary: {
+        coveredOperations: 0,
+        partialOperations: 1,
+        uncoveredOperations: 0,
+        skippedOperations: 0,
+        notApplicableOperations: 5,
+        observedCount: 2,
+        validCount: 1,
+        invalidCount: 1,
+        skippedCount: 0
+      },
+      diagnosticsCounts: { covered: 2, uncovered: 2, skipped: 0 },
+      states: [{ operationKey: "http POST /orders", request: "PARTIAL", response: "PARTIAL", suites: ["suite-orders"] }],
+      diagnostics: [
+        {
+          operationKey: "http POST /orders",
+          target: "request",
+          state: "UNCOVERED",
+          code: "INVALID_BODY",
+          suite: "suite-orders",
+          declaredStatus: undefined,
+          observedStatus: undefined,
+          observedMediaType: "application/json",
+          errors: ["/quantity must be >= 1"]
+        },
+        {
+          operationKey: "http POST /orders",
+          target: "request",
+          state: "COVERED",
+          code: "VALID",
+          suite: "suite-orders",
+          declaredStatus: undefined,
+          observedStatus: undefined,
+          observedMediaType: "application/json",
+          errors: undefined
+        },
+        {
+          operationKey: "http POST /orders",
+          target: "response",
+          state: "UNCOVERED",
+          code: "INVALID_BODY",
+          suite: "suite-orders",
+          declaredStatus: "201",
+          observedStatus: 201,
+          observedMediaType: "application/json",
+          errors: ["/ must have required property 'status'"]
+        },
+        {
+          operationKey: "http POST /orders",
+          target: "response",
+          state: "COVERED",
+          code: "VALID",
+          suite: "suite-orders",
+          declaredStatus: "201",
+          observedStatus: 201,
+          observedMediaType: "application/json",
+          errors: undefined
+        }
+      ]
+    }
+  ])("validates the richer payload drift matrix for $name without changing the report contract", async ({
+    eventsPath,
+    coverage,
+    requestSummary,
+    responseSummary,
+    diagnosticsCounts,
+    states,
+    diagnostics
+  }) => {
+    const report = normalizeReport(await buildPayloadFixtureReport(eventsPath));
+
+    expect(validateReport(report).ok).toBe(true);
+    expect(report.coverage.operations).toEqual(coverage);
+    expect(report.summary.operationCoveragePercent).toBe(coverage.percent);
+    expect(report.httpPayloadConformance.summary.request).toEqual(requestSummary);
+    expect(report.httpPayloadConformance.summary.response).toEqual(responseSummary);
+    expect(report.httpPayloadConformance.diagnostics.counts).toEqual(diagnosticsCounts);
+    expect(report.httpPayloadConformance.perOperation).toHaveLength(report.coverage.perOperation.length);
+    expect(summarizePayloadStates(report)).toEqual(states);
+    expect(summarizePayloadDiagnostics(report)).toEqual(diagnostics);
+    expect(report.httpPayloadConformance).toHaveProperty("summary");
+    expect(report.summary).not.toHaveProperty("payloadCoveragePercent");
+    expect(report.coverage).not.toHaveProperty("httpPayloadConformance");
+  });
+
+  it.each([
+    {
+      name: "invalid-body",
+      code: "SEMANTIC_HTTP_INVALID_BODY",
+      messages: ["request payload for http POST /users/{param} media=application/json failed JSON schema validation."],
+      payloadStates: [{ operationKey: "http POST /users/{param}", request: "UNCOVERED", response: "COVERED", suites: ["suite-invalid-body"] }]
+    },
+    {
+      name: "unsupported-media",
+      code: "SEMANTIC_HTTP_UNSUPPORTED_MEDIA_TYPE",
+      messages: [
+        "request payload for http POST /notes/{param} media=text/plain uses a declared media type outside JSON payload conformance support.",
+        "response payload for http POST /notes/{param} declared-status=202 observed-status=202 media=text/plain uses a declared media type outside JSON payload conformance support."
+      ],
+      payloadStates: [
+        { operationKey: "http POST /notes/{param}", request: "SKIPPED", response: "SKIPPED", suites: ["suite-unsupported-media"] }
+      ]
+    },
+    {
+      name: "unsupported-schema",
+      code: "SEMANTIC_HTTP_UNSUPPORTED_SCHEMA",
+      messages: [
+        "request payload for http POST /compile-fail/{param} media=application/json declares JSON content without a usable validation schema.",
+        "response payload for http POST /compile-fail/{param} declared-status=202 observed-status=202 media=application/json declares JSON content without a usable validation schema."
+      ],
+      payloadStates: [
+        {
+          operationKey: "http POST /compile-fail/{param}",
+          request: "SKIPPED",
+          response: "SKIPPED",
+          suites: ["suite-unsupported-schema"]
+        }
+      ]
+    }
+  ])("keeps full-observation $name payload drift schema-valid while surfacing semantic truth", async ({
+    name,
+    code,
+    messages,
+    payloadStates
+  }) => {
+    const report = normalizeReport(await buildFullObservationPayloadTruthReport(name as "invalid-body" | "unsupported-media" | "unsupported-schema"));
+
+    expect(validateReport(report).ok).toBe(true);
+    expect(report.status).toBe("partial");
+    expect(report.coverage.operations).toEqual({ state: "COVERED", percent: 100 });
+    expect(report.coverage.status).toEqual({ state: "COVERED", percent: 100 });
+    expect(report.coverage.parameters).toEqual({ state: "COVERED", percent: 100 });
+    expect(report.coverage.aggregate).toEqual({ state: "COVERED", percent: 100, explanation: undefined });
+    expect(report.summary.operationCoveragePercent).toBe(100);
+    expect(report.summary.aggregateCoveragePercent).toBe(100);
+    expect(report.governance.diagnostics.map((diagnostic) => diagnostic.code)).toEqual(messages.map(() => code));
+    expect(report.governance.diagnostics.map((diagnostic) => diagnostic.message)).toEqual(messages);
+    expect(summarizePayloadStates(report)).toEqual(payloadStates);
+  });
+
+  it("accepts unsupported-schema diagnostics through the same top-level httpPayloadConformance contract", async () => {
+    const tempDir = await mkdtemp(path.join(os.tmpdir(), "yanote-report-contract-"));
+    const specPath = path.join(tempDir, "unsupported-schema.yaml");
+    const eventsPath = path.join(tempDir, "unsupported-schema.fixture.jsonl");
+
+    await writeFile(
+      specPath,
+      [
+        "openapi: 3.0.0",
+        "info:",
+        "  title: unsupported schema fixture",
+        "  version: 1.0.0",
+        "paths:",
+        "  /compile-fail:",
+        "    post:",
+        "      requestBody:",
+        "        required: true",
+        "        content:",
+        "          application/json:",
+        "            schema:",
+        "              type: string",
+        "              pattern: '['",
+        "      responses:",
+        "        '202':",
+        "          description: accepted",
+        "          content:",
+        "            application/json:",
+        "              schema:",
+        "                type: string",
+        "                pattern: '['"
+      ].join("\n"),
+      "utf8"
+    );
+
+    await writeFile(
+      eventsPath,
+      [
+        JSON.stringify({
+          kind: "http",
+          ts: 1772449205657,
+          method: "POST",
+          route: "/compile-fail",
+          status: 202,
+          requestBody: "hello",
+          requestContentType: "application/json",
+          responseBody: "ok",
+          responseContentType: "application/json",
+          queryKeys: [],
+          headerKeys: ["content-type"],
+          "test.run_id": "run-schema",
+          "test.suite": "suite-schema"
+        })
+      ].join("\n"),
+      "utf8"
+    );
+
+    try {
+      const model = await loadOpenApiCoverageModel(specPath);
+      const events = await readHttpEventsJsonl(eventsPath);
+      const coverage = computeCoverage(model.operations, events.items, [], {
+        operationContractsByKey: model.operationContractsByKey
+      });
+      const payloadConformance = computeHttpPayloadConformance(model.operations, events.items, {
+        operationContractsByKey: model.operationContractsByKey
+      });
+      const report = normalizeReport(
+        buildReport(coverage, {
+          toolVersion: "test",
+          eventTimestamps: events.items
+            .map((event) => event.ts)
+            .filter((timestamp): timestamp is number => typeof timestamp === "number"),
+          payloadConformance
+        })
+      );
+
+      expect(validateReport(report).ok).toBe(true);
+      expect(report.status).toBe("partial");
+      expect(report.coverage.operations).toEqual({ state: "COVERED", percent: 100 });
+      expect(report.httpPayloadConformance.summary.request).toEqual({
+        coveredOperations: 0,
+        partialOperations: 0,
+        uncoveredOperations: 0,
+        skippedOperations: 1,
+        notApplicableOperations: 0,
+        observedCount: 1,
+        validCount: 0,
+        invalidCount: 0,
+        skippedCount: 1
+      });
+      expect(report.httpPayloadConformance.summary.response).toEqual({
+        coveredOperations: 0,
+        partialOperations: 0,
+        uncoveredOperations: 0,
+        skippedOperations: 1,
+        notApplicableOperations: 0,
+        observedCount: 1,
+        validCount: 0,
+        invalidCount: 0,
+        skippedCount: 1
+      });
+      expect(report.httpPayloadConformance.diagnostics.counts).toEqual({ covered: 0, uncovered: 0, skipped: 2 });
+      expect(summarizePayloadStates(report)).toEqual([
+        {
+          operationKey: "http POST /compile-fail",
+          request: "SKIPPED",
+          response: "SKIPPED",
+          suites: ["suite-schema"]
+        }
+      ]);
+      expect(summarizePayloadDiagnostics(report)).toEqual([
+        {
+          operationKey: "http POST /compile-fail",
+          target: "request",
+          state: "SKIPPED",
+          code: "UNSUPPORTED_SCHEMA",
+          suite: "suite-schema",
+          declaredStatus: undefined,
+          observedStatus: undefined,
+          observedMediaType: "application/json",
+          errors: [expect.stringContaining("Invalid regular expression")]
+        },
+        {
+          operationKey: "http POST /compile-fail",
+          target: "response",
+          state: "SKIPPED",
+          code: "UNSUPPORTED_SCHEMA",
+          suite: "suite-schema",
+          declaredStatus: "202",
+          observedStatus: 202,
+          observedMediaType: "application/json",
+          errors: [expect.stringContaining("Invalid regular expression")]
+        }
+      ]);
+    } finally {
+      await rm(tempDir, { recursive: true, force: true });
+    }
   });
 });

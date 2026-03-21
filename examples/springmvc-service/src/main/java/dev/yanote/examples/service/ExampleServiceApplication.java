@@ -1,6 +1,7 @@
 package dev.yanote.examples.service;
 
 import java.nio.charset.StandardCharsets;
+import java.util.Locale;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
@@ -14,6 +15,8 @@ import org.springframework.boot.autoconfigure.SpringBootApplication;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnExpression;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.context.annotation.Bean;
+import org.springframework.http.HttpStatus;
+import org.springframework.http.MediaType;
 import org.springframework.kafka.annotation.EnableKafka;
 import org.springframework.kafka.annotation.KafkaListener;
 import org.springframework.kafka.config.TopicBuilder;
@@ -23,6 +26,7 @@ import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.ResponseStatus;
 import org.springframework.web.bind.annotation.RestController;
 
 @SpringBootApplication
@@ -119,14 +123,25 @@ public class ExampleServiceApplication {
             return "user:" + id;
         }
 
-        @PostMapping("/users")
-        public String createUser(@RequestBody(required = false) String body) {
-            String normalizedBody = body == null ? "unknown" : body;
+        @PostMapping(
+                path = "/users",
+                consumes = MediaType.APPLICATION_JSON_VALUE,
+                produces = MediaType.APPLICATION_JSON_VALUE
+        )
+        @ResponseStatus(HttpStatus.CREATED)
+        public CreateUserResponse createUser(@RequestBody CreateUserRequest requestBody) {
+            String normalizedName = requestBody.normalizedName();
+            String normalizedEmail = requestBody.normalizedEmail();
             UserCreatedPublisher publisher = userCreatedPublisher.getIfAvailable();
             if (publisher != null) {
-                publisher.publish(normalizedBody);
+                publisher.publish(normalizedName);
             }
-            return "created:" + normalizedBody;
+            return new CreateUserResponse(
+                    "user-" + normalizedName.toLowerCase(Locale.ROOT),
+                    normalizedName,
+                    normalizedEmail,
+                    true
+            );
         }
 
         @GetMapping("/admin/ping")
@@ -145,6 +160,19 @@ public class ExampleServiceApplication {
         void publish(String payload) {
             publisher.publish(payload);
         }
+    }
+
+    record CreateUserRequest(String name, String email) {
+        String normalizedName() {
+            return name == null || name.isBlank() ? "unknown" : name.trim();
+        }
+
+        String normalizedEmail() {
+            return email == null || email.isBlank() ? normalizedName() + "@example.com" : email.trim();
+        }
+    }
+
+    record CreateUserResponse(String id, String name, String email, boolean created) {
     }
 
     static class UserRepublishedPublisher {

@@ -4,6 +4,7 @@ import {
   compareDeclaredStatusToken,
   compareParameterDefinition,
   normalizeDeclaredStatusToken,
+  type DeclaredStatusToken,
   type ParameterDefinition
 } from "../coverage/dimensions.js";
 import type { OperationKey } from "../model/operationKey.js";
@@ -14,9 +15,28 @@ const HTTP_METHODS = ["get", "put", "post", "delete", "patch", "options", "head"
 
 type HttpMethod = (typeof HTTP_METHODS)[number];
 
+export type JsonSchemaContract = Record<string, unknown> | boolean;
+
+export type HttpMediaTypeContract = {
+  mediaType: string;
+  schema?: JsonSchemaContract;
+};
+
+export type HttpRequestBodyContract = {
+  required: boolean;
+  content: HttpMediaTypeContract[];
+};
+
+export type HttpResponseBodyContract = {
+  declaredStatus: DeclaredStatusToken;
+  content: HttpMediaTypeContract[];
+};
+
 export type HttpOperationContract = {
   declaredStatuses: string[];
   parameters: ParameterDefinition[];
+  requestBody?: HttpRequestBodyContract;
+  responseBodies: HttpResponseBodyContract[];
 };
 
 export type OpenApiCoverageModel = {
@@ -43,7 +63,7 @@ export async function loadOpenApiCoverageModel(specPath: string): Promise<OpenAp
   const operationContractsByKey = new Map<string, HttpOperationContract>();
   for (const operation of operations) {
     const operationKey = serializeOperationKey(operation);
-    operationContractsByKey.set(operationKey, extracted.get(operationKey) ?? { declaredStatuses: [], parameters: [] });
+    operationContractsByKey.set(operationKey, extracted.get(operationKey) ?? createEmptyHttpOperationContract());
   }
 
   return {
@@ -85,12 +105,22 @@ function extractHttpContracts(document: OpenAPI.Document): Map<string, HttpOpera
 
       out.set(operationKey, {
         declaredStatuses,
-        parameters: mergedParameters
+        parameters: mergedParameters,
+        requestBody: extractRequestBodyContract(operation.requestBody),
+        responseBodies: extractResponseBodyContracts(operation.responses)
       });
     }
   }
 
   return out;
+}
+
+function createEmptyHttpOperationContract(): HttpOperationContract {
+  return {
+    declaredStatuses: [],
+    parameters: [],
+    responseBodies: []
+  };
 }
 
 function extractDeclaredStatuses(value: unknown): string[] {
@@ -103,7 +133,60 @@ function extractDeclaredStatuses(value: unknown): string[] {
     unique.add(normalized);
   }
 
-  return Array.from(unique).sort((left, right) => compareDeclaredStatusToken(left, right));
+  return Array.from(unique).sort((left, right) => compareDeclaredStatusToken(left as DeclaredStatusToken, right as DeclaredStatusToken));
+}
+
+function extractRequestBodyContract(value: unknown): HttpRequestBodyContract | undefined {
+  if (!isRecord(value)) return undefined;
+
+  return {
+    required: Boolean(value.required),
+    content: extractMediaTypeContracts(value.content)
+  };
+}
+
+function extractResponseBodyContracts(value: unknown): HttpResponseBodyContract[] {
+  if (!isRecord(value)) return [];
+
+  const out: HttpResponseBodyContract[] = [];
+  const seen = new Set<DeclaredStatusToken>();
+
+  for (const [rawStatus, response] of Object.entries(value)) {
+    const declaredStatus = normalizeDeclaredStatusToken(rawStatus);
+    if (!declaredStatus || seen.has(declaredStatus)) continue;
+    seen.add(declaredStatus);
+
+    out.push({
+      declaredStatus,
+      content: isRecord(response) ? extractMediaTypeContracts(response.content) : []
+    });
+  }
+
+  return out.sort((left, right) => compareDeclaredStatusToken(left.declaredStatus, right.declaredStatus));
+}
+
+function extractMediaTypeContracts(value: unknown): HttpMediaTypeContract[] {
+  if (!isRecord(value)) return [];
+
+  const out = new Map<string, HttpMediaTypeContract>();
+  for (const [rawMediaType, mediaValue] of Object.entries(value)) {
+    const mediaType = normalizeMediaType(rawMediaType);
+    if (!mediaType || out.has(mediaType) || !isRecord(mediaValue)) continue;
+
+    const schema = normalizeSchemaContract(mediaValue.schema);
+    out.set(mediaType, {
+      mediaType,
+      schema
+    });
+  }
+
+  return Array.from(out.values()).sort((left, right) => left.mediaType.localeCompare(right.mediaType));
+}
+
+function normalizeSchemaContract(value: unknown): JsonSchemaContract | undefined {
+  if (typeof value === "boolean") return value;
+  if (!isRecord(value)) return undefined;
+  return value;
 }
 
 function mergeParameters(pathParameters: ParameterDefinition[], operationParameters: ParameterDefinition[]): ParameterDefinition[] {
@@ -145,6 +228,11 @@ function extractParameters(value: unknown): ParameterDefinition[] {
 
 function normalizeTemplatedRoute(route: string): string {
   return route.trim().replace(/\{[^/}]+\}/g, "{param}");
+}
+
+function normalizeMediaType(value: string): string | undefined {
+  const normalized = value.trim().toLowerCase();
+  return normalized.length === 0 ? undefined : normalized;
 }
 
 function isRecord(value: unknown): value is Record<string, any> {

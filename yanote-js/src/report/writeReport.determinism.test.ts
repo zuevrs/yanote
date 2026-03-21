@@ -57,6 +57,92 @@ function makeReport(): YanoteReport {
         }
       ]
     },
+    httpPayloadConformance: {
+      summary: {
+        request: {
+          coveredOperations: 0,
+          partialOperations: 0,
+          uncoveredOperations: 0,
+          skippedOperations: 0,
+          notApplicableOperations: 2,
+          observedCount: 0,
+          validCount: 0,
+          invalidCount: 0,
+          skippedCount: 0
+        },
+        response: {
+          coveredOperations: 0,
+          partialOperations: 0,
+          uncoveredOperations: 0,
+          skippedOperations: 0,
+          notApplicableOperations: 2,
+          observedCount: 0,
+          validCount: 0,
+          invalidCount: 0,
+          skippedCount: 0
+        }
+      },
+      perOperation: [
+        {
+          operationKey: "http GET /b",
+          method: "GET",
+          route: "/b",
+          request: {
+            state: "N/A",
+            observedCount: 0,
+            validCount: 0,
+            invalidCount: 0,
+            skippedCount: 0,
+            declaredMediaTypes: [],
+            observedMediaTypes: []
+          },
+          response: {
+            state: "N/A",
+            observedCount: 0,
+            validCount: 0,
+            invalidCount: 0,
+            skippedCount: 0,
+            declaredMediaTypes: [],
+            observedMediaTypes: [],
+            declaredContent: []
+          },
+          suites: []
+        },
+        {
+          operationKey: "http GET /a",
+          method: "GET",
+          route: "/a",
+          request: {
+            state: "N/A",
+            observedCount: 0,
+            validCount: 0,
+            invalidCount: 0,
+            skippedCount: 0,
+            declaredMediaTypes: [],
+            observedMediaTypes: []
+          },
+          response: {
+            state: "N/A",
+            observedCount: 0,
+            validCount: 0,
+            invalidCount: 0,
+            skippedCount: 0,
+            declaredMediaTypes: [],
+            observedMediaTypes: [],
+            declaredContent: []
+          },
+          suites: ["suite-2", "suite-1"]
+        }
+      ],
+      diagnostics: {
+        counts: {
+          covered: 0,
+          uncovered: 0,
+          skipped: 0
+        },
+        items: []
+      }
+    },
     diagnostics: {
       counts: {
         invalid: 0,

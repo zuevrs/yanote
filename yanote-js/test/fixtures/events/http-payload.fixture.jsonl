@@ -1,0 +1,4 @@
+{"kind":"http","ts":1772449192657,"method":"post","route":"/users","status":201,"requestBody":{"email":"ada@example.com","profile":{"active":true,"age":37,"tags":["admin",null]}},"requestContentType":"application/json","responseBody":{"id":"user-1","created":true},"responseContentType":"application/json","service":null,"instance":null,"error":false,"queryKeys":["expand","include","expand","  "],"headerKeys":["Content-Type","content-type","X-Trace-Id","Accept",""],"test.run_id":"run-1","test.suite":null}
+this is not json
+{"kind":"http","ts":1772449192658,"method":"GET","route":"/health","status":200,"requestBody":null,"responseBody":["ok",{"region":"eu-central"}],"responseContentType":"application/json","queryKeys":"bad","headerKeys":42,"test.run_id":"run-1","test.suite":"suite-a"}
+{"kind":"http","ts":1772449192659,"method":"GET","status":200,"requestBody":{"ignored":true},"test.run_id":"run-1","test.suite":"suite-a"}

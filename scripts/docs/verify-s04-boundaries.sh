@@ -30,6 +30,21 @@ require_contains() {
   grep -Fq -- "$needle" "${ROOT_DIR}/${path}" || error "${path} is missing ${label}: ${needle}"
 }
 
+require_absent() {
+  local path="$1"
+  local needle="$2"
+  local label="$3"
+
+  if [[ ! -f "${ROOT_DIR}/${path}" ]]; then
+    error "Missing required doc for ${label}: ${path}"
+    return
+  fi
+
+  if grep -Fq -- "$needle" "${ROOT_DIR}/${path}"; then
+    error "${path} still contains stale ${label}: ${needle}"
+  fi
+}
+
 resolve_latest_release_context() {
   latest_tag="$(git -C "${ROOT_DIR}" tag --list 'v*' --sort=-version:refname | head -n 1 | tr -d '[:space:]')"
 
@@ -133,6 +148,18 @@ if [[ "${boundary_doc_present}" == "true" ]]; then
   require_contains "${BOUNDARY_DOC}" 'tracked `dist/` поверхность default branch' "no-tracked-dist clause"
   require_contains "${BOUNDARY_DOC}" "не-Java onboarding" "non-Java limitation"
   require_contains "${BOUNDARY_DOC}" "runnable Cucumber demo" "Cucumber limitation"
+  require_contains "${BOUNDARY_DOC}" "bash scripts/ci/run-v1-e2e.sh" "public proof command"
+  require_contains "${BOUNDARY_DOC}" ".yanote-ci/v1-e2e/out/yanote-report.json" "happy-path proof artifact"
+  require_contains "${BOUNDARY_DOC}" "semantic-red.stderr" "retained semantic red stderr artifact"
+  require_contains "${BOUNDARY_DOC}" "semantic-red-yanote-report.json" "retained semantic red report artifact"
+  require_contains "${BOUNDARY_DOC}" "HTTP Payload Conformance" "payload conformance wording"
+  require_contains "${BOUNDARY_DOC}" "JSON-first request/response payload validation" "JSON-first boundary wording"
+  require_contains "${BOUNDARY_DOC}" "NO_DECLARED_CONTENT" "benign payload boundary wording"
+  require_contains "${BOUNDARY_DOC}" "SEMANTIC_HTTP_UNSUPPORTED_SCHEMA" "fail-closed payload wording"
+  require_contains "${BOUNDARY_DOC}" "separate async report/gate" "separate async boundary wording"
+  require_contains "${BOUNDARY_DOC}" "combined HTTP+async report surface" "no-combined-surface wording"
+  require_absent "${BOUNDARY_DOC}" "v1.0.123" "stale stable release tag"
+  require_absent "${BOUNDARY_DOC}" "v1.0.122" "stale previous release tag"
 fi
 
 require_contains "${ROOT_README}" "docs/release-and-support.md" "release/support landing pointer"
@@ -145,4 +172,4 @@ if (( failures > 0 )); then
   exit 1
 fi
 
-echo "S04 boundary verification passed: release/support surface, landing pointers, and version-source disclaimers align with ${latest_tag} (${release_line})."
+echo "S04 boundary verification passed: release/support surface, retained proof wording, and version-source disclaimers align with ${latest_tag} (${release_line})."

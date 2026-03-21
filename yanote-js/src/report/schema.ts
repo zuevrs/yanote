@@ -5,7 +5,18 @@ export const REPORT_SCHEMA_VERSION = "1.0.0";
 const REPORT_SCHEMA = {
   type: "object",
   additionalProperties: false,
-  required: ["schemaVersion", "generatedAt", "toolVersion", "phase", "status", "summary", "coverage", "diagnostics", "governance"],
+  required: [
+    "schemaVersion",
+    "generatedAt",
+    "toolVersion",
+    "phase",
+    "status",
+    "summary",
+    "coverage",
+    "httpPayloadConformance",
+    "diagnostics",
+    "governance"
+  ],
   properties: {
     schemaVersion: { const: REPORT_SCHEMA_VERSION },
     generatedAt: { type: "string", minLength: 1 },
@@ -140,6 +151,102 @@ const REPORT_SCHEMA = {
         }
       }
     },
+    httpPayloadConformance: {
+      type: "object",
+      additionalProperties: false,
+      required: ["summary", "perOperation", "diagnostics"],
+      properties: {
+        summary: {
+          type: "object",
+          additionalProperties: false,
+          required: ["request", "response"],
+          properties: {
+            request: { $ref: "#/$defs/httpPayloadTargetAggregate" },
+            response: { $ref: "#/$defs/httpPayloadTargetAggregate" }
+          }
+        },
+        perOperation: {
+          type: "array",
+          items: {
+            type: "object",
+            additionalProperties: false,
+            required: ["operationKey", "method", "route", "request", "response", "suites"],
+            properties: {
+              operationKey: { type: "string", minLength: 1 },
+              method: { type: "string", minLength: 1 },
+              route: { type: "string", minLength: 1 },
+              request: { $ref: "#/$defs/httpPayloadTargetSummary" },
+              response: { $ref: "#/$defs/httpPayloadResponseSummary" },
+              suites: {
+                type: "array",
+                items: { type: "string" }
+              }
+            }
+          }
+        },
+        diagnostics: {
+          type: "object",
+          additionalProperties: false,
+          required: ["counts", "items"],
+          properties: {
+            counts: {
+              type: "object",
+              additionalProperties: false,
+              required: ["covered", "uncovered", "skipped"],
+              properties: {
+                covered: { type: "integer", minimum: 0 },
+                uncovered: { type: "integer", minimum: 0 },
+                skipped: { type: "integer", minimum: 0 }
+              }
+            },
+            items: {
+              type: "array",
+              items: {
+                type: "object",
+                additionalProperties: false,
+                required: [
+                  "operationKey",
+                  "method",
+                  "route",
+                  "target",
+                  "suite",
+                  "state",
+                  "code",
+                  "message",
+                  "declaredMediaTypes"
+                ],
+                properties: {
+                  operationKey: { type: "string", minLength: 1 },
+                  method: { type: "string", minLength: 1 },
+                  route: { type: "string", minLength: 1 },
+                  target: { enum: ["request", "response"] },
+                  suite: { type: "string", minLength: 1 },
+                  state: { enum: ["COVERED", "UNCOVERED", "SKIPPED"] },
+                  code: {
+                    enum: [
+                      "VALID",
+                      "INVALID_BODY",
+                      "MISSING_BODY",
+                      "MISSING_CONTENT_TYPE",
+                      "MEDIA_TYPE_MISMATCH",
+                      "UNSUPPORTED_MEDIA_TYPE",
+                      "UNSUPPORTED_SCHEMA",
+                      "NO_DECLARED_CONTENT"
+                    ]
+                  },
+                  message: { type: "string", minLength: 1 },
+                  declaredStatus: { type: "string" },
+                  observedStatus: { type: "integer" },
+                  observedMediaType: { type: "string" },
+                  declaredMediaTypes: { type: "array", items: { type: "string" } },
+                  errors: { type: "array", items: { type: "string" } }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     diagnostics: {
       type: "object",
       additionalProperties: false,
@@ -258,6 +365,91 @@ const REPORT_SCHEMA = {
               code: { type: "string", minLength: 1 },
               message: { type: "string", minLength: 1 },
               operationKey: { type: "string" }
+            }
+          }
+        }
+      }
+    }
+  },
+  $defs: {
+    httpPayloadTargetAggregate: {
+      type: "object",
+      additionalProperties: false,
+      required: [
+        "coveredOperations",
+        "partialOperations",
+        "uncoveredOperations",
+        "skippedOperations",
+        "notApplicableOperations",
+        "observedCount",
+        "validCount",
+        "invalidCount",
+        "skippedCount"
+      ],
+      properties: {
+        coveredOperations: { type: "integer", minimum: 0 },
+        partialOperations: { type: "integer", minimum: 0 },
+        uncoveredOperations: { type: "integer", minimum: 0 },
+        skippedOperations: { type: "integer", minimum: 0 },
+        notApplicableOperations: { type: "integer", minimum: 0 },
+        observedCount: { type: "integer", minimum: 0 },
+        validCount: { type: "integer", minimum: 0 },
+        invalidCount: { type: "integer", minimum: 0 },
+        skippedCount: { type: "integer", minimum: 0 }
+      }
+    },
+    httpPayloadTargetSummary: {
+      type: "object",
+      additionalProperties: false,
+      required: [
+        "state",
+        "observedCount",
+        "validCount",
+        "invalidCount",
+        "skippedCount",
+        "declaredMediaTypes",
+        "observedMediaTypes"
+      ],
+      properties: {
+        state: { enum: ["COVERED", "PARTIAL", "UNCOVERED", "SKIPPED", "N/A"] },
+        observedCount: { type: "integer", minimum: 0 },
+        validCount: { type: "integer", minimum: 0 },
+        invalidCount: { type: "integer", minimum: 0 },
+        skippedCount: { type: "integer", minimum: 0 },
+        declaredMediaTypes: { type: "array", items: { type: "string" } },
+        observedMediaTypes: { type: "array", items: { type: "string" } }
+      }
+    },
+    httpPayloadResponseSummary: {
+      type: "object",
+      additionalProperties: false,
+      required: [
+        "state",
+        "observedCount",
+        "validCount",
+        "invalidCount",
+        "skippedCount",
+        "declaredMediaTypes",
+        "observedMediaTypes",
+        "declaredContent"
+      ],
+      properties: {
+        state: { enum: ["COVERED", "PARTIAL", "UNCOVERED", "SKIPPED", "N/A"] },
+        observedCount: { type: "integer", minimum: 0 },
+        validCount: { type: "integer", minimum: 0 },
+        invalidCount: { type: "integer", minimum: 0 },
+        skippedCount: { type: "integer", minimum: 0 },
+        declaredMediaTypes: { type: "array", items: { type: "string" } },
+        observedMediaTypes: { type: "array", items: { type: "string" } },
+        declaredContent: {
+          type: "array",
+          items: {
+            type: "object",
+            additionalProperties: false,
+            required: ["declaredStatus", "mediaTypes"],
+            properties: {
+              declaredStatus: { type: "string", minLength: 1 },
+              mediaTypes: { type: "array", items: { type: "string" } }
             }
           }
         }

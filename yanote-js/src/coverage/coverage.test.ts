@@ -1,5 +1,7 @@
 import { describe, expect, it } from "vitest";
-import { computeCoverage, type HttpOperationContract } from "./coverage.js";
+import { readHttpEventsJsonl } from "../events/readJsonl.js";
+import { loadOpenApiCoverageModel, type HttpOperationContract } from "../spec/openapi.js";
+import { computeCoverage } from "./coverage.js";
 import type { OperationKey } from "../model/operationKey.js";
 import type { HttpEvent } from "../model/httpEvent.js";
 import { serializeOperationKey } from "../model/operationKey.js";
@@ -51,10 +53,11 @@ describe("computeCoverage", () => {
           parameters: [
             { name: "id", in: "path", required: true },
             { name: "expand", in: "query", required: true }
-          ]
+          ],
+          responseBodies: []
         }
       ],
-      [serializeOperationKey({ kind: "http", method: "GET", route: "/health" }), { declaredStatuses: [], parameters: [] }]
+      [serializeOperationKey({ kind: "http", method: "GET", route: "/health" }), { declaredStatuses: [], parameters: [], responseBodies: [] }]
     ]);
 
     const events: HttpEvent[] = [
@@ -84,7 +87,7 @@ describe("computeCoverage", () => {
     const operations: OperationKey[] = [{ kind: "http", method: "GET", route: "/health" }];
 
     const contracts = new Map<string, HttpOperationContract>([
-      [serializeOperationKey({ kind: "http", method: "GET", route: "/health" }), { declaredStatuses: [], parameters: [] }]
+      [serializeOperationKey({ kind: "http", method: "GET", route: "/health" }), { declaredStatuses: [], parameters: [], responseBodies: [] }]
     ]);
 
     const events: HttpEvent[] = [
@@ -106,6 +109,41 @@ describe("computeCoverage", () => {
     expect(result.dimensions.status).toEqual({ state: "N/A", percent: null });
     expect(result.dimensions.parameters).toEqual({ state: "N/A", percent: null });
     expect(result.dimensions.aggregate).toEqual({
+      state: "N/A",
+      percent: null,
+      explanation: "aggregate is N/A because weighted dimensions include N/A"
+    });
+  });
+
+  it("keeps observation coverage numerators unchanged when payload contracts are present", async () => {
+    const model = await loadOpenApiCoverageModel("test/fixtures/openapi/http-payload.yaml");
+    const validEvents = (await readHttpEventsJsonl("test/fixtures/events/http-payload-valid.fixture.jsonl")).items;
+    const unsupportedEvents = (await readHttpEventsJsonl("test/fixtures/events/http-payload-unsupported.fixture.jsonl")).items;
+    const events = [...validEvents, ...unsupportedEvents];
+
+    const strippedContracts = new Map<string, HttpOperationContract>(
+      Array.from(model.operationContractsByKey.entries()).map(([key, contract]) => [
+        key,
+        {
+          declaredStatuses: [...contract.declaredStatuses],
+          parameters: [...contract.parameters],
+          responseBodies: []
+        }
+      ])
+    );
+
+    const withPayloadContracts = computeCoverage(model.operations, events, [], {
+      operationContractsByKey: model.operationContractsByKey
+    });
+    const withoutPayloadContracts = computeCoverage(model.operations, events, [], {
+      operationContractsByKey: strippedContracts
+    });
+
+    expect(withPayloadContracts).toEqual(withoutPayloadContracts);
+    expect(withPayloadContracts.dimensions.operations).toEqual({ state: "COVERED", percent: 100 });
+    expect(withPayloadContracts.dimensions.status).toEqual({ state: "PARTIAL", percent: 66.67 });
+    expect(withPayloadContracts.dimensions.parameters).toEqual({ state: "N/A", percent: null });
+    expect(withPayloadContracts.dimensions.aggregate).toEqual({
       state: "N/A",
       percent: null,
       explanation: "aggregate is N/A because weighted dimensions include N/A"

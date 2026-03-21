@@ -6,6 +6,7 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import dev.yanote.core.events.HttpEvent;
 import dev.yanote.core.testmetadata.TestMetadata;
 import dev.yanote.core.testmetadata.TestMetadataContextHolder;
+import jakarta.servlet.http.HttpServletResponse;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.List;
@@ -42,7 +43,7 @@ class HttpMetadataContextBridgeTest {
 
         filter.doFilter(request, response, (req, res) -> {
             metadataSeenInHandler.set(TestMetadataContextHolder.current());
-            ((MockHttpServletResponse) res).setStatus(201);
+            ((HttpServletResponse) res).setStatus(201);
         });
 
         assertThat(metadataSeenInHandler.get()).isEqualTo(new TestMetadata("run-1", "suite-a"));
