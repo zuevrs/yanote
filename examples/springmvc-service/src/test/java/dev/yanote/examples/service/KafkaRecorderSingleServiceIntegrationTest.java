@@ -43,6 +43,12 @@ class KafkaRecorderSingleServiceIntegrationTest {
     private static final Path EVENTS_PATH = resolveEventsPath();
     private static final String TEST_RUN_ID = resolveEnv("YANOTE_RUN_ID", "example-kafka-run");
     private static final String TEST_SUITE = resolveEnv("YANOTE_SUITE", "example-kafka-suite");
+    private static final String CREATE_USER_REQUEST_JSON = """
+            {
+              "name": "alice",
+              "email": "alice@example.com"
+            }
+            """;
 
     @Container
     static final KafkaContainer KAFKA = new KafkaContainer(DockerImageName.parse("confluentinc/cp-kafka:7.6.1"));
@@ -61,18 +67,18 @@ class KafkaRecorderSingleServiceIntegrationTest {
         Files.deleteIfExists(EVENTS_PATH);
 
         HttpHeaders headers = new HttpHeaders();
-        headers.setContentType(MediaType.TEXT_PLAIN);
+        headers.setContentType(MediaType.APPLICATION_JSON);
         headers.set(ExampleServiceApplication.RUN_ID_HEADER, TEST_RUN_ID);
         headers.set(ExampleServiceApplication.SUITE_HEADER, TEST_SUITE);
 
         org.springframework.http.ResponseEntity<String> response = restTemplate.postForEntity(
                 "/users",
-                new HttpEntity<>("alice", headers),
+                new HttpEntity<>(CREATE_USER_REQUEST_JSON, headers),
                 String.class
         );
 
-        assertThat(response.getStatusCode()).isEqualTo(HttpStatus.OK);
-        assertThat(response.getBody()).isEqualTo("created:alice");
+        assertThat(response.getStatusCode()).isEqualTo(HttpStatus.CREATED);
+        assertThat(OBJECT_MAPPER.readTree(response.getBody())).isEqualTo(expectedCreateUserResponse());
 
         Awaitility.await()
                 .atMost(Duration.ofSeconds(20))
@@ -91,7 +97,11 @@ class KafkaRecorderSingleServiceIntegrationTest {
 
         assertThat(text(httpEvent, "method")).isEqualTo("POST");
         assertThat(text(httpEvent, "route")).isEqualTo("/users");
-        assertThat(httpEvent.get("status").intValue()).isEqualTo(200);
+        assertThat(httpEvent.get("status").intValue()).isEqualTo(201);
+        assertThat(text(httpEvent, "requestContentType")).isEqualTo("application/json");
+        assertThat(text(httpEvent, "responseContentType")).isEqualTo("application/json");
+        assertThat(httpEvent.get("requestBody")).isEqualTo(expectedCreateUserRequest());
+        assertThat(httpEvent.get("responseBody")).isEqualTo(expectedCreateUserResponse());
         assertThat(text(httpEvent, "service")).isEqualTo("examples-service");
         assertThat(text(httpEvent, "test.run_id")).isEqualTo(TEST_RUN_ID);
         assertThat(text(httpEvent, "test.suite")).isEqualTo(TEST_SUITE);
@@ -161,6 +171,21 @@ class KafkaRecorderSingleServiceIntegrationTest {
             }
         }
         return events;
+    }
+
+    private static JsonNode expectedCreateUserRequest() throws Exception {
+        return OBJECT_MAPPER.readTree(CREATE_USER_REQUEST_JSON);
+    }
+
+    private static JsonNode expectedCreateUserResponse() throws Exception {
+        return OBJECT_MAPPER.readTree("""
+                {
+                  "id": "user-alice",
+                  "name": "alice",
+                  "email": "alice@example.com",
+                  "created": true
+                }
+                """);
     }
 
     private static String text(JsonNode event, String field) {

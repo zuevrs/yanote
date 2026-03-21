@@ -1,6 +1,13 @@
 import { createReadStream } from "node:fs";
 import readline from "node:readline";
-import { normalizeMethod, normalizeRunId, normalizeSuite, type HttpEvent } from "../model/httpEvent.js";
+import {
+  normalizeJsonValue,
+  normalizeMethod,
+  normalizeOptionalHttpText,
+  normalizeRunId,
+  normalizeSuite,
+  type HttpEvent
+} from "../model/httpEvent.js";
 
 export type ReadJsonlResult<T> = {
   items: T[];
@@ -44,6 +51,10 @@ export async function readHttpEventsJsonl(filePath: string): Promise<ReadJsonlRe
       method,
       route,
       status: typeof obj.status === "number" ? obj.status : undefined,
+      requestBody: normalizeJsonValue(obj.requestBody),
+      requestContentType: normalizeOptionalHttpText(obj.requestContentType),
+      responseBody: normalizeJsonValue(obj.responseBody),
+      responseContentType: normalizeOptionalHttpText(obj.responseContentType),
       service: typeof obj.service === "string" ? obj.service : obj.service ?? undefined,
       instance: typeof obj.instance === "string" ? obj.instance : obj.instance ?? undefined,
       error: typeof obj.error === "boolean" ? obj.error : undefined,

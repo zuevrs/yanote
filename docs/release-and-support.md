@@ -16,11 +16,11 @@
 
 ## Последний стабильный релиз
 
-Последний стабильный релиз на момент обновления этого документа — `v1.0.123`.
+Последний стабильный релиз на момент обновления этого документа — `v1.0.126`.
 
 Опубликованные изменения, release notes и release assets нужно смотреть здесь:
 
-- Git tag: `v1.0.123`
+- Git tag: `v1.0.126`
 - GitHub Releases: https://github.com/zuevrs/yanote/releases
 
 `yanote --version` и `yanote-js/package.json` сейчас показывают `0.0.0`. Это технические version markers для source-built analyzer CLI и локального repository `HEAD`, а не публичная release truth.
@@ -31,7 +31,7 @@
 
 Рабочий `HEAD` может быть впереди последнего стабильного тега. Это означает только то, что в репозитории уже есть новые коммиты — например, документационные, инфраструктурные или product-maturity изменения. Сам по себе `HEAD` не означает, что появился новый опубликованный релиз.
 
-Пока не появился новый подписанный тег и соответствующий GitHub Release, публичной истиной остаются последняя стабильная линия `v1.0.x` и последний стабильный тег `v1.0.123`. Поэтому текущий `HEAD` нельзя автоматически считать эквивалентом последнего публичного релиза.
+Пока не появился новый подписанный тег и соответствующий GitHub Release, публичной истиной остаются последняя стабильная линия `v1.0.x` и последний стабильный тег `v1.0.126`. Поэтому текущий `HEAD` нельзя автоматически считать эквивалентом последнего публичного релиза.
 
 ## Стабильные поверхности
 
@@ -42,7 +42,13 @@
 - Gradle plugin surface: plugin id `io.github.zuevrs.yanote.gradle`, задачи `yanoteReport` и `yanoteCheck`, плюс ограниченная extension surface вместо произвольного API;
 - report contract: файл `yanote-report.json` со schema version `1.0.0` (`schemaVersion = 1.0.0`);
 - проверенный recorder path: dependency-based `yanote-recorder-spring-mvc` для Spring Boot 3.x / Spring MVC с записью в `events.jsonl`;
-- analyzer delivery surface: основной путь — source-built CLI из `yanote-js`, а offline fallback распространяется как release asset через GitHub Releases, а не как tracked documentation surface default branch.
+- analyzer delivery surface: основной путь — source-built CLI из `yanote-js`, а offline fallback распространяется как release asset через GitHub Releases, а не как tracked documentation surface default branch;
+- публичный HTTP proof surface: `bash scripts/ci/run-v1-e2e.sh`, который удерживает `.yanote-ci/v1-e2e/out/yanote-report.json` как happy-path artifact и рядом сохраняет `semantic-red.stdout`, `semantic-red.stderr` и `semantic-red-yanote-report.json`;
+- observation coverage и `HTTP Payload Conformance` как разные truth surfaces: happy path на Spring MVC demo сейчас показывает `operations/status/parameters/aggregate = 100.00%`, а payload validation отдельно подтверждает JSON request/response у `POST /users`;
+- benign boundary для GET responses без declared content: `NO_DECLARED_CONTENT` остаётся видимым `SKIPPED`-diagnostic, но не считается контрактной ошибкой и не понижает observation coverage;
+- fail-closed payload boundary: retained semantic-red pass на тех же live events завершает анализ с `SEMANTIC_HTTP_UNSUPPORTED_SCHEMA`, если declared JSON content нельзя честно провалидировать usable schema.
+
+Именно в этих границах текущий HTTP path считается поддерживаемым: JSON-first request/response payload validation на Spring MVC path, retained green/red proof artifacts и честное разделение между observation coverage и payload conformance. Здесь **нет** обещания для произвольных media types, нет обещания broker-agnostic payload enforcement вне объявленного JSON path и нет общего combined HTTP+async report surface.
 
 ### Первая волна async относительно релиза и `HEAD`
 
@@ -88,7 +94,9 @@ Yanote сейчас нужно воспринимать как Java-first пут
 - first-class не-Java onboarding пока нет;
 - отдельного runnable Cucumber demo в репозитории пока нет: текущий Cucumber contract проверяется тестами и документацией, а не живым demo-flow;
 - analyzer version markers (`0.0.0`) полезны только как технический build marker и не должны читаться как публичная release version;
-- examples, fallback release assets и maintainer-only workflow полезны для диагностики и сопровождения, но не равны по статусу опубликованной продуктовой поверхности.
+- payload validation публично поддерживается как JSON-first path на Spring MVC demo/runtime surfaces, а не как обещание универсального media-type coverage;
+- examples, retained proof bundle, fallback release assets и maintainer-only workflow полезны для диагностики и сопровождения, но не равны по статусу опубликованной продуктовой поверхности;
+- HTTP и async surfaces публикуются раздельно: сегодня нет общего combined HTTP+async report surface и нет одной общей boundary-метрики поверх обоих режимов.
 
 ## Fallback-границы
 

@@ -50,6 +50,85 @@ function createHttpReportFixture() {
   };
 }
 
+function createHttpSemanticReportFixture() {
+  return {
+    schemaVersion: "1.0.0",
+    generatedAt: "2026-03-21T00:00:00.000Z",
+    toolVersion: "0.0.0",
+    phase: { id: "02", slug: "coverage-metrics-and-cli-reporting" },
+    status: "partial",
+    summary: {
+      totalOperations: 1,
+      coveredOperations: 1,
+      operationCoveragePercent: 100,
+      aggregateCoveragePercent: 100
+    },
+    coverage: {
+      operations: { state: "COVERED", percent: 100 },
+      status: { state: "COVERED", percent: 100 },
+      parameters: { state: "COVERED", percent: 100 },
+      aggregate: { state: "COVERED", percent: 100 },
+      perOperation: [{ operationKey: "http POST /compile-fail/{param}", operation: { state: "COVERED" } }]
+    },
+    diagnostics: {
+      counts: { invalid: 0, ambiguous: 0, unmatched: 0 },
+      items: []
+    },
+    httpPayloadConformance: {
+      summary: {
+        request: {
+          coveredOperations: 0,
+          partialOperations: 0,
+          uncoveredOperations: 0,
+          skippedOperations: 1,
+          notApplicableOperations: 0,
+          observedCount: 1,
+          validCount: 0,
+          invalidCount: 0,
+          skippedCount: 1
+        },
+        response: {
+          coveredOperations: 0,
+          partialOperations: 0,
+          uncoveredOperations: 0,
+          skippedOperations: 1,
+          notApplicableOperations: 0,
+          observedCount: 1,
+          validCount: 0,
+          invalidCount: 0,
+          skippedCount: 1
+        }
+      },
+      diagnostics: {
+        counts: { covered: 0, uncovered: 0, skipped: 2 },
+        items: []
+      }
+    },
+    governance: {
+      exclusions: { appliedRules: [], unmatchedRules: [] },
+      diagnostics: [
+        {
+          severity: "error",
+          class: "semantic",
+          code: "SEMANTIC_HTTP_UNSUPPORTED_SCHEMA",
+          message:
+            "request payload for http POST /compile-fail/{param} media=application/json declares JSON content without a usable validation schema."
+        },
+        {
+          severity: "error",
+          class: "semantic",
+          code: "SEMANTIC_HTTP_UNSUPPORTED_SCHEMA",
+          message:
+            "response payload for http POST /compile-fail/{param} declared-status=202 observed-status=202 media=application/json declares JSON content without a usable validation schema."
+        }
+      ]
+    },
+    rawPayload: "SECRET_HTTP_SEMANTIC_PAYLOAD_MUST_NOT_APPEAR",
+    requestBody: "SECRET_HTTP_REQUEST_BODY_MUST_NOT_APPEAR",
+    responseBody: "SECRET_HTTP_RESPONSE_BODY_MUST_NOT_APPEAR"
+  };
+}
+
 function createAsyncHappyPathReportFixture() {
   return {
     schemaVersion: "1.0.0",
@@ -335,7 +414,62 @@ test("renders the existing HTTP summary contract without payload leaks", async (
   }
 });
 
-test("renders async report artifacts with typed stderr failures and widened zero-count diagnostics contract", async () => {
+test("renders HTTP semantic summaries from report-first artifacts without payload leaks", async () => {
+  const workDir = await mkdtemp(path.join(os.tmpdir(), "yanote-summary-http-semantic-"));
+  try {
+    const artifactsDir = path.join(workDir, "artifacts");
+    const reportPath = path.join(artifactsDir, "yanote-report.json");
+    const summaryPath = path.join(workDir, "summary.md");
+    const stderrPath = path.join(workDir, "yanote-validation.stderr.log");
+
+    await writeArtifactFiles(artifactsDir, {
+      "evidence.events.jsonl": '{"requestBody":"SECRET_EVENT_BODY_MUST_NOT_APPEAR"}\n',
+      "yanote-report.json": JSON.stringify(createHttpSemanticReportFixture()),
+      "yanote-validation.stderr.log": 'YANOTE_ERROR class=gate code=GATE_THRESHOLD reason="old threshold should not win" hint="stale artifact"\n'
+    });
+    await writeFile(
+      stderrPath,
+      'YANOTE_ERROR class=gate code=GATE_THRESHOLD reason="old threshold should not win" hint="stale artifact"\n',
+      "utf8"
+    );
+
+    const markdown = await renderSummary({
+      reportPath,
+      stderrPath,
+      artifactsDir,
+      outputPath: summaryPath,
+      exitCode: 5
+    });
+
+    const expected = [
+      "## Yanote Validation Summary",
+      "- status: partial",
+      "- operations: 1/1 (100.00%)",
+      "- aggregate: 100.00% (COVERED)",
+      "- status dimension: 100.00% (COVERED)",
+      "- parameters: 100.00% (COVERED)",
+      "- primary failure: SEMANTIC_HTTP_UNSUPPORTED_SCHEMA - request payload for http POST /compile-fail/{param} media=application/json declares JSON content without a usable validation schema.",
+      "- report: yanote-report.json",
+      "- artifacts: evidence.events.jsonl, yanote-report.json, yanote-validation.stderr.log",
+      "",
+      "### Top Issues",
+      "1. high: SEMANTIC_HTTP_UNSUPPORTED_SCHEMA - request payload for http POST /compile-fail/{param} media=application/json declares JSON content without a usable validation schema.",
+      "2. high: SEMANTIC_HTTP_UNSUPPORTED_SCHEMA - response payload for http POST /compile-fail/{param} declared-status=202 observed-status=202 media=application/json declares JSON content without a usable validation schema.",
+      ""
+    ].join("\n");
+
+    assert.equal(markdown, expected);
+    assert.equal(markdown.includes("SECRET_HTTP_SEMANTIC_PAYLOAD_MUST_NOT_APPEAR"), false);
+    assert.equal(markdown.includes("SECRET_HTTP_REQUEST_BODY_MUST_NOT_APPEAR"), false);
+    assert.equal(markdown.includes("SECRET_HTTP_RESPONSE_BODY_MUST_NOT_APPEAR"), false);
+    assert.equal(markdown.includes("SECRET_EVENT_BODY_MUST_NOT_APPEAR"), false);
+    assert.equal(await readFile(summaryPath, "utf8"), markdown);
+  } finally {
+    await rm(workDir, { recursive: true, force: true });
+  }
+});
+
+test("renders async report artifacts with typed stderr failures and no payload leaks", async () => {
   const workDir = await mkdtemp(path.join(os.tmpdir(), "yanote-summary-async-report-"));
   try {
     const artifactsDir = path.join(workDir, "live-kafka-proof");

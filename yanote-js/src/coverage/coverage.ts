@@ -1,13 +1,12 @@
 import { match } from "path-to-regexp";
-import {
-  computeParameterCoverage
-} from "./parameterCoverage.js";
+import { computeParameterCoverage } from "./parameterCoverage.js";
 import { computeStatusCoverage } from "./statusCoverage.js";
-import type { CoverageDimensionState, ParameterCoverageResult, ParameterDefinition, StatusCoverageResult } from "./dimensions.js";
+import type { CoverageDimensionState, ParameterCoverageResult, StatusCoverageResult } from "./dimensions.js";
 import type { HttpEvent } from "../model/httpEvent.js";
 import type { OperationKey } from "../model/operationKey.js";
 import { serializeOperationKey } from "../model/operationKey.js";
 import type { SemanticDiagnostic } from "../spec/diagnostics.js";
+import type { HttpOperationContract } from "../spec/openapi.js";
 
 type HttpOperation = Extract<OperationKey, { kind: "http" }>;
 
@@ -23,11 +22,6 @@ type OperationEvidence = {
   queryKeys: Set<string>;
   headerKeys: Set<string>;
   suites: Set<string>;
-};
-
-export type HttpOperationContract = {
-  declaredStatuses: string[];
-  parameters: ParameterDefinition[];
 };
 
 export type CoverageDimensionSummary = {

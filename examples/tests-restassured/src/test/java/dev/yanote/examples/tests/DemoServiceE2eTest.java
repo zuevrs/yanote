@@ -1,8 +1,11 @@
 package dev.yanote.examples.tests;
 
+import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
+import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import dev.yanote.core.events.HttpEvent;
 import dev.yanote.testtags.restassured.YanoteRestAssuredFilter;
@@ -26,6 +29,13 @@ class DemoServiceE2eTest {
     private static final String BASE_URI = resolveBaseUri();
     private static final String SUITE = suiteFromEnv();
     private static final String RUN_ID = runIdFromEnv();
+    private static final ObjectMapper OBJECT_MAPPER = new ObjectMapper();
+    private static final String CREATE_USER_REQUEST_JSON = """
+            {
+              "name": "alice",
+              "email": "alice@example.com"
+            }
+            """;
 
     @BeforeAll
     static void setup() {
@@ -59,9 +69,8 @@ class DemoServiceE2eTest {
         List<String> lines = Files.readAllLines(EVENTS_PATH);
         assertFalse(lines.isEmpty(), "Expected at least one recorded event");
 
-        ObjectMapper objectMapper = new ObjectMapper();
         List<HttpEvent> events = lines.stream()
-                .map(line -> parseEvent(objectMapper, line))
+                .map(DemoServiceE2eTest::parseEvent)
                 .toList();
 
         assertTrue(events.size() >= 4);
@@ -73,9 +82,15 @@ class DemoServiceE2eTest {
         assertTrue(routes.contains("/users"));
         assertTrue(routes.contains("/users/{id}"));
         assertTrue(routes.contains("/admin/ping"));
-
         assertTrue(events.stream().allMatch(event -> RUN_ID.equals(event.testRunId())));
         assertTrue(events.stream().allMatch(event -> SUITE.equals(event.testSuite())));
+
+        HttpEvent postUsers = findEvent(events, "POST", "/users");
+        assertEquals(201, postUsers.status());
+        assertEquals("application/json", postUsers.requestContentType());
+        assertEquals("application/json", postUsers.responseContentType());
+        assertEquals(OBJECT_MAPPER.readTree(CREATE_USER_REQUEST_JSON), postUsers.requestBody());
+        assertEquals(expectedCreateUserResponse(), postUsers.responseBody());
     }
 
     private static String suiteFromEnv() {
@@ -88,12 +103,31 @@ class DemoServiceE2eTest {
         return runId == null || runId.isBlank() ? "compose-run-1" : runId;
     }
 
-    private static HttpEvent parseEvent(ObjectMapper objectMapper, String line) {
+    private static HttpEvent parseEvent(String line) {
         try {
-            return objectMapper.readValue(line, HttpEvent.class);
+            return OBJECT_MAPPER.readValue(line, HttpEvent.class);
         } catch (IOException e) {
             throw new RuntimeException("Failed to parse event line: " + line, e);
         }
+    }
+
+    private static HttpEvent findEvent(List<HttpEvent> events, String method, String route) {
+        return events.stream()
+                .filter(event -> method.equals(event.method()))
+                .filter(event -> route.equals(event.route()))
+                .findFirst()
+                .orElseThrow(() -> new AssertionError("Expected event for " + method + " " + route));
+    }
+
+    private static JsonNode expectedCreateUserResponse() throws IOException {
+        return OBJECT_MAPPER.readTree("""
+                {
+                  "id": "user-alice",
+                  "name": "alice",
+                  "email": "alice@example.com",
+                  "created": true
+                }
+                """);
     }
 
     private static boolean waitForServiceReady() {
@@ -135,15 +169,19 @@ class DemoServiceE2eTest {
         response.then().statusCode(200);
     }
 
-    private static void sendPost(String path) {
+    private static void sendPost(String path) throws IOException {
         YanoteRestAssuredFilter filter = new YanoteRestAssuredFilter(RUN_ID, SUITE);
         Response response = RestAssured
                 .given()
                 .filter(filter)
                 .baseUri(BASE_URI)
                 .contentType("application/json")
-                .body("new user")
+                .body(CREATE_USER_REQUEST_JSON)
                 .post(path);
-        response.then().statusCode(200);
+        response.then().statusCode(201);
+
+        JsonNode responseBody = OBJECT_MAPPER.readTree(response.asString());
+        assertNotNull(responseBody);
+        assertEquals(expectedCreateUserResponse(), responseBody);
     }
 }

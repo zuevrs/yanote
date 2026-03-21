@@ -47,8 +47,14 @@ async function seedV1E2eBundle(workDir) {
   const v1BundleDir = path.join(workDir, ".yanote-ci/v1-e2e");
   await mkdir(path.join(v1BundleDir, "out"), { recursive: true });
 
+  await writeFile(path.join(v1BundleDir, "artifact-manifest.txt"), "happy_path_report_found=true\nsemantic_red_primary=SEMANTIC_HTTP_UNSUPPORTED_SCHEMA\n", "utf8");
+  await writeFile(path.join(v1BundleDir, "artifact-source-paths.txt"), "events.jsonl=report:/data/yanote/events.jsonl\nout/yanote-report.json=report:/data/yanote/out/yanote-report.json\n", "utf8");
   await writeFile(path.join(v1BundleDir, "compose.log"), "compose log\n", "utf8");
-  await writeFile(path.join(v1BundleDir, "out", "yanote-report.json"), '{"status":"partial"}\n', "utf8");
+  await writeFile(path.join(v1BundleDir, "events.jsonl"), '{"kind":"http"}\n', "utf8");
+  await writeFile(path.join(v1BundleDir, "semantic-red.stdout"), "Summary\nprimary=SEMANTIC_HTTP_UNSUPPORTED_SCHEMA\n", "utf8");
+  await writeFile(path.join(v1BundleDir, "semantic-red.stderr"), "YANOTE_ERROR class=semantic code=SEMANTIC_HTTP_UNSUPPORTED_SCHEMA\n", "utf8");
+  await writeFile(path.join(v1BundleDir, "semantic-red-yanote-report.json"), '{"status":"partial"}\n', "utf8");
+  await writeFile(path.join(v1BundleDir, "out", "yanote-report.json"), '{"status":"ok"}\n', "utf8");
   await writeFile(path.join(workDir, ".yanote-ci/delivery-proof-exit-code.txt"), "1\n", "utf8");
   await writeFile(path.join(workDir, ".yanote-ci/delivery-proof-should-run.txt"), "true\n", "utf8");
   await writeFile(path.join(workDir, ".yanote-ci/delivery-proof-scope.txt"), "should_run=true\nreason=path_match\n", "utf8");
@@ -107,7 +113,18 @@ test("collects the widened async proof bundle and replaces stale copied director
       "yanote-async-report.json"
     ]);
 
-    assert.deepEqual((await readdir(path.join(outDir, "v1-e2e"))).sort(), ["compose.log", "out"]);
+    assert.deepEqual((await readdir(path.join(outDir, "v1-e2e"))).sort(), [
+      "artifact-manifest.txt",
+      "artifact-source-paths.txt",
+      "compose.log",
+      "events.jsonl",
+      "out",
+      "semantic-red-yanote-report.json",
+      "semantic-red.stderr",
+      "semantic-red.stdout"
+    ]);
+
+    assert.deepEqual((await readdir(path.join(outDir, "v1-e2e", "out"))).sort(), ["yanote-report.json"]);
 
     const manifest = await readFile(path.join(outDir, "artifact-manifest.txt"), "utf8");
     assert.match(manifest, /report_found=true/);

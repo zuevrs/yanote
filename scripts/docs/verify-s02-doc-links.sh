@@ -27,6 +27,16 @@ require_contains() {
   grep -Fq -- "$needle" "${ROOT_DIR}/${path}" || fail "${path} is missing ${label}: ${needle}"
 }
 
+require_absent() {
+  local path="$1"
+  local needle="$2"
+  local label="$3"
+
+  if grep -Fq -- "$needle" "${ROOT_DIR}/${path}"; then
+    fail "${path} still contains stale ${label}: ${needle}"
+  fi
+}
+
 check_local_markdown_links() {
   python3 - "${ROOT_DIR}" "$@" <<'PY'
 import pathlib
@@ -89,6 +99,16 @@ require_contains "${RECORDER_GUIDE}" "test.suite" "event suite wording"
 require_contains "${ANALYZER_GUIDE}" "test-tagging.md" "canonical tagging guide link"
 require_contains "${ANALYZER_GUIDE}" "coverage.perOperation[]" "per-operation wording"
 require_contains "${ANALYZER_GUIDE}" "suites" "suite coverage wording"
+require_contains "${ANALYZER_GUIDE}" "HTTP Payload Conformance" "payload conformance section"
+require_contains "${ANALYZER_GUIDE}" "NO_DECLARED_CONTENT" "benign payload boundary wording"
+require_contains "${ANALYZER_GUIDE}" "SEMANTIC_HTTP_UNSUPPORTED_SCHEMA" "fail-closed payload wording"
+require_contains "${ANALYZER_GUIDE}" "bash scripts/ci/run-v1-e2e.sh" "public proof command"
+require_contains "${ANALYZER_GUIDE}" ".yanote-ci/v1-e2e/semantic-red.stderr" "retained semantic red stderr path"
+require_contains "${ANALYZER_GUIDE}" ".yanote-ci/v1-e2e/semantic-red-yanote-report.json" "retained semantic red report path"
+require_contains "${ANALYZER_GUIDE}" "observation coverage и payload conformance — разные поверхности" "surface split wording"
+require_absent "${ANALYZER_GUIDE}" "75.00%" "partial-status demo number"
+require_absent "${ANALYZER_GUIDE}" "93.75%" "partial-status aggregate number"
+require_absent "${ANALYZER_GUIDE}" 'объявляет статус `201`, а demo-service фактически отвечает `200`' "obsolete POST /users mismatch wording"
 
 require_contains "${TAG_GUIDE}" "YanoteRestAssuredFilter" "RestAssured filter contract"
 require_contains "${TAG_GUIDE}" "YanoteSuiteNamePlugin" "Cucumber plugin contract"
@@ -112,4 +132,4 @@ require_contains "${RESTASSURED_EXAMPLE}" "X-Test-Suite" "suite header naming"
 require_contains "${RESTASSURED_EXAMPLE}" "demo/env bridge" "demo-bridge wording"
 require_contains "${RESTASSURED_EXAMPLE}" "--rerun-tasks" "fresh-events guard"
 
-echo "Doc link verification passed: canonical tagging guide, terminology, and local markdown links are wired correctly."
+echo "Doc link verification passed: canonical tagging guide, analyzer payload wording, and local markdown links are wired correctly."

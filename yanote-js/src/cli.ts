@@ -12,11 +12,13 @@ import {
   type AsyncCoverageResult
 } from "./coverage/asyncCoverage.js";
 import { computeCoverage, type CoverageResult } from "./coverage/coverage.js";
+import { computeHttpPayloadConformance, type HttpPayloadConformanceResult } from "./coverage/httpPayloadConformance.js";
 import { readAsyncEventsJsonl } from "./events/readAsyncEventsJsonl.js";
 import { readHttpEventsJsonl } from "./events/readJsonl.js";
 import { applyExclusionRules, compileExclusionRules, type ExclusionApplicationResult } from "./gates/exclusions.js";
 import { evaluateAsyncGateFailures } from "./gates/asyncEvaluator.js";
 import { evaluateGateFailures } from "./gates/evaluator.js";
+import { classifyHttpPayloadDiagnostic } from "./gates/httpPayloadSemantics.js";
 import {
   selectPrimaryFailure,
   sortFailuresByPrecedence,
@@ -116,6 +118,7 @@ function createProgram(io?: { out?: (chunk: string) => void; err?: (chunk: strin
 
 async function executeReportCommand(opts: any, writeOut: (chunk: string) => void, writeErr: (chunk: string) => void): Promise<void> {
   let coverage: CoverageResult | undefined;
+  let payloadConformance: HttpPayloadConformanceResult | undefined;
   let report: YanoteReport | undefined;
   let reportPath: string | undefined;
   let summaryIssues: SummaryIssue[] = [];
@@ -177,6 +180,9 @@ async function executeReportCommand(opts: any, writeOut: (chunk: string) => void
     coverage = computeCoverage(exclusionResult.includedOperations, events.items, [], {
       operationContractsByKey: openapiModel.operationContractsByKey
     });
+    payloadConformance = computeHttpPayloadConformance(exclusionResult.includedOperations, events.items, {
+      operationContractsByKey: openapiModel.operationContractsByKey
+    });
 
     let regressionComparison:
       | ReturnType<typeof compareRegressionAgainstBaseline>
@@ -194,7 +200,8 @@ async function executeReportCommand(opts: any, writeOut: (chunk: string) => void
     const gateDiagnostics = evaluateGateFailures({
       coverage,
       policy,
-      comparison: regressionComparison
+      comparison: regressionComparison,
+      httpPayloadDiagnostics: payloadConformance.diagnostics
     });
     for (const diagnostic of gateDiagnostics) {
       if (diagnostic.severity === "error") {
@@ -209,6 +216,7 @@ async function executeReportCommand(opts: any, writeOut: (chunk: string) => void
       eventTimestamps: events.items
         .map((event) => event.ts)
         .filter((timestamp): timestamp is number => typeof timestamp === "number"),
+      payloadConformance,
       governance: {
         exclusions: {
           appliedRules: exclusionResult.appliedExclusions,
@@ -709,6 +717,12 @@ function formatSummaryOutput(input: {
   );
 
   lines.push("");
+  lines.push("HTTP Payload Conformance");
+  lines.push(`- request: ${formatPayloadTargetSummary(input.report?.httpPayloadConformance.summary.request)}`);
+  lines.push(`- response: ${formatPayloadTargetSummary(input.report?.httpPayloadConformance.summary.response)}`);
+  lines.push(`- diagnostics: ${formatPayloadDiagnosticCounts(input.report?.httpPayloadConformance.diagnostics.counts)}`);
+
+  lines.push("");
   lines.push("Top Issues");
   if (shownIssues.length === 0) {
     lines.push("- none");
@@ -736,6 +750,7 @@ function formatSummaryOutput(input: {
       `aggregate=${formatMachinePercent(dimensions?.aggregate.percent ?? null)}`,
       `covered=${coveredOperations}/${totalOperations}`,
       `diagnostics=${input.report?.diagnostics.items.length ?? 0}`,
+      `payload_diagnostics=${formatPayloadDiagnosticCountsMachine(input.report?.httpPayloadConformance.diagnostics.counts)}`,
       `report=${input.reportPath ?? "none"}`,
       `primary=${primaryFailure?.code ?? "none"}`,
       `class_counts=${formatClassCounts(input.failures)}`
@@ -829,6 +844,11 @@ function collectIssues(
   extraIssues: SummaryIssue[]
 ): SummaryIssue[] {
   const issues: SummaryIssue[] = [...extraIssues];
+  const payloadSemanticIssueKeys = new Set(
+    failures
+      .filter((failure) => failure.severity === "error" && failure.failureClass === "semantic")
+      .map((failure) => toFailureIssueKey(failure))
+  );
 
   if (report) {
     for (const diagnostic of report.diagnostics.items) {
@@ -840,6 +860,24 @@ function collectIssues(
         severityLabel: severity.label,
         sortKey: `diag:${key}`,
         text: `${key || "<global>"} - ${diagnostic.message}${candidates}`
+      });
+    }
+
+    for (const diagnostic of report.httpPayloadConformance.diagnostics.items) {
+      if (diagnostic.state === "COVERED") continue;
+
+      const semanticFailure = classifyHttpPayloadDiagnostic(diagnostic);
+      if (!semanticFailure) continue;
+      if (payloadSemanticIssueKeys.has(toFailureIssueKey(semanticFailure))) continue;
+
+      const severity = payloadDiagnosticSeverity(diagnostic.state);
+      const media = diagnostic.observedMediaType ? ` media=${diagnostic.observedMediaType}` : "";
+      const declaredStatus = diagnostic.declaredStatus ? ` declaredStatus=${diagnostic.declaredStatus}` : "";
+      issues.push({
+        severityRank: severity.rank,
+        severityLabel: severity.label,
+        sortKey: `payload:${diagnostic.operationKey}:${diagnostic.target}:${diagnostic.code}`,
+        text: `${diagnostic.operationKey} ${diagnostic.target} - ${diagnostic.code}: ${diagnostic.message}${declaredStatus}${media}`
       });
     }
   }
@@ -987,10 +1025,53 @@ function toAsyncDiagnosticSummaryIssue(diagnostic: AsyncCoverageDiagnostic, inde
   };
 }
 
+function toFailureIssueKey(failure: GovernanceFailure): string {
+  return [failure.failureClass, failure.code, failure.operationKey ?? "", failure.reason].join("\u0000");
+}
+
 function diagnosticSeverity(kind: "invalid" | "ambiguous" | "unmatched"): { rank: number; label: "high" | "medium" | "low" } {
   if (kind === "invalid") return { rank: 0, label: "high" };
   if (kind === "ambiguous") return { rank: 1, label: "medium" };
   return { rank: 2, label: "low" };
+}
+
+function payloadDiagnosticSeverity(state: "UNCOVERED" | "SKIPPED"): { rank: number; label: "medium" | "low" } {
+  if (state === "UNCOVERED") return { rank: 1, label: "medium" };
+  return { rank: 2, label: "low" };
+}
+
+function formatPayloadTargetSummary(
+  target: YanoteReport["httpPayloadConformance"]["summary"]["request"] | undefined
+): string {
+  if (!target) {
+    return "covered=0 partial=0 uncovered=0 skipped=0 n/a=0 observations=0 valid=0 invalid=0 skipped_observations=0";
+  }
+
+  return [
+    `covered=${target.coveredOperations}`,
+    `partial=${target.partialOperations}`,
+    `uncovered=${target.uncoveredOperations}`,
+    `skipped=${target.skippedOperations}`,
+    `n/a=${target.notApplicableOperations}`,
+    `observations=${target.observedCount}`,
+    `valid=${target.validCount}`,
+    `invalid=${target.invalidCount}`,
+    `skipped_observations=${target.skippedCount}`
+  ].join(" ");
+}
+
+function formatPayloadDiagnosticCounts(
+  counts: YanoteReport["httpPayloadConformance"]["diagnostics"]["counts"] | undefined
+): string {
+  if (!counts) return "covered=0 uncovered=0 skipped=0";
+  return `covered=${counts.covered} uncovered=${counts.uncovered} skipped=${counts.skipped}`;
+}
+
+function formatPayloadDiagnosticCountsMachine(
+  counts: YanoteReport["httpPayloadConformance"]["diagnostics"]["counts"] | undefined
+): string {
+  if (!counts) return "covered:0,uncovered:0,skipped:0";
+  return `covered:${counts.covered},uncovered:${counts.uncovered},skipped:${counts.skipped}`;
 }
 
 function formatFailureOutput(

@@ -92,6 +92,85 @@ describe("cli fail-closed contract", () => {
     }
   });
 
+  it("fails closed with exit 5 and semantic primary when fully observed payload drift is invalid", async () => {
+    const fixture = await createFixture(
+      [
+        "openapi: 3.0.0",
+        "info: { title: semantic-invalid-body, version: 1.0.0 }",
+        "paths:",
+        "  /users/{id}:",
+        "    post:",
+        "      parameters:",
+        "        - name: id",
+        "          in: path",
+        "          required: true",
+        "          schema: { type: string }",
+        "      requestBody:",
+        "        required: true",
+        "        content:",
+        "          application/json:",
+        "            schema:",
+        "              type: object",
+        "              required: [profile]",
+        "              properties:",
+        "                profile:",
+        "                  type: object",
+        "                  required: [active]",
+        "                  properties:",
+        "                    active: { type: boolean }",
+        "      responses:",
+        "        '201':",
+        "          description: created",
+        "          content:",
+        "            application/json:",
+        "              schema:",
+        "                type: object",
+        "                required: [id]",
+        "                properties:",
+        "                  id: { type: string }"
+      ].join("\n"),
+      JSON.stringify({
+        kind: "http",
+        ts: 1772449330001,
+        method: "POST",
+        route: "/users/123",
+        status: 201,
+        requestBody: {},
+        requestContentType: "application/json",
+        responseBody: { id: "123" },
+        responseContentType: "application/json",
+        queryKeys: [],
+        headerKeys: ["content-type"],
+        "test.run_id": "run-invalid-body",
+        "test.suite": "suite-invalid-body"
+      })
+    );
+
+    try {
+      const result = await runCli([
+        "report",
+        "--spec",
+        fixture.specPath,
+        "--events",
+        fixture.eventsPath,
+        "--out",
+        fixture.outDir,
+        "--profile",
+        "local"
+      ]);
+
+      expect(result.code).toBe(5);
+      expect(result.stderr).toContain("YANOTE_ERROR class=semantic code=SEMANTIC_HTTP_INVALID_BODY");
+      expect(result.stderr).not.toContain("YANOTE_ERROR_SECONDARY");
+      expect(result.stdout).toContain("primary=SEMANTIC_HTTP_INVALID_BODY");
+      expect(result.stdout).toContain("- status: partial");
+      expect(result.stdout).toContain("- operations: 1/1 (100.00%)");
+      expect(result.stdout).toContain("class_counts=input:0,semantic:1,gate:0,runtime:0");
+    } finally {
+      await rm(fixture.dir, { recursive: true, force: true });
+    }
+  });
+
   it("keeps one primary error line and deterministic secondary ordering", async () => {
     const fixture = await createFixture(
       [

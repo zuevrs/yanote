@@ -32,6 +32,37 @@ export function normalizeReport(report: YanoteReport): YanoteReport {
     }))
     .sort((left, right) => left.operationKey.localeCompare(right.operationKey));
 
+  const httpPayloadPerOperation = [...report.httpPayloadConformance.perOperation]
+    .map((entry) => ({
+      ...entry,
+      request: {
+        ...entry.request,
+        declaredMediaTypes: [...entry.request.declaredMediaTypes].sort((left, right) => left.localeCompare(right)),
+        observedMediaTypes: [...entry.request.observedMediaTypes].sort((left, right) => left.localeCompare(right))
+      },
+      response: {
+        ...entry.response,
+        declaredMediaTypes: [...entry.response.declaredMediaTypes].sort((left, right) => left.localeCompare(right)),
+        observedMediaTypes: [...entry.response.observedMediaTypes].sort((left, right) => left.localeCompare(right)),
+        declaredContent: [...entry.response.declaredContent]
+          .map((content) => ({
+            ...content,
+            mediaTypes: [...content.mediaTypes].sort((left, right) => left.localeCompare(right))
+          }))
+          .sort((left, right) => left.declaredStatus.localeCompare(right.declaredStatus, undefined, { numeric: true }))
+      },
+      suites: [...entry.suites].sort((left, right) => left.localeCompare(right))
+    }))
+    .sort((left, right) => left.operationKey.localeCompare(right.operationKey));
+
+  const httpPayloadDiagnostics = [...report.httpPayloadConformance.diagnostics.items]
+    .map((item) => ({
+      ...item,
+      declaredMediaTypes: [...item.declaredMediaTypes].sort((left, right) => left.localeCompare(right)),
+      errors: item.errors ? [...item.errors].sort((left, right) => left.localeCompare(right)) : undefined
+    }))
+    .sort(comparePayloadDiagnostics);
+
   return {
     ...report,
     summary: {
@@ -73,6 +104,23 @@ export function normalizeReport(report: YanoteReport): YanoteReport {
             : report.coverage.aggregate.percent
       },
       perOperation
+    },
+    httpPayloadConformance: {
+      summary: {
+        request: {
+          ...report.httpPayloadConformance.summary.request
+        },
+        response: {
+          ...report.httpPayloadConformance.summary.response
+        }
+      },
+      perOperation: httpPayloadPerOperation,
+      diagnostics: {
+        counts: {
+          ...report.httpPayloadConformance.diagnostics.counts
+        },
+        items: httpPayloadDiagnostics
+      }
     },
     diagnostics: {
       counts: {
@@ -143,6 +191,25 @@ function asyncDiagnosticSortKey(diagnostic: YanoteReport["diagnostics"]["items"]
     diagnostic.async.action ?? "",
     diagnostic.async.message ?? ""
   ].join("|");
+}
+
+function comparePayloadDiagnostics(
+  left: YanoteReport["httpPayloadConformance"]["diagnostics"]["items"][number],
+  right: YanoteReport["httpPayloadConformance"]["diagnostics"]["items"][number]
+): number {
+  if (left.operationKey !== right.operationKey) return left.operationKey.localeCompare(right.operationKey);
+  if (left.target !== right.target) return left.target.localeCompare(right.target);
+
+  const leftStatus = `${left.declaredStatus ?? ""}\u0000${left.observedStatus ?? ""}`;
+  const rightStatus = `${right.declaredStatus ?? ""}\u0000${right.observedStatus ?? ""}`;
+  if (leftStatus !== rightStatus) return leftStatus.localeCompare(rightStatus);
+
+  if (left.code !== right.code) return left.code.localeCompare(right.code);
+  if ((left.observedMediaType ?? "") !== (right.observedMediaType ?? "")) {
+    return (left.observedMediaType ?? "").localeCompare(right.observedMediaType ?? "");
+  }
+
+  return left.suite.localeCompare(right.suite);
 }
 
 function severityRank(kind: "invalid" | "ambiguous" | "unmatched"): number {

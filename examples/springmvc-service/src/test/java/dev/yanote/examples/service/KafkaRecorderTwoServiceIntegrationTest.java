@@ -42,6 +42,12 @@ class KafkaRecorderTwoServiceIntegrationTest {
             resolveEnv("YANOTE_PRODUCER_SERVICE_NAME", "producer-role-service");
     private static final String CONSUMER_SERVICE =
             resolveEnv("YANOTE_CONSUMER_SERVICE_NAME", "consumer-role-service");
+    private static final String CREATE_USER_REQUEST_JSON = """
+            {
+              "name": "alice",
+              "email": "alice@example.com"
+            }
+            """;
 
     @Container
     static final KafkaContainer KAFKA = new KafkaContainer(DockerImageName.parse("confluentinc/cp-kafka:7.6.1"));
@@ -71,16 +77,16 @@ class KafkaRecorderTwoServiceIntegrationTest {
                 )) {
             HttpResponse<String> response = HttpClient.newHttpClient().send(
                     HttpRequest.newBuilder(producerUsersUri(producerContext))
-                            .header("Content-Type", "text/plain")
+                            .header("Content-Type", "application/json")
                             .header(ExampleServiceApplication.RUN_ID_HEADER, TEST_RUN_ID)
                             .header(ExampleServiceApplication.SUITE_HEADER, TEST_SUITE)
-                            .POST(HttpRequest.BodyPublishers.ofString("alice", StandardCharsets.UTF_8))
+                            .POST(HttpRequest.BodyPublishers.ofString(CREATE_USER_REQUEST_JSON, StandardCharsets.UTF_8))
                             .build(),
                     HttpResponse.BodyHandlers.ofString(StandardCharsets.UTF_8)
             );
 
-            assertThat(response.statusCode()).isEqualTo(200);
-            assertThat(response.body()).isEqualTo("created:alice");
+            assertThat(response.statusCode()).isEqualTo(201);
+            assertThat(OBJECT_MAPPER.readTree(response.body())).isEqualTo(expectedCreateUserResponse());
 
             Awaitility.await()
                     .atMost(Duration.ofSeconds(20))
@@ -121,7 +127,11 @@ class KafkaRecorderTwoServiceIntegrationTest {
 
             assertThat(text(producerHttp, "route")).isEqualTo("/users");
             assertThat(text(producerHttp, "method")).isEqualTo("POST");
-            assertThat(producerHttp.get("status").intValue()).isEqualTo(200);
+            assertThat(producerHttp.get("status").intValue()).isEqualTo(201);
+            assertThat(text(producerHttp, "requestContentType")).isEqualTo("application/json");
+            assertThat(text(producerHttp, "responseContentType")).isEqualTo("application/json");
+            assertThat(producerHttp.get("requestBody")).isEqualTo(expectedCreateUserRequest());
+            assertThat(producerHttp.get("responseBody")).isEqualTo(expectedCreateUserResponse());
             assertThat(producerHttp.get("error").booleanValue()).isFalse();
             assertThat(text(producerHttp, "service")).isEqualTo(PRODUCER_SERVICE);
             assertThat(text(producerHttp, "test.run_id")).isEqualTo(TEST_RUN_ID);
@@ -196,6 +206,21 @@ class KafkaRecorderTwoServiceIntegrationTest {
             }
         }
         return events;
+    }
+
+    private static JsonNode expectedCreateUserRequest() throws Exception {
+        return OBJECT_MAPPER.readTree(CREATE_USER_REQUEST_JSON);
+    }
+
+    private static JsonNode expectedCreateUserResponse() throws Exception {
+        return OBJECT_MAPPER.readTree("""
+                {
+                  "id": "user-alice",
+                  "name": "alice",
+                  "email": "alice@example.com",
+                  "created": true
+                }
+                """);
     }
 
     private static String text(JsonNode event, String field) {
