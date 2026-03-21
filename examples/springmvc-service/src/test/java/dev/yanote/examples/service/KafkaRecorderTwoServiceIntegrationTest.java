@@ -130,6 +130,10 @@ class KafkaRecorderTwoServiceIntegrationTest {
             assertThat(producerHttp.get("status").intValue()).isEqualTo(201);
             assertThat(text(producerHttp, "requestContentType")).isEqualTo("application/json");
             assertThat(text(producerHttp, "responseContentType")).isEqualTo("application/json");
+            assertThat(text(producerHttp, "requestBodyState")).isEqualTo("captured");
+            assertThat(producerHttp.get("requestBodyReason")).isNull();
+            assertThat(text(producerHttp, "responseBodyState")).isEqualTo("captured");
+            assertThat(producerHttp.get("responseBodyReason")).isNull();
             assertThat(producerHttp.get("requestBody")).isEqualTo(expectedCreateUserRequest());
             assertThat(producerHttp.get("responseBody")).isEqualTo(expectedCreateUserResponse());
             assertThat(producerHttp.get("error").booleanValue()).isFalse();
@@ -142,11 +146,14 @@ class KafkaRecorderTwoServiceIntegrationTest {
         }
     }
 
-    private static void assertKafkaEvent(JsonNode event, String expectedService, String expectedAction) {
+    private static void assertKafkaEvent(JsonNode event, String expectedService, String expectedAction) throws Exception {
         assertThat(text(event, "kind")).isEqualTo("kafka");
         assertThat(text(event, "action")).isEqualTo(expectedAction);
         assertThat(text(event, "channel")).isEqualTo(ExampleServiceApplication.USER_EVENTS_TOPIC);
         assertThat(text(event, "message")).isEqualTo(ExampleServiceApplication.USER_CREATED_MESSAGE);
+        assertThat(text(event, "payloadState")).isEqualTo("captured");
+        assertThat(event.get("payloadReason")).isNull();
+        assertThat(event.get("payload")).isEqualTo(expectedKafkaPayload());
         assertThat(text(event, "service")).isEqualTo(expectedService);
         assertThat(text(event, "test.run_id")).isEqualTo(TEST_RUN_ID);
         assertThat(text(event, "test.suite")).isEqualTo(TEST_SUITE);
@@ -166,6 +173,11 @@ class KafkaRecorderTwoServiceIntegrationTest {
                 .run(
                         "--server.port=0",
                         "--spring.kafka.bootstrap-servers=" + KAFKA.getBootstrapServers(),
+                        "--spring.kafka.producer.key-serializer=org.apache.kafka.common.serialization.StringSerializer",
+                        "--spring.kafka.producer.value-serializer=org.springframework.kafka.support.serializer.JsonSerializer",
+                        "--spring.kafka.consumer.key-deserializer=org.apache.kafka.common.serialization.StringDeserializer",
+                        "--spring.kafka.consumer.value-deserializer=org.springframework.kafka.support.serializer.JsonDeserializer",
+                        "--spring.kafka.consumer.properties.spring.json.trusted.packages=dev.yanote.examples.service",
                         "--yanote.recorder.service-name=" + serviceName,
                         "--yanote.recorder.events-path=" + eventsPath,
                         "--spring.kafka.consumer.group-id=" + serviceName + "-group",
@@ -219,6 +231,15 @@ class KafkaRecorderTwoServiceIntegrationTest {
                   "name": "alice",
                   "email": "alice@example.com",
                   "created": true
+                }
+                """);
+    }
+
+    private static JsonNode expectedKafkaPayload() throws Exception {
+        return OBJECT_MAPPER.readTree("""
+                {
+                  "name": "alice",
+                  "email": "alice@example.com"
                 }
                 """);
     }
