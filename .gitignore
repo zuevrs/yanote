@@ -47,16 +47,6 @@ coverage/
 .cache/
 tmp/
 
-# ── GSD local project state (keep the whole tree out of the public repo surface) ──
-.gsd
-.gsd/activity/
-.gsd/runtime/
-.gsd/worktrees/
-.gsd/parallel/
-.gsd/auto.lock
-.gsd/metrics.json
-.gsd/completed-units.json
-.gsd/STATE.md
-.gsd/gsd.db
-.gsd/gsd.db-shm
-.gsd/gsd.db-wal
+# ── GSD: local-only project state ───────────────────────────────────────────
+# Keep the whole .gsd tree inside the repo working copy, but out of git.
+/.gsd/
