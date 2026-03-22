@@ -10,12 +10,13 @@ import dev.yanote.core.events.PayloadCaptureState;
 import dev.yanote.core.events.YanoteEvent;
 import dev.yanote.core.testmetadata.TestMetadata;
 import dev.yanote.core.testmetadata.TestMetadataContextHolder;
+import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.List;
-import java.util.Map;
 import org.apache.kafka.clients.consumer.ConsumerRecord;
 import org.apache.kafka.clients.producer.ProducerRecord;
+import org.apache.kafka.common.header.internals.RecordHeader;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
@@ -96,6 +97,58 @@ class KafkaMetadataPropagationContractTest {
         assertThat(event.error()).isFalse();
         assertThat(event.testRunId()).isEqualTo("run-1");
         assertThat(event.testSuite()).isEqualTo("suite-a");
+    }
+
+    @Test
+    void shouldRetainSafeHeadersRedactSensitiveOnesAndOmitUnsupportedValues() throws Exception {
+        Path eventsPath = tempDir.resolve("retained-headers-events.jsonl");
+        YanoteKafkaEventRecorder recorder = new YanoteKafkaEventRecorder(eventsPath, "kafka-contract-service");
+        ProducerRecord<Object, Object> record = new ProducerRecord<>(TOPIC, "payload");
+        YanoteKafkaHeaders.setHeaders(record.headers(), "run-safe", "suite-safe", "OutboundMessage");
+        record.headers().add(new RecordHeader("trace-id", " trace-123 ".getBytes(StandardCharsets.UTF_8)));
+        record.headers().add(new RecordHeader("authorization", "Bearer super-secret-token".getBytes(StandardCharsets.UTF_8)));
+        record.headers().add(new RecordHeader("binary-header", new byte[] {(byte) 0xC3, 0x28}));
+
+        recorder.recordSend(record, false);
+
+        List<KafkaEvent> events = readKafkaEvents(eventsPath);
+        assertThat(events).hasSize(1);
+        KafkaEvent event = events.get(0);
+        assertThat(event.message()).isEqualTo("OutboundMessage");
+        assertThat(event.testRunId()).isEqualTo("run-safe");
+        assertThat(event.testSuite()).isEqualTo("suite-safe");
+        assertThat(event.headers()).containsEntry(
+                YanoteKafkaHeaders.MESSAGE_HINT,
+                new KafkaEvent.HeaderEvidence(KafkaEvent.HeaderCaptureState.CAPTURED, "OutboundMessage", null)
+        );
+        assertThat(event.headers()).containsEntry(
+                YanoteKafkaHeaders.TEST_RUN_ID,
+                new KafkaEvent.HeaderEvidence(KafkaEvent.HeaderCaptureState.CAPTURED, "run-safe", null)
+        );
+        assertThat(event.headers()).containsEntry(
+                YanoteKafkaHeaders.TEST_SUITE,
+                new KafkaEvent.HeaderEvidence(KafkaEvent.HeaderCaptureState.CAPTURED, "suite-safe", null)
+        );
+        assertThat(event.headers()).containsEntry(
+                "trace-id",
+                new KafkaEvent.HeaderEvidence(KafkaEvent.HeaderCaptureState.CAPTURED, "trace-123", null)
+        );
+        assertThat(event.headers()).containsEntry(
+                "authorization",
+                new KafkaEvent.HeaderEvidence(
+                        KafkaEvent.HeaderCaptureState.REDACTED,
+                        null,
+                        KafkaEvent.HeaderCaptureReason.SENSITIVE
+                )
+        );
+        assertThat(event.headers()).containsEntry(
+                "binary-header",
+                new KafkaEvent.HeaderEvidence(
+                        KafkaEvent.HeaderCaptureState.OMITTED,
+                        null,
+                        KafkaEvent.HeaderCaptureReason.UNSUPPORTED
+                )
+        );
     }
 
     @Test

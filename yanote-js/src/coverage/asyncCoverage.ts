@@ -1,8 +1,11 @@
-import { serializeOperationKey, type AsyncAction, type KafkaOperationKey } from "../model/operationKey.js";
+import { formatKafkaMessageIdentity, serializeOperationKey, type AsyncAction, type KafkaOperationKey } from "../model/operationKey.js";
 import type { AsyncEvent } from "../model/asyncEvent.js";
 import type { AsyncApiSemanticsBundle } from "../spec/asyncapi.js";
 import {
   computeAsyncSchemaConformance,
+  resolveAsyncMessageContract,
+  type AsyncRoutingCoverageDiagnostic,
+  type AsyncRoutingCoverageDiagnosticKind,
   type AsyncSchemaConformanceDiagnostic,
   type AsyncSchemaConformanceDiagnosticKind,
   type AsyncSchemaValidationKind
@@ -30,7 +33,10 @@ export type AsyncOperationCoverage = {
   };
   messageContract: {
     name?: string;
-    state: "COVERED" | "UNCOVERED" | "N/A";
+    state: "COVERED" | "PARTIAL" | "UNCOVERED" | "N/A";
+    selectionMode?: "single" | "runtime";
+    declaredMessages?: string[];
+    selectedMessages?: string[];
   };
   suites: string[];
 };
@@ -44,25 +50,7 @@ export type AsyncMessageCoverage = {
   suites: string[];
 };
 
-export type AsyncRoutingCoverageDiagnosticKind = "unmatched" | "mismatched";
 export type AsyncCoverageDiagnosticKind = AsyncRoutingCoverageDiagnosticKind | AsyncSchemaConformanceDiagnosticKind;
-
-export type AsyncRoutingCoverageDiagnostic =
-  | {
-      kind: "unmatched";
-      message: string;
-      channel: string;
-      action: AsyncAction;
-      observedMessage?: string;
-    }
-  | {
-      kind: "mismatched";
-      message: string;
-      channel: string;
-      action: AsyncAction;
-      observedMessage?: string;
-      expectedMessage?: string;
-    };
 
 export type AsyncSchemaCoverageDiagnostic = {
   kind: AsyncSchemaConformanceDiagnosticKind;
@@ -104,7 +92,10 @@ type ChannelAccumulator = {
 type OperationAccumulator = {
   operation: KafkaOperationKey;
   operationKey: string;
-  expectedMessage?: string;
+  selectionMode?: "single" | "runtime";
+  singleMessageName?: string;
+  declaredMessages: string[];
+  selectedMessages: Set<string>;
   suites: Set<string>;
 };
 
@@ -123,12 +114,36 @@ export function computeAsyncCoverage(bundle: AsyncApiSemanticsBundle, events: As
   const matchedOperationKeys = new Set(schemaConformance.matchedOperationKeys);
   const channels = new Map<string, ChannelAccumulator>();
   const operationsByMatchKey = new Map<string, OperationAccumulator>();
+  const operationContractsByMatchKey = new Map<string, ReturnType<typeof buildOperationContractEntry>>();
+  const parserAmbiguitiesByMatchKey = new Map<string, Extract<AsyncRoutingCoverageDiagnostic, { kind: "ambiguous" }>>();
   const operationOrder: OperationAccumulator[] = [];
-  const messageByOperationKey = new Map<string, MessageAccumulator>();
+  const messageByKey = new Map<string, MessageAccumulator>();
+
+  for (const diagnostic of bundle.diagnostics) {
+    if (diagnostic.kind !== "ambiguous" || !diagnostic.async?.channel || !diagnostic.async?.action) {
+      continue;
+    }
+
+    const operationKey = serializeOperationKey({
+      kind: "kafka",
+      action: diagnostic.async.action,
+      channel: diagnostic.async.channel
+    });
+    parserAmbiguitiesByMatchKey.set(matchKey(diagnostic.async.action, diagnostic.async.channel), {
+      kind: "ambiguous",
+      operationKey,
+      channel: diagnostic.async.channel,
+      action: diagnostic.async.action,
+      reason: diagnostic.message,
+      candidates: [...(diagnostic.candidates ?? [])].sort((left, right) => left.localeCompare(right)),
+      message: "AsyncAPI message selection remained ambiguous, so the kafka operation was not normalized"
+    });
+  }
 
   for (const operation of operations) {
     const operationKey = serializeOperationKey(operation);
-    const contract = bundle.operationContractsByKey.get(operationKey);
+    const contract = bundle.operationContractsByKey.get(operationKey) ?? { operation };
+    const declaredMessages = getDeclaredMessages(contract);
 
     if (!channels.has(operation.channel)) {
       channels.set(operation.channel, {
@@ -142,19 +157,23 @@ export function computeAsyncCoverage(bundle: AsyncApiSemanticsBundle, events: As
     const accumulator: OperationAccumulator = {
       operation,
       operationKey,
-      expectedMessage: contract?.message?.name,
+      selectionMode: contract.messageSelection?.mode,
+      singleMessageName: contract.message?.name,
+      declaredMessages: declaredMessages.map((message) => message.identity),
+      selectedMessages: new Set<string>(),
       suites: new Set<string>()
     };
 
     operationsByMatchKey.set(matchKey(operation.action, operation.channel), accumulator);
+    operationContractsByMatchKey.set(matchKey(operation.action, operation.channel), buildOperationContractEntry(contract));
     operationOrder.push(accumulator);
 
-    if (contract?.message?.name) {
-      messageByOperationKey.set(operationKey, {
+    for (const message of declaredMessages) {
+      messageByKey.set(messageAccumulatorKey(operationKey, message.identity), {
         operationKey,
         channel: operation.channel,
         action: operation.action,
-        message: contract.message.name,
+        message: message.identity,
         covered: false,
         suites: new Set<string>()
       });
@@ -172,40 +191,46 @@ export function computeAsyncCoverage(bundle: AsyncApiSemanticsBundle, events: As
 
     const matchedOperation = operationsByMatchKey.get(matchKey(event.action, event.channel));
     if (!matchedOperation) {
-      appendRoutingDiagnostic(routingDiagnostics, seenRoutingDiagnostics, {
-        kind: "unmatched",
-        channel: event.channel,
-        action: event.action,
-        observedMessage: event.message,
-        message: "No canonical async operation matched the observed kafka evidence"
-      });
+      const parserAmbiguity = parserAmbiguitiesByMatchKey.get(matchKey(event.action, event.channel));
+      if (parserAmbiguity) {
+        appendRoutingDiagnostic(routingDiagnostics, seenRoutingDiagnostics, {
+          ...parserAmbiguity,
+          ...(event.message ? { observedMessage: event.message } : {})
+        });
+      } else {
+        appendRoutingDiagnostic(routingDiagnostics, seenRoutingDiagnostics, {
+          kind: "unmatched",
+          channel: event.channel,
+          action: event.action,
+          observedMessage: event.message,
+          message: "No canonical async operation matched the observed kafka evidence"
+        });
+      }
       continue;
     }
 
     matchedOperation.suites.add(event.testSuite);
     channels.get(event.channel)?.coveredActions.add(event.action);
 
-    if (!matchedOperation.expectedMessage) {
+    const contractEntry = operationContractsByMatchKey.get(matchKey(event.action, event.channel));
+    if (!contractEntry) {
       continue;
     }
 
-    const messageAccumulator = messageByOperationKey.get(matchedOperation.operationKey);
-    if (event.message === matchedOperation.expectedMessage) {
-      messageAccumulator?.suites.add(event.testSuite);
+    const resolution = resolveAsyncMessageContract(contractEntry.contract, matchedOperation.operationKey, event);
+    if (resolution.kind === "selected") {
+      matchedOperation.selectedMessages.add(resolution.identity);
+      const messageAccumulator = messageByKey.get(messageAccumulatorKey(matchedOperation.operationKey, resolution.identity));
       if (messageAccumulator) {
         messageAccumulator.covered = true;
+        messageAccumulator.suites.add(event.testSuite);
       }
       continue;
     }
 
-    appendRoutingDiagnostic(routingDiagnostics, seenRoutingDiagnostics, {
-      kind: "mismatched",
-      channel: event.channel,
-      action: event.action,
-      observedMessage: event.message,
-      expectedMessage: matchedOperation.expectedMessage,
-      message: "Observed async message contract did not match the canonical AsyncAPI message contract"
-    });
+    if (resolution.kind === "mismatched" || resolution.kind === "ambiguous") {
+      appendRoutingDiagnostic(routingDiagnostics, seenRoutingDiagnostics, resolution.diagnostic);
+    }
   }
 
   const channelItems = Array.from(channels.entries()).map(([channel, entry]) => ({
@@ -222,32 +247,25 @@ export function computeAsyncCoverage(bundle: AsyncApiSemanticsBundle, events: As
     operation: {
       state: matchedOperationKeys.has(entry.operationKey) ? "COVERED" : "UNCOVERED"
     },
-    messageContract: entry.expectedMessage
-      ? {
-          name: entry.expectedMessage,
-          state: messageByOperationKey.get(entry.operationKey)?.covered ? "COVERED" : "UNCOVERED"
-        }
-      : {
-          state: "N/A"
-        },
+    messageContract: buildOperationMessageCoverage(entry),
     suites: Array.from(entry.suites).sort((left, right) => left.localeCompare(right))
   }));
 
-  const messageItems = operationOrder.flatMap((entry) => {
-    const messageAccumulator = messageByOperationKey.get(entry.operationKey);
-    if (!messageAccumulator) return [];
-
-    return [
-      {
-        operationKey: messageAccumulator.operationKey,
-        channel: messageAccumulator.channel,
-        action: messageAccumulator.action,
-        message: messageAccumulator.message,
-        state: messageAccumulator.covered ? "COVERED" : "UNCOVERED",
-        suites: Array.from(messageAccumulator.suites).sort((left, right) => left.localeCompare(right))
+  const messageItems = Array.from(messageByKey.values())
+    .map((entry) => ({
+      operationKey: entry.operationKey,
+      channel: entry.channel,
+      action: entry.action,
+      message: entry.message,
+      state: entry.covered ? "COVERED" : "UNCOVERED",
+      suites: Array.from(entry.suites).sort((left, right) => left.localeCompare(right))
+    }))
+    .sort((left, right) => {
+      if (left.operationKey !== right.operationKey) {
+        return left.operationKey.localeCompare(right.operationKey);
       }
-    ];
-  });
+      return left.message.localeCompare(right.message);
+    });
 
   return {
     channels: {
@@ -341,7 +359,53 @@ export function compareAsyncCoverageDiagnostics(left: AsyncCoverageDiagnostic, r
     return leftReason.localeCompare(rightReason);
   }
 
+  const leftCandidates = "candidates" in left ? left.candidates.join("\u0000") : "";
+  const rightCandidates = "candidates" in right ? right.candidates.join("\u0000") : "";
+  if (leftCandidates !== rightCandidates) {
+    return leftCandidates.localeCompare(rightCandidates);
+  }
+
   return left.message.localeCompare(right.message);
+}
+
+function buildOperationContractEntry(contract: ReturnType<NonNullable<AsyncApiSemanticsBundle["operationContractsByKey"]>["get"]>) {
+  return {
+    contract: contract ?? { operation: { kind: "kafka", action: "send", channel: "" } as KafkaOperationKey }
+  };
+}
+
+function getDeclaredMessages(contract: ReturnType<NonNullable<AsyncApiSemanticsBundle["operationContractsByKey"]>["get"]>) {
+  const messages = contract?.message ? [contract.message] : contract?.messages ?? [];
+  return messages
+    .map((message) => ({
+      identity: formatKafkaMessageIdentity(message),
+      name: message.name
+    }))
+    .sort((left, right) => left.identity.localeCompare(right.identity));
+}
+
+function buildOperationMessageCoverage(entry: OperationAccumulator): AsyncOperationCoverage["messageContract"] {
+  if (entry.declaredMessages.length === 0) {
+    return {
+      state: "N/A"
+    };
+  }
+
+  const selectedMessages = Array.from(entry.selectedMessages).sort((left, right) => left.localeCompare(right));
+  const state =
+    selectedMessages.length === 0
+      ? "UNCOVERED"
+      : selectedMessages.length === entry.declaredMessages.length
+        ? "COVERED"
+        : "PARTIAL";
+
+  return {
+    ...(entry.singleMessageName ? { name: entry.singleMessageName } : {}),
+    ...(entry.selectionMode ? { selectionMode: entry.selectionMode } : {}),
+    ...(entry.declaredMessages.length > 1 ? { declaredMessages: [...entry.declaredMessages] } : {}),
+    ...(entry.selectionMode === "runtime" ? { selectedMessages } : {}),
+    state
+  };
 }
 
 function appendRoutingDiagnostic(
@@ -351,10 +415,13 @@ function appendRoutingDiagnostic(
 ): void {
   const key = [
     diagnostic.kind,
+    "operationKey" in diagnostic ? diagnostic.operationKey : "",
     diagnostic.channel,
     diagnostic.action,
     diagnostic.observedMessage ?? "",
-    diagnostic.expectedMessage ?? ""
+    "expectedMessage" in diagnostic ? diagnostic.expectedMessage ?? "" : "",
+    "reason" in diagnostic ? diagnostic.reason ?? "" : "",
+    "candidates" in diagnostic ? diagnostic.candidates.join("\u0000") : ""
   ].join("\u0000");
 
   if (seenDiagnostics.has(key)) {
@@ -387,12 +454,20 @@ function diagnosticKindRank(kind: AsyncCoverageDiagnosticKind): number {
       return 2;
     case "invalid-payload":
       return 3;
-    case "unverifiable-headers":
+    case "missing-header":
       return 4;
-    case "mismatched":
+    case "unavailable-header":
       return 5;
-    case "unmatched":
+    case "invalid-header":
       return 6;
+    case "unverifiable-headers":
+      return 7;
+    case "ambiguous":
+      return 8;
+    case "mismatched":
+      return 9;
+    case "unmatched":
+      return 10;
   }
 }
 
@@ -419,6 +494,10 @@ function asyncActionRank(value: AsyncAction): number {
 
 function matchKey(action: AsyncAction, channel: string): string {
   return `${action}\u0000${channel}`;
+}
+
+function messageAccumulatorKey(operationKey: string, identity: string): string {
+  return `${operationKey}\u0000${identity}`;
 }
 
 function summarizeCoverage(covered: number, total: number): AsyncCoverageSummary {

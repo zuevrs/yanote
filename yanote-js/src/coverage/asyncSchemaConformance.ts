@@ -1,6 +1,14 @@
 import Ajv, { type ErrorObject, type ValidateFunction } from "ajv";
-import type { AsyncEvent, JsonValue } from "../model/asyncEvent.js";
-import { serializeOperationKey, type AsyncAction, type KafkaMessageContract, type KafkaOperationContract } from "../model/operationKey.js";
+import type { AsyncEvent, AsyncHeaderEvidence, JsonValue } from "../model/asyncEvent.js";
+import {
+  formatKafkaMessageIdentity,
+  serializeOperationKey,
+  type AsyncAction,
+  type KafkaMessageContract,
+  type KafkaOperationContract,
+  type KafkaOperationKey,
+  type KafkaMessageSelectionRule
+} from "../model/operationKey.js";
 import type { AsyncApiSemanticsBundle } from "../spec/asyncapi.js";
 
 export type AsyncSchemaConformanceDiagnosticKind =
@@ -8,6 +16,9 @@ export type AsyncSchemaConformanceDiagnosticKind =
   | "invalid-payload"
   | "unsupported-content-type"
   | "unsupported-schema-format"
+  | "missing-header"
+  | "invalid-header"
+  | "unavailable-header"
   | "unverifiable-headers";
 
 export type AsyncSchemaValidationKind = "payload" | "headers" | "contentType" | "schemaFormat";
@@ -24,6 +35,54 @@ export type AsyncSchemaConformanceDiagnostic = {
   reason: string;
   message: string;
 };
+
+export type AsyncRoutingCoverageDiagnosticKind = "unmatched" | "mismatched" | "ambiguous";
+
+export type AsyncRoutingCoverageDiagnostic =
+  | {
+      kind: "unmatched";
+      message: string;
+      channel: string;
+      action: AsyncAction;
+      observedMessage?: string;
+    }
+  | {
+      kind: "mismatched";
+      message: string;
+      channel: string;
+      action: AsyncAction;
+      observedMessage?: string;
+      expectedMessage?: string;
+      reason?: string;
+    }
+  | {
+      kind: "ambiguous";
+      message: string;
+      operationKey: string;
+      channel: string;
+      action: AsyncAction;
+      observedMessage?: string;
+      reason: string;
+      candidates: string[];
+    };
+
+export type AsyncResolvedMessageContract =
+  | {
+      kind: "none";
+    }
+  | {
+      kind: "selected";
+      message: KafkaMessageContract;
+      identity: string;
+    }
+  | {
+      kind: "mismatched";
+      diagnostic: Extract<AsyncRoutingCoverageDiagnostic, { kind: "mismatched" }>;
+    }
+  | {
+      kind: "ambiguous";
+      diagnostic: Extract<AsyncRoutingCoverageDiagnostic, { kind: "ambiguous" }>;
+    };
 
 export type AsyncSchemaConformanceResult = {
   diagnostics: AsyncSchemaConformanceDiagnostic[];
@@ -50,6 +109,22 @@ type PayloadValidationPlan =
       schemaId?: string;
     };
 
+type HeaderValidationPlan =
+  | {
+      kind: "none";
+    }
+  | {
+      kind: "unsupported";
+      diagnostic: AsyncSchemaConformanceDiagnostic;
+    }
+  | {
+      kind: "validator";
+      validator: ValidateFunction;
+      schemaId?: string;
+      requiredHeaderKeys: string[];
+      declaredHeaderKeys: Set<string>;
+    };
+
 const ajv = new Ajv({
   allErrors: true,
   strict: true,
@@ -61,7 +136,8 @@ export function computeAsyncSchemaConformance(
   events: AsyncEvent[]
 ): AsyncSchemaConformanceResult {
   const contractsByMatchKey = new Map<string, MatchedKafkaContract>();
-  const validationPlans = new Map<string, PayloadValidationPlan>();
+  const payloadValidationPlans = new Map<string, PayloadValidationPlan>();
+  const headerValidationPlans = new Map<string, HeaderValidationPlan>();
 
   for (const operation of bundle.operations) {
     if (operation.kind !== "kafka") {
@@ -89,36 +165,28 @@ export function computeAsyncSchemaConformance(
 
     matchedOperationKeys.add(matched.operationKey);
 
-    const message = matched.contract.message;
-    if (!message) {
+    const resolution = resolveAsyncMessageContract(matched.contract, matched.operationKey, event);
+    if (resolution.kind !== "selected") {
       continue;
     }
 
-    if (message.name && event.message && event.message !== message.name) {
+    const message = resolution.message;
+
+    const headerPlan = getHeaderValidationPlan(matched, message, resolution.identity, headerValidationPlans);
+    if (headerPlan.kind === "unsupported") {
+      appendDiagnostic(diagnostics, seenDiagnostics, headerPlan.diagnostic);
+    } else if (headerPlan.kind === "validator") {
+      validatedOperationKeys.add(matched.operationKey);
+      validateHeaders(diagnostics, seenDiagnostics, matched, message, headerPlan, event);
+    }
+
+    const payloadPlan = getPayloadValidationPlan(matched, message, resolution.identity, payloadValidationPlans);
+    if (payloadPlan.kind === "none") {
       continue;
     }
 
-    if (message.headersSchemaId && message.headerValidationCapability === "unverifiable") {
-      appendDiagnostic(diagnostics, seenDiagnostics, {
-        kind: "unverifiable-headers",
-        validationKind: "headers",
-        operationKey: matched.operationKey,
-        channel: matched.contract.operation.channel,
-        action: matched.contract.operation.action,
-        messageName: message.name,
-        schemaId: message.headersSchemaId,
-        reason: "Kafka evidence does not currently retain headers, so the AsyncAPI header schema cannot be verified.",
-        message: "Retained AsyncAPI header schema cannot be verified from the observed kafka evidence"
-      });
-    }
-
-    const plan = getPayloadValidationPlan(matched, message, validationPlans);
-    if (plan.kind === "none") {
-      continue;
-    }
-
-    if (plan.kind === "unsupported") {
-      appendDiagnostic(diagnostics, seenDiagnostics, plan.diagnostic);
+    if (payloadPlan.kind === "unsupported") {
+      appendDiagnostic(diagnostics, seenDiagnostics, payloadPlan.diagnostic);
       continue;
     }
 
@@ -132,7 +200,7 @@ export function computeAsyncSchemaConformance(
         channel: matched.contract.operation.channel,
         action: matched.contract.operation.action,
         messageName: message.name,
-        schemaId: plan.schemaId,
+        schemaId: payloadPlan.schemaId,
         pointer: "/",
         reason: "Observed kafka evidence did not include a payload.",
         message: "Observed kafka evidence is missing the payload required for AsyncAPI schema validation"
@@ -140,12 +208,12 @@ export function computeAsyncSchemaConformance(
       continue;
     }
 
-    const valid = plan.validator(event.payload);
+    const valid = payloadPlan.validator(event.payload);
     if (valid) {
       continue;
     }
 
-    for (const error of sortAjvErrors(plan.validator.errors ?? [])) {
+    for (const error of sortAjvErrors(payloadPlan.validator.errors ?? [])) {
       appendDiagnostic(diagnostics, seenDiagnostics, {
         kind: "invalid-payload",
         validationKind: "payload",
@@ -153,7 +221,7 @@ export function computeAsyncSchemaConformance(
         channel: matched.contract.operation.channel,
         action: matched.contract.operation.action,
         messageName: message.name,
-        schemaId: plan.schemaId,
+        schemaId: payloadPlan.schemaId,
         pointer: toJsonPointer(error),
         reason: toAjvReason(error),
         message: "Observed kafka payload did not conform to the retained AsyncAPI payload schema"
@@ -168,18 +236,199 @@ export function computeAsyncSchemaConformance(
   };
 }
 
+export function resolveAsyncMessageContract(
+  contract: KafkaOperationContract,
+  operationKey: string,
+  event: AsyncEvent
+): AsyncResolvedMessageContract {
+  if (contract.message) {
+    if (event.message && event.message !== contract.message.name) {
+      return {
+        kind: "mismatched",
+        diagnostic: {
+          kind: "mismatched",
+          channel: contract.operation.channel,
+          action: contract.operation.action,
+          observedMessage: event.message,
+          expectedMessage: contract.message.name,
+          reason: "Observed async message name did not match the declared AsyncAPI message contract.",
+          message: "Observed async message contract did not match the canonical AsyncAPI message contract"
+        }
+      };
+    }
+
+    return {
+      kind: "selected",
+      message: contract.message,
+      identity: formatKafkaMessageIdentity(contract.message)
+    };
+  }
+
+  const declaredMessages = contract.messages ?? [];
+  if (declaredMessages.length === 0) {
+    return { kind: "none" };
+  }
+
+  const precedence = contract.messageSelection?.precedence ?? [{ kind: "message" }];
+  let candidates = declaredMessages;
+  const blockers: string[] = [];
+
+  for (const rule of precedence) {
+    if (candidates.length <= 1) {
+      break;
+    }
+
+    const resolution = applySelectionRule(candidates, rule, event);
+    if (resolution.kind === "skip") {
+      blockers.push(resolution.reason);
+      continue;
+    }
+
+    if (resolution.kind === "mismatched") {
+      return {
+        kind: "mismatched",
+        diagnostic: {
+          kind: "mismatched",
+          channel: contract.operation.channel,
+          action: contract.operation.action,
+          observedMessage: event.message,
+          reason: resolution.reason,
+          message: resolution.message,
+          ...(resolution.expectedMessage ? { expectedMessage: resolution.expectedMessage } : {})
+        }
+      };
+    }
+
+    candidates = resolution.candidates;
+  }
+
+  if (candidates.length === 1) {
+    return {
+      kind: "selected",
+      message: candidates[0],
+      identity: formatKafkaMessageIdentity(candidates[0])
+    };
+  }
+
+  const candidateIdentities = candidates
+    .map((message) => formatKafkaMessageIdentity(message))
+    .sort((left, right) => left.localeCompare(right));
+  const fallbackReason =
+    blockers.length > 0
+      ? `Runtime evidence was insufficient to choose safely: ${blockers.join("; ")}.`
+      : "Runtime evidence did not retain enough discriminating message metadata to choose one declared contract safely.";
+
+  return {
+    kind: "ambiguous",
+    diagnostic: {
+      kind: "ambiguous",
+      operationKey,
+      channel: contract.operation.channel,
+      action: contract.operation.action,
+      observedMessage: event.message,
+      reason: fallbackReason,
+      candidates: candidateIdentities,
+      message: "Observed async evidence did not identify one declared AsyncAPI message contract safely"
+    }
+  };
+}
+
+function applySelectionRule(
+  candidates: KafkaMessageContract[],
+  rule: KafkaMessageSelectionRule,
+  event: AsyncEvent
+):
+  | { kind: "skip"; reason: string }
+  | { kind: "mismatched"; reason: string; message: string; expectedMessage?: string }
+  | { kind: "filtered"; candidates: KafkaMessageContract[] } {
+  if (rule.kind === "message") {
+    if (!event.message) {
+      return {
+        kind: "skip",
+        reason: "message name was not retained"
+      };
+    }
+
+    const filtered = candidates.filter((candidate) => hasMessageHint(candidate, event.message ?? ""));
+    if (filtered.length === 0) {
+      const expected = uniqueMessageNames(candidates);
+      return {
+        kind: "mismatched",
+        expectedMessage: expected.length === 1 ? expected[0] : undefined,
+        reason: `Observed async message '${event.message}' did not match any declared AsyncAPI message selector.`,
+        message: "Observed async message selection did not match any declared AsyncAPI message contract"
+      };
+    }
+
+    return {
+      kind: "filtered",
+      candidates: filtered
+    };
+  }
+
+  const headerEvidence = event.headers?.[rule.header];
+  if (!headerEvidence) {
+    return {
+      kind: "skip",
+      reason: `retained header '${rule.header}' was missing`
+    };
+  }
+
+  if (headerEvidence.state !== "captured" || !headerEvidence.value) {
+    const reasonSuffix = headerEvidence.reason ? ` (${headerEvidence.state}: ${headerEvidence.reason})` : ` (${headerEvidence.state})`;
+    return {
+      kind: "skip",
+      reason: `retained header '${rule.header}' was unavailable${reasonSuffix}`
+    };
+  }
+
+  const filtered = candidates.filter((candidate) => hasHeaderHint(candidate, rule.header, headerEvidence.value ?? ""));
+  if (filtered.length === 0) {
+    return {
+      kind: "mismatched",
+      reason: `Observed async header '${rule.header}' did not match any declared AsyncAPI message selector.`,
+      message: "Observed async header selection did not match any declared AsyncAPI message contract"
+    };
+  }
+
+  return {
+    kind: "filtered",
+    candidates: filtered
+  };
+}
+
+function hasMessageHint(message: KafkaMessageContract, expected: string): boolean {
+  return (
+    message.selectionHints?.some((hint) => hint.kind === "message" && hint.value === expected) ?? false
+  );
+}
+
+function hasHeaderHint(message: KafkaMessageContract, header: string, expected: string): boolean {
+  return (
+    message.selectionHints?.some(
+      (hint) => hint.kind === "header" && hint.header === header && hint.value === expected
+    ) ?? false
+  );
+}
+
+function uniqueMessageNames(messages: KafkaMessageContract[]): string[] {
+  return [...new Set(messages.map((message) => message.name))].sort((left, right) => left.localeCompare(right));
+}
+
 function getPayloadValidationPlan(
   matched: MatchedKafkaContract,
   message: KafkaMessageContract,
+  messageIdentity: string,
   cache: Map<string, PayloadValidationPlan>
 ): PayloadValidationPlan {
-  const existing = cache.get(matched.operationKey);
+  const cacheKey = validationCacheKey(matched.operationKey, messageIdentity, "payload");
+  const existing = cache.get(cacheKey);
   if (existing) {
     return existing;
   }
 
   const plan = buildPayloadValidationPlan(matched, message);
-  cache.set(matched.operationKey, plan);
+  cache.set(cacheKey, plan);
   return plan;
 }
 
@@ -247,6 +496,237 @@ function buildPayloadValidationPlan(matched: MatchedKafkaContract, message: Kafk
   }
 }
 
+function getHeaderValidationPlan(
+  matched: MatchedKafkaContract,
+  message: KafkaMessageContract,
+  messageIdentity: string,
+  cache: Map<string, HeaderValidationPlan>
+): HeaderValidationPlan {
+  const cacheKey = validationCacheKey(matched.operationKey, messageIdentity, "headers");
+  const existing = cache.get(cacheKey);
+  if (existing) {
+    return existing;
+  }
+
+  const plan = buildHeaderValidationPlan(matched, message);
+  cache.set(cacheKey, plan);
+  return plan;
+}
+
+function buildHeaderValidationPlan(matched: MatchedKafkaContract, message: KafkaMessageContract): HeaderValidationPlan {
+  if (!message.headersSchemaId && message.headersSchema === undefined) {
+    return { kind: "none" };
+  }
+
+  if (message.headerValidationCapability === "unverifiable" || message.headersSchema === undefined) {
+    return {
+      kind: "unsupported",
+      diagnostic: buildUnsupportedHeaderDiagnostic(
+        matched,
+        message,
+        "Retained AsyncAPI header schema could not be normalized into a validation-ready JSON Schema."
+      )
+    };
+  }
+
+  try {
+    const schema = toAjvSchema(message.headersSchema);
+    const metadata = extractHeaderSchemaMetadata(message.headersSchema);
+
+    return {
+      kind: "validator",
+      validator: ajv.compile(schema),
+      schemaId: message.headersSchemaId,
+      requiredHeaderKeys: metadata.requiredHeaderKeys,
+      declaredHeaderKeys: metadata.declaredHeaderKeys
+    };
+  } catch (error) {
+    const errorMessage = error instanceof Error ? error.message : String(error);
+    return {
+      kind: "unsupported",
+      diagnostic: buildUnsupportedHeaderDiagnostic(
+        matched,
+        message,
+        `AsyncAPI header schema could not be compiled for validation: ${errorMessage}.`
+      )
+    };
+  }
+}
+
+function validateHeaders(
+  diagnostics: AsyncSchemaConformanceDiagnostic[],
+  seenDiagnostics: Set<string>,
+  matched: MatchedKafkaContract,
+  message: KafkaMessageContract,
+  plan: Extract<HeaderValidationPlan, { kind: "validator" }>,
+  event: AsyncEvent
+): void {
+  const capturedHeaders = collectCapturedHeaders(event.headers);
+  const unavailableHeaders = collectUnavailableHeaders(event.headers);
+
+  for (const headerKey of [...plan.declaredHeaderKeys].sort((left, right) => left.localeCompare(right))) {
+    const unavailableEvidence = unavailableHeaders.get(headerKey);
+    if (!unavailableEvidence) {
+      continue;
+    }
+
+    appendDiagnostic(
+      diagnostics,
+      seenDiagnostics,
+      buildUnavailableHeaderDiagnostic(matched, message, plan.schemaId, headerKey, unavailableEvidence)
+    );
+  }
+
+  for (const headerKey of [...plan.requiredHeaderKeys].sort((left, right) => left.localeCompare(right))) {
+    if (Object.hasOwn(capturedHeaders, headerKey) || unavailableHeaders.has(headerKey)) {
+      continue;
+    }
+
+    appendDiagnostic(diagnostics, seenDiagnostics, {
+      kind: "missing-header",
+      validationKind: "headers",
+      operationKey: matched.operationKey,
+      channel: matched.contract.operation.channel,
+      action: matched.contract.operation.action,
+      messageName: message.name,
+      schemaId: plan.schemaId,
+      pointer: toHeaderPointer(headerKey),
+      reason: `Observed kafka evidence did not include required header '${headerKey}'.`,
+      message: "Observed kafka evidence is missing a required header for AsyncAPI header validation"
+    });
+  }
+
+  const valid = plan.validator(capturedHeaders);
+  if (valid) {
+    return;
+  }
+
+  for (const error of sortAjvErrors(plan.validator.errors ?? [])) {
+    if (shouldSkipHeaderAjvError(error, unavailableHeaders)) {
+      continue;
+    }
+
+    appendDiagnostic(diagnostics, seenDiagnostics, {
+      kind: "invalid-header",
+      validationKind: "headers",
+      operationKey: matched.operationKey,
+      channel: matched.contract.operation.channel,
+      action: matched.contract.operation.action,
+      messageName: message.name,
+      schemaId: plan.schemaId,
+      pointer: toJsonPointer(error),
+      reason: toAjvReason(error),
+      message: "Observed kafka headers did not conform to the retained AsyncAPI header schema"
+    });
+  }
+}
+
+function buildUnsupportedHeaderDiagnostic(
+  matched: MatchedKafkaContract,
+  message: KafkaMessageContract,
+  reason: string
+): AsyncSchemaConformanceDiagnostic {
+  return {
+    kind: "unverifiable-headers",
+    validationKind: "headers",
+    operationKey: matched.operationKey,
+    channel: matched.contract.operation.channel,
+    action: matched.contract.operation.action,
+    messageName: message.name,
+    schemaId: message.headersSchemaId,
+    reason,
+    message: "Retained AsyncAPI header schema is outside the current kafka header-validation scope"
+  };
+}
+
+function buildUnavailableHeaderDiagnostic(
+  matched: MatchedKafkaContract,
+  message: KafkaMessageContract,
+  schemaId: string | undefined,
+  headerKey: string,
+  evidence: AsyncHeaderEvidence
+): AsyncSchemaConformanceDiagnostic {
+  const reasonSuffix = evidence.reason ? ` (reason: ${evidence.reason})` : "";
+  return {
+    kind: "unavailable-header",
+    validationKind: "headers",
+    operationKey: matched.operationKey,
+    channel: matched.contract.operation.channel,
+    action: matched.contract.operation.action,
+    messageName: message.name,
+    schemaId,
+    pointer: toHeaderPointer(headerKey),
+    reason: `Observed kafka header '${headerKey}' was retained as ${evidence.state} evidence${reasonSuffix}, so its value could not be validated.`,
+    message: "Observed kafka header value was unavailable for AsyncAPI header validation"
+  };
+}
+
+function collectCapturedHeaders(headers: AsyncEvent["headers"]): Record<string, string> {
+  const captured: Record<string, string> = {};
+
+  for (const [key, evidence] of Object.entries(headers ?? {})) {
+    if (evidence.state !== "captured" || !evidence.value) {
+      continue;
+    }
+    captured[key] = evidence.value;
+  }
+
+  return captured;
+}
+
+function collectUnavailableHeaders(headers: AsyncEvent["headers"]): Map<string, AsyncHeaderEvidence> {
+  const unavailable = new Map<string, AsyncHeaderEvidence>();
+
+  for (const [key, evidence] of Object.entries(headers ?? {})) {
+    if (evidence.state === "captured") {
+      continue;
+    }
+    unavailable.set(key, evidence);
+  }
+
+  return unavailable;
+}
+
+function extractHeaderSchemaMetadata(value: JsonValue): {
+  requiredHeaderKeys: string[];
+  declaredHeaderKeys: Set<string>;
+} {
+  const sanitized = stripParserKeywords(value);
+  if (!isRecord(sanitized)) {
+    return {
+      requiredHeaderKeys: [],
+      declaredHeaderKeys: new Set<string>()
+    };
+  }
+
+  const requiredHeaderKeys = Array.isArray(sanitized.required)
+    ? sanitized.required.filter((item): item is string => typeof item === "string" && item.length > 0)
+    : [];
+
+  const declaredHeaderKeys = new Set<string>(requiredHeaderKeys);
+  if (isRecord(sanitized.properties)) {
+    for (const key of Object.keys(sanitized.properties)) {
+      if (key.trim().length === 0) {
+        continue;
+      }
+      declaredHeaderKeys.add(key);
+    }
+  }
+
+  return {
+    requiredHeaderKeys: [...new Set(requiredHeaderKeys)].sort((left, right) => left.localeCompare(right)),
+    declaredHeaderKeys
+  };
+}
+
+function shouldSkipHeaderAjvError(error: ErrorObject, _unavailableHeaders: Map<string, AsyncHeaderEvidence>): boolean {
+  if (error.keyword !== "required" || typeof error.params?.missingProperty !== "string") {
+    return false;
+  }
+
+  return true;
+}
+
 function appendDiagnostic(
   diagnostics: AsyncSchemaConformanceDiagnostic[],
   seenDiagnostics: Set<string>,
@@ -280,7 +760,7 @@ function toAjvSchema(value: JsonValue): object | boolean {
   }
 
   if (!isRecord(sanitized)) {
-    throw new Error("AsyncAPI payload schema must normalize to an object or boolean JSON Schema.");
+    throw new Error("AsyncAPI schema must normalize to an object or boolean JSON Schema.");
   }
 
   return sanitized;
@@ -387,8 +867,14 @@ function diagnosticKindRank(kind: AsyncSchemaConformanceDiagnosticKind): number 
       return 2;
     case "invalid-payload":
       return 3;
-    case "unverifiable-headers":
+    case "missing-header":
       return 4;
+    case "unavailable-header":
+      return 5;
+    case "invalid-header":
+      return 6;
+    case "unverifiable-headers":
+      return 7;
   }
 }
 
@@ -411,11 +897,20 @@ function toJsonPointer(error: ErrorObject): string {
     pointer = appendJsonPointer(pointer, error.params.missingProperty);
   }
 
+  if (error.keyword === "additionalProperties" && typeof error.params?.additionalProperty === "string") {
+    pointer = appendJsonPointer(pointer, error.params.additionalProperty);
+  }
+
   return pointer;
 }
 
 function toAjvReason(error: ErrorObject): string {
-  return `${error.keyword}: ${error.message ?? "validation error"}`;
+  const message = (error.message ?? "validation error").replace(/"([^"]+)"/g, "'$1'");
+  return `${error.keyword}: ${message}`;
+}
+
+function toHeaderPointer(headerKey: string): string {
+  return appendJsonPointer("/", headerKey);
 }
 
 function appendJsonPointer(base: string, segment: string): string {
@@ -425,6 +920,10 @@ function appendJsonPointer(base: string, segment: string): string {
   }
 
   return `${base}/${escaped}`;
+}
+
+function validationCacheKey(operationKey: string, messageIdentity: string, kind: "payload" | "headers"): string {
+  return `${operationKey}\u0000${messageIdentity}\u0000${kind}`;
 }
 
 function matchKey(action: AsyncAction, channel: string): string {

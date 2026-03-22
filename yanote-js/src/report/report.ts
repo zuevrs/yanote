@@ -4,6 +4,7 @@ import type {
   HttpPayloadConformanceResult,
   HttpPayloadConformanceState
 } from "../coverage/httpPayloadConformance.js";
+import type { PayloadCaptureReason, PayloadCaptureState } from "../model/payloadCapture.js";
 import type { CoverageDimensionState, DeclaredStatusToken } from "../coverage/dimensions.js";
 import type { CoverageResult } from "../coverage/coverage.js";
 import type { AppliedExclusionRule, UnmatchedExclusionRuleWarning } from "../gates/exclusions.js";
@@ -141,6 +142,8 @@ export type YanoteReport = {
         observedStatus?: number;
         observedMediaType?: string;
         declaredMediaTypes: string[];
+        captureState?: PayloadCaptureState;
+        captureReason?: PayloadCaptureReason;
         errors?: string[];
       }>;
     };

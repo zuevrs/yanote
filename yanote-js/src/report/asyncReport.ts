@@ -59,7 +59,10 @@ export type AsyncYanoteReport = {
         };
         messageContract: {
           name?: string;
-          state: "COVERED" | "UNCOVERED" | "N/A";
+          state: "COVERED" | "PARTIAL" | "UNCOVERED" | "N/A";
+          selectionMode?: "single" | "runtime";
+          declaredMessages?: string[];
+          selectedMessages?: string[];
         };
         suites: string[];
       }>;
@@ -121,14 +124,17 @@ export function buildAsyncReport(
           operation: {
             state: entry.operation.state
           },
-          messageContract: entry.messageContract.name
-            ? {
-                name: entry.messageContract.name,
-                state: entry.messageContract.state
-              }
-            : {
-                state: entry.messageContract.state
-              },
+          messageContract: {
+            ...(entry.messageContract.name ? { name: entry.messageContract.name } : {}),
+            ...(entry.messageContract.selectionMode ? { selectionMode: entry.messageContract.selectionMode } : {}),
+            ...(entry.messageContract.declaredMessages
+              ? { declaredMessages: [...entry.messageContract.declaredMessages] }
+              : {}),
+            ...(entry.messageContract.selectedMessages
+              ? { selectedMessages: [...entry.messageContract.selectedMessages] }
+              : {}),
+            state: entry.messageContract.state
+          },
           suites: [...entry.suites]
         }))
       },
@@ -230,7 +236,11 @@ function createEmptyAsyncDiagnosticCounts(): AsyncDiagnosticCounts {
     "unsupported-schema-format": 0,
     "missing-payload": 0,
     "invalid-payload": 0,
+    "missing-header": 0,
+    "unavailable-header": 0,
+    "invalid-header": 0,
     "unverifiable-headers": 0,
+    ambiguous: 0,
     mismatched: 0,
     unmatched: 0
   };

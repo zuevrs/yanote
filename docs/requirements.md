@@ -60,9 +60,9 @@ Requirements for the current public product surface. Each maps to shipped or act
 - **retained Kafka headers remain unverifiable**
 - **broker-agnostic promise нет**
 
-Поддерживаемая evidence/support surface для этой первой волны тоже зафиксирована явно: `raw или merged async JSONL`, `yanote-async-report.json`, analyzer/proof `stderr` и retained `schema-failure-async-report.stderr` / `schema-failure-yanote-async-report.json` для proven Kafka payload drift.
+Поддерживаемая evidence/support surface для этой первой волны тоже зафиксирована явно: `raw или merged async JSONL`, `yanote-async-report.json`, retained `runtime-selected-async-report.stderr` / `runtime-selected-yanote-async-report.json` для proven Kafka multi-message selection truth, analyzer/proof `stderr` и retained `schema-failure-async-report.stderr` / `schema-failure-yanote-async-report.json` для proven Kafka payload drift.
 
-Практически это означает поддержанный путь через `async-report` и `yanote-async-report.json` для AsyncAPI/Kafka coverage, при этом HTTP `report` / `yanote-report.json` остаются отдельной поверхностью и не маскируются под один обязательный combined report. Happy-path coverage проценты остаются routing-first, а payload drift публично считается доказанным только для того Kafka evidence path, который экспортирует `bash scripts/ci/verify-m004-s03-live-kafka-proof.sh`.
+Практически это означает поддержанный путь через `async-report` и `yanote-async-report.json` для AsyncAPI/Kafka coverage, при этом HTTP `report` / `yanote-report.json` остаются отдельной поверхностью и не маскируются под один обязательный combined report. Happy-path coverage проценты остаются routing-first, retained runtime-selected sidecar публично доказывает multi-message selection только через redacted selectors, а payload drift считается доказанным только для того Kafka evidence path, который экспортирует `bash scripts/ci/verify-m004-s03-live-kafka-proof.sh`.
 
 ## v2 Requirements
 

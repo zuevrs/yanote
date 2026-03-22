@@ -669,4 +669,130 @@ describe("computeHttpPayloadConformance", () => {
       expect.stringContaining("Invalid regular expression")
     ]);
   });
+
+  it("matches wildcard +json media types after normalizing observed content-type parameters", () => {
+    const operations = [{ kind: "http", method: "PATCH", route: "/widgets/{id}" }] as const;
+    const operationKey = serializeOperationKey({ kind: "http", method: "PATCH", route: "/widgets/{param}" });
+    const contracts = new Map<string, HttpOperationContract>([
+      [
+        operationKey,
+        {
+          declaredStatuses: ["202"],
+          parameters: [{ name: "id", in: "path", required: true }],
+          requestBody: {
+            required: true,
+            content: [{ mediaType: "application/*+json", schema: { type: "object", required: ["name"], properties: { name: { type: "string" } } } }]
+          },
+          responseBodies: [
+            {
+              declaredStatus: "202",
+              content: [{ mediaType: "application/*+json", schema: { type: "object", required: ["ok"], properties: { ok: { type: "boolean" } } } }]
+            }
+          ]
+        }
+      ]
+    ]);
+
+    const result = computeHttpPayloadConformance(
+      [...operations],
+      [
+        {
+          kind: "http",
+          method: "PATCH",
+          route: "/widgets/123",
+          status: 202,
+          requestBody: { name: "widget" },
+          requestContentType: "application/merge-patch+json; charset=utf-8",
+          responseBody: { ok: true },
+          responseContentType: "application/problem+json; charset=utf-8",
+          queryKeys: [],
+          headerKeys: ["content-type"],
+          pathParams: { id: "123" },
+          testRunId: "run-wildcard",
+          testSuite: "suite-wildcard"
+        }
+      ],
+      { operationContractsByKey: contracts }
+    );
+
+    expect(result.perOperation[0]).toMatchObject({
+      request: {
+        state: "COVERED",
+        observedMediaTypes: ["application/merge-patch+json"]
+      },
+      response: {
+        state: "COVERED",
+        observedMediaTypes: ["application/problem+json"]
+      },
+      suites: ["suite-wildcard"]
+    });
+    expect(result.diagnostics.map((diagnostic) => diagnostic.code)).toEqual(["VALID", "VALID"]);
+  });
+
+  it("surfaces recorder omission distinctly from missing-body drift", () => {
+    const operations = [{ kind: "http", method: "POST", route: "/filtered" }] as const;
+    const operationKey = serializeOperationKey(operations[0]);
+    const contracts = new Map<string, HttpOperationContract>([
+      [
+        operationKey,
+        {
+          declaredStatuses: ["202"],
+          parameters: [],
+          requestBody: {
+            required: true,
+            content: [{ mediaType: "application/json", schema: { type: "object", required: ["name"], properties: { name: { type: "string" } } } }]
+          },
+          responseBodies: [{ declaredStatus: "202", content: [] }]
+        }
+      ]
+    ]);
+
+    const result = computeHttpPayloadConformance(
+      [...operations],
+      [
+        {
+          kind: "http",
+          method: "POST",
+          route: "/filtered",
+          status: 202,
+          requestContentType: "application/json",
+          requestBodyState: "omitted",
+          requestBodyReason: "policy-filtered",
+          queryKeys: [],
+          headerKeys: ["content-type"],
+          testRunId: "run-filtered",
+          testSuite: "suite-filtered"
+        }
+      ],
+      { operationContractsByKey: contracts }
+    );
+
+    expect(result.perOperation[0]).toMatchObject({
+      request: {
+        state: "SKIPPED",
+        observedCount: 1,
+        validCount: 0,
+        invalidCount: 0,
+        skippedCount: 1
+      },
+      response: {
+        state: "N/A"
+      },
+      suites: ["suite-filtered"]
+    });
+    expect(result.diagnostics).toEqual([
+      expect.objectContaining({
+        operationKey,
+        target: "request",
+        state: "SKIPPED",
+        code: "RECORDER_OMITTED",
+        message: "Recorder omitted request payload evidence (policy-filtered).",
+        captureState: "omitted",
+        captureReason: "policy-filtered",
+        observedMediaType: "application/json",
+        declaredMediaTypes: ["application/json"]
+      })
+    ]);
+    expect(result.diagnostics.map((diagnostic) => diagnostic.code)).not.toContain("MISSING_BODY");
+  });
 });

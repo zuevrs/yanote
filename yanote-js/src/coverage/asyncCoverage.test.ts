@@ -1,4 +1,5 @@
 import { describe, expect, it } from "vitest";
+import type { AsyncEvent } from "../model/asyncEvent.js";
 import { readAsyncEventsJsonl } from "../events/readAsyncEventsJsonl.js";
 import { loadAsyncApiSemanticsBundle } from "../spec/asyncapi.js";
 import { computeAsyncCoverage } from "./asyncCoverage.js";
@@ -38,6 +39,7 @@ describe("computeAsyncCoverage contract", () => {
             state: "COVERED",
             messageContract: {
               name: "UserSignedUp",
+              selectionMode: "single",
               state: "COVERED"
             },
             suites: ["suite-a", "suite-b"]
@@ -49,6 +51,7 @@ describe("computeAsyncCoverage contract", () => {
             state: "UNCOVERED",
             messageContract: {
               name: "UserDeleted",
+              selectionMode: "single",
               state: "UNCOVERED"
             },
             suites: []
@@ -59,20 +62,20 @@ describe("computeAsyncCoverage contract", () => {
         summary: { total: 2, covered: 1, percent: 50 },
         items: [
           {
-            operationKey: "kafka send users.signedup",
-            channel: "users.signedup",
-            action: "send",
-            message: "UserSignedUp",
-            state: "COVERED",
-            suites: ["suite-a", "suite-b"]
-          },
-          {
             operationKey: "kafka receive users.deleted",
             channel: "users.deleted",
             action: "receive",
-            message: "UserDeleted",
+            message: "UserDeleted [payload: <anonymous-schema-2>]",
             state: "UNCOVERED",
             suites: []
+          },
+          {
+            operationKey: "kafka send users.signedup",
+            channel: "users.signedup",
+            action: "send",
+            message: "UserSignedUp [payload: <anonymous-schema-1>]",
+            state: "COVERED",
+            suites: ["suite-a", "suite-b"]
           }
         ]
       },
@@ -114,6 +117,7 @@ describe("computeAsyncCoverage contract", () => {
             state: "COVERED",
             messageContract: {
               name: "UserSignedUp",
+              selectionMode: "single",
               state: "COVERED"
             },
             suites: ["suite-a"]
@@ -125,6 +129,7 @@ describe("computeAsyncCoverage contract", () => {
             state: "COVERED",
             messageContract: {
               name: "UserDeleted",
+              selectionMode: "single",
               state: "UNCOVERED"
             },
             suites: ["suite-a"]
@@ -135,20 +140,20 @@ describe("computeAsyncCoverage contract", () => {
         summary: { total: 2, covered: 1, percent: 50 },
         items: [
           {
-            operationKey: "kafka send users.signedup",
-            channel: "users.signedup",
-            action: "send",
-            message: "UserSignedUp",
-            state: "COVERED",
-            suites: ["suite-a"]
-          },
-          {
             operationKey: "kafka receive users.deleted",
             channel: "users.deleted",
             action: "receive",
-            message: "UserDeleted",
+            message: "UserDeleted [payload: <anonymous-schema-2>]",
             state: "UNCOVERED",
             suites: []
+          },
+          {
+            operationKey: "kafka send users.signedup",
+            channel: "users.signedup",
+            action: "send",
+            message: "UserSignedUp [payload: <anonymous-schema-1>]",
+            state: "COVERED",
+            suites: ["suite-a"]
           }
         ]
       },
@@ -159,6 +164,7 @@ describe("computeAsyncCoverage contract", () => {
           action: "receive",
           observedMessage: "LegacyUserDeleted",
           expectedMessage: "UserDeleted",
+          reason: "Observed async message name did not match the declared AsyncAPI message contract.",
           message: "Observed async message contract did not match the canonical AsyncAPI message contract"
         },
         {
@@ -203,6 +209,7 @@ describe("computeAsyncCoverage contract", () => {
             state: "COVERED",
             messageContract: {
               name: "OrderCreatedEnvelope",
+              selectionMode: "single",
               state: "COVERED"
             },
             suites: ["suite-schema-invalid", "suite-schema-missing"]
@@ -216,7 +223,7 @@ describe("computeAsyncCoverage contract", () => {
             operationKey: "kafka send orders.created",
             channel: "orders.created",
             action: "send",
-            message: "OrderCreatedEnvelope",
+            message: "OrderCreatedEnvelope [payload: OrderCreatedPayload; headers: OrderEventHeaders]",
             state: "COVERED",
             suites: ["suite-schema-invalid", "suite-schema-missing"]
           }
@@ -246,20 +253,96 @@ describe("computeAsyncCoverage contract", () => {
           pointer: "/order/total",
           reason: "required: must have required property 'total'",
           message: "Observed kafka payload did not conform to the retained AsyncAPI payload schema"
-        },
-        {
-          kind: "unverifiable-headers",
-          validationKind: "headers",
-          operationKey: "kafka send orders.created",
-          channel: "orders.created",
-          action: "send",
-          messageName: "OrderCreatedEnvelope",
-          schemaId: "OrderEventHeaders",
-          reason: "Kafka evidence does not currently retain headers, so the AsyncAPI header schema cannot be verified.",
-          message: "Retained AsyncAPI header schema cannot be verified from the observed kafka evidence"
         }
       ]
     });
+  });
+
+  it("resolves runtime-selected multi-message contracts and fails closed when evidence stays ambiguous", async () => {
+    const bundle = await loadAsyncApiSemanticsBundle("test/fixtures/asyncapi/multi-message-resolvable.yaml");
+    const selectedEvent: AsyncEvent = {
+      kind: "kafka",
+      action: "send",
+      channel: "users.lifecycle",
+      message: "UserLifecycleEvent",
+      payload: {
+        userId: "user-1",
+        deletedAt: "2026-03-22T00:00:00.000Z"
+      },
+      headers: {
+        "yanote.event.kind": { state: "captured", value: "deleted" },
+        traceId: { state: "captured", value: "trace-1" }
+      },
+      testRunId: "run-1",
+      testSuite: "suite-runtime-selected"
+    };
+    const ambiguousEvent: AsyncEvent = {
+      kind: "kafka",
+      action: "send",
+      channel: "users.lifecycle",
+      message: "UserLifecycleEvent",
+      payload: {
+        userId: "user-2"
+      },
+      testRunId: "run-2",
+      testSuite: "suite-runtime-ambiguous"
+    };
+
+    const selectedCoverage = computeAsyncCoverage(bundle, [selectedEvent]);
+    expect(selectedCoverage.operations.items).toHaveLength(1);
+    expect(selectedCoverage.operations.items[0]).toMatchObject({
+      operationKey: "kafka send users.lifecycle",
+      operation: { state: "COVERED" },
+      messageContract: {
+        selectionMode: "runtime",
+        state: "PARTIAL",
+        declaredMessages: expect.arrayContaining([
+          expect.stringContaining("selectors: yanote.event.kind=deleted"),
+          expect.stringContaining("selectors: yanote.event.kind=signed-up")
+        ]),
+        selectedMessages: [expect.stringContaining("selectors: yanote.event.kind=deleted")]
+      }
+    });
+    expect(selectedCoverage.messages.items).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          operationKey: "kafka send users.lifecycle",
+          state: "COVERED",
+          message: expect.stringContaining("selectors: yanote.event.kind=deleted")
+        }),
+        expect.objectContaining({
+          operationKey: "kafka send users.lifecycle",
+          state: "UNCOVERED",
+          message: expect.stringContaining("selectors: yanote.event.kind=signed-up")
+        })
+      ])
+    );
+    expect(selectedCoverage.diagnostics).toEqual([]);
+
+    const ambiguousCoverage = computeAsyncCoverage(bundle, [ambiguousEvent]);
+    expect(ambiguousCoverage.operations.items[0]).toMatchObject({
+      operationKey: "kafka send users.lifecycle",
+      operation: { state: "COVERED" },
+      messageContract: {
+        selectionMode: "runtime",
+        state: "UNCOVERED",
+        selectedMessages: []
+      }
+    });
+    expect(ambiguousCoverage.messages.items.every((entry) => entry.state === "UNCOVERED")).toBe(true);
+    expect(ambiguousCoverage.diagnostics).toEqual([
+      expect.objectContaining({
+        kind: "ambiguous",
+        operationKey: "kafka send users.lifecycle",
+        channel: "users.lifecycle",
+        action: "send",
+        observedMessage: "UserLifecycleEvent",
+        candidates: expect.arrayContaining([
+          expect.stringContaining("selectors: yanote.event.kind=deleted"),
+          expect.stringContaining("selectors: yanote.event.kind=signed-up")
+        ])
+      })
+    ]);
   });
 });
 

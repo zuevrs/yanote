@@ -196,6 +196,42 @@ function toSemanticFailure(diagnostic: AsyncCoverageDiagnostic): GovernanceFailu
         severity: "error",
         operationKey: diagnostic.operationKey
       };
+    case "missing-header":
+      return {
+        failureClass: "semantic",
+        code: "ASYNC_SEMANTIC_MISSING_HEADER",
+        reason: `${formatAsyncOperation(diagnostic.operationKey)} is missing required header from schema ${formatSchemaId(
+          diagnostic.schemaId
+        )}${formatPointer(diagnostic.pointer)}: ${diagnostic.reason}`,
+        hint: "Retain the required Kafka header in async evidence or stop declaring it required intentionally.",
+        exitCode: 5,
+        severity: "error",
+        operationKey: diagnostic.operationKey
+      };
+    case "unavailable-header":
+      return {
+        failureClass: "semantic",
+        code: "ASYNC_SEMANTIC_UNAVAILABLE_HEADER",
+        reason: `${formatAsyncOperation(diagnostic.operationKey)} could not validate header from schema ${formatSchemaId(
+          diagnostic.schemaId
+        )}${formatPointer(diagnostic.pointer)}: ${diagnostic.reason}`,
+        hint: "Adjust Kafka header redaction/retention policy or stop depending on unavailable header values intentionally.",
+        exitCode: 5,
+        severity: "error",
+        operationKey: diagnostic.operationKey
+      };
+    case "invalid-header":
+      return {
+        failureClass: "semantic",
+        code: "ASYNC_SEMANTIC_INVALID_HEADER",
+        reason: `${formatAsyncOperation(diagnostic.operationKey)} failed header validation against schema ${formatSchemaId(
+          diagnostic.schemaId
+        )}${formatPointer(diagnostic.pointer)}: ${diagnostic.reason}`,
+        hint: "Align emitted Kafka header values with the retained AsyncAPI header schema or update the AsyncAPI contract intentionally.",
+        exitCode: 5,
+        severity: "error",
+        operationKey: diagnostic.operationKey
+      };
     case "unverifiable-headers":
       return {
         failureClass: "semantic",
@@ -203,7 +239,17 @@ function toSemanticFailure(diagnostic: AsyncCoverageDiagnostic): GovernanceFailu
         reason: `${formatAsyncOperation(diagnostic.operationKey)} cannot verify header schema ${formatSchemaId(
           diagnostic.schemaId
         )}: ${diagnostic.reason}`,
-        hint: "Capture Kafka headers in async evidence before relying on AsyncAPI header-schema conformance.",
+        hint: "Keep AsyncAPI header contracts within the retained Kafka header-validation scope before relying on them for conformance.",
+        exitCode: 5,
+        severity: "error",
+        operationKey: diagnostic.operationKey
+      };
+    case "ambiguous":
+      return {
+        failureClass: "semantic",
+        code: "ASYNC_SEMANTIC_AMBIGUOUS_MESSAGE",
+        reason: `${formatAsyncOperation(diagnostic.operationKey)} could not deterministically select one declared message contract: ${diagnostic.reason} candidates=[${diagnostic.candidates.join(", ")}].`,
+        hint: "Retain explicit message metadata or discriminating Kafka headers so one AsyncAPI message contract can be chosen safely.",
         exitCode: 5,
         severity: "error",
         operationKey: diagnostic.operationKey

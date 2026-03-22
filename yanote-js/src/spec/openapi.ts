@@ -186,7 +186,118 @@ function extractMediaTypeContracts(value: unknown): HttpMediaTypeContract[] {
 function normalizeSchemaContract(value: unknown): JsonSchemaContract | undefined {
   if (typeof value === "boolean") return value;
   if (!isRecord(value)) return undefined;
-  return value;
+
+  const normalized: Record<string, unknown> = {};
+  for (const [key, entry] of Object.entries(value)) {
+    if (key === "nullable") continue;
+
+    switch (key) {
+      case "properties":
+      case "patternProperties":
+      case "$defs":
+      case "definitions":
+        normalized[key] = normalizeSchemaMap(entry);
+        break;
+      case "items":
+      case "additionalProperties":
+      case "unevaluatedProperties":
+      case "propertyNames":
+      case "contains":
+      case "not":
+      case "if":
+      case "then":
+      case "else":
+        normalized[key] = normalizeNestedSchema(entry);
+        break;
+      case "allOf":
+      case "anyOf":
+      case "oneOf":
+      case "prefixItems":
+        normalized[key] = normalizeSchemaArray(entry);
+        break;
+      default:
+        normalized[key] = entry;
+        break;
+    }
+  }
+
+  normalizeExclusiveBoundary(normalized, "minimum", "exclusiveMinimum");
+  normalizeExclusiveBoundary(normalized, "maximum", "exclusiveMaximum");
+
+  if (value.nullable === true) {
+    return applyNullableSchema(normalized);
+  }
+
+  return normalized;
+}
+
+function normalizeSchemaMap(value: unknown): unknown {
+  if (!isRecord(value)) return value;
+
+  return Object.fromEntries(
+    Object.entries(value).map(([key, entry]) => [key, normalizeNestedSchema(entry)])
+  );
+}
+
+function normalizeSchemaArray(value: unknown): unknown {
+  if (!Array.isArray(value)) return value;
+  return value.map((entry) => normalizeNestedSchema(entry));
+}
+
+function normalizeNestedSchema(value: unknown): unknown {
+  const normalized = normalizeSchemaContract(value);
+  return normalized ?? value;
+}
+
+function normalizeExclusiveBoundary(
+  schema: Record<string, unknown>,
+  boundaryKey: "minimum" | "maximum",
+  exclusiveKey: "exclusiveMinimum" | "exclusiveMaximum"
+): void {
+  const exclusive = schema[exclusiveKey];
+  const boundary = schema[boundaryKey];
+
+  if (exclusive === false) {
+    delete schema[exclusiveKey];
+    return;
+  }
+
+  if (exclusive === true && typeof boundary === "number" && Number.isFinite(boundary)) {
+    delete schema[boundaryKey];
+    schema[exclusiveKey] = boundary;
+  }
+}
+
+function applyNullableSchema(schema: Record<string, unknown>): JsonSchemaContract {
+  const enumValues = Array.isArray(schema.enum) ? [...schema.enum] : undefined;
+  if (enumValues) {
+    if (!enumValues.some((entry) => entry === null)) {
+      enumValues.push(null);
+    }
+    return {
+      ...schema,
+      enum: enumValues
+    };
+  }
+
+  const typeValue = schema.type;
+  if (typeof typeValue === "string") {
+    return {
+      ...schema,
+      type: typeValue === "null" ? "null" : [typeValue, "null"]
+    };
+  }
+
+  if (Array.isArray(typeValue) && typeValue.every((entry) => typeof entry === "string")) {
+    return {
+      ...schema,
+      type: typeValue.includes("null") ? typeValue : [...typeValue, "null"]
+    };
+  }
+
+  return {
+    anyOf: [schema, { type: "null" }]
+  };
 }
 
 function mergeParameters(pathParameters: ParameterDefinition[], operationParameters: ParameterDefinition[]): ParameterDefinition[] {
@@ -232,7 +343,10 @@ function normalizeTemplatedRoute(route: string): string {
 
 function normalizeMediaType(value: string): string | undefined {
   const normalized = value.trim().toLowerCase();
-  return normalized.length === 0 ? undefined : normalized;
+  if (normalized.length === 0) return undefined;
+
+  const mediaType = normalized.split(";", 1)[0]?.trim();
+  return mediaType && mediaType.length > 0 ? mediaType : undefined;
 }
 
 function isRecord(value: unknown): value is Record<string, any> {

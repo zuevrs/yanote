@@ -36,6 +36,15 @@ export function normalizeAsyncReport(report: AsyncYanoteReport): AsyncYanoteRepo
         items: [...report.coverage.operations.items]
           .map((entry) => ({
             ...entry,
+            messageContract: {
+              ...entry.messageContract,
+              ...(entry.messageContract.declaredMessages
+                ? { declaredMessages: [...entry.messageContract.declaredMessages].sort((left, right) => left.localeCompare(right)) }
+                : {}),
+              ...(entry.messageContract.selectedMessages
+                ? { selectedMessages: [...entry.messageContract.selectedMessages].sort((left, right) => left.localeCompare(right)) }
+                : {})
+            },
             suites: [...entry.suites].sort((left, right) => left.localeCompare(right))
           }))
           .sort((left, right) => left.operationKey.localeCompare(right.operationKey))
@@ -60,7 +69,11 @@ export function normalizeAsyncReport(report: AsyncYanoteReport): AsyncYanoteRepo
         "unsupported-schema-format": report.diagnostics.counts["unsupported-schema-format"],
         "missing-payload": report.diagnostics.counts["missing-payload"],
         "invalid-payload": report.diagnostics.counts["invalid-payload"],
+        "missing-header": report.diagnostics.counts["missing-header"],
+        "unavailable-header": report.diagnostics.counts["unavailable-header"],
+        "invalid-header": report.diagnostics.counts["invalid-header"],
         "unverifiable-headers": report.diagnostics.counts["unverifiable-headers"],
+        ambiguous: report.diagnostics.counts.ambiguous,
         mismatched: report.diagnostics.counts.mismatched,
         unmatched: report.diagnostics.counts.unmatched
       },

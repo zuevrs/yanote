@@ -18,6 +18,8 @@ EXPECTED_STATUS="${YANOTE_EXPECTED_STATUS:-200}"
 EXPECTED_SERVICE_NAME="${YANOTE_EXPECTED_SERVICE_NAME:-${ACTUAL_SERVICE_NAME}}"
 HOST_GRADLE_HOME="${TMP_DIR}/gradle-home"
 FALLBACK_GRADLE_DIST_HOME="${HOME}/.gradle/wrapper/dists"
+FALLBACK_GRADLE_MODULES_CACHE="${HOME}/.gradle/caches/modules-2"
+FALLBACK_GRADLE_JARS_CACHE="${HOME}/.gradle/caches/jars-9"
 KEEP_TEMP="false"
 APP_PID=""
 
@@ -25,6 +27,14 @@ mkdir -p "${HOST_GRADLE_HOME}"
 if [[ -d "${FALLBACK_GRADLE_DIST_HOME}" ]]; then
   mkdir -p "${HOST_GRADLE_HOME}/wrapper"
   ln -s "${FALLBACK_GRADLE_DIST_HOME}" "${HOST_GRADLE_HOME}/wrapper/dists"
+fi
+if [[ -d "${FALLBACK_GRADLE_MODULES_CACHE}" ]]; then
+  mkdir -p "${HOST_GRADLE_HOME}/caches"
+  ln -s "${FALLBACK_GRADLE_MODULES_CACHE}" "${HOST_GRADLE_HOME}/caches/modules-2"
+fi
+if [[ -d "${FALLBACK_GRADLE_JARS_CACHE}" ]]; then
+  mkdir -p "${HOST_GRADLE_HOME}/caches"
+  ln -s "${FALLBACK_GRADLE_JARS_CACHE}" "${HOST_GRADLE_HOME}/caches/jars-9"
 fi
 export GRADLE_USER_HOME="${HOST_GRADLE_HOME}"
 export YANOTE_GRADLE_HOME="${HOST_GRADLE_HOME}"
@@ -79,7 +89,7 @@ cleanup() {
   fi
 
   if [[ "${KEEP_TEMP}" != "true" ]]; then
-    rm -rf "${TMP_DIR}"
+    rm -rf "${TMP_DIR}" || true
   fi
 }
 trap cleanup EXIT
@@ -174,12 +184,23 @@ for key in ("test.run_id", "test.suite"):
     if record[key] is not None:
         raise SystemExit(f"Expected {key}=null, got {record[key]!r}")
 
+if record.get("responseBodyState") != "captured":
+    raise SystemExit(f"Expected responseBodyState='captured', got {record.get('responseBodyState')!r}")
+if record.get("responseBodyReason") is not None:
+    raise SystemExit(f"Expected responseBodyReason to be absent/null, got {record.get('responseBodyReason')!r}")
+response_body = record.get("responseBody")
+if response_body != {"orderId": "42", "expand": True, "status": "ok"}:
+    raise SystemExit(f"Expected captured JSON response body, got {response_body!r}")
+if "requestBodyState" in record and record["requestBodyState"] is not None:
+    raise SystemExit(f"Expected requestBodyState to stay absent/null for empty GET request body, got {record['requestBodyState']!r}")
+
 print(
-    "method={method} route={route} status={status} service={service} test.run_id={run_id} test.suite={suite}".format(
+    "method={method} route={route} status={status} service={service} responseBodyState={response_state} test.run_id={run_id} test.suite={suite}".format(
         method=record["method"],
         route=record["route"],
         status=record["status"],
         service=record["service"],
+        response_state=record["responseBodyState"],
         run_id=record["test.run_id"],
         suite=record["test.suite"],
     )

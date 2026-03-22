@@ -15,6 +15,11 @@ CONSUMER_EVENTS_PATH="${TMP_DIR}/02-consumer.events.jsonl"
 MERGED_EVENTS_PATH="${TMP_DIR}/merged-two-service.events.jsonl"
 OUT_DIR="${TMP_DIR}/async-report"
 ASYNC_REPORT_PATH="${OUT_DIR}/yanote-async-report.json"
+RUNTIME_SELECTED_ASYNC_SPEC_PATH="${TMP_DIR}/runtime-selected-asyncapi.yaml"
+RUNTIME_SELECTED_OUT_DIR="${TMP_DIR}/runtime-selected-async-report"
+RUNTIME_SELECTED_ASYNC_STDOUT_PATH="${TMP_DIR}/runtime-selected-async-report.stdout"
+RUNTIME_SELECTED_ASYNC_STDERR_PATH="${TMP_DIR}/runtime-selected-async-report.stderr"
+RUNTIME_SELECTED_ASYNC_REPORT_PATH="${RUNTIME_SELECTED_OUT_DIR}/yanote-async-report.json"
 SCHEMA_FAILURE_OUT_DIR="${TMP_DIR}/schema-failure-async-report"
 SCHEMA_FAILURE_ASYNC_REPORT_PATH="${SCHEMA_FAILURE_OUT_DIR}/yanote-async-report.json"
 ASYNC_EXPORT_DIR="${YANOTE_ASYNC_EXPORT_DIR:-${ROOT_DIR}/.yanote-ci/live-kafka-proof}"
@@ -84,6 +89,9 @@ export_async_artifacts() {
     YANOTE_ASYNC_SOURCE_ASYNC_STDOUT="${ASYNC_STDOUT_PATH}" \
     YANOTE_ASYNC_SOURCE_ASYNC_STDERR="${ASYNC_STDERR_PATH}" \
     YANOTE_ASYNC_SOURCE_ASYNC_REPORT="${ASYNC_REPORT_PATH}" \
+    YANOTE_ASYNC_SOURCE_RUNTIME_SELECTED_ASYNC_STDOUT="${RUNTIME_SELECTED_ASYNC_STDOUT_PATH}" \
+    YANOTE_ASYNC_SOURCE_RUNTIME_SELECTED_ASYNC_STDERR="${RUNTIME_SELECTED_ASYNC_STDERR_PATH}" \
+    YANOTE_ASYNC_SOURCE_RUNTIME_SELECTED_ASYNC_REPORT="${RUNTIME_SELECTED_ASYNC_REPORT_PATH}" \
     YANOTE_ASYNC_SOURCE_SCHEMA_FAILURE_ASYNC_STDOUT="${SCHEMA_FAILURE_ASYNC_STDOUT_PATH}" \
     YANOTE_ASYNC_SOURCE_SCHEMA_FAILURE_ASYNC_STDERR="${SCHEMA_FAILURE_ASYNC_STDERR_PATH}" \
     YANOTE_ASYNC_SOURCE_SCHEMA_FAILURE_ASYNC_REPORT="${SCHEMA_FAILURE_ASYNC_REPORT_PATH}" \
@@ -111,6 +119,9 @@ print_failure_artifacts() {
   echo "  async_stdout: ${ASYNC_STDOUT_PATH}" >&2
   echo "  async_stderr: ${ASYNC_STDERR_PATH}" >&2
   echo "  async_report_dir: ${OUT_DIR}" >&2
+  echo "  runtime_selected_async_stdout: ${RUNTIME_SELECTED_ASYNC_STDOUT_PATH}" >&2
+  echo "  runtime_selected_async_stderr: ${RUNTIME_SELECTED_ASYNC_STDERR_PATH}" >&2
+  echo "  runtime_selected_async_report_dir: ${RUNTIME_SELECTED_OUT_DIR}" >&2
   echo "  schema_failure_async_stdout: ${SCHEMA_FAILURE_ASYNC_STDOUT_PATH}" >&2
   echo "  schema_failure_async_stderr: ${SCHEMA_FAILURE_ASYNC_STDERR_PATH}" >&2
   echo "  schema_failure_async_report_dir: ${SCHEMA_FAILURE_OUT_DIR}" >&2
@@ -124,6 +135,8 @@ show_failure_tail() {
     "${MERGE_LOG_PATH}" \
     "${ASYNC_STDOUT_PATH}" \
     "${ASYNC_STDERR_PATH}" \
+    "${RUNTIME_SELECTED_ASYNC_STDOUT_PATH}" \
+    "${RUNTIME_SELECTED_ASYNC_STDERR_PATH}" \
     "${SCHEMA_FAILURE_ASYNC_STDOUT_PATH}" \
     "${SCHEMA_FAILURE_ASYNC_STDERR_PATH}"; do
     if [[ -s "${file}" ]]; then
@@ -234,8 +247,8 @@ if producer_http_record.get('route') != expected_http_route:
     raise SystemExit(f"Expected producer HTTP route {expected_http_route!r}, got {producer_http_record.get('route')!r}")
 if producer_http_record.get('method') != 'POST':
     raise SystemExit(f"Expected producer HTTP method 'POST', got {producer_http_record.get('method')!r}")
-if producer_http_record.get('status') != 200:
-    raise SystemExit(f"Expected producer HTTP status 200, got {producer_http_record.get('status')!r}")
+if producer_http_record.get('status') != 201:
+    raise SystemExit(f"Expected producer HTTP status 201, got {producer_http_record.get('status')!r}")
 if producer_http_record.get('service') != expected_producer_service:
     raise SystemExit(
         f"Expected producer HTTP service {expected_producer_service!r}, got {producer_http_record.get('service')!r}"
@@ -271,6 +284,15 @@ for label, record, expected_service, expected_action in [
         raise SystemExit(f"Expected {label} test.run_id {expected_run!r}, got {record.get('test.run_id')!r}")
     if record.get('test.suite') != expected_suite:
         raise SystemExit(f"Expected {label} test.suite {expected_suite!r}, got {record.get('test.suite')!r}")
+    headers = record.get('headers')
+    if not isinstance(headers, dict):
+        raise SystemExit(f"Expected {label} retained Kafka headers map, got {headers!r}")
+    if headers.get('yanote.message') != {'state': 'captured', 'value': expected_message}:
+        raise SystemExit(f"Expected {label} retained yanote.message header {expected_message!r}, got {headers.get('yanote.message')!r}")
+    if headers.get('yanote.test.run_id') != {'state': 'captured', 'value': expected_run}:
+        raise SystemExit(f"Expected {label} retained yanote.test.run_id header {expected_run!r}, got {headers.get('yanote.test.run_id')!r}")
+    if headers.get('yanote.test.suite') != {'state': 'captured', 'value': expected_suite}:
+        raise SystemExit(f"Expected {label} retained yanote.test.suite header {expected_suite!r}, got {headers.get('yanote.test.suite')!r}")
 
 producer_services = {record.get('service') for record in producer_records}
 consumer_services = {record.get('service') for record in consumer_records}
@@ -348,8 +370,125 @@ print(
 PY
 )" || fail "Merged two-service evidence drifted from deterministic concatenation or lost service ownership."
 
+cat >"${RUNTIME_SELECTED_ASYNC_SPEC_PATH}" <<EOF
+asyncapi: 3.0.0
+info:
+  title: spring kafka two-service runtime selection proof
+  version: '1.0.0'
+servers:
+  kafkaLocal:
+    host: localhost:9092
+    protocol: kafka
+channels:
+  userCreated:
+    address: ${EXPECTED_CHANNEL}
+operations:
+  sendUserCreated:
+    action: send
+    channel:
+      \$ref: '#/channels/userCreated'
+    messages:
+      - name: ${EXPECTED_MESSAGE}
+        headers:
+          type: object
+          required:
+            - yanote.message
+            - yanote.test.run_id
+            - yanote.test.suite
+          properties:
+            yanote.message:
+              type: string
+              const: ${EXPECTED_MESSAGE}
+            yanote.test.run_id:
+              type: string
+            yanote.test.suite:
+              type: string
+              const: ${TWO_SERVICE_SUITE}
+        payload:
+          \$ref: '#/components/schemas/UserCreatedPayload'
+      - name: ${EXPECTED_MESSAGE}
+        headers:
+          type: object
+          required:
+            - yanote.message
+            - yanote.test.run_id
+            - yanote.test.suite
+          properties:
+            yanote.message:
+              type: string
+              const: ${EXPECTED_MESSAGE}
+            yanote.test.run_id:
+              type: string
+            yanote.test.suite:
+              type: string
+              const: suite-not-observed
+        payload:
+          \$ref: '#/components/schemas/UserCreatedPayloadShadow'
+  receiveUserCreated:
+    action: receive
+    channel:
+      \$ref: '#/channels/userCreated'
+    messages:
+      - name: ${EXPECTED_MESSAGE}
+        headers:
+          type: object
+          required:
+            - yanote.message
+            - yanote.test.run_id
+            - yanote.test.suite
+          properties:
+            yanote.message:
+              type: string
+              const: ${EXPECTED_MESSAGE}
+            yanote.test.run_id:
+              type: string
+            yanote.test.suite:
+              type: string
+              const: ${TWO_SERVICE_SUITE}
+        payload:
+          \$ref: '#/components/schemas/UserCreatedPayload'
+      - name: ${EXPECTED_MESSAGE}
+        headers:
+          type: object
+          required:
+            - yanote.message
+            - yanote.test.run_id
+            - yanote.test.suite
+          properties:
+            yanote.message:
+              type: string
+              const: ${EXPECTED_MESSAGE}
+            yanote.test.run_id:
+              type: string
+            yanote.test.suite:
+              type: string
+              const: suite-not-observed
+        payload:
+          \$ref: '#/components/schemas/UserCreatedPayloadShadow'
+components:
+  schemas:
+    UserCreatedPayload:
+      type: object
+      required:
+        - name
+        - email
+      properties:
+        name:
+          type: string
+        email:
+          type: string
+    UserCreatedPayloadShadow:
+      type: object
+      required:
+        - userId
+      properties:
+        userId:
+          type: string
+EOF
+
 echo "Running async-report directly against the merged two-service evidence..."
-if ! (
+async_report_exit_code=0
+if (
   cd "${ROOT_DIR}" && \
   node yanote-js/dist/yanote.cjs async-report \
     --spec "${ASYNC_SPEC_PATH}" \
@@ -357,14 +496,107 @@ if ! (
     --out "${OUT_DIR}" \
     --min-coverage 100
 ) >"${ASYNC_STDOUT_PATH}" 2>"${ASYNC_STDERR_PATH}"; then
-  if [[ "${SIMULATE_ANALYZER_FAILURE}" == "true" ]]; then
-    fail "Simulated analyzer failure triggered after raw evidence and merge assertions completed."
-  fi
-  fail "async-report failed on the merged two-service evidence."
+  async_report_exit_code=0
+else
+  async_report_exit_code=$?
 fi
 
 if [[ "${SIMULATE_ANALYZER_FAILURE}" == "true" ]]; then
-  fail "Simulated analyzer failure flag was set, but async-report unexpectedly succeeded."
+  if [[ "${async_report_exit_code}" -eq 0 ]]; then
+    fail "Simulated analyzer failure flag was set, but async-report unexpectedly succeeded."
+  fi
+  if [[ "${async_report_exit_code}" -ne 3 ]]; then
+    fail "Simulated analyzer failure exited ${async_report_exit_code} instead of the expected gate exit code 3."
+  fi
+  if [[ ! -s "${ASYNC_STDERR_PATH}" ]]; then
+    fail "Simulated analyzer failure did not write typed stderr diagnostics."
+  fi
+  if ! grep -q '^Summary$' "${ASYNC_STDOUT_PATH}"; then
+    fail "Simulated analyzer failure stdout is missing the Summary section."
+  fi
+  if ! grep -q '^YANOTE_ASYNC_SUMMARY ' "${ASYNC_STDOUT_PATH}"; then
+    fail "Simulated analyzer failure stdout is missing the final YANOTE_ASYNC_SUMMARY line."
+  fi
+  if ! grep -q 'ASYNC_GATE_MIN_COVERAGE' "${ASYNC_STDERR_PATH}"; then
+    fail "Simulated analyzer failure stderr is missing ASYNC_GATE_MIN_COVERAGE."
+  fi
+
+  SIMULATED_FAILURE_SUMMARY="$(python3 - "${ASYNC_REPORT_PATH}" "${async_report_exit_code}" <<'PY'
+import json
+import pathlib
+import sys
+
+path = pathlib.Path(sys.argv[1])
+expected_exit_code = int(sys.argv[2])
+if not path.exists():
+    raise SystemExit(f"Missing simulated-failure async report file: {path}")
+
+report = json.loads(path.read_text(encoding='utf-8'))
+summary = report.get('summary', {})
+counts = report.get('diagnostics', {}).get('counts', {})
+coverage_items = report.get('coverage', {}).get('operations', {}).get('items', [])
+coverage_by_key = {entry.get('operationKey'): entry for entry in coverage_items}
+expected_keys = {
+    'kafka send users.created',
+    'kafka receive users.created',
+    'kafka send users.created.republished',
+    'kafka receive users.created.republished',
+}
+if report.get('status') != 'partial':
+    raise SystemExit(f"Expected simulated-failure report status 'partial', got {report.get('status')!r}")
+if summary.get('totalChannels') != 2 or summary.get('coveredChannels') != 1:
+    raise SystemExit(f"Unexpected simulated-failure channel summary: {summary!r}")
+if summary.get('totalOperations') != 4 or summary.get('coveredOperations') != 2:
+    raise SystemExit(f"Unexpected simulated-failure operation summary: {summary!r}")
+if summary.get('totalMessages') != 4 or summary.get('coveredMessages') != 2:
+    raise SystemExit(f"Unexpected simulated-failure message summary: {summary!r}")
+expected_counts = {
+    'unsupported-content-type': 0,
+    'unsupported-schema-format': 0,
+    'missing-payload': 0,
+    'invalid-payload': 0,
+    'missing-header': 0,
+    'unavailable-header': 0,
+    'invalid-header': 0,
+    'unverifiable-headers': 0,
+    'ambiguous': 0,
+    'unmatched': 0,
+    'mismatched': 0,
+}
+if counts != expected_counts:
+    raise SystemExit(f"Expected zero async diagnostics on simulated-failure path, got {counts!r}")
+if set(coverage_by_key) != expected_keys:
+    raise SystemExit(f"Unexpected simulated-failure operation keys: {sorted(coverage_by_key)!r}")
+for key in ('kafka send users.created', 'kafka receive users.created'):
+    if coverage_by_key[key].get('operation', {}).get('state') != 'COVERED':
+        raise SystemExit(f"Expected covered observed operation for {key}, got {coverage_by_key[key]!r}")
+for key in ('kafka send users.created.republished', 'kafka receive users.created.republished'):
+    if coverage_by_key[key].get('operation', {}).get('state') != 'UNCOVERED':
+        raise SystemExit(f"Expected uncovered republished operation for {key}, got {coverage_by_key[key]!r}")
+
+print(
+    'exit_code={exit_code} channels=1/2 operations=2/4 messages=2/4 primary=ASYNC_GATE_MIN_COVERAGE report={report}'.format(
+        exit_code=expected_exit_code,
+        report=path,
+    )
+)
+PY
+)" || fail "Simulated analyzer failure drifted from the expected gate-failure surface."
+
+  if ! export_async_artifacts "simulated-failure"; then
+    fail "Async proof artifacts exporter failed after the simulated analyzer failure was confirmed."
+  fi
+
+  echo "Single-service proof passed."
+  echo "Two-service raw proof passed: ${RAW_SUMMARY}"
+  echo "Deterministic merge proof passed: ${MERGE_SUMMARY}"
+  echo "Simulated async analyzer failure passed: ${SIMULATED_FAILURE_SUMMARY}"
+  echo "Async proof artifacts exported: ${ASYNC_EXPORT_DIR}"
+  exit 0
+fi
+
+if [[ "${async_report_exit_code}" -ne 0 ]]; then
+  fail "async-report failed on the merged two-service evidence."
 fi
 
 if [[ -s "${ASYNC_STDERR_PATH}" ]]; then
@@ -413,7 +645,11 @@ if report.get('diagnostics', {}).get('counts') != {
     'unsupported-schema-format': 0,
     'missing-payload': 0,
     'invalid-payload': 0,
+    'missing-header': 0,
+    'unavailable-header': 0,
+    'invalid-header': 0,
     'unverifiable-headers': 0,
+    'ambiguous': 0,
     'unmatched': 0,
     'mismatched': 0,
 }:
@@ -441,6 +677,121 @@ print(
 )
 PY
 )" || fail "async-report artifact drifted from the expected two-service Kafka acceptance surface."
+
+echo "Running runtime-selection async-report against the same merged evidence to prove retained-header discriminators..."
+if ! (
+  cd "${ROOT_DIR}" && \
+  node yanote-js/dist/yanote.cjs async-report \
+    --spec "${RUNTIME_SELECTED_ASYNC_SPEC_PATH}" \
+    --events "${MERGED_EVENTS_PATH}" \
+    --out "${RUNTIME_SELECTED_OUT_DIR}"
+) >"${RUNTIME_SELECTED_ASYNC_STDOUT_PATH}" 2>"${RUNTIME_SELECTED_ASYNC_STDERR_PATH}"; then
+  fail "Runtime-selection async-report failed on the merged two-service evidence."
+fi
+
+if [[ -s "${RUNTIME_SELECTED_ASYNC_STDERR_PATH}" ]]; then
+  fail "Runtime-selection async-report unexpectedly wrote to stderr."
+fi
+if ! grep -q '^Summary$' "${RUNTIME_SELECTED_ASYNC_STDOUT_PATH}"; then
+  fail "Runtime-selection async-report stdout is missing the Summary section."
+fi
+if ! grep -q '^YANOTE_ASYNC_SUMMARY ' "${RUNTIME_SELECTED_ASYNC_STDOUT_PATH}"; then
+  fail "Runtime-selection async-report stdout is missing the final YANOTE_ASYNC_SUMMARY line."
+fi
+
+RUNTIME_SELECTED_REPORT_SUMMARY="$(python3 - "${RUNTIME_SELECTED_ASYNC_REPORT_PATH}" "${TWO_SERVICE_SUITE}" <<'PY'
+import json
+import math
+import pathlib
+import sys
+
+path = pathlib.Path(sys.argv[1])
+expected_suite = sys.argv[2]
+if not path.exists():
+    raise SystemExit(f"Missing runtime-selection async report file: {path}")
+
+report = json.loads(path.read_text(encoding='utf-8'))
+summary = report.get('summary', {})
+coverage = report.get('coverage', {})
+counts = report.get('diagnostics', {}).get('counts', {})
+
+def expect_close(actual, expected, label):
+    if not math.isclose(float(actual), float(expected), abs_tol=1e-6):
+        raise SystemExit(f"Unexpected {label}={actual!r}; expected {expected!r}")
+
+if report.get('status') != 'partial':
+    raise SystemExit(f"Expected runtime-selection report status 'partial', got {report.get('status')!r}")
+if summary.get('totalChannels') != 1 or summary.get('coveredChannels') != 1:
+    raise SystemExit(f"Unexpected runtime-selection channel summary: {summary!r}")
+if summary.get('totalOperations') != 2 or summary.get('coveredOperations') != 2:
+    raise SystemExit(f"Unexpected runtime-selection operation summary: {summary!r}")
+if summary.get('totalMessages') != 4 or summary.get('coveredMessages') != 2:
+    raise SystemExit(f"Unexpected runtime-selection message summary: {summary!r}")
+expect_close(summary.get('channelCoveragePercent'), 100, 'channelCoveragePercent')
+expect_close(summary.get('operationCoveragePercent'), 100, 'operationCoveragePercent')
+expect_close(summary.get('messageCoveragePercent'), 50, 'messageCoveragePercent')
+
+expected_counts = {
+    'unsupported-content-type': 0,
+    'unsupported-schema-format': 0,
+    'missing-payload': 0,
+    'invalid-payload': 0,
+    'missing-header': 0,
+    'unavailable-header': 0,
+    'invalid-header': 0,
+    'unverifiable-headers': 0,
+    'ambiguous': 0,
+    'unmatched': 0,
+    'mismatched': 0,
+}
+if counts != expected_counts:
+    raise SystemExit(f"Expected zero runtime-selection diagnostics, got {counts!r}")
+
+operations = {entry['operationKey']: entry for entry in coverage.get('operations', {}).get('items', [])}
+expected_keys = {'kafka send users.created', 'kafka receive users.created'}
+if set(operations) != expected_keys:
+    raise SystemExit(f"Unexpected runtime-selection operation keys: {sorted(operations)!r}")
+for key, entry in operations.items():
+    message_contract = entry.get('messageContract', {})
+    if entry.get('operation', {}).get('state') != 'COVERED':
+        raise SystemExit(f"Expected covered operation for {key}, got {entry!r}")
+    if message_contract.get('state') != 'PARTIAL':
+        raise SystemExit(f"Expected runtime-selected PARTIAL message contract for {key}, got {entry!r}")
+    if message_contract.get('selectionMode') != 'runtime':
+        raise SystemExit(f"Expected runtime selectionMode for {key}, got {entry!r}")
+    declared_messages = message_contract.get('declaredMessages') or []
+    selected_messages = message_contract.get('selectedMessages') or []
+    if len(declared_messages) != 2:
+        raise SystemExit(f"Expected 2 declaredMessages for {key}, got {declared_messages!r}")
+    if len(selected_messages) != 1:
+        raise SystemExit(f"Expected 1 selectedMessages entry for {key}, got {selected_messages!r}")
+    if not all(candidate.startswith('UserCreated ') for candidate in declared_messages):
+        raise SystemExit(f"Expected declaredMessages for {key} to stay on the UserCreated contract, got {declared_messages!r}")
+    if not selected_messages[0].startswith('UserCreated '):
+        raise SystemExit(f"Expected selectedMessages for {key} to stay on the UserCreated contract, got {selected_messages!r}")
+    if not any(f"yanote.test.suite={expected_suite}" in candidate for candidate in declared_messages):
+        raise SystemExit(f"Expected declaredMessages for {key} to retain the observed suite discriminator, got {declared_messages!r}")
+    if not any('yanote.test.suite=suite-not-observed' in candidate for candidate in declared_messages):
+        raise SystemExit(f"Expected declaredMessages for {key} to retain the shadow suite discriminator, got {declared_messages!r}")
+    if f"yanote.test.suite={expected_suite}" not in selected_messages[0]:
+        raise SystemExit(f"Expected selectedMessages for {key} to prove runtime selection via retained headers, got {selected_messages!r}")
+    if entry.get('suites') != [expected_suite]:
+        raise SystemExit(f"Expected suites [{expected_suite!r}] for {key}, got {entry.get('suites')!r}")
+
+messages = coverage.get('messages', {}).get('items', [])
+covered = [entry for entry in messages if entry.get('state') == 'COVERED']
+uncovered = [entry for entry in messages if entry.get('state') == 'UNCOVERED']
+if len(covered) != 2 or len(uncovered) != 2:
+    raise SystemExit(f"Expected runtime-selection covered/uncovered split 2/2, got covered={len(covered)} uncovered={len(uncovered)}")
+
+print(
+    'channels=1/1 operations=2/2 messages=2/4 selection=runtime suite={suite} report={report}'.format(
+        suite=expected_suite,
+        report=path,
+    )
+)
+PY
+)" || fail "Runtime-selection sidecar drifted from the expected retained-header discriminator surface."
 
 echo "Running intentional schema-failure async-report against the same merged evidence..."
 schema_failure_exit_code=0
@@ -505,13 +856,13 @@ for item in invalid_payload_items:
         raise SystemExit(f"Expected schemaId UserCreatedPayload, got {item!r}")
     if item.get('validationKind') != 'payload':
         raise SystemExit(f"Expected payload validationKind, got {item!r}")
-    if item.get('pointer') != '/':
-        raise SystemExit(f"Expected root pointer '/', got {item!r}")
+    if item.get('pointer') != '/userId':
+        raise SystemExit(f"Expected pointer '/userId', got {item!r}")
     if item.get('messageName') != 'UserCreated':
         raise SystemExit(f"Expected messageName UserCreated, got {item!r}")
     reason = item.get('reason')
-    if not isinstance(reason, str) or 'must be object' not in reason:
-        raise SystemExit(f"Expected 'must be object' reason, got {item!r}")
+    if not isinstance(reason, str) or "must have required property 'userId'" not in reason:
+        raise SystemExit(f"Expected missing-userId reason, got {item!r}")
 
 coverage_items = report.get('coverage', {}).get('operations', {}).get('items', [])
 coverage_by_key = {entry.get('operationKey'): entry for entry in coverage_items}

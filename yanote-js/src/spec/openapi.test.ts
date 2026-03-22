@@ -1,3 +1,6 @@
+import { mkdtemp, rm, writeFile } from "node:fs/promises";
+import os from "node:os";
+import path from "node:path";
 import { describe, expect, it } from "vitest";
 import { loadOpenApiCoverageModel, loadOpenApiOperations } from "./openapi.js";
 import { serializeOperationKey } from "../model/operationKey.js";
@@ -121,5 +124,76 @@ describe("openapi loader", () => {
       },
       required: ["sku", "quantity"]
     });
+  });
+
+  it("normalizes nullable/exclusive OpenAPI 3.0 schemas and strips media-type parameters deterministically", async () => {
+    const tempDir = await mkdtemp(path.join(os.tmpdir(), "yanote-openapi-normalize-"));
+    const specPath = path.join(tempDir, "normalize.yaml");
+
+    await writeFile(
+      specPath,
+      [
+        "openapi: 3.0.0",
+        "info:",
+        "  title: normalize",
+        "  version: 1.0.0",
+        "paths:",
+        "  /widgets/{id}:",
+        "    post:",
+        "      parameters:",
+        "        - name: id",
+        "          in: path",
+        "          required: true",
+        "          schema: { type: string }",
+        "      requestBody:",
+        "        required: true",
+        "        content:",
+        "          Application/JSON; Charset=UTF-8:",
+        "            schema:",
+        "              type: integer",
+        "              minimum: 1",
+        "              exclusiveMinimum: true",
+        "              nullable: true",
+        "      responses:",
+        "        '202':",
+        "          description: accepted",
+        "          content:",
+        "            application/*+json; charset=utf-8:",
+        "              schema:",
+        "                type: string",
+        "                maxLength: 10",
+        "                maximum: 5",
+        "                exclusiveMaximum: true"
+      ].join("\n"),
+      "utf8"
+    );
+
+    try {
+      const model = await loadOpenApiCoverageModel(specPath);
+      const operationKey = serializeOperationKey({ kind: "http", method: "POST", route: "/widgets/{param}" });
+      const contract = model.operationContractsByKey.get(operationKey);
+
+      expect(contract?.requestBody).toMatchObject({
+        required: true,
+        content: [{ mediaType: "application/json" }]
+      });
+      expect(contract?.requestBody?.content[0]?.schema).toEqual({
+        type: ["integer", "null"],
+        exclusiveMinimum: 1
+      });
+      expect(contract?.responseBodies).toMatchObject([
+        {
+          declaredStatus: "202",
+          content: [{ mediaType: "application/*+json" }]
+        }
+      ]);
+      expect(contract?.responseBodies[0]?.content[0]?.schema).toEqual({
+        type: "string",
+        maxLength: 10,
+        exclusiveMaximum: 5
+      });
+    } finally {
+      await rm(tempDir, { recursive: true, force: true });
+    }
   });
 });

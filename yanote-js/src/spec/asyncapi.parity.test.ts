@@ -17,7 +17,12 @@ const expectedContracts = [
         "x-parser-schema-id": "<anonymous-schema-1>"
       },
       payloadSchemaId: "<anonymous-schema-1>",
-      headerValidationCapability: "none"
+      headerValidationCapability: "none",
+      selectionHints: [{ kind: "message", value: "UserSignedUp" }]
+    },
+    messageSelection: {
+      mode: "single",
+      precedence: [{ kind: "message" }]
     }
   },
   {
@@ -34,7 +39,12 @@ const expectedContracts = [
         "x-parser-schema-id": "<anonymous-schema-2>"
       },
       payloadSchemaId: "<anonymous-schema-2>",
-      headerValidationCapability: "none"
+      headerValidationCapability: "none",
+      selectionHints: [{ kind: "message", value: "UserDeleted" }]
+    },
+    messageSelection: {
+      mode: "single",
+      precedence: [{ kind: "message" }]
     }
   }
 ] satisfies KafkaOperationContract[];
@@ -76,8 +86,28 @@ const expectedSchemaDepthContracts = [
         "x-parser-schema-id": "OrderCreatedPayload"
       },
       payloadSchemaId: "OrderCreatedPayload",
+      headersSchema: {
+        type: "object",
+        required: ["tenantId", "traceId"],
+        properties: {
+          tenantId: {
+            type: "string",
+            "x-parser-schema-id": "<anonymous-schema-1>"
+          },
+          traceId: {
+            type: "string",
+            "x-parser-schema-id": "<anonymous-schema-2>"
+          }
+        },
+        "x-parser-schema-id": "OrderEventHeaders"
+      },
       headersSchemaId: "OrderEventHeaders",
-      headerValidationCapability: "unverifiable"
+      headerValidationCapability: "supported",
+      selectionHints: [{ kind: "message", value: "OrderCreatedEnvelope" }]
+    },
+    messageSelection: {
+      mode: "single",
+      precedence: [{ kind: "message" }]
     }
   }
 ] satisfies KafkaOperationContract[];
@@ -95,6 +125,7 @@ describe("asyncapi parity contract", () => {
       "<anonymous-schema-2>"
     ]);
     expect(expectedContracts.map((contract) => contract.message?.headerValidationCapability)).toEqual(["none", "none"]);
+    expect(expectedContracts.map((contract) => contract.messageSelection?.mode)).toEqual(["single", "single"]);
   });
 
   it("expects equivalent AsyncAPI v2 and v3 fixtures to normalize into the same kafka operation contracts", async () => {
@@ -135,6 +166,21 @@ describe("asyncapi parity contract", () => {
 
     expect(contractsInOrder(v2)).toEqual(expectedSchemaDepthContracts);
     expect(contractsInOrder(v3)).toEqual(expectedSchemaDepthContracts);
+  });
+
+  it("preserves the canonical kafka operation key when multi-message runtime selection metadata is attached", async () => {
+    const bundle = await loadAsyncApiSemanticsBundle("test/fixtures/asyncapi/multi-message-resolvable.yaml");
+
+    expect(bundle.hasInvalid).toBe(false);
+    expect(bundle.diagnostics).toEqual([]);
+    expect(serializedOperationKeys(bundle)).toEqual(["kafka send users.lifecycle"]);
+    expect(contractKeysInOrder(bundle)).toEqual(["kafka send users.lifecycle"]);
+    expect(bundle.operationContractsByKey.get("kafka send users.lifecycle")).toMatchObject({
+      messageSelection: {
+        mode: "runtime",
+        precedence: [{ kind: "message" }, { kind: "header", header: "yanote.event.kind" }]
+      }
+    });
   });
 });
 

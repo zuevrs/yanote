@@ -1,12 +1,11 @@
 package dev.yanote.core.events;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
-import org.junit.jupiter.api.Test;
-
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.List;
+import org.junit.jupiter.api.Test;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
@@ -120,6 +119,7 @@ class EventJsonlRoundTripTest {
                         """),
                 PayloadCaptureState.CAPTURED,
                 null,
+                null,
                 false,
                 "run-1",
                 "suite-a"
@@ -162,6 +162,7 @@ class EventJsonlRoundTripTest {
         assertEquals(expected.channel(), actual.channel());
         assertEquals(expected.payloadState(), actual.payloadState());
         assertEquals(expected.payloadReason(), actual.payloadReason());
+        assertEquals(expected.headers(), actual.headers());
         assertEquals(expected.testRunId(), actual.testRunId());
         assertEquals(expected.testSuite(), actual.testSuite());
         assertEquals(OBJECT_MAPPER.writeValueAsString(expected), OBJECT_MAPPER.writeValueAsString(actual));

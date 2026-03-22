@@ -155,7 +155,7 @@ describe("cli async-report", () => {
     }
   });
 
-  it("fails closed on public schema-depth payload and header diagnostics with a shared primary failure across stdout and stderr", async () => {
+  it("fails closed on public schema-depth payload diagnostics with a shared primary failure across stdout and stderr", async () => {
     const [invalidEvent, missingEvent] = await Promise.all([
       readFile("test/fixtures/async-events/schema-invalid.fixture.jsonl", "utf8"),
       readFile("test/fixtures/async-events/schema-missing-payload.fixture.jsonl", "utf8")
@@ -178,7 +178,6 @@ describe("cli async-report", () => {
       expect(result.code).toBe(5);
       expect(result.stderr).toContain("YANOTE_ASYNC_ERROR class=semantic code=ASYNC_SEMANTIC_MISSING_PAYLOAD");
       expect(result.stderr).toContain("YANOTE_ASYNC_ERROR_SECONDARY class=semantic code=ASYNC_SEMANTIC_INVALID_PAYLOAD");
-      expect(result.stderr).toContain("YANOTE_ASYNC_ERROR_SECONDARY class=semantic code=ASYNC_SEMANTIC_UNVERIFIABLE_HEADERS");
       expect(result.stdout).toContain("primary=ASYNC_SEMANTIC_MISSING_PAYLOAD");
       expect(result.stdout).toContain(
         'primary_reason="Async evidence kafka send orders.created is missing payload required by schema OrderCreatedPayload at /: Observed kafka evidence did not include a payload."'
@@ -197,7 +196,11 @@ describe("cli async-report", () => {
         "unsupported-schema-format": 0,
         "missing-payload": 1,
         "invalid-payload": 1,
-        "unverifiable-headers": 1,
+        "missing-header": 0,
+        "unavailable-header": 0,
+        "invalid-header": 0,
+        "unverifiable-headers": 0,
+        ambiguous: 0,
         unmatched: 0,
         mismatched: 0
       });
@@ -206,7 +209,53 @@ describe("cli async-report", () => {
     }
   });
 
-  it("fails closed on unsupported payload content types before header capability gaps", async () => {
+  it("fails closed on typed header drift with explicit async error ordering", async () => {
+    const eventsJsonl = await readFile("test/fixtures/async-events/schema-missing-header.fixture.jsonl", "utf8");
+    const fixture = await createAsyncFixture(SCHEMA_DEPTH_ASYNCAPI, eventsJsonl);
+
+    try {
+      const result = await runCli([
+        "async-report",
+        "--spec",
+        fixture.specPath,
+        "--events",
+        fixture.eventsPath,
+        "--out",
+        fixture.outDir,
+        "--profile",
+        "local"
+      ]);
+
+      expect(result.code).toBe(5);
+      expect(result.stderr).toContain("YANOTE_ASYNC_ERROR class=semantic code=ASYNC_SEMANTIC_MISSING_HEADER");
+      expect(result.stdout).toContain("primary=ASYNC_SEMANTIC_MISSING_HEADER");
+      expect(result.stdout).toContain(
+        'primary_reason="Async evidence kafka send orders.created is missing required header from schema OrderEventHeaders at /traceId: Observed kafka evidence did not include required header \'traceId\'."'
+      );
+      expect(result.stdout).toContain(
+        "- medium: kafka send orders.created - missing-header schema=OrderEventHeaders pointer=/traceId reason=Observed kafka evidence did not include required header 'traceId'."
+      );
+
+      const report = JSON.parse(await readFile(path.join(fixture.outDir, "yanote-async-report.json"), "utf8"));
+      expect(report.diagnostics.counts).toEqual({
+        "unsupported-content-type": 0,
+        "unsupported-schema-format": 0,
+        "missing-payload": 0,
+        "invalid-payload": 0,
+        "missing-header": 1,
+        "unavailable-header": 0,
+        "invalid-header": 0,
+        "unverifiable-headers": 0,
+        ambiguous: 0,
+        unmatched: 0,
+        mismatched: 0
+      });
+    } finally {
+      await rm(fixture.dir, { recursive: true, force: true });
+    }
+  });
+
+  it("fails closed on unsupported payload content types before any other semantic drift", async () => {
     const eventsJsonl = await readFile("test/fixtures/async-events/schema-unsupported-format.fixture.jsonl", "utf8");
     const fixture = await createAsyncFixture(
       SCHEMA_DEPTH_ASYNCAPI.replace("contentType: application/json", "contentType: application/xml"),
@@ -228,7 +277,6 @@ describe("cli async-report", () => {
 
       expect(result.code).toBe(5);
       expect(result.stderr).toContain("YANOTE_ASYNC_ERROR class=semantic code=ASYNC_SEMANTIC_UNSUPPORTED_CONTENT_TYPE");
-      expect(result.stderr).toContain("YANOTE_ASYNC_ERROR_SECONDARY class=semantic code=ASYNC_SEMANTIC_UNVERIFIABLE_HEADERS");
       expect(result.stdout).toContain("primary=ASYNC_SEMANTIC_UNSUPPORTED_CONTENT_TYPE");
       expect(result.stdout).toContain(
         'primary_reason="Async evidence kafka send orders.created cannot validate payload schema OrderCreatedPayload because Unsupported AsyncAPI payload content type: application/xml."'
@@ -240,7 +288,11 @@ describe("cli async-report", () => {
         "unsupported-schema-format": 0,
         "missing-payload": 0,
         "invalid-payload": 0,
-        "unverifiable-headers": 1,
+        "missing-header": 0,
+        "unavailable-header": 0,
+        "invalid-header": 0,
+        "unverifiable-headers": 0,
+        ambiguous: 0,
         unmatched: 0,
         mismatched: 0
       });
@@ -249,7 +301,7 @@ describe("cli async-report", () => {
     }
   });
 
-  it("fails closed on unsupported payload schema formats before header capability gaps", async () => {
+  it("fails closed on unsupported payload schema formats before any other semantic drift", async () => {
     const eventsJsonl = await readFile("test/fixtures/async-events/schema-unsupported-format.fixture.jsonl", "utf8");
     const fixture = await createAsyncFixture(
       SCHEMA_DEPTH_ASYNCAPI.replace(
@@ -278,7 +330,6 @@ describe("cli async-report", () => {
 
       expect(result.code).toBe(5);
       expect(result.stderr).toContain("YANOTE_ASYNC_ERROR class=semantic code=ASYNC_SEMANTIC_UNSUPPORTED_SCHEMA_FORMAT");
-      expect(result.stderr).toContain("YANOTE_ASYNC_ERROR_SECONDARY class=semantic code=ASYNC_SEMANTIC_UNVERIFIABLE_HEADERS");
       expect(result.stdout).toContain("primary=ASYNC_SEMANTIC_UNSUPPORTED_SCHEMA_FORMAT");
       expect(result.stdout).toContain(
         'primary_reason="Async evidence kafka send orders.created cannot validate payload schema OrderCreatedPayload because Unsupported AsyncAPI payload schema format: application/vnd.apache.avro;version=1.11.0."'
@@ -290,7 +341,55 @@ describe("cli async-report", () => {
         "unsupported-schema-format": 1,
         "missing-payload": 0,
         "invalid-payload": 0,
-        "unverifiable-headers": 1,
+        "missing-header": 0,
+        "unavailable-header": 0,
+        "invalid-header": 0,
+        "unverifiable-headers": 0,
+        ambiguous: 0,
+        unmatched: 0,
+        mismatched: 0
+      });
+    } finally {
+      await rm(fixture.dir, { recursive: true, force: true });
+    }
+  });
+
+  it("fails closed on runtime-ambiguous multi-message evidence", async () => {
+    const specYaml = await readFile("test/fixtures/asyncapi/multi-message-resolvable.yaml", "utf8");
+    const fixture = await createAsyncFixture(
+      specYaml,
+      '{"kind":"kafka","action":"send","channel":"users.lifecycle","message":"UserLifecycleEvent","payload":{"userId":"user-2"},"test.run_id":"run-2","test.suite":"suite-runtime-ambiguous"}\n'
+    );
+
+    try {
+      const result = await runCli([
+        "async-report",
+        "--spec",
+        fixture.specPath,
+        "--events",
+        fixture.eventsPath,
+        "--out",
+        fixture.outDir,
+        "--profile",
+        "local"
+      ]);
+
+      expect(result.code).toBe(5);
+      expect(result.stderr).toContain("YANOTE_ASYNC_ERROR class=semantic code=ASYNC_SEMANTIC_AMBIGUOUS_MESSAGE");
+      expect(result.stdout).toContain("primary=ASYNC_SEMANTIC_AMBIGUOUS_MESSAGE");
+      expect(result.stdout).toContain("could not deterministically select one declared message contract");
+
+      const report = JSON.parse(await readFile(path.join(fixture.outDir, "yanote-async-report.json"), "utf8"));
+      expect(report.diagnostics.counts).toEqual({
+        "unsupported-content-type": 0,
+        "unsupported-schema-format": 0,
+        "missing-payload": 0,
+        "invalid-payload": 0,
+        "missing-header": 0,
+        "unavailable-header": 0,
+        "invalid-header": 0,
+        "unverifiable-headers": 0,
+        ambiguous: 1,
         unmatched: 0,
         mismatched: 0
       });
@@ -332,7 +431,11 @@ describe("cli async-report", () => {
         "unsupported-schema-format": 0,
         "missing-payload": 0,
         "invalid-payload": 0,
+        "missing-header": 0,
+        "unavailable-header": 0,
+        "invalid-header": 0,
         "unverifiable-headers": 0,
+        ambiguous: 0,
         unmatched: 1,
         mismatched: 1
       });

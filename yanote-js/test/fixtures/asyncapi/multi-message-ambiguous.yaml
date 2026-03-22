@@ -1,0 +1,37 @@
+asyncapi: 3.0.0
+info:
+  title: multi-message ambiguous kafka async contract
+  version: '1.0.0'
+servers:
+  kafkaLocal:
+    host: localhost:9092
+    protocol: kafka
+channels:
+  userLifecycle:
+    address: users.lifecycle
+operations:
+  sendUserLifecycle:
+    action: send
+    channel:
+      $ref: '#/channels/userLifecycle'
+    messages:
+      - name: UserLifecycleEvent
+        contentType: application/json
+        payload:
+          type: object
+          required:
+            - userId
+          properties:
+            userId:
+              type: string
+          x-parser-schema-id: UserLifecycleByIdPayload
+      - name: UserLifecycleEvent
+        contentType: application/json
+        payload:
+          type: object
+          required:
+            - email
+          properties:
+            email:
+              type: string
+          x-parser-schema-id: UserLifecycleByEmailPayload

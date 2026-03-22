@@ -20,6 +20,9 @@ async function seedAsyncProofSources(workDir, options = {}) {
     includeAsyncStdout = true,
     includeAsyncStderr = true,
     includeReport = true,
+    includeRuntimeSelectedAsyncStdout = true,
+    includeRuntimeSelectedAsyncStderr = true,
+    includeRuntimeSelectedReport = true,
     includeSchemaFailureAsyncStdout = true,
     includeSchemaFailureAsyncStderr = true,
     includeSchemaFailureReport = true
@@ -27,8 +30,10 @@ async function seedAsyncProofSources(workDir, options = {}) {
 
   const tmpDir = path.join(workDir, "proof-temp");
   const reportDir = path.join(tmpDir, "async-report");
+  const runtimeSelectedReportDir = path.join(tmpDir, "runtime-selected-async-report");
   const schemaFailureReportDir = path.join(tmpDir, "schema-failure-async-report");
   await mkdir(reportDir, { recursive: true });
+  await mkdir(runtimeSelectedReportDir, { recursive: true });
   await mkdir(schemaFailureReportDir, { recursive: true });
 
   const paths = {
@@ -41,6 +46,9 @@ async function seedAsyncProofSources(workDir, options = {}) {
     asyncStdout: path.join(tmpDir, "async-report.stdout"),
     asyncStderr: path.join(tmpDir, "async-report.stderr"),
     asyncReport: path.join(reportDir, "yanote-async-report.json"),
+    runtimeSelectedAsyncStdout: path.join(tmpDir, "runtime-selected-async-report.stdout"),
+    runtimeSelectedAsyncStderr: path.join(tmpDir, "runtime-selected-async-report.stderr"),
+    runtimeSelectedAsyncReport: path.join(runtimeSelectedReportDir, "yanote-async-report.json"),
     schemaFailureAsyncStdout: path.join(tmpDir, "schema-failure-async-report.stdout"),
     schemaFailureAsyncStderr: path.join(tmpDir, "schema-failure-async-report.stderr"),
     schemaFailureAsyncReport: path.join(schemaFailureReportDir, "yanote-async-report.json")
@@ -74,6 +82,15 @@ async function seedAsyncProofSources(workDir, options = {}) {
   if (includeReport) {
     await writeFile(paths.asyncReport, '{"status":"ok"}\n', "utf8");
   }
+  if (includeRuntimeSelectedAsyncStdout) {
+    await writeFile(paths.runtimeSelectedAsyncStdout, "Summary\nYANOTE_ASYNC_SUMMARY status=partial\n", "utf8");
+  }
+  if (includeRuntimeSelectedAsyncStderr) {
+    await writeFile(paths.runtimeSelectedAsyncStderr, "", "utf8");
+  }
+  if (includeRuntimeSelectedReport) {
+    await writeFile(paths.runtimeSelectedAsyncReport, '{"status":"partial"}\n', "utf8");
+  }
   if (includeSchemaFailureAsyncStdout) {
     await writeFile(paths.schemaFailureAsyncStdout, "Summary\nYANOTE_ASYNC_SUMMARY status=error\n", "utf8");
   }
@@ -101,6 +118,9 @@ async function seedAsyncProofSources(workDir, options = {}) {
       YANOTE_ASYNC_SOURCE_ASYNC_STDOUT: paths.asyncStdout,
       YANOTE_ASYNC_SOURCE_ASYNC_STDERR: paths.asyncStderr,
       YANOTE_ASYNC_SOURCE_ASYNC_REPORT: paths.asyncReport,
+      YANOTE_ASYNC_SOURCE_RUNTIME_SELECTED_ASYNC_STDOUT: paths.runtimeSelectedAsyncStdout,
+      YANOTE_ASYNC_SOURCE_RUNTIME_SELECTED_ASYNC_STDERR: paths.runtimeSelectedAsyncStderr,
+      YANOTE_ASYNC_SOURCE_RUNTIME_SELECTED_ASYNC_REPORT: paths.runtimeSelectedAsyncReport,
       YANOTE_ASYNC_SOURCE_SCHEMA_FAILURE_ASYNC_STDOUT: paths.schemaFailureAsyncStdout,
       YANOTE_ASYNC_SOURCE_SCHEMA_FAILURE_ASYNC_STDERR: paths.schemaFailureAsyncStderr,
       YANOTE_ASYNC_SOURCE_SCHEMA_FAILURE_ASYNC_REPORT: paths.schemaFailureAsyncReport
@@ -138,6 +158,9 @@ test("exports a deterministic widened async bundle when both happy-path and sche
       "async-report.stdout",
       "merge.log",
       "merged-two-service.events.jsonl",
+      "runtime-selected-async-report.stderr",
+      "runtime-selected-async-report.stdout",
+      "runtime-selected-yanote-async-report.json",
       "schema-failure-async-report.stderr",
       "schema-failure-async-report.stdout",
       "schema-failure-yanote-async-report.json",
@@ -149,8 +172,11 @@ test("exports a deterministic widened async bundle when both happy-path and sche
     const manifest = await readFile(path.join(outDir, "artifact-manifest.txt"), "utf8");
     assert.match(manifest, /proof_status=success/);
     assert.match(manifest, /report_found=true/);
-    assert.match(manifest, /artifact_count=12/);
+    assert.match(manifest, /artifact_count=15/);
     assert.match(manifest, /missing_artifacts=none/);
+    assert.match(manifest, /artifacts=.*runtime-selected-async-report\.stdout/);
+    assert.match(manifest, /artifacts=.*runtime-selected-async-report\.stderr/);
+    assert.match(manifest, /artifacts=.*runtime-selected-yanote-async-report\.json/);
     assert.match(manifest, /artifacts=.*schema-failure-async-report\.stdout/);
     assert.match(manifest, /artifacts=.*schema-failure-async-report\.stderr/);
     assert.match(manifest, /artifacts=.*schema-failure-yanote-async-report\.json/);
@@ -162,6 +188,10 @@ test("exports a deterministic widened async bundle when both happy-path and sche
     assert.match(sourcePaths, /single-service-proof\.log=.*single-service-proof\.log/);
     assert.match(sourcePaths, /merged-two-service\.events\.jsonl=.*merged-two-service\.events\.jsonl/);
     assert.match(sourcePaths, /yanote-async-report\.json=.*async-report\/yanote-async-report\.json/);
+    assert.match(
+      sourcePaths,
+      /runtime-selected-yanote-async-report\.json=.*runtime-selected-async-report\/yanote-async-report\.json/
+    );
     assert.match(
       sourcePaths,
       /schema-failure-yanote-async-report\.json=.*schema-failure-async-report\/yanote-async-report\.json/
@@ -181,6 +211,9 @@ test("retains a deterministic failure bundle without inventing schema-failure ar
       includeAsyncStdout: false,
       includeAsyncStderr: false,
       includeReport: false,
+      includeRuntimeSelectedAsyncStdout: false,
+      includeRuntimeSelectedAsyncStderr: false,
+      includeRuntimeSelectedReport: false,
       includeSchemaFailureAsyncStdout: false,
       includeSchemaFailureAsyncStderr: false,
       includeSchemaFailureReport: false
@@ -220,6 +253,9 @@ test("retains a deterministic failure bundle without inventing schema-failure ar
     assert.match(manifest, /missing_artifacts=.*async-report\.stdout/);
     assert.match(manifest, /missing_artifacts=.*async-report\.stderr/);
     assert.match(manifest, /missing_artifacts=.*yanote-async-report\.json/);
+    assert.match(manifest, /missing_artifacts=.*runtime-selected-async-report\.stdout/);
+    assert.match(manifest, /missing_artifacts=.*runtime-selected-async-report\.stderr/);
+    assert.match(manifest, /missing_artifacts=.*runtime-selected-yanote-async-report\.json/);
     assert.match(manifest, /missing_artifacts=.*schema-failure-async-report\.stdout/);
     assert.match(manifest, /missing_artifacts=.*schema-failure-async-report\.stderr/);
     assert.match(manifest, /missing_artifacts=.*schema-failure-yanote-async-report\.json/);
@@ -230,6 +266,9 @@ test("retains a deterministic failure bundle without inventing schema-failure ar
     assert.match(sourcePaths, /async-report\.stdout=none/);
     assert.match(sourcePaths, /async-report\.stderr=none/);
     assert.match(sourcePaths, /yanote-async-report\.json=none/);
+    assert.match(sourcePaths, /runtime-selected-async-report\.stdout=none/);
+    assert.match(sourcePaths, /runtime-selected-async-report\.stderr=none/);
+    assert.match(sourcePaths, /runtime-selected-yanote-async-report\.json=none/);
     assert.match(sourcePaths, /schema-failure-async-report\.stdout=none/);
     assert.match(sourcePaths, /schema-failure-async-report\.stderr=none/);
     assert.match(sourcePaths, /schema-failure-yanote-async-report\.json=none/);

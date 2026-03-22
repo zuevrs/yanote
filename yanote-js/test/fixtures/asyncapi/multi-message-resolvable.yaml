@@ -1,0 +1,58 @@
+asyncapi: 3.0.0
+info:
+  title: multi-message resolvable kafka async contract
+  version: '1.0.0'
+servers:
+  kafkaLocal:
+    host: localhost:9092
+    protocol: kafka
+channels:
+  userLifecycle:
+    address: users.lifecycle
+operations:
+  sendUserLifecycle:
+    action: send
+    channel:
+      $ref: '#/channels/userLifecycle'
+    messages:
+      - name: UserLifecycleEvent
+        contentType: application/json
+        headers:
+          type: object
+          required:
+            - yanote.event.kind
+          properties:
+            yanote.event.kind:
+              type: string
+              const: signed-up
+            traceId:
+              type: string
+        payload:
+          type: object
+          required:
+            - userId
+          properties:
+            userId:
+              type: string
+      - name: UserLifecycleEvent
+        contentType: application/json
+        headers:
+          type: object
+          required:
+            - yanote.event.kind
+          properties:
+            yanote.event.kind:
+              type: string
+              const: deleted
+            traceId:
+              type: string
+        payload:
+          type: object
+          required:
+            - userId
+            - deletedAt
+          properties:
+            userId:
+              type: string
+            deletedAt:
+              type: string

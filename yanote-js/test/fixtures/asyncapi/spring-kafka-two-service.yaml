@@ -11,6 +11,8 @@ channels:
     address: users.created
     messages:
       UserCreated:
+        headers:
+          $ref: '#/components/schemas/YanoteKafkaHeaders'
         payload:
           $ref: '#/components/schemas/UserCreatedPayload'
 operations:
@@ -28,5 +30,26 @@ operations:
       - $ref: '#/channels/userCreated/messages/UserCreated'
 components:
   schemas:
+    YanoteKafkaHeaders:
+      type: object
+      required:
+        - yanote.message
+        - yanote.test.run_id
+        - yanote.test.suite
+      properties:
+        yanote.message:
+          type: string
+        yanote.test.run_id:
+          type: string
+        yanote.test.suite:
+          type: string
     UserCreatedPayload:
-      type: string
+      type: object
+      required:
+        - name
+        - email
+      properties:
+        name:
+          type: string
+        email:
+          type: string

@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { readAsyncEventsJsonl } from "../events/readAsyncEventsJsonl.js";
+import type { JsonValue } from "../model/asyncEvent.js";
 import type { KafkaMessageContract } from "../model/operationKey.js";
 import { loadAsyncApiSemanticsBundle, type AsyncApiSemanticsBundle } from "../spec/asyncapi.js";
 import { computeAsyncCoverage } from "../coverage/asyncCoverage.js";
@@ -70,7 +71,7 @@ describe("async report", () => {
               channel: "users.signedup",
               action: "send",
               operation: { state: "COVERED" },
-              messageContract: { name: "UserSignedUp", state: "COVERED" },
+              messageContract: { name: "UserSignedUp", selectionMode: "single", state: "COVERED" },
               suites: ["suite-a", "suite-b"]
             },
             {
@@ -78,7 +79,7 @@ describe("async report", () => {
               channel: "users.deleted",
               action: "receive",
               operation: { state: "UNCOVERED" },
-              messageContract: { name: "UserDeleted", state: "UNCOVERED" },
+              messageContract: { name: "UserDeleted", selectionMode: "single", state: "UNCOVERED" },
               suites: []
             }
           ]
@@ -88,20 +89,20 @@ describe("async report", () => {
           percent: 50,
           items: [
             {
-              operationKey: "kafka send users.signedup",
-              channel: "users.signedup",
-              action: "send",
-              message: "UserSignedUp",
-              state: "COVERED",
-              suites: ["suite-a", "suite-b"]
-            },
-            {
               operationKey: "kafka receive users.deleted",
               channel: "users.deleted",
               action: "receive",
-              message: "UserDeleted",
+              message: "UserDeleted [payload: <anonymous-schema-2>]",
               state: "UNCOVERED",
               suites: []
+            },
+            {
+              operationKey: "kafka send users.signedup",
+              channel: "users.signedup",
+              action: "send",
+              message: "UserSignedUp [payload: <anonymous-schema-1>]",
+              state: "COVERED",
+              suites: ["suite-a", "suite-b"]
             }
           ]
         }
@@ -112,7 +113,11 @@ describe("async report", () => {
           "unsupported-schema-format": 0,
           "missing-payload": 0,
           "invalid-payload": 0,
+          "missing-header": 0,
+          "unavailable-header": 0,
+          "invalid-header": 0,
           "unverifiable-headers": 0,
+          ambiguous: 0,
           unmatched: 0,
           mismatched: 0
         },
@@ -124,7 +129,7 @@ describe("async report", () => {
     expect((report as Record<string, unknown>).governance).toBeUndefined();
   });
 
-  it("reports schema-depth payload failures and header capability gaps without changing routing coverage", async () => {
+  it("reports schema-depth payload failures without changing routing coverage", async () => {
     const bundle = await loadAsyncApiSemanticsBundle("test/fixtures/asyncapi/schema-depth-v3.yaml");
     const [invalidEvents, missingEvents] = await Promise.all([
       readAsyncEventsJsonl("test/fixtures/async-events/schema-invalid.fixture.jsonl"),
@@ -157,7 +162,11 @@ describe("async report", () => {
         "unsupported-schema-format": 0,
         "missing-payload": 1,
         "invalid-payload": 1,
-        "unverifiable-headers": 1,
+        "missing-header": 0,
+        "unavailable-header": 0,
+        "invalid-header": 0,
+        "unverifiable-headers": 0,
+        ambiguous: 0,
         unmatched: 0,
         mismatched: 0
       },
@@ -185,17 +194,114 @@ describe("async report", () => {
           pointer: "/order/total",
           reason: "required: must have required property 'total'",
           message: "Observed kafka payload did not conform to the retained AsyncAPI payload schema"
-        },
+        }
+      ]
+    });
+  });
+
+  it("reports typed header drift without regressing payload semantics", async () => {
+    const missingBundle = await loadAsyncApiSemanticsBundle("test/fixtures/asyncapi/schema-depth-v3.yaml");
+    const unavailableBundle = await loadAsyncApiSemanticsBundle("test/fixtures/asyncapi/schema-depth-v3.yaml");
+    const invalidBundle = withHeaderPattern(
+      await loadAsyncApiSemanticsBundle("test/fixtures/asyncapi/schema-depth-v3.yaml"),
+      /^trace-[0-9]+$/
+    );
+    const [missingEvents, unavailableEvents, invalidEvents] = await Promise.all([
+      readAsyncEventsJsonl("test/fixtures/async-events/schema-missing-header.fixture.jsonl"),
+      readAsyncEventsJsonl("test/fixtures/async-events/schema-unavailable-header.fixture.jsonl"),
+      readAsyncEventsJsonl("test/fixtures/async-events/schema-invalid-header.fixture.jsonl")
+    ]);
+
+    const coverage = computeAsyncCoverage(missingBundle, missingEvents.items);
+    const unavailableCoverage = computeAsyncCoverage(unavailableBundle, unavailableEvents.items);
+    const invalidCoverage = computeAsyncCoverage(invalidBundle, invalidEvents.items);
+
+    expect(buildAsyncReport(coverage, { toolVersion: "test" }).diagnostics).toEqual({
+      counts: {
+        "unsupported-content-type": 0,
+        "unsupported-schema-format": 0,
+        "missing-payload": 0,
+        "invalid-payload": 0,
+        "missing-header": 1,
+        "unavailable-header": 0,
+        "invalid-header": 0,
+        "unverifiable-headers": 0,
+        ambiguous: 0,
+        unmatched: 0,
+        mismatched: 0
+      },
+      items: [
         {
-          kind: "unverifiable-headers",
+          kind: "missing-header",
           validationKind: "headers",
           operationKey: OPERATION_KEY,
           channel: "orders.created",
           action: "send",
           messageName: "OrderCreatedEnvelope",
           schemaId: "OrderEventHeaders",
-          reason: "Kafka evidence does not currently retain headers, so the AsyncAPI header schema cannot be verified.",
-          message: "Retained AsyncAPI header schema cannot be verified from the observed kafka evidence"
+          pointer: "/traceId",
+          reason: "Observed kafka evidence did not include required header 'traceId'.",
+          message: "Observed kafka evidence is missing a required header for AsyncAPI header validation"
+        }
+      ]
+    });
+
+    expect(buildAsyncReport(unavailableCoverage, { toolVersion: "test" }).diagnostics).toEqual({
+      counts: {
+        "unsupported-content-type": 0,
+        "unsupported-schema-format": 0,
+        "missing-payload": 0,
+        "invalid-payload": 0,
+        "missing-header": 0,
+        "unavailable-header": 1,
+        "invalid-header": 0,
+        "unverifiable-headers": 0,
+        ambiguous: 0,
+        unmatched: 0,
+        mismatched: 0
+      },
+      items: [
+        {
+          kind: "unavailable-header",
+          validationKind: "headers",
+          operationKey: OPERATION_KEY,
+          channel: "orders.created",
+          action: "send",
+          messageName: "OrderCreatedEnvelope",
+          schemaId: "OrderEventHeaders",
+          pointer: "/traceId",
+          reason: "Observed kafka header 'traceId' was retained as redacted evidence (reason: sensitive), so its value could not be validated.",
+          message: "Observed kafka header value was unavailable for AsyncAPI header validation"
+        }
+      ]
+    });
+
+    expect(buildAsyncReport(invalidCoverage, { toolVersion: "test" }).diagnostics).toEqual({
+      counts: {
+        "unsupported-content-type": 0,
+        "unsupported-schema-format": 0,
+        "missing-payload": 0,
+        "invalid-payload": 0,
+        "missing-header": 0,
+        "unavailable-header": 0,
+        "invalid-header": 1,
+        "unverifiable-headers": 0,
+        ambiguous: 0,
+        unmatched: 0,
+        mismatched: 0
+      },
+      items: [
+        {
+          kind: "invalid-header",
+          validationKind: "headers",
+          operationKey: OPERATION_KEY,
+          channel: "orders.created",
+          action: "send",
+          messageName: "OrderCreatedEnvelope",
+          schemaId: "OrderEventHeaders",
+          pointer: "/traceId",
+          reason: "pattern: must match pattern '^trace-[0-9]+$'",
+          message: "Observed kafka headers did not conform to the retained AsyncAPI header schema"
         }
       ]
     });
@@ -229,7 +335,11 @@ describe("async report", () => {
         "unsupported-schema-format": 0,
         "missing-payload": 0,
         "invalid-payload": 0,
-        "unverifiable-headers": 1,
+        "missing-header": 0,
+        "unavailable-header": 0,
+        "invalid-header": 0,
+        "unverifiable-headers": 0,
+        ambiguous: 0,
         unmatched: 0,
         mismatched: 0
       },
@@ -244,17 +354,6 @@ describe("async report", () => {
           schemaId: "OrderCreatedPayload",
           reason: "Unsupported AsyncAPI payload content type: application/xml.",
           message: "Retained AsyncAPI payload content type is outside the current schema-validation scope"
-        },
-        {
-          kind: "unverifiable-headers",
-          validationKind: "headers",
-          operationKey: OPERATION_KEY,
-          channel: "orders.created",
-          action: "send",
-          messageName: "OrderCreatedEnvelope",
-          schemaId: "OrderEventHeaders",
-          reason: "Kafka evidence does not currently retain headers, so the AsyncAPI header schema cannot be verified.",
-          message: "Retained AsyncAPI header schema cannot be verified from the observed kafka evidence"
         }
       ]
     });
@@ -290,7 +389,11 @@ describe("async report", () => {
         "unsupported-schema-format": 0,
         "missing-payload": 0,
         "invalid-payload": 0,
+        "missing-header": 0,
+        "unavailable-header": 0,
+        "invalid-header": 0,
         "unverifiable-headers": 0,
+        ambiguous: 0,
         unmatched: 1,
         mismatched: 1
       },
@@ -301,6 +404,7 @@ describe("async report", () => {
           action: "receive",
           observedMessage: "LegacyUserDeleted",
           expectedMessage: "UserDeleted",
+          reason: "Observed async message name did not match the declared AsyncAPI message contract.",
           message: "Observed async message contract did not match the canonical AsyncAPI message contract"
         },
         {
@@ -313,7 +417,83 @@ describe("async report", () => {
       ]
     });
   });
+
+  it("reports runtime-ambiguous multi-message evidence as a typed async diagnostic", async () => {
+    const bundle = await loadAsyncApiSemanticsBundle("test/fixtures/asyncapi/multi-message-resolvable.yaml");
+    const coverage = computeAsyncCoverage(bundle, [
+      {
+        kind: "kafka",
+        action: "send",
+        channel: "users.lifecycle",
+        message: "UserLifecycleEvent",
+        payload: { userId: "user-2" },
+        testRunId: "run-2",
+        testSuite: "suite-runtime-ambiguous"
+      }
+    ]);
+
+    const report = buildAsyncReport(coverage, { toolVersion: "test" });
+
+    expect(report.status).toBe("partial");
+    expect(report.coverage.operations.items).toEqual([
+      expect.objectContaining({
+        operationKey: "kafka send users.lifecycle",
+        messageContract: expect.objectContaining({
+          selectionMode: "runtime",
+          state: "UNCOVERED",
+          selectedMessages: []
+        })
+      })
+    ]);
+    expect(report.diagnostics).toEqual({
+      counts: {
+        "unsupported-content-type": 0,
+        "unsupported-schema-format": 0,
+        "missing-payload": 0,
+        "invalid-payload": 0,
+        "missing-header": 0,
+        "unavailable-header": 0,
+        "invalid-header": 0,
+        "unverifiable-headers": 0,
+        ambiguous: 1,
+        unmatched: 0,
+        mismatched: 0
+      },
+      items: [
+        expect.objectContaining({
+          kind: "ambiguous",
+          operationKey: "kafka send users.lifecycle",
+          channel: "users.lifecycle",
+          action: "send",
+          observedMessage: "UserLifecycleEvent",
+          candidates: expect.arrayContaining([
+            expect.stringContaining("selectors: yanote.event.kind=deleted"),
+            expect.stringContaining("selectors: yanote.event.kind=signed-up")
+          ])
+        })
+      ]
+    });
+  });
 });
+
+function withHeaderPattern(bundle: AsyncApiSemanticsBundle, pattern: RegExp): AsyncApiSemanticsBundle {
+  return withMessageOverride(bundle, (message) => ({
+    ...message,
+    headersSchema: {
+      ...(cloneJsonValue(message.headersSchema ?? {}) as Record<string, JsonValue>),
+      properties: {
+        ...((cloneJsonValue((message.headersSchema as Record<string, JsonValue> | undefined)?.properties ?? {}) as Record<
+          string,
+          JsonValue
+        >)),
+        traceId: {
+          type: "string",
+          pattern: pattern.source
+        }
+      }
+    }
+  }));
+}
 
 function withMessageOverride(
   bundle: AsyncApiSemanticsBundle,
@@ -330,7 +510,10 @@ function withMessageOverride(
     message: transform({
       ...contract.message,
       ...(contract.message.payloadSchema !== undefined
-        ? { payloadSchema: structuredClone(contract.message.payloadSchema) }
+        ? { payloadSchema: cloneJsonValue(contract.message.payloadSchema) }
+        : {}),
+      ...(contract.message.headersSchema !== undefined
+        ? { headersSchema: cloneJsonValue(contract.message.headersSchema) }
         : {})
     })
   });
@@ -339,4 +522,8 @@ function withMessageOverride(
     ...bundle,
     operationContractsByKey: nextContracts
   };
+}
+
+function cloneJsonValue<T extends JsonValue>(value: T): T {
+  return structuredClone(value);
 }

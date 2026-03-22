@@ -81,17 +81,11 @@ describe("async gate evaluator contract", () => {
 
     expect(ordered.map((failure) => failure.code)).toEqual([
       "ASYNC_SEMANTIC_MISSING_PAYLOAD",
-      "ASYNC_SEMANTIC_INVALID_PAYLOAD",
-      "ASYNC_SEMANTIC_UNVERIFIABLE_HEADERS"
+      "ASYNC_SEMANTIC_INVALID_PAYLOAD"
     ]);
-    expect(ordered.map((failure) => failure.operationKey)).toEqual([
-      SCHEMA_DEPTH_OPERATION_KEY,
-      SCHEMA_DEPTH_OPERATION_KEY,
-      SCHEMA_DEPTH_OPERATION_KEY
-    ]);
+    expect(ordered.map((failure) => failure.operationKey)).toEqual([SCHEMA_DEPTH_OPERATION_KEY, SCHEMA_DEPTH_OPERATION_KEY]);
     expect(ordered[0]?.reason).toContain("schema OrderCreatedPayload at /");
     expect(ordered[1]?.reason).toContain("schema OrderCreatedPayload at /order/total");
-    expect(ordered[2]?.reason).toContain("header schema OrderEventHeaders");
   });
 
   it("fails unsupported content-type contracts before header capability gaps", async () => {
@@ -110,10 +104,7 @@ describe("async gate evaluator contract", () => {
 
     const ordered = sortFailuresByPrecedence(evaluateAsyncGateFailures({ coverage, policy }));
 
-    expect(ordered.map((failure) => failure.code)).toEqual([
-      "ASYNC_SEMANTIC_UNSUPPORTED_CONTENT_TYPE",
-      "ASYNC_SEMANTIC_UNVERIFIABLE_HEADERS"
-    ]);
+    expect(ordered.map((failure) => failure.code)).toEqual(["ASYNC_SEMANTIC_UNSUPPORTED_CONTENT_TYPE"]);
     expect(ordered[0]?.reason).toContain("Unsupported AsyncAPI payload content type: application/xml.");
   });
 
@@ -133,13 +124,41 @@ describe("async gate evaluator contract", () => {
 
     const ordered = sortFailuresByPrecedence(evaluateAsyncGateFailures({ coverage, policy }));
 
-    expect(ordered.map((failure) => failure.code)).toEqual([
-      "ASYNC_SEMANTIC_UNSUPPORTED_SCHEMA_FORMAT",
-      "ASYNC_SEMANTIC_UNVERIFIABLE_HEADERS"
-    ]);
+    expect(ordered.map((failure) => failure.code)).toEqual(["ASYNC_SEMANTIC_UNSUPPORTED_SCHEMA_FORMAT"]);
     expect(ordered[0]?.reason).toContain(
       "Unsupported AsyncAPI payload schema format: application/vnd.apache.avro;version=1.11.0."
     );
+  });
+
+  it("fails closed on runtime-ambiguous multi-message evidence before threshold logic", async () => {
+    const bundle = await loadAsyncApiSemanticsBundle("test/fixtures/asyncapi/multi-message-resolvable.yaml");
+    const coverage = computeAsyncCoverage(bundle, [
+      {
+        kind: "kafka",
+        action: "send",
+        channel: "users.lifecycle",
+        message: "UserLifecycleEvent",
+        payload: { userId: "user-2" },
+        testRunId: "run-2",
+        testSuite: "suite-runtime-ambiguous"
+      }
+    ]);
+    const policy = await resolveGatePolicy({
+      profile: "local",
+      cliOverrides: {
+        minCoverage: 100
+      }
+    });
+
+    const ordered = sortFailuresByPrecedence(evaluateAsyncGateFailures({ coverage, policy }));
+
+    expect(ordered.map((failure) => failure.code)).toEqual(["ASYNC_SEMANTIC_AMBIGUOUS_MESSAGE"]);
+    expect(ordered[0]).toMatchObject({
+      failureClass: "semantic",
+      severity: "error",
+      operationKey: "kafka send users.lifecycle"
+    });
+    expect(ordered[0]?.reason).toContain("could not deterministically select one declared message contract");
   });
 
   it("keeps regression failures deterministic and ordered ahead of threshold warnings", async () => {

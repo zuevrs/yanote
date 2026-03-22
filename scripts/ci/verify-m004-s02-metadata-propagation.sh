@@ -117,10 +117,25 @@ if http_record.get("test.run_id") != expected_run:
     raise SystemExit(f"Expected HTTP test.run_id {expected_run!r}, got {http_record.get('test.run_id')!r}")
 if http_record.get("test.suite") != expected_suite:
     raise SystemExit(f"Expected HTTP test.suite {expected_suite!r}, got {http_record.get('test.suite')!r}")
-if http_record.get("status") != 200:
-    raise SystemExit(f"Expected HTTP status 200, got {http_record.get('status')!r}")
+if http_record.get("status") != 201:
+    raise SystemExit(f"Expected HTTP status 201, got {http_record.get('status')!r}")
 if http_record.get("error") is not False:
     raise SystemExit(f"Expected HTTP error=false, got {http_record.get('error')!r}")
+if http_record.get("requestBodyState") != "captured" or http_record.get("requestBodyReason") is not None:
+    raise SystemExit(f"Expected captured HTTP request provenance, got {http_record!r}")
+if http_record.get("responseBodyState") != "captured" or http_record.get("responseBodyReason") is not None:
+    raise SystemExit(f"Expected captured HTTP response provenance, got {http_record!r}")
+expected_http_request = {"name": "alice", "email": "alice@example.com"}
+expected_http_response = {
+    "id": "user-alice",
+    "name": "alice",
+    "email": "alice@example.com",
+    "created": True,
+}
+if http_record.get("requestBody") != expected_http_request:
+    raise SystemExit(f"Expected HTTP requestBody {expected_http_request!r}, got {http_record.get('requestBody')!r}")
+if http_record.get("responseBody") != expected_http_response:
+    raise SystemExit(f"Expected HTTP responseBody {expected_http_response!r}, got {http_record.get('responseBody')!r}")
 
 def find_single(action, channel):
     matches = [record for record in kafka_records if record.get("action") == action and record.get("channel") == channel]
@@ -130,6 +145,7 @@ def find_single(action, channel):
         )
     return matches[0]
 
+expected_kafka_payload = {"name": "alice", "email": "alice@example.com"}
 expected_records = [
     (find_single("send", expected_first_channel), expected_first_message),
     (find_single("receive", expected_first_channel), expected_first_message),
@@ -147,6 +163,19 @@ for record, expected_message in expected_records:
         raise SystemExit(f"Expected Kafka test.suite {expected_suite!r}, got {record.get('test.suite')!r}")
     if record.get("error") is not False:
         raise SystemExit(f"Expected Kafka error=false, got {record.get('error')!r}")
+    if record.get("payloadState") != "captured" or record.get("payloadReason") is not None:
+        raise SystemExit(f"Expected captured Kafka payload provenance, got {record!r}")
+    if record.get("payload") != expected_kafka_payload:
+        raise SystemExit(f"Expected Kafka payload {expected_kafka_payload!r}, got {record.get('payload')!r}")
+    headers = record.get("headers")
+    if not isinstance(headers, dict):
+        raise SystemExit(f"Expected retained Kafka headers map, got {headers!r}")
+    if headers.get("yanote.message") != {"state": "captured", "value": expected_message}:
+        raise SystemExit(f"Expected retained yanote.message header for {expected_message!r}, got {headers.get('yanote.message')!r}")
+    if headers.get("yanote.test.run_id") != {"state": "captured", "value": expected_run}:
+        raise SystemExit(f"Expected retained yanote.test.run_id header {expected_run!r}, got {headers.get('yanote.test.run_id')!r}")
+    if headers.get("yanote.test.suite") != {"state": "captured", "value": expected_suite}:
+        raise SystemExit(f"Expected retained yanote.test.suite header {expected_suite!r}, got {headers.get('yanote.test.suite')!r}")
 
 first_messages = {record.get("message") for record in kafka_records if record.get("channel") == expected_first_channel}
 republished_messages = {record.get("message") for record in kafka_records if record.get("channel") == expected_republished_channel}
@@ -238,7 +267,11 @@ if report.get("diagnostics", {}).get("counts") != {
     "unsupported-schema-format": 0,
     "missing-payload": 0,
     "invalid-payload": 0,
+    "missing-header": 0,
+    "unavailable-header": 0,
+    "invalid-header": 0,
     "unverifiable-headers": 0,
+    "ambiguous": 0,
     "unmatched": 0,
     "mismatched": 0,
 }:

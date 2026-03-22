@@ -231,7 +231,8 @@ const REPORT_SCHEMA = {
                       "MEDIA_TYPE_MISMATCH",
                       "UNSUPPORTED_MEDIA_TYPE",
                       "UNSUPPORTED_SCHEMA",
-                      "NO_DECLARED_CONTENT"
+                      "NO_DECLARED_CONTENT",
+                      "RECORDER_OMITTED"
                     ]
                   },
                   message: { type: "string", minLength: 1 },
@@ -239,6 +240,8 @@ const REPORT_SCHEMA = {
                   observedStatus: { type: "integer" },
                   observedMediaType: { type: "string" },
                   declaredMediaTypes: { type: "array", items: { type: "string" } },
+                  captureState: { enum: ["captured", "omitted"] },
+                  captureReason: { enum: ["malformed", "oversized", "unsupported", "policy-filtered"] },
                   errors: { type: "array", items: { type: "string" } }
                 }
               }

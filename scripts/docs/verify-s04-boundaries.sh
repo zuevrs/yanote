@@ -5,6 +5,8 @@ ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
 BOUNDARY_DOC="docs/release-and-support.md"
 ROOT_README="README.md"
 DOCS_README="docs/README.md"
+ANALYZER_GUIDE="docs/guides/analyzer-coverage.md"
+ASYNC_GUIDE="docs/guides/asyncapi-kafka.md"
 
 failures=0
 
@@ -155,8 +157,12 @@ if [[ "${boundary_doc_present}" == "true" ]]; then
   require_contains "${BOUNDARY_DOC}" "HTTP Payload Conformance" "payload conformance wording"
   require_contains "${BOUNDARY_DOC}" "JSON-first request/response payload validation" "JSON-first boundary wording"
   require_contains "${BOUNDARY_DOC}" "NO_DECLARED_CONTENT" "benign payload boundary wording"
+  require_contains "${BOUNDARY_DOC}" "RECORDER_OMITTED" "recorder omission boundary wording"
+  require_contains "${BOUNDARY_DOC}" "policy-filtered" "recorder omission provenance wording"
   require_contains "${BOUNDARY_DOC}" "SEMANTIC_HTTP_UNSUPPORTED_SCHEMA" "fail-closed payload wording"
   require_contains "${BOUNDARY_DOC}" "separate async report/gate" "separate async boundary wording"
+  require_contains "${BOUNDARY_DOC}" "runtime-selected-async-report.stderr" "runtime-selection retained artifact wording"
+  require_contains "${BOUNDARY_DOC}" "runtime-selected-yanote-async-report.json" "runtime-selection retained artifact wording"
   require_contains "${BOUNDARY_DOC}" "combined HTTP+async report surface" "no-combined-surface wording"
   require_absent "${BOUNDARY_DOC}" "v1.0.123" "stale stable release tag"
   require_absent "${BOUNDARY_DOC}" "v1.0.122" "stale previous release tag"
@@ -164,8 +170,16 @@ fi
 
 require_contains "${ROOT_README}" "docs/release-and-support.md" "release/support landing pointer"
 require_contains "${ROOT_README}" "${release_line}" "release/support landing stable line"
+require_contains "${ROOT_README}" "RECORDER_OMITTED" "root landing recorder omission wording"
+require_contains "${ROOT_README}" "policy-filtered" "root landing recorder omission provenance wording"
+require_contains "${ROOT_README}" "runtime-selection sidecar" "root landing async multi-message wording"
 require_contains "${DOCS_README}" "release-and-support.md" "release/support landing pointer"
 require_contains "${DOCS_README}" "${release_line}" "release/support landing stable line"
+require_contains "${ANALYZER_GUIDE}" "RECORDER_OMITTED" "analyzer guide recorder omission wording"
+require_contains "${ANALYZER_GUIDE}" "policy-filtered" "analyzer guide recorder omission provenance wording"
+require_contains "${ASYNC_GUIDE}" "runtime-selected-async-report.stderr" "async guide runtime-selection retained artifact wording"
+require_contains "${ASYNC_GUIDE}" "runtime-selected-yanote-async-report.json" "async guide runtime-selection retained artifact wording"
+require_contains "${ASYNC_GUIDE}" "selectionMode=runtime" "async guide runtime-selection proof wording"
 
 if (( failures > 0 )); then
   echo "S04 boundary verification failed with ${failures} issue(s)." >&2
