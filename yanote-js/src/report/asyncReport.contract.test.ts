@@ -74,7 +74,11 @@ const baseReport: AsyncYanoteReport = {
       "unsupported-schema-format": 0,
       "missing-payload": 0,
       "invalid-payload": 0,
+      "missing-header": 0,
+      "unavailable-header": 0,
+      "invalid-header": 0,
       "unverifiable-headers": 0,
+      ambiguous: 0,
       unmatched: 0,
       mismatched: 0
     },
@@ -123,6 +127,9 @@ describe("async report schema contract", () => {
           "unsupported-schema-format": 0,
           "missing-payload": 0,
           "invalid-payload": 0,
+          "missing-header": 0,
+          "unavailable-header": 0,
+          ambiguous: 0,
           unmatched: 0,
           mismatched: 0
         }
@@ -140,7 +147,11 @@ describe("async report schema contract", () => {
           "unsupported-schema-format": 0,
           "missing-payload": 1,
           "invalid-payload": 0,
+          "missing-header": 0,
+          "unavailable-header": 0,
+          "invalid-header": 0,
           "unverifiable-headers": 0,
+          ambiguous: 0,
           unmatched: 0,
           mismatched: 0
         },
@@ -168,24 +179,28 @@ describe("async report schema contract", () => {
         counts: {
           "unsupported-content-type": 0,
           "unsupported-schema-format": 0,
-          "missing-payload": 1,
+          "missing-payload": 0,
           "invalid-payload": 0,
+          "missing-header": 0,
+          "unavailable-header": 0,
+          "invalid-header": 1,
           "unverifiable-headers": 0,
+          ambiguous: 0,
           unmatched: 0,
           mismatched: 0
         },
         items: [
           {
-            kind: "missing-payload",
-            validationKind: "payload",
+            kind: "invalid-header",
+            validationKind: "headers",
             operationKey: "kafka send orders.created",
             channel: "orders.created",
             action: "send",
             messageName: "OrderCreatedEnvelope",
-            schemaId: "OrderCreatedPayload",
-            pointer: "/",
-            reason: "Observed kafka evidence did not include a payload.",
-            message: "Observed kafka evidence is missing the payload required for AsyncAPI schema validation"
+            schemaId: "OrderEventHeaders",
+            pointer: "/traceId",
+            reason: "pattern: must match pattern '^trace-[0-9]+$'",
+            message: "Observed kafka headers did not conform to the retained AsyncAPI header schema"
           }
         ]
       }
@@ -277,9 +292,13 @@ describe("async report schema contract", () => {
         counts: {
           "unsupported-content-type": 1,
           "unsupported-schema-format": 0,
-          "missing-payload": 1,
+          "missing-payload": 0,
           "invalid-payload": 0,
+          "missing-header": 1,
+          "unavailable-header": 0,
+          "invalid-header": 0,
           "unverifiable-headers": 0,
+          ambiguous: 0,
           unmatched: 1,
           mismatched: 1
         },
@@ -297,19 +316,20 @@ describe("async report schema contract", () => {
             action: "receive",
             observedMessage: "LegacyUserDeleted",
             expectedMessage: "UserDeleted",
+            reason: "Observed async message name did not match the declared AsyncAPI message contract.",
             message: "Observed async message contract did not match the canonical AsyncAPI message contract"
           },
           {
-            kind: "missing-payload",
-            validationKind: "payload",
+            kind: "missing-header",
+            validationKind: "headers",
             operationKey: "kafka send orders.created",
             channel: "orders.created",
             action: "send",
             messageName: "OrderCreatedEnvelope",
-            schemaId: "OrderCreatedPayload",
-            pointer: "/",
-            reason: "Observed kafka evidence did not include a payload.",
-            message: "Observed kafka evidence is missing the payload required for AsyncAPI schema validation"
+            schemaId: "OrderEventHeaders",
+            pointer: "/traceId",
+            reason: "Observed kafka evidence did not include required header 'traceId'.",
+            message: "Observed kafka evidence is missing a required header for AsyncAPI header validation"
           },
           {
             kind: "unsupported-content-type",
@@ -343,15 +363,19 @@ describe("async report schema contract", () => {
     expect(normalized.diagnostics.counts).toEqual({
       "unsupported-content-type": 1,
       "unsupported-schema-format": 0,
-      "missing-payload": 1,
+      "missing-payload": 0,
       "invalid-payload": 0,
+      "missing-header": 1,
+      "unavailable-header": 0,
+      "invalid-header": 0,
       "unverifiable-headers": 0,
+      ambiguous: 0,
       mismatched: 1,
       unmatched: 1
     });
     expect(normalized.diagnostics.items.map((entry) => entry.kind)).toEqual([
       "unsupported-content-type",
-      "missing-payload",
+      "missing-header",
       "mismatched",
       "unmatched"
     ]);

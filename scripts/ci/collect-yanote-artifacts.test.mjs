@@ -13,7 +13,7 @@ async function seedAsyncBundle(workDir) {
 
   await writeFile(
     path.join(asyncBundleDir, "artifact-manifest.txt"),
-    "proof_status=success\nreport_found=true\nartifact_count=12\n",
+    "proof_status=success\nreport_found=true\nartifact_count=15\n",
     "utf8"
   );
   await writeFile(path.join(asyncBundleDir, "artifact-source-paths.txt"), "temp_dir=/tmp/proof\n", "utf8");
@@ -26,6 +26,17 @@ async function seedAsyncBundle(workDir) {
   await writeFile(path.join(asyncBundleDir, "async-report.stdout"), "Summary\nYANOTE_ASYNC_SUMMARY status=ok\n", "utf8");
   await writeFile(path.join(asyncBundleDir, "async-report.stderr"), "", "utf8");
   await writeFile(path.join(asyncBundleDir, "yanote-async-report.json"), '{"status":"ok"}\n', "utf8");
+  await writeFile(
+    path.join(asyncBundleDir, "runtime-selected-async-report.stdout"),
+    "Summary\nYANOTE_ASYNC_SUMMARY status=partial\n",
+    "utf8"
+  );
+  await writeFile(path.join(asyncBundleDir, "runtime-selected-async-report.stderr"), "", "utf8");
+  await writeFile(
+    path.join(asyncBundleDir, "runtime-selected-yanote-async-report.json"),
+    '{"status":"partial"}\n',
+    "utf8"
+  );
   await writeFile(
     path.join(asyncBundleDir, "schema-failure-async-report.stdout"),
     "Summary\nYANOTE_ASYNC_SUMMARY status=error\n",
@@ -105,6 +116,9 @@ test("collects the widened async proof bundle and replaces stale copied director
       "async-report.stdout",
       "merge.log",
       "merged-two-service.events.jsonl",
+      "runtime-selected-async-report.stderr",
+      "runtime-selected-async-report.stdout",
+      "runtime-selected-yanote-async-report.json",
       "schema-failure-async-report.stderr",
       "schema-failure-async-report.stdout",
       "schema-failure-yanote-async-report.json",

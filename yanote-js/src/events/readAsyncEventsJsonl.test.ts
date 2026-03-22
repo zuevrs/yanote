@@ -22,6 +22,7 @@ describe("readAsyncEventsJsonl", () => {
         payload: undefined,
         payloadState: undefined,
         payloadReason: undefined,
+        headers: undefined,
         error: false,
         testRunId: "run-1",
         testSuite: "unknown"
@@ -37,6 +38,7 @@ describe("readAsyncEventsJsonl", () => {
         payload: undefined,
         payloadState: undefined,
         payloadReason: undefined,
+        headers: undefined,
         error: undefined,
         testRunId: "unknown",
         testSuite: "suite-a"
@@ -58,6 +60,20 @@ describe("readAsyncEventsJsonl", () => {
         payload: { id: "alice" },
         payloadState: " captured ",
         payloadReason: "oversized",
+        headers: {
+          " trace-id ": {
+            state: " captured ",
+            value: " trace-123 "
+          },
+          authorization: {
+            state: "redacted",
+            reason: " sensitive "
+          },
+          "binary-header": {
+            state: " omitted ",
+            reason: " unsupported "
+          }
+        },
         "test.run_id": "run-new",
         "test.suite": "suite-new"
       }),
@@ -90,6 +106,20 @@ describe("readAsyncEventsJsonl", () => {
           payload: { id: "alice" },
           payloadState: "captured",
           payloadReason: "oversized",
+          headers: {
+            authorization: {
+              state: "redacted",
+              reason: "sensitive"
+            },
+            "binary-header": {
+              state: "omitted",
+              reason: "unsupported"
+            },
+            "trace-id": {
+              state: "captured",
+              value: "trace-123"
+            }
+          },
           error: undefined,
           testRunId: "run-new",
           testSuite: "suite-new"
@@ -105,6 +135,7 @@ describe("readAsyncEventsJsonl", () => {
           payload: { ok: true },
           payloadState: undefined,
           payloadReason: undefined,
+          headers: undefined,
           error: undefined,
           testRunId: "run-legacy",
           testSuite: "suite-legacy"
@@ -138,6 +169,7 @@ describe("readAsyncEventsJsonl", () => {
         },
         payloadState: undefined,
         payloadReason: undefined,
+        headers: undefined,
         error: undefined,
         testRunId: "run-payload-1",
         testSuite: "suite-payload"
@@ -153,6 +185,7 @@ describe("readAsyncEventsJsonl", () => {
         payload: "alice",
         payloadState: undefined,
         payloadReason: undefined,
+        headers: undefined,
         error: undefined,
         testRunId: "unknown",
         testSuite: "suite-payload"
@@ -168,6 +201,7 @@ describe("readAsyncEventsJsonl", () => {
         payload: ["alice", { deleted: false }, 3],
         payloadState: undefined,
         payloadReason: undefined,
+        headers: undefined,
         error: undefined,
         testRunId: "run-payload-2",
         testSuite: "suite-payload"
@@ -193,6 +227,17 @@ describe("readAsyncEventsJsonl", () => {
           },
           flags: [true, false],
           active: true
+        },
+        headers: {
+          "trace-id": {
+            state: "captured",
+            value: ["bad"]
+          },
+          authorization: {
+            state: "redacted",
+            value: "should-drop",
+            reason: 42
+          }
         },
         error: "nope",
         "test.run_id": null,
@@ -233,9 +278,95 @@ describe("readAsyncEventsJsonl", () => {
           },
           payloadState: undefined,
           payloadReason: undefined,
+          headers: {
+            authorization: {
+              state: "redacted"
+            }
+          },
           error: undefined,
           testRunId: "unknown",
           testSuite: "unknown"
+        }
+      ]);
+    } finally {
+      await rm(dir, { recursive: true, force: true });
+    }
+  });
+
+  it("retains header evidence states while dropping malformed header entries", async () => {
+    const dir = await mkdtemp(path.join(os.tmpdir(), "yanote-async-headers-"));
+    const file = path.join(dir, "events.jsonl");
+
+    const lines = [
+      JSON.stringify({
+        kind: "kafka",
+        action: "send",
+        channel: "users.created",
+        headers: {
+          "trace-id": {
+            state: " captured ",
+            value: " trace-123 "
+          },
+          authorization: {
+            state: "redacted",
+            value: "should-not-survive",
+            reason: " sensitive "
+          },
+          "oversized-header": {
+            state: "omitted",
+            reason: " oversized "
+          },
+          "bad-captured": {
+            state: "captured"
+          },
+          "bad-state": {
+            state: "unknown",
+            value: "x"
+          },
+          "   ": {
+            state: "captured",
+            value: "x"
+          }
+        },
+        "test.run_id": "run-headers",
+        "test.suite": "suite-headers"
+      })
+    ];
+
+    try {
+      await writeFile(file, `${lines.join("\n")}\n`, "utf8");
+
+      const result = await readAsyncEventsJsonl(file);
+      expect(result.invalidLines).toBe(0);
+      expect(result.items).toEqual([
+        {
+          kind: "kafka",
+          ts: undefined,
+          action: "send",
+          channel: "users.created",
+          message: undefined,
+          service: undefined,
+          instance: undefined,
+          payload: undefined,
+          payloadState: undefined,
+          payloadReason: undefined,
+          headers: {
+            authorization: {
+              state: "redacted",
+              reason: "sensitive"
+            },
+            "oversized-header": {
+              state: "omitted",
+              reason: "oversized"
+            },
+            "trace-id": {
+              state: "captured",
+              value: "trace-123"
+            }
+          },
+          error: undefined,
+          testRunId: "run-headers",
+          testSuite: "suite-headers"
         }
       ]);
     } finally {

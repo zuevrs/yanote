@@ -1,0 +1,1 @@
+{"kind":"kafka","ts":1710000001400,"action":"send","channel":"orders.created","message":"OrderCreatedEnvelope","payload":{"eventId":"evt-103","order":{"id":"ord-103","total":9}},"headers":{"tenantId":{"state":"captured","value":"tenant-acme"}},"service":"orders-service","test.run_id":"run-schema-missing-header","test.suite":"suite-schema-missing-header"}

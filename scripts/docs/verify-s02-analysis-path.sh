@@ -432,9 +432,25 @@ response_issues = [
 ]
 if len(response_issues) != expected_payload_skipped:
     raise SystemExit(f"Expected {expected_payload_skipped} skipped response payload diagnostics, got {len(response_issues)}")
+
+codes_by_operation = {
+    item.get("operationKey"): item.get("code")
+    for item in response_issues
+}
+expected_codes = {
+    "http GET /admin/ping": "RECORDER_OMITTED",
+    "http GET /users": "NO_DECLARED_CONTENT",
+    "http GET /users/{param}": "RECORDER_OMITTED",
+}
+if codes_by_operation != expected_codes:
+    raise SystemExit(f"Unexpected skipped response payload diagnostics: {codes_by_operation!r}")
+
 for item in response_issues:
-    if item.get("code") != "NO_DECLARED_CONTENT":
-        raise SystemExit(f"Expected NO_DECLARED_CONTENT for skipped response payload diagnostics, got {item.get('code')!r}")
+    if item.get("code") == "RECORDER_OMITTED":
+        if item.get("captureState") != "omitted":
+            raise SystemExit(f"Expected RECORDER_OMITTED captureState='omitted', got {item.get('captureState')!r}")
+        if item.get("captureReason") != "policy-filtered":
+            raise SystemExit(f"Expected RECORDER_OMITTED captureReason='policy-filtered', got {item.get('captureReason')!r}")
 
 for key, entry in operations.items():
     suites = entry.get("suites") or []

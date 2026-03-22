@@ -2,6 +2,7 @@ import { createReadStream } from "node:fs";
 import readline from "node:readline";
 import {
   normalizeAsyncAction,
+  normalizeAsyncHeaders,
   normalizeChannel,
   normalizeJsonValue,
   normalizeMessageContract,
@@ -58,6 +59,7 @@ export async function readAsyncEventsJsonl(filePath: string): Promise<ReadAsyncJ
       payload: normalizeJsonValue(obj.payload),
       payloadState: normalizePayloadCaptureState(obj.payloadState),
       payloadReason: normalizePayloadCaptureReason(obj.payloadReason),
+      headers: normalizeAsyncHeaders(obj.headers),
       error: typeof obj.error === "boolean" ? obj.error : undefined,
       testRunId: normalizeRunId(obj["test.run_id"]),
       testSuite: normalizeSuite(obj["test.suite"])

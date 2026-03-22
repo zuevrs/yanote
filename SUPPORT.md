@@ -29,6 +29,7 @@
 
 Если проблема проявляется именно как payload-schema drift на proven Kafka path, по возможности добавьте и retained sidecar artifacts из `.yanote-ci/live-kafka-proof/`:
 
+- `runtime-selected-async-report.stderr` и `runtime-selected-yanote-async-report.json`, если issue связано с multi-message selection или retained header discriminators;
 - `schema-failure-async-report.stderr`;
 - `schema-failure-yanote-async-report.json`.
 

@@ -4,7 +4,10 @@ import type {
 } from "../coverage/httpPayloadConformance.js";
 import type { GovernanceFailure } from "./failureOrder.js";
 
-export type FailClosedHttpPayloadCode = Exclude<HttpPayloadConformanceCode, "VALID" | "NO_DECLARED_CONTENT">;
+export type FailClosedHttpPayloadCode = Exclude<
+  HttpPayloadConformanceCode,
+  "VALID" | "NO_DECLARED_CONTENT" | "RECORDER_OMITTED"
+>;
 
 export type HttpPayloadSemanticFailureCode =
   | "SEMANTIC_HTTP_INVALID_BODY"

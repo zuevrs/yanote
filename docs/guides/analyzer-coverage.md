@@ -114,10 +114,11 @@ CLI всегда печатает четыре измерения observation co
 
 Это отдельная поверхность поверх observation coverage. Она отвечает не на вопрос «была ли операция/статус/required parameter замечена», а на вопрос «можно ли честно проверить observed request/response payload против объявленного JSON content».
 
-На этой поверхности важно различать три случая:
+На этой поверхности важно различать четыре случая:
 
 - `COVERED` / `VALID` — observed JSON payload удалось сопоставить с declared schema;
 - `SKIPPED` + `NO_DECLARED_CONTENT` — observed response был, но spec для этого status не объявляет content; это **не** ломает observation coverage и не считается fail-closed ошибкой;
+- `SKIPPED` + `RECORDER_OMITTED` — observed response intentionally omitted by recorder policy; этот benign provenance-сигнал тоже не ломает observation coverage, но сохраняет `captureState` / `captureReason`, чтобы отличать recorder omission от отсутствующего declared content;
 - fail-closed semantic diagnostics вроде `SEMANTIC_HTTP_UNSUPPORTED_SCHEMA` — JSON content объявлен, но usable validation schema нет, поэтому CLI завершает анализ ошибкой даже при `100%` observation coverage.
 
 ### Top Issues
@@ -213,7 +214,7 @@ YANOTE_ERROR_SECONDARY class=semantic code=SEMANTIC_HTTP_UNSUPPORTED_SCHEMA ...
 И отдельно полезные поля в `httpPayloadConformance.*`:
 
 - `summary.request` / `summary.response` — сколько операций реально покрыты, skipped или n/a по payload surface;
-- `diagnostics.items[]` — чем именно объясняется `VALID`, `NO_DECLARED_CONTENT` или `UNSUPPORTED_SCHEMA`;
+- `diagnostics.items[]` — чем именно объясняется `VALID`, `NO_DECLARED_CONTENT`, `RECORDER_OMITTED` или `UNSUPPORTED_SCHEMA`;
 - `perOperation[].request|response.state` — где payload boundary зелёная, а где честно skipped/n/a;
 - `perOperation[].response.declaredContent` — какие media types и statuses вообще объявлены для payload validation.
 
@@ -234,10 +235,11 @@ YANOTE_ERROR_SECONDARY class=semantic code=SEMANTIC_HTTP_UNSUPPORTED_SCHEMA ...
 И это не просто зелёные observation numbers. В `HTTP Payload Conformance` здесь тоже есть проверяемая truth:
 
 - `POST /users` даёт `VALID` для request и response JSON payload;
-- `GET /admin/ping`, `GET /users` и `GET /users/{param}` честно дают `NO_DECLARED_CONTENT` для response surface, потому что spec не объявляет content для observed `200` response;
-- эти `NO_DECLARED_CONTENT` diagnostics сохраняются как `SKIPPED`, а не как fail-closed ошибка.
+- `GET /users` честно даёт `NO_DECLARED_CONTENT` для response surface, потому что spec не объявляет content для observed `200` response;
+- `GET /admin/ping` и `GET /users/{param}` отдельно дают `RECORDER_OMITTED`, потому что recorder policy не удерживает их text/plain response body и сохраняет provenance через `captureState=omitted` и `captureReason=policy-filtered`;
+- эти benign `SKIPPED` diagnostics сохраняются раздельно и не считаются fail-closed ошибкой.
 
-Это важная граница: benign `NO_DECLARED_CONTENT` виден в отчёте, но не ломает ни `operations/status/parameters/aggregate`, ни `status: ok`.
+Это важная граница: benign `NO_DECLARED_CONTENT` и `RECORDER_OMITTED` видны в отчёте, но не ломают ни `operations/status/parameters/aggregate`, ни `status: ok`.
 
 ### Semantic red path: `.yanote-ci/v1-e2e/semantic-red.*`
 
@@ -254,7 +256,7 @@ Retained semantic-red pass использует те же live events, но Open
 В этом retained отчёте вы увидите два связанных, но разных сигнала:
 
 - `governance.diagnostics` содержит `SEMANTIC_HTTP_UNSUPPORTED_SCHEMA` как fail-closed semantic boundary;
-- `httpPayloadConformance.diagnostics.items[]` помечает `POST /users` request/response как `UNSUPPORTED_SCHEMA`, а `GET`-ответы по-прежнему остаются benign `NO_DECLARED_CONTENT`.
+- `httpPayloadConformance.diagnostics.items[]` помечает `POST /users` request/response как `UNSUPPORTED_SCHEMA`, а benign GET-path omissions по-прежнему остаются раздельными: `GET /users` как `NO_DECLARED_CONTENT`, а `GET /admin/ping` и `GET /users/{param}` как `RECORDER_OMITTED` с retained provenance.
 
 Главный интерпретационный момент теперь такой: **observation coverage и payload conformance — разные поверхности**. Полное покрытие операций/статусов/параметров не отменяет fail-closed semantic boundary, если JSON content объявлен без usable validation schema.
 
@@ -269,3 +271,8 @@ Offline fallback нужен только когда основной source-buil
 - Runnable demo-service: [`examples/springmvc-service/README.md`](../../examples/springmvc-service/README.md)
 - RestAssured handoff для тестовых метаданных: [`examples/tests-restassured/README.md`](../../examples/tests-restassured/README.md)
 - Release/support boundary и fallback assets: [`docs/release-and-support.md`](../release-and-support.md)
+d/README.md)
+- Release/support boundary и fallback assets: [`docs/release-and-support.md`](../release-and-support.md)
+tests-restassured/README.md)
+- Release/support boundary и fallback assets: [`docs/release-and-support.md`](../release-and-support.md)
+llback assets: [`docs/release-and-support.md`](../release-and-support.md)

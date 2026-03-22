@@ -867,18 +867,32 @@ function collectIssues(
       if (diagnostic.state === "COVERED") continue;
 
       const semanticFailure = classifyHttpPayloadDiagnostic(diagnostic);
-      if (!semanticFailure) continue;
-      if (payloadSemanticIssueKeys.has(toFailureIssueKey(semanticFailure))) continue;
+      if (semanticFailure) {
+        if (payloadSemanticIssueKeys.has(toFailureIssueKey(semanticFailure))) continue;
 
-      const severity = payloadDiagnosticSeverity(diagnostic.state);
-      const media = diagnostic.observedMediaType ? ` media=${diagnostic.observedMediaType}` : "";
-      const declaredStatus = diagnostic.declaredStatus ? ` declaredStatus=${diagnostic.declaredStatus}` : "";
-      issues.push({
-        severityRank: severity.rank,
-        severityLabel: severity.label,
-        sortKey: `payload:${diagnostic.operationKey}:${diagnostic.target}:${diagnostic.code}`,
-        text: `${diagnostic.operationKey} ${diagnostic.target} - ${diagnostic.code}: ${diagnostic.message}${declaredStatus}${media}`
-      });
+        const severity = payloadDiagnosticSeverity(diagnostic.state);
+        const media = diagnostic.observedMediaType ? ` media=${diagnostic.observedMediaType}` : "";
+        const declaredStatus = diagnostic.declaredStatus ? ` declaredStatus=${diagnostic.declaredStatus}` : "";
+        issues.push({
+          severityRank: severity.rank,
+          severityLabel: severity.label,
+          sortKey: `payload:${diagnostic.operationKey}:${diagnostic.target}:${diagnostic.code}`,
+          text: `${diagnostic.operationKey} ${diagnostic.target} - ${diagnostic.code}: ${diagnostic.message}${declaredStatus}${media}`
+        });
+        continue;
+      }
+
+      if (diagnostic.code === "RECORDER_OMITTED") {
+        const declaredStatus = diagnostic.declaredStatus ? ` declaredStatus=${diagnostic.declaredStatus}` : "";
+        const media = diagnostic.observedMediaType ? ` media=${diagnostic.observedMediaType}` : "";
+        const reason = diagnostic.captureReason ? ` reason=${diagnostic.captureReason}` : "";
+        issues.push({
+          severityRank: 1,
+          severityLabel: "medium",
+          sortKey: `payload:${diagnostic.operationKey}:${diagnostic.target}:${diagnostic.code}`,
+          text: `${diagnostic.operationKey} ${diagnostic.target} - ${diagnostic.code}: ${diagnostic.message}${declaredStatus}${media}${reason}`
+        });
+      }
     }
   }
 

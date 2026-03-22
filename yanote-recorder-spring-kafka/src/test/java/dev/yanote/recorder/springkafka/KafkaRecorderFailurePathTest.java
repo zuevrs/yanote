@@ -9,7 +9,7 @@ import dev.yanote.core.events.KafkaEvent;
 import dev.yanote.core.events.PayloadCaptureReason;
 import dev.yanote.core.events.PayloadCaptureState;
 import dev.yanote.core.events.YanoteEvent;
-import java.io.UncheckedIOException;
+import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.List;
@@ -18,6 +18,7 @@ import org.apache.kafka.clients.consumer.ConsumerConfig;
 import org.apache.kafka.clients.consumer.ConsumerRecord;
 import org.apache.kafka.clients.producer.ProducerConfig;
 import org.apache.kafka.clients.producer.ProducerRecord;
+import org.apache.kafka.common.header.internals.RecordHeader;
 import org.apache.kafka.common.serialization.StringDeserializer;
 import org.apache.kafka.common.serialization.StringSerializer;
 import org.junit.jupiter.api.Test;
@@ -73,6 +74,54 @@ class KafkaRecorderFailurePathTest {
         assertThat(output.getOut())
                 .contains("Failed to write yanote kafka event")
                 .contains("dropping event");
+    }
+
+    @Test
+    void shouldRetainHeaderMarkersWithoutLeakingSensitiveValues(CapturedOutput output) throws Exception {
+        Path eventsPath = Files.createTempFile("yanote-kafka-recorder-headers-", ".jsonl");
+        String secret = "Bearer super-secret-token";
+
+        contextRunner
+                .withPropertyValues(
+                        "yanote.recorder.enabled=true",
+                        "yanote.recorder.events-path=" + eventsPath,
+                        "yanote.recorder.service-name=failure-service"
+                )
+                .run(context -> {
+                    YanoteKafkaProducerListener producerListener = context.getBean(YanoteKafkaProducerListener.class);
+                    ProducerRecord<Object, Object> producerRecord = new ProducerRecord<>("orders", "payload");
+                    YanoteKafkaHeaders.setHeaders(producerRecord.headers(), "run-safe", "suite-a", "OrderPlaced");
+                    producerRecord.headers().add(new RecordHeader("trace-id", "trace-123".getBytes(StandardCharsets.UTF_8)));
+                    producerRecord.headers().add(new RecordHeader("authorization", secret.getBytes(StandardCharsets.UTF_8)));
+                    producerRecord.headers().add(new RecordHeader("oversized-header", "x".repeat(2048).getBytes(StandardCharsets.UTF_8)));
+
+                    assertThatCode(() -> producerListener.onSuccess(producerRecord, null)).doesNotThrowAnyException();
+                });
+
+        KafkaEvent event = readSingleEvent(eventsPath);
+        assertThat(event.headers()).containsEntry(
+                "trace-id",
+                new KafkaEvent.HeaderEvidence(KafkaEvent.HeaderCaptureState.CAPTURED, "trace-123", null)
+        );
+        assertThat(event.headers()).containsEntry(
+                "authorization",
+                new KafkaEvent.HeaderEvidence(
+                        KafkaEvent.HeaderCaptureState.REDACTED,
+                        null,
+                        KafkaEvent.HeaderCaptureReason.SENSITIVE
+                )
+        );
+        assertThat(event.headers()).containsEntry(
+                "oversized-header",
+                new KafkaEvent.HeaderEvidence(
+                        KafkaEvent.HeaderCaptureState.OMITTED,
+                        null,
+                        KafkaEvent.HeaderCaptureReason.OVERSIZED
+                )
+        );
+        String serialized = OBJECT_MAPPER.writeValueAsString(event);
+        assertThat(serialized).doesNotContain(secret);
+        assertThat(output.getOut()).doesNotContain(secret);
     }
 
     @Test

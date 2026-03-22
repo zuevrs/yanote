@@ -48,10 +48,10 @@ Yanote нужен инженеру, который одновременно от
 
    Offline fallback для analyzer остаётся вторичным путём через release assets GitHub Releases; публичные tracked `dist/*` docs больше не считаются supported entrypoint, поэтому ориентируйтесь на [`docs/release-and-support.md`](docs/release-and-support.md).
 
-   Если вам нужен не HTTP/OpenAPI path, а первая волна AsyncAPI/Kafka, не смешивайте её с этим циклом: отдельный guide [`docs/guides/asyncapi-kafka.md`](docs/guides/asyncapi-kafka.md) ведёт по Kafka evidence, команде `async-report` и отдельному артефакту `yanote-async-report.json`.
+   Если вам нужен не HTTP/OpenAPI path, а первая волна AsyncAPI/Kafka, не смешивайте её с этим циклом: отдельный guide [`docs/guides/asyncapi-kafka.md`](docs/guides/asyncapi-kafka.md) ведёт по Kafka evidence, команде `async-report`, отдельному артефакту `yanote-async-report.json` и retained runtime-selection sidecar для multi-message AsyncAPI path.
 
 4. **Прочитайте отчёт, а не только exit code.**
-   В текущем публичном demo-path happy path показывает `operations/status/parameters/aggregate = 100.00%`, но это не отменяет отдельную поверхность `HTTP Payload Conformance`. Для `POST /users` она подтверждает JSON request/response payload на зелёном пути, а для `GET`-ответов без declared content честно сохраняет `NO_DECLARED_CONTENT` как benign `SKIPPED`-diagnostics, а не как контрактную ошибку. Retained semantic-red sidecars из `.yanote-ci/v1-e2e/` отдельно показывают, что при unsupported schema observation coverage остаётся `100%`, но payload boundary fail-closed возвращает `SEMANTIC_HTTP_UNSUPPORTED_SCHEMA`.
+   В текущем публичном demo-path happy path показывает `operations/status/parameters/aggregate = 100.00%`, но это не отменяет отдельную поверхность `HTTP Payload Conformance`. Для `POST /users` она подтверждает JSON request/response payload на зелёном пути, для `GET /users` честно сохраняет `NO_DECLARED_CONTENT` как benign `SKIPPED`-diagnostic, а для `GET /admin/ping` и `GET /users/{param}` отдельно показывает `RECORDER_OMITTED` с `captureState=omitted` и `captureReason=policy-filtered`. Это различие не считается контрактной ошибкой и не понижает observation coverage. Retained semantic-red sidecars из `.yanote-ci/v1-e2e/` отдельно показывают, что при unsupported schema observation coverage остаётся `100%`, но payload boundary fail-closed возвращает `SEMANTIC_HTTP_UNSUPPORTED_SCHEMA`.
 
 ### Канонический путь тестовых метаданных
 

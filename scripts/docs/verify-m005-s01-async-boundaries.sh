@@ -55,6 +55,8 @@ common_boundary_clauses=(
 common_artifact_clauses=(
   "raw или merged async JSONL"
   "yanote-async-report.json"
+  "runtime-selected-async-report.stderr"
+  "runtime-selected-yanote-async-report.json"
   "stderr"
   "schema-failure-async-report.stderr"
   "schema-failure-yanote-async-report.json"

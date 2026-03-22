@@ -3,6 +3,8 @@ import {
   serializeOperationKey,
   type AsyncAction,
   type KafkaMessageContract,
+  type KafkaMessageSelectionHint,
+  type KafkaMessageSelectionRule,
   type KafkaOperationContract,
   type OperationKey
 } from "../model/operationKey.js";
@@ -15,6 +17,8 @@ export type AsyncApiSemanticsBundle = SemanticDiagnosticsBundle & {
   operations: OperationKey[];
   operationContractsByKey: Map<string, KafkaOperationContract>;
 };
+
+type ResolvedKafkaMessageContracts = Pick<KafkaOperationContract, "message" | "messages" | "messageSelection">;
 
 export async function loadAsyncApiSemanticsBundle(specPath: string): Promise<AsyncApiSemanticsBundle> {
   const parser = new Parser();
@@ -30,8 +34,8 @@ export async function loadAsyncApiSemanticsBundle(specPath: string): Promise<Asy
 export async function loadAsyncApiOperations(specPath: string): Promise<OperationKey[]> {
   const bundle = await loadAsyncApiSemanticsBundle(specPath);
 
-  if (bundle.hasInvalid) {
-    throw new Error(formatSemanticDiagnostics(bundle.diagnostics.filter((diagnostic) => diagnostic.kind === "invalid")));
+  if (hasBlockingAsyncDiagnostics(bundle.diagnostics)) {
+    throw new Error(formatSemanticDiagnostics(bundle.diagnostics.filter(isBlockingAsyncDiagnostic)));
   }
 
   return bundle.operations;
@@ -172,8 +176,12 @@ function appendV2Operation(
     return;
   }
 
-  const message = extractV2MessageContract(operationValue.message, version, protocol, action, channel, diagnostics);
-  appendKafkaContract({ operation: { kind: KAFKA_RUNTIME, action, channel }, message }, seen, operations, operationContractsByKey);
+  const messageContract = extractV2MessageContract(operationValue.message, version, protocol, action, channel, diagnostics);
+  if (messageContract === null) {
+    return;
+  }
+
+  appendKafkaContract({ operation: { kind: KAFKA_RUNTIME, action, channel }, ...messageContract }, seen, operations, operationContractsByKey);
 }
 
 function extractV3(
@@ -236,8 +244,12 @@ function extractV3(
       continue;
     }
 
-    const message = extractV3MessageContract(operationValue.messages, version, protocol, action, channel, diagnostics);
-    appendKafkaContract({ operation: { kind: KAFKA_RUNTIME, action, channel }, message }, seen, operations, operationContractsByKey);
+    const messageContract = extractV3MessageContract(operationValue.messages, version, protocol, action, channel, diagnostics);
+    if (messageContract === null) {
+      continue;
+    }
+
+    appendKafkaContract({ operation: { kind: KAFKA_RUNTIME, action, channel }, ...messageContract }, seen, operations, operationContractsByKey);
   }
 }
 
@@ -321,9 +333,9 @@ function extractV2MessageContract(
   action: AsyncAction,
   channel: string,
   diagnostics: SemanticDiagnostic[]
-): KafkaOperationContract["message"] | undefined {
+): ResolvedKafkaMessageContracts | null {
   if (messageValue === undefined) {
-    return undefined;
+    return {};
   }
 
   const message = buildMessageContract(messageValue);
@@ -333,10 +345,16 @@ function extractV2MessageContract(
       message: "AsyncAPI v2 operation message must resolve to a single named message",
       async: buildAsyncContext(version, protocol, { action, channel })
     });
-    return undefined;
+    return null;
   }
 
-  return message;
+  return {
+    message,
+    messageSelection: {
+      mode: "single",
+      precedence: [{ kind: "message" }]
+    }
+  };
 }
 
 function extractV3MessageContract(
@@ -346,9 +364,9 @@ function extractV3MessageContract(
   action: AsyncAction,
   channel: string,
   diagnostics: SemanticDiagnostic[]
-): KafkaOperationContract["message"] | undefined {
+): ResolvedKafkaMessageContracts | null {
   if (messagesValue === undefined) {
-    return undefined;
+    return {};
   }
 
   if (!Array.isArray(messagesValue)) {
@@ -357,29 +375,169 @@ function extractV3MessageContract(
       message: "AsyncAPI v3 operation messages must be an array",
       async: buildAsyncContext(version, protocol, { action, channel })
     });
-    return undefined;
+    return null;
   }
 
-  if (messagesValue.length > 1) {
-    diagnostics.push({
-      kind: "invalid",
-      message: "AsyncAPI v3 operations with multiple messages are not supported yet",
-      async: buildAsyncContext(version, protocol, { action, channel })
-    });
-    return undefined;
-  }
-
-  const message = buildMessageContract(messagesValue[0]);
-  if (!message) {
+  const builtMessages = messagesValue.map((value) => buildMessageContract(value));
+  if (builtMessages.some((message) => !message)) {
     diagnostics.push({
       kind: "invalid",
       message: "AsyncAPI v3 operation message must resolve to a single named message",
       async: buildAsyncContext(version, protocol, { action, channel })
     });
-    return undefined;
+    return null;
   }
 
-  return message;
+  const uniqueMessages = dedupeMessageContracts(builtMessages);
+  if (uniqueMessages.length === 0) {
+    diagnostics.push({
+      kind: "invalid",
+      message: "AsyncAPI v3 operation message must resolve to a single named message",
+      async: buildAsyncContext(version, protocol, { action, channel })
+    });
+    return null;
+  }
+
+  if (uniqueMessages.length === 1) {
+    return {
+      message: uniqueMessages[0],
+      messageSelection: {
+        mode: "single",
+        precedence: [{ kind: "message" }]
+      }
+    };
+  }
+
+  const messageSelection = buildMultiMessageSelection(uniqueMessages);
+  if (!messageSelection) {
+    diagnostics.push({
+      kind: "ambiguous",
+      message:
+        "AsyncAPI v3 operation declares multiple messages without a deterministic message-name or retained-header discriminator",
+      async: buildAsyncContext(version, protocol, { action, channel }),
+      candidates: uniqueMessages.map(formatMessageCandidate)
+    });
+    return null;
+  }
+
+  return {
+    messages: sortMessageContracts(uniqueMessages),
+    messageSelection: {
+      mode: "runtime",
+      precedence: messageSelection
+    }
+  };
+}
+
+function buildMultiMessageSelection(messages: KafkaMessageContract[]): KafkaMessageSelectionRule[] | null {
+  const precedence: KafkaMessageSelectionRule[] = [{ kind: "message" }];
+  const discriminatingHeaders = collectDiscriminatingHeaderRules(messages);
+
+  for (const header of discriminatingHeaders) {
+    precedence.push({ kind: "header", header });
+  }
+
+  const hasDeterministicRule = isUniqueRule(messages, { kind: "message" }) || discriminatingHeaders.length > 0;
+  return hasDeterministicRule ? precedence : null;
+}
+
+function collectDiscriminatingHeaderRules(messages: KafkaMessageContract[]): string[] {
+  const byHeader = new Map<string, string[]>();
+
+  for (const message of messages) {
+    const headerHints = message.selectionHints?.filter(
+      (hint): hint is Extract<KafkaMessageSelectionHint, { kind: "header" }> => hint.kind === "header"
+    );
+
+    for (const hint of headerHints ?? []) {
+      const values = byHeader.get(hint.header) ?? [];
+      values.push(hint.value);
+      byHeader.set(hint.header, values);
+    }
+  }
+
+  return Array.from(byHeader.entries())
+    .filter(([, values]) => values.length === messages.length && new Set(values).size === messages.length)
+    .map(([header]) => header)
+    .sort((left, right) => left.localeCompare(right));
+}
+
+function isUniqueRule(messages: KafkaMessageContract[], rule: KafkaMessageSelectionRule): boolean {
+  if (rule.kind === "message") {
+    return new Set(messages.map((message) => message.name)).size === messages.length;
+  }
+
+  const values = messages
+    .map((message) =>
+      message.selectionHints?.find(
+        (hint): hint is Extract<KafkaMessageSelectionHint, { kind: "header" }> =>
+          hint.kind === "header" && hint.header === rule.header
+      )
+    )
+    .filter((hint): hint is Extract<KafkaMessageSelectionHint, { kind: "header" }> => hint !== undefined)
+    .map((hint) => hint.value);
+
+  return values.length === messages.length && new Set(values).size === messages.length;
+}
+
+function dedupeMessageContracts(messages: Array<KafkaMessageContract | null>): KafkaMessageContract[] {
+  const unique = new Map<string, KafkaMessageContract>();
+
+  for (const message of messages) {
+    if (!message) {
+      continue;
+    }
+
+    const key = JSON.stringify(message);
+    if (!unique.has(key)) {
+      unique.set(key, message);
+    }
+  }
+
+  return sortMessageContracts(Array.from(unique.values()));
+}
+
+function sortMessageContracts(messages: KafkaMessageContract[]): KafkaMessageContract[] {
+  return [...messages].sort(compareMessageContracts);
+}
+
+function compareMessageContracts(left: KafkaMessageContract, right: KafkaMessageContract): number {
+  if (left.name !== right.name) {
+    return left.name.localeCompare(right.name);
+  }
+
+  const leftPayload = left.payloadSchemaId ?? "";
+  const rightPayload = right.payloadSchemaId ?? "";
+  if (leftPayload !== rightPayload) {
+    return leftPayload.localeCompare(rightPayload);
+  }
+
+  const leftHeaders = left.headersSchemaId ?? "";
+  const rightHeaders = right.headersSchemaId ?? "";
+  if (leftHeaders !== rightHeaders) {
+    return leftHeaders.localeCompare(rightHeaders);
+  }
+
+  return JSON.stringify(left.selectionHints ?? []).localeCompare(JSON.stringify(right.selectionHints ?? []));
+}
+
+function formatMessageCandidate(message: KafkaMessageContract): string {
+  const headerHints = (message.selectionHints ?? [])
+    .filter((hint): hint is Extract<KafkaMessageSelectionHint, { kind: "header" }> => hint.kind === "header")
+    .map((hint) => hint.header)
+    .sort((left, right) => left.localeCompare(right));
+
+  const details = [
+    headerHints.length > 0 ? `headers: ${headerHints.join(", ")}` : null,
+    message.payloadSchemaId ? `payload: ${message.payloadSchemaId}` : null,
+    message.headersSchemaId ? `headerSchema: ${message.headersSchemaId}` : null
+  ].filter((detail): detail is string => detail !== null);
+
+  if (details.length === 0) {
+    return message.name;
+  }
+
+  return `${message.name} [${details.join("; ")}]`;
 }
 
 function buildMessageContract(value: unknown): KafkaMessageContract | null {
@@ -398,17 +556,72 @@ function buildMessageContract(value: unknown): KafkaMessageContract | null {
   const schemaFormat =
     normalizeNonEmptyString(value.schemaFormat) ??
     (isRecord(value.payload) ? normalizeNonEmptyString(value.payload.schemaFormat) ?? undefined : undefined);
+  const headersSchema = normalizeJsonValue(value.headers);
   const headersSchemaId = extractSchemaId(value.headers);
+  const headerValidationCapability = headersSchemaId || headersSchema !== undefined ? (headersSchema !== undefined ? "supported" : "unverifiable") : "none";
+  const selectionHints = extractMessageSelectionHints(name, value.headers);
 
   return {
     name,
-    headerValidationCapability: headersSchemaId ? "unverifiable" : "none",
+    headerValidationCapability,
+    ...(selectionHints.length > 0 ? { selectionHints } : {}),
     ...(payloadSchema !== undefined ? { payloadSchema } : {}),
     ...(payloadSchemaId ? { payloadSchemaId } : {}),
     ...(contentType ? { contentType } : {}),
     ...(schemaFormat ? { schemaFormat } : {}),
+    ...(headersSchema !== undefined ? { headersSchema } : {}),
     ...(headersSchemaId ? { headersSchemaId } : {})
   };
+}
+
+function extractMessageSelectionHints(name: string, headersValue: unknown): KafkaMessageSelectionHint[] {
+  const hints: KafkaMessageSelectionHint[] = [{ kind: "message", value: name }];
+
+  if (!isRecord(headersValue)) {
+    return hints;
+  }
+
+  const properties = headersValue.properties;
+  if (!isRecord(properties)) {
+    return hints;
+  }
+
+  for (const [header, schemaValue] of Object.entries(properties).sort(([left], [right]) => left.localeCompare(right))) {
+    if (!isRecord(schemaValue)) {
+      continue;
+    }
+
+    const value = normalizeHeaderDiscriminatorValue(schemaValue.const) ?? normalizeHeaderEnumDiscriminatorValue(schemaValue.enum);
+    if (!value) {
+      continue;
+    }
+
+    hints.push({
+      kind: "header",
+      header,
+      value
+    });
+  }
+
+  return hints;
+}
+
+function normalizeHeaderDiscriminatorValue(value: unknown): string | undefined {
+  if (typeof value !== "string") {
+    return undefined;
+  }
+
+  const normalized = value.trim();
+  return normalized.length > 0 ? normalized : undefined;
+}
+
+function normalizeHeaderEnumDiscriminatorValue(value: unknown): string | undefined {
+  if (!Array.isArray(value) || value.length !== 1 || typeof value[0] !== "string") {
+    return undefined;
+  }
+
+  const normalized = value[0].trim();
+  return normalized.length > 0 ? normalized : undefined;
 }
 
 function extractSchemaId(value: unknown): string | undefined {
@@ -523,6 +736,14 @@ function toBundle(
   };
 }
 
+function hasBlockingAsyncDiagnostics(diagnostics: SemanticDiagnostic[]): boolean {
+  return diagnostics.some(isBlockingAsyncDiagnostic);
+}
+
+function isBlockingAsyncDiagnostic(diagnostic: SemanticDiagnostic): boolean {
+  return diagnostic.kind === "invalid" || diagnostic.kind === "ambiguous";
+}
+
 function formatParserDiagnostics(diagnostics: any[] | undefined): string {
   const details = diagnostics?.map((diagnostic) => diagnostic?.message).filter((message): message is string => Boolean(message)) ?? [];
   if (details.length === 0) {
@@ -553,8 +774,10 @@ function formatSemanticDiagnostic(diagnostic: SemanticDiagnostic): string {
         .filter((value): value is string => Boolean(value))
         .join(" ")
     : "";
+  const candidates = diagnostic.candidates?.length ? ` candidates=[${[...diagnostic.candidates].sort((left, right) => left.localeCompare(right)).join(", ")}]` : "";
+  const detail = asyncContext.length > 0 ? `${diagnostic.message} [${asyncContext}]` : diagnostic.message;
 
-  return asyncContext.length > 0 ? `${diagnostic.message} [${asyncContext}]` : diagnostic.message;
+  return `${detail}${candidates}`;
 }
 
 function isRecord(value: unknown): value is Record<string, unknown> {

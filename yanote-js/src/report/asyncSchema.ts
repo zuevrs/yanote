@@ -30,7 +30,27 @@ const ROUTING_DIAGNOSTIC_SCHEMA = {
         channel: { type: "string", minLength: 1 },
         action: { enum: ["send", "receive"] },
         observedMessage: { type: "string" },
-        expectedMessage: { type: "string" }
+        expectedMessage: { type: "string" },
+        reason: { type: "string", minLength: 1 }
+      }
+    },
+    {
+      type: "object",
+      additionalProperties: false,
+      required: ["kind", "message", "operationKey", "channel", "action", "reason", "candidates"],
+      properties: {
+        kind: { const: "ambiguous" },
+        message: { type: "string", minLength: 1 },
+        operationKey: { type: "string", minLength: 1 },
+        channel: { type: "string", minLength: 1 },
+        action: { enum: ["send", "receive"] },
+        observedMessage: { type: "string" },
+        reason: { type: "string", minLength: 1 },
+        candidates: {
+          type: "array",
+          minItems: 1,
+          items: { type: "string", minLength: 1 }
+        }
       }
     }
   ]
@@ -47,6 +67,9 @@ const SCHEMA_DIAGNOSTIC_SCHEMA = {
         "invalid-payload",
         "unsupported-content-type",
         "unsupported-schema-format",
+        "missing-header",
+        "invalid-header",
+        "unavailable-header",
         "unverifiable-headers"
       ]
     },
@@ -144,7 +167,10 @@ const ASYNC_REPORT_SCHEMA = {
               required: ["state"],
               properties: {
                 name: { type: "string", minLength: 1 },
-                state: { enum: ["COVERED", "UNCOVERED", "N/A"] }
+                state: { enum: ["COVERED", "PARTIAL", "UNCOVERED", "N/A"] },
+                selectionMode: { enum: ["single", "runtime"] },
+                declaredMessages: { type: "array", items: { type: "string", minLength: 1 } },
+                selectedMessages: { type: "array", items: { type: "string", minLength: 1 } }
               }
             },
             suites: { type: "array", items: { type: "string" } }
@@ -178,7 +204,11 @@ const ASYNC_REPORT_SCHEMA = {
             "unsupported-schema-format",
             "missing-payload",
             "invalid-payload",
+            "missing-header",
+            "unavailable-header",
+            "invalid-header",
             "unverifiable-headers",
+            "ambiguous",
             "unmatched",
             "mismatched"
           ],
@@ -187,7 +217,11 @@ const ASYNC_REPORT_SCHEMA = {
             "unsupported-schema-format": { type: "integer", minimum: 0 },
             "missing-payload": { type: "integer", minimum: 0 },
             "invalid-payload": { type: "integer", minimum: 0 },
+            "missing-header": { type: "integer", minimum: 0 },
+            "unavailable-header": { type: "integer", minimum: 0 },
+            "invalid-header": { type: "integer", minimum: 0 },
             "unverifiable-headers": { type: "integer", minimum: 0 },
+            ambiguous: { type: "integer", minimum: 0 },
             unmatched: { type: "integer", minimum: 0 },
             mismatched: { type: "integer", minimum: 0 }
           }

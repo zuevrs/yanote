@@ -14,7 +14,27 @@ export type KafkaOperationKey = {
   channel: string;
 };
 
-export type KafkaHeaderValidationCapability = "none" | "unverifiable";
+export type KafkaHeaderValidationCapability = "none" | "supported" | "unverifiable";
+
+export type KafkaMessageSelectionHint =
+  | {
+      kind: "message";
+      value: string;
+    }
+  | {
+      kind: "header";
+      header: string;
+      value: string;
+    };
+
+export type KafkaMessageSelectionRule =
+  | {
+      kind: "message";
+    }
+  | {
+      kind: "header";
+      header: string;
+    };
 
 export type KafkaMessageContract = {
   name: string;
@@ -22,13 +42,20 @@ export type KafkaMessageContract = {
   payloadSchemaId?: string;
   contentType?: string;
   schemaFormat?: string;
+  headersSchema?: JsonValue;
   headersSchemaId?: string;
   headerValidationCapability: KafkaHeaderValidationCapability;
+  selectionHints?: KafkaMessageSelectionHint[];
 };
 
 export type KafkaOperationContract = {
   operation: KafkaOperationKey;
   message?: KafkaMessageContract;
+  messages?: KafkaMessageContract[];
+  messageSelection?: {
+    mode: "single" | "runtime";
+    precedence: KafkaMessageSelectionRule[];
+  };
 };
 
 export type OperationKey =
@@ -50,6 +77,25 @@ export function serializeOperationKey(key: OperationKey): string {
   }
 
   return JSON.stringify(key);
+}
+
+export function formatKafkaMessageIdentity(message: KafkaMessageContract): string {
+  const discriminators = (message.selectionHints ?? [])
+    .filter((hint): hint is Extract<KafkaMessageSelectionHint, { kind: "header" }> => hint.kind === "header")
+    .map((hint) => `${hint.header}=${hint.value}`)
+    .sort((left, right) => left.localeCompare(right));
+
+  const details = [
+    discriminators.length > 0 ? `selectors: ${discriminators.join(", ")}` : null,
+    message.payloadSchemaId ? `payload: ${message.payloadSchemaId}` : null,
+    message.headersSchemaId ? `headers: ${message.headersSchemaId}` : null
+  ].filter((detail): detail is string => detail !== null);
+
+  if (details.length === 0) {
+    return message.name;
+  }
+
+  return `${message.name} [${details.join("; ")}]`;
 }
 
 function normalizeKafkaOperationKey(key: OperationKey): KafkaOperationKey | null {

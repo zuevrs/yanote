@@ -277,13 +277,13 @@ describe("cli async-report contract", () => {
       const stderrLines = result.stderr.trim().split("\n");
       expect(stderrLines[0]).toContain("YANOTE_ASYNC_ERROR class=semantic code=ASYNC_SEMANTIC_MISSING_PAYLOAD");
       expect(stderrLines[1]).toContain("YANOTE_ASYNC_ERROR_SECONDARY class=semantic code=ASYNC_SEMANTIC_INVALID_PAYLOAD");
-      expect(stderrLines[2]).toContain("YANOTE_ASYNC_ERROR_SECONDARY class=semantic code=ASYNC_SEMANTIC_UNVERIFIABLE_HEADERS");
+      expect(stderrLines[2]).toContain("YANOTE_ASYNC_ERROR_SECONDARY class=semantic code=ASYNC_SEMANTIC_MISSING_HEADER");
       expect(stderrLines.filter((line) => line.startsWith("YANOTE_ASYNC_ERROR "))).toHaveLength(1);
       expect(result.stdout).toContain("primary=ASYNC_SEMANTIC_MISSING_PAYLOAD");
       expect(result.stdout).toContain(
         'primary_reason="Async evidence kafka send orders.created is missing payload required by schema OrderCreatedPayload at /: Observed kafka evidence did not include a payload."'
       );
-      expect(result.stdout).toContain("class_counts=input:0,semantic:3,gate:0,runtime:0");
+      expect(result.stdout).toContain("class_counts=input:0,semantic:4,gate:0,runtime:0");
     } finally {
       await rm(fixture.dir, { recursive: true, force: true });
     }

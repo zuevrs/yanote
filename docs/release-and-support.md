@@ -45,7 +45,7 @@
 - analyzer delivery surface: основной путь — source-built CLI из `yanote-js`, а offline fallback распространяется как release asset через GitHub Releases, а не как tracked documentation surface default branch;
 - публичный HTTP proof surface: `bash scripts/ci/run-v1-e2e.sh`, который удерживает `.yanote-ci/v1-e2e/out/yanote-report.json` как happy-path artifact и рядом сохраняет `semantic-red.stdout`, `semantic-red.stderr` и `semantic-red-yanote-report.json`;
 - observation coverage и `HTTP Payload Conformance` как разные truth surfaces: happy path на Spring MVC demo сейчас показывает `operations/status/parameters/aggregate = 100.00%`, а payload validation отдельно подтверждает JSON request/response у `POST /users`;
-- benign boundary для GET responses без declared content: `NO_DECLARED_CONTENT` остаётся видимым `SKIPPED`-diagnostic, но не считается контрактной ошибкой и не понижает observation coverage;
+- benign omission boundaries на happy path разделены явно: `GET /users` остаётся `NO_DECLARED_CONTENT`, а `GET /admin/ping` и `GET /users/{param}` публикуют `RECORDER_OMITTED` с `captureState=omitted` и `captureReason=policy-filtered`, но эти сигналы не считаются контрактной ошибкой и не понижают observation coverage;
 - fail-closed payload boundary: retained semantic-red pass на тех же live events завершает анализ с `SEMANTIC_HTTP_UNSUPPORTED_SCHEMA`, если declared JSON content нельзя честно провалидировать usable schema.
 
 Именно в этих границах текущий HTTP path считается поддерживаемым: JSON-first request/response payload validation на Spring MVC path, retained green/red proof artifacts и честное разделение между observation coverage и payload conformance. Здесь **нет** обещания для произвольных media types, нет обещания broker-agnostic payload enforcement вне объявленного JSON path и нет общего combined HTTP+async report surface.
@@ -68,10 +68,11 @@
 
 - `raw или merged async JSONL`
 - `yanote-async-report.json`
+- retained `runtime-selected-async-report.stderr` и `runtime-selected-yanote-async-report.json` для proven Kafka multi-message selection truth
 - analyzer/proof `stderr`
 - retained `schema-failure-async-report.stderr` и `schema-failure-yanote-async-report.json` для proven Kafka payload drift
 
-Практически это означает отдельный маршрут `node yanote-js/dist/yanote.cjs async-report` по Kafka evidence и авторитетный live-proof bundle из `bash scripts/ci/verify-m004-s03-live-kafka-proof.sh`. Зелёный bundle остаётся routing-first proof surface, а retained `schema-failure-*` sidecar показывает typed `invalid-payload` drift только для того Kafka evidence path, который уже доказан в репозитории. Это дополняет стабильную линию `v1.0.x`, но не переопределяет release truth, не обещает broker-agnostic coverage, не делает headers публично проверяемыми и не превращает текущий repository `HEAD` в опубликованный стабильный релиз.
+Практически это означает отдельный маршрут `node yanote-js/dist/yanote.cjs async-report` по Kafka evidence и авторитетный live-proof bundle из `bash scripts/ci/verify-m004-s03-live-kafka-proof.sh`. Зелёный bundle остаётся routing-first proof surface, retained runtime-selected sidecar показывает `selectionMode=runtime` и redacted selectors для multi-message AsyncAPI contract, а retained `schema-failure-*` sidecar показывает typed `invalid-payload` drift только для того Kafka evidence path, который уже доказан в репозитории. Это дополняет стабильную линию `v1.0.x`, но не переопределяет release truth, не обещает broker-agnostic coverage, не делает headers публично проверяемыми и не превращает текущий repository `HEAD` в опубликованный стабильный релиз.
 
 Demo/example модули полезны для доказательства пути, но не входят в опубликованную Java release surface.
 

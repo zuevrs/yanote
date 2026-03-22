@@ -2,12 +2,12 @@ package dev.yanote.core.events;
 
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
-import org.junit.jupiter.api.Test;
-
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.List;
+import java.util.Map;
+import org.junit.jupiter.api.Test;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
@@ -32,6 +32,23 @@ class KafkaEventJsonlRoundTripTest {
                 payload,
                 PayloadCaptureState.CAPTURED,
                 null,
+                Map.of(
+                        "trace-id", new KafkaEvent.HeaderEvidence(
+                                KafkaEvent.HeaderCaptureState.CAPTURED,
+                                "trace-123",
+                                null
+                        ),
+                        "authorization", new KafkaEvent.HeaderEvidence(
+                                KafkaEvent.HeaderCaptureState.REDACTED,
+                                null,
+                                KafkaEvent.HeaderCaptureReason.SENSITIVE
+                        ),
+                        "binary-header", new KafkaEvent.HeaderEvidence(
+                                KafkaEvent.HeaderCaptureState.OMITTED,
+                                null,
+                                KafkaEvent.HeaderCaptureReason.UNSUPPORTED
+                        )
+                ),
                 false,
                 "run-1",
                 "suite-a"
@@ -45,10 +62,11 @@ class KafkaEventJsonlRoundTripTest {
 
         String jsonlLine = Files.readString(tempFile, StandardCharsets.UTF_8).trim();
         assertEquals(
-                "{\"kind\":\"kafka\",\"ts\":1710000000000,\"action\":\"send\",\"channel\":\"users.signedup\",\"message\":\"UserSignedUp\",\"service\":\"accounts-service\",\"payload\":{\"user\":{\"id\":\"alice\",\"roles\":[\"admin\"]},\"active\":true},\"payloadState\":\"captured\",\"error\":false,\"test.run_id\":\"run-1\",\"test.suite\":\"suite-a\"}",
+                "{\"kind\":\"kafka\",\"ts\":1710000000000,\"action\":\"send\",\"channel\":\"users.signedup\",\"message\":\"UserSignedUp\",\"service\":\"accounts-service\",\"payload\":{\"user\":{\"id\":\"alice\",\"roles\":[\"admin\"]},\"active\":true},\"payloadState\":\"captured\",\"headers\":{\"authorization\":{\"state\":\"redacted\",\"reason\":\"sensitive\"},\"binary-header\":{\"state\":\"omitted\",\"reason\":\"unsupported\"},\"trace-id\":{\"state\":\"captured\",\"value\":\"trace-123\"}},\"error\":false,\"test.run_id\":\"run-1\",\"test.suite\":\"suite-a\"}",
                 jsonlLine
         );
         assertFalse(jsonlLine.contains("\"payloadReason\":null"));
+        assertFalse(jsonlLine.contains("super-secret-token"));
 
         List<YanoteEvent> events = new EventJsonlReader().read(tempFile);
         assertEquals(1, events.size());
@@ -64,6 +82,23 @@ class KafkaEventJsonlRoundTripTest {
                         payload,
                         PayloadCaptureState.CAPTURED,
                         null,
+                        Map.of(
+                                "trace-id", new KafkaEvent.HeaderEvidence(
+                                        KafkaEvent.HeaderCaptureState.CAPTURED,
+                                        "trace-123",
+                                        null
+                                ),
+                                "authorization", new KafkaEvent.HeaderEvidence(
+                                        KafkaEvent.HeaderCaptureState.REDACTED,
+                                        null,
+                                        KafkaEvent.HeaderCaptureReason.SENSITIVE
+                                ),
+                                "binary-header", new KafkaEvent.HeaderEvidence(
+                                        KafkaEvent.HeaderCaptureState.OMITTED,
+                                        null,
+                                        KafkaEvent.HeaderCaptureReason.UNSUPPORTED
+                                )
+                        ),
                         false,
                         "run-1",
                         "suite-a"
@@ -85,6 +120,7 @@ class KafkaEventJsonlRoundTripTest {
                 PayloadCaptureState.OMITTED,
                 PayloadCaptureReason.UNSUPPORTED,
                 null,
+                null,
                 "run-2",
                 "suite-b"
         );
@@ -103,6 +139,7 @@ class KafkaEventJsonlRoundTripTest {
         assertFalse(jsonlLine.contains("\"payload\":null"));
         assertFalse(jsonlLine.contains("\"payloadState\":null"));
         assertFalse(jsonlLine.contains("\"payloadReason\":null"));
+        assertFalse(jsonlLine.contains("\"headers\":null"));
 
         List<YanoteEvent> events = new EventJsonlReader().read(tempFile);
         assertEquals(1, events.size());
@@ -117,6 +154,7 @@ class KafkaEventJsonlRoundTripTest {
                         null,
                         PayloadCaptureState.OMITTED,
                         PayloadCaptureReason.UNSUPPORTED,
+                        null,
                         null,
                         "run-2",
                         "suite-b"
@@ -139,6 +177,7 @@ class KafkaEventJsonlRoundTripTest {
         KafkaEvent event = assertInstanceOf(KafkaEvent.class, events.get(0));
         assertNull(event.payloadState());
         assertNull(event.payloadReason());
+        assertNull(event.headers());
         assertEquals(json("{\"ok\":true}"), event.payload());
     }
 

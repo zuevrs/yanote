@@ -2,6 +2,7 @@ import Ajv, { type ValidateFunction } from "ajv";
 import { match } from "path-to-regexp";
 import type { DeclaredStatusToken } from "./dimensions.js";
 import type { HttpEvent, JsonValue } from "../model/httpEvent.js";
+import type { PayloadCaptureReason, PayloadCaptureState } from "../model/payloadCapture.js";
 import type { OperationKey } from "../model/operationKey.js";
 import { serializeOperationKey } from "../model/operationKey.js";
 import type {
@@ -55,7 +56,8 @@ export type HttpPayloadConformanceCode =
   | "MEDIA_TYPE_MISMATCH"
   | "UNSUPPORTED_MEDIA_TYPE"
   | "UNSUPPORTED_SCHEMA"
-  | "NO_DECLARED_CONTENT";
+  | "NO_DECLARED_CONTENT"
+  | "RECORDER_OMITTED";
 
 export type HttpPayloadConformanceDiagnostic = {
   operationKey: string;
@@ -70,9 +72,10 @@ export type HttpPayloadConformanceDiagnostic = {
   observedStatus?: number;
   observedMediaType?: string;
   declaredMediaTypes: string[];
+  captureState?: PayloadCaptureState;
+  captureReason?: PayloadCaptureReason;
   errors?: string[];
 };
-
 export type HttpPayloadTargetSummary = {
   state: HttpPayloadConformanceState;
   observedCount: number;
@@ -225,8 +228,30 @@ function evaluateRequestPayload(input: {
 }): HttpPayloadConformanceDiagnostic | null {
   const observedMediaType = normalizeObservedMediaType(input.event.requestContentType);
   const hasObservedBody = input.event.requestBody !== undefined;
-  const hasObservedEvidence = observedMediaType !== undefined || hasObservedBody;
   const requestBody = input.contract.requestBody;
+  const recorderOmission = resolveRecorderOmission({
+    target: "request",
+    body: input.event.requestBody,
+    captureState: input.event.requestBodyState,
+    captureReason: input.event.requestBodyReason,
+    observedMediaType,
+    declaredMediaTypes: dedupeAndSort(requestBody?.content.map((entry) => entry.mediaType) ?? [])
+  });
+  if (recorderOmission) {
+    return createDiagnostic({
+      input,
+      target: "request",
+      state: "SKIPPED",
+      code: "RECORDER_OMITTED",
+      message: buildRecorderOmissionMessage("request", recorderOmission.captureReason),
+      observedMediaType,
+      declaredMediaTypes: recorderOmission.declaredMediaTypes,
+      captureState: recorderOmission.captureState,
+      captureReason: recorderOmission.captureReason
+    });
+  }
+
+  const hasObservedEvidence = observedMediaType !== undefined || hasObservedBody;
 
   if (!requestBody) {
     if (!hasObservedEvidence) return null;
@@ -288,9 +313,33 @@ function evaluateResponsePayload(input: {
 }): HttpPayloadConformanceDiagnostic | null {
   const observedMediaType = normalizeObservedMediaType(input.event.responseContentType);
   const hasObservedBody = input.event.responseBody !== undefined;
-  const hasObservedEvidence = observedMediaType !== undefined || hasObservedBody;
   const observedStatus = typeof input.event.status === "number" ? input.event.status : undefined;
   const responseContract = selectResponseContract(input.contract.responseBodies, observedStatus);
+  const recorderOmission = resolveRecorderOmission({
+    target: "response",
+    body: input.event.responseBody,
+    captureState: input.event.responseBodyState,
+    captureReason: input.event.responseBodyReason,
+    observedMediaType,
+    declaredMediaTypes: dedupeAndSort(responseContract?.content.map((entry) => entry.mediaType) ?? [])
+  });
+  if (recorderOmission) {
+    return createDiagnostic({
+      input,
+      target: "response",
+      state: "SKIPPED",
+      code: "RECORDER_OMITTED",
+      message: buildRecorderOmissionMessage("response", recorderOmission.captureReason),
+      declaredStatus: responseContract?.declaredStatus,
+      observedStatus,
+      observedMediaType,
+      declaredMediaTypes: recorderOmission.declaredMediaTypes,
+      captureState: recorderOmission.captureState,
+      captureReason: recorderOmission.captureReason
+    });
+  }
+
+  const hasObservedEvidence = observedMediaType !== undefined || hasObservedBody;
 
   if (!responseContract) {
     if (!hasObservedEvidence) return null;
@@ -348,6 +397,28 @@ function evaluateResponsePayload(input: {
     observedStatus,
     validatorKeyPrefix: `${input.operationKey}\u0000response\u0000${responseContract.declaredStatus}`
   });
+}
+
+function resolveRecorderOmission(input: {
+  target: "request" | "response";
+  body: JsonValue | undefined;
+  captureState: PayloadCaptureState | undefined;
+  captureReason: PayloadCaptureReason | undefined;
+  observedMediaType: string | undefined;
+  declaredMediaTypes: string[];
+}): { captureState: "omitted"; captureReason?: PayloadCaptureReason; declaredMediaTypes: string[] } | null {
+  if (input.body !== undefined) return null;
+  if (input.captureState !== "omitted") return null;
+
+  return {
+    captureState: "omitted",
+    captureReason: input.captureReason,
+    declaredMediaTypes: input.declaredMediaTypes
+  };
+}
+
+function buildRecorderOmissionMessage(target: "request" | "response", reason: PayloadCaptureReason | undefined): string {
+  return reason ? `Recorder omitted ${target} payload evidence (${reason}).` : `Recorder omitted ${target} payload evidence.`;
 }
 
 function evaluatePayloadAgainstContent(input: {
@@ -516,6 +587,8 @@ function createDiagnostic(input: {
   observedStatus?: number;
   observedMediaType?: string;
   declaredMediaTypes: string[];
+  captureState?: PayloadCaptureState;
+  captureReason?: PayloadCaptureReason;
   errors?: string[];
 }): HttpPayloadConformanceDiagnostic {
   return {
@@ -531,6 +604,8 @@ function createDiagnostic(input: {
     observedStatus: input.observedStatus,
     observedMediaType: input.observedMediaType,
     declaredMediaTypes: input.declaredMediaTypes,
+    captureState: input.captureState,
+    captureReason: input.captureReason,
     errors: input.errors
   };
 }
@@ -649,7 +724,33 @@ function normalizeObservedMediaType(value: unknown): string | undefined {
 }
 
 function findMatchingMediaType(content: HttpMediaTypeContract[], observedMediaType: string): HttpMediaTypeContract | undefined {
-  return content.find((entry) => entry.mediaType === observedMediaType);
+  return content.find((entry) => mediaTypesMatch(entry.mediaType, observedMediaType));
+}
+
+function mediaTypesMatch(declaredMediaType: string, observedMediaType: string): boolean {
+  if (declaredMediaType === observedMediaType) return true;
+
+  const declared = splitMediaType(declaredMediaType);
+  const observed = splitMediaType(observedMediaType);
+  if (!declared || !observed) return false;
+
+  if (declared.type !== "*" && declared.type !== observed.type) return false;
+  if (declared.subtype === "*") return true;
+  if (declared.subtype === observed.subtype) return true;
+
+  if (declared.subtype.startsWith("*+")) {
+    const suffix = declared.subtype.slice(2);
+    return suffix.length > 0 && observed.subtype.endsWith(`+${suffix}`);
+  }
+
+  return false;
+}
+
+function splitMediaType(value: string): { type: string; subtype: string } | null {
+  const [type, subtype, ...rest] = value.split("/").map((segment) => segment.trim());
+  if (rest.length > 0) return null;
+  if (!type || !subtype) return null;
+  return { type, subtype };
 }
 
 function isSupportedJsonMediaType(mediaType: string): boolean {

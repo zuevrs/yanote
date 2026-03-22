@@ -37,7 +37,7 @@ public class YanoteKafkaRecorderAutoConfiguration {
     }
 
     @Bean
-    public YanoteKafkaInstrumentationBeanPostProcessor yanoteKafkaInstrumentationBeanPostProcessor(
+    public static YanoteKafkaInstrumentationBeanPostProcessor yanoteKafkaInstrumentationBeanPostProcessor(
             YanoteKafkaProducerInterceptor producerInterceptor,
             YanoteKafkaProducerListener producerListener,
             YanoteKafkaRecordInterceptor recordInterceptor

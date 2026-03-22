@@ -81,11 +81,11 @@ final class HttpPayloadCapture {
         try {
             MediaType mediaType = MediaType.parseMediaType(contentType);
             if (mediaType.isCompatibleWith(MediaType.APPLICATION_JSON)) {
-                return JsonCompatibility.allow();
+                return JsonCompatibility.captureAllowed();
             }
             String subtype = mediaType.getSubtype();
             if (subtype != null && subtype.toLowerCase(Locale.ROOT).endsWith("+json")) {
-                return JsonCompatibility.allow();
+                return JsonCompatibility.captureAllowed();
             }
             return JsonCompatibility.omitted(PayloadCaptureReason.POLICY_FILTERED);
         } catch (InvalidMediaTypeException ex) {
@@ -128,7 +128,7 @@ final class HttpPayloadCapture {
             return compatible;
         }
 
-        static JsonCompatibility allow() {
+        static JsonCompatibility captureAllowed() {
             return new JsonCompatibility(true, null);
         }
 
