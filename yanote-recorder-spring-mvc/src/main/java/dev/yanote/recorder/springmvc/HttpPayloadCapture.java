@@ -48,7 +48,7 @@ final class HttpPayloadCapture {
         }
 
         JsonCompatibility compatibility = inspectJsonCompatibility(direction, method, path, normalizedContentType);
-        if (!compatibility.compatible()) {
+        if (!compatibility.isCompatible()) {
             return PayloadSnapshot.omitted(normalizedContentType, compatibility.reason());
         }
         if (body.length > MAX_CAPTURE_BYTES) {
@@ -81,11 +81,11 @@ final class HttpPayloadCapture {
         try {
             MediaType mediaType = MediaType.parseMediaType(contentType);
             if (mediaType.isCompatibleWith(MediaType.APPLICATION_JSON)) {
-                return JsonCompatibility.compatible();
+                return JsonCompatibility.allow();
             }
             String subtype = mediaType.getSubtype();
             if (subtype != null && subtype.toLowerCase(Locale.ROOT).endsWith("+json")) {
-                return JsonCompatibility.compatible();
+                return JsonCompatibility.allow();
             }
             return JsonCompatibility.omitted(PayloadCaptureReason.POLICY_FILTERED);
         } catch (InvalidMediaTypeException ex) {
@@ -124,7 +124,11 @@ final class HttpPayloadCapture {
     }
 
     private record JsonCompatibility(boolean compatible, PayloadCaptureReason reason) {
-        static JsonCompatibility compatible() {
+        boolean isCompatible() {
+            return compatible;
+        }
+
+        static JsonCompatibility allow() {
             return new JsonCompatibility(true, null);
         }
 
