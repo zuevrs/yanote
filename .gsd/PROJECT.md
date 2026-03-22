@@ -54,6 +54,7 @@ Current product-level gap:
 ## Capability Contract
 
 See `.gsd/REQUIREMENTS.md` for the explicit capability contract, requirement status, and coverage mapping.
+See `.gsd/ARTIFACT-PROVENANCE.md` for the provenance classification of restored and recovered durable artifacts.
 
 ## Milestone Sequence
 
