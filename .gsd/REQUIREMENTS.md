@@ -6,19 +6,6 @@ Recovery note:
 - The repository previously blanket-ignored `.gsd/`, so this file was reconstructed on 2026-03-22 from tracked repo docs (`README.md`, `docs/requirements.md`, `docs/release-and-support.md`, and `docs/traceability/v1-requirements-tests.md`).
 - Requirement status below reflects the surviving public documentation and traceability surfaces, not a fresh full-repo proof run in this session.
 
-## Active
-
-### R005 — The current async surface stays narrow, truthful, and separate from HTTP reporting
-- Class: constraint
-- Status: active
-- Description: The supported async path must remain Kafka-only, Spring-Kafka-first, and reported through a separate `async-report` / `yanote-async-report.json` surface without pretending to offer a broker-agnostic or combined HTTP+async report contract.
-- Why it matters: The async path is valuable only if it stays explicit about what is and is not proven today.
-- Source: execution
-- Primary owning slice: none yet
-- Supporting slices: none
-- Validation: mapped
-- Notes: `docs/requirements.md` and `docs/release-and-support.md` describe this as the current supported but intentionally narrow async boundary. Treat it as active until a future `.gsd` milestone explicitly re-proves or expands it.
-
 ## Validated
 
 ### R001 — Teams can prove supported HTTP contract coverage from recorded evidence
@@ -65,6 +52,17 @@ Recovery note:
 - Validation: validated
 - Notes: Recovered from RELS-01..03 in `docs/requirements.md` and the release-boundary rules in `docs/release-and-support.md`.
 
+### R005 — The current async surface stays narrow, truthful, and separate from HTTP reporting
+- Class: constraint
+- Status: validated
+- Description: The supported async path remains Kafka-only, Spring-Kafka-first, and reported through a separate `async-report` / `yanote-async-report.json` surface without pretending to offer a broker-agnostic or combined HTTP+async report contract.
+- Why it matters: The async path is valuable only if it stays explicit about what is and is not proven today.
+- Source: execution
+- Primary owning slice: M005/M009 equivalent
+- Supporting slices: retained proof/docs boundary
+- Validation: validated
+- Notes: The current docs and retained proof surfaces explicitly preserve this narrow async boundary, and the recovered M009 closeout confirms stronger evidence truth inside that boundary without widening the public promise.
+
 ## Deferred
 
 ### R020 — Combined HTTP + async report/gate surface
@@ -110,14 +108,14 @@ Recovery note:
 | R002 | failure-visibility | validated | docs phase 3 equivalent | docs phase 4-5 equivalent | validated |
 | R003 | launchability | validated | docs phase 4 equivalent | docs phase 2-5 equivalent | validated |
 | R004 | operability | validated | docs phase 5 equivalent | docs phase 4 equivalent | validated |
-| R005 | constraint | active | none yet | none | mapped |
+| R005 | constraint | validated | M005/M009 equivalent | retained proof/docs boundary | validated |
 | R020 | admin/support | deferred | none | none | unmapped |
 | R021 | differentiator | deferred | none | none | unmapped |
 | R030 | anti-feature | out-of-scope | none | none | n/a |
 
 ## Coverage Summary
 
-- Active requirements: 1
+- Active requirements: 0
 - Mapped to slices: 5
-- Validated: 4
+- Validated: 5
 - Unmapped active requirements: 0

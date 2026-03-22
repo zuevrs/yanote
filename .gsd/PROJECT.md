@@ -10,7 +10,7 @@ Any engineering team running Java services can reliably prove that their scoped 
 
 ## Current State
 
-Yanote v1 delivery through M008 is now closed in the codebase: repository maturity, Kafka/AsyncAPI coverage, async schema-depth validation, runtime/public-boundary hardening, and HTTP payload-conformance depth are all complete and backed by retained proof artifacts. The published stable line remains `v1.0.126`; the current repository state is stronger than that release on both async and HTTP contract depth. Recovered repo-local milestone artifacts currently extend through `M009`, but active runtime state is intentionally not preserved in the committed `.gsd` tree.
+Yanote delivery through M009 is now closed in the codebase: repository maturity, Kafka/AsyncAPI coverage, async schema-depth validation, runtime/public-boundary hardening, HTTP payload-conformance depth, and evidence-truth hardening are all complete and backed by retained proof artifacts or surviving repo history. The published stable line remains `v1.0.126`; the current repository state is stronger than that release on both async and HTTP contract depth and on recorder/analyzer evidence truth.
 
 What exists now:
 - Deterministic OpenAPI semantic extraction and event-to-operation matching across Node and Java.
@@ -26,10 +26,12 @@ What exists now:
 - A dedicated `yanote async-report` path loads AsyncAPI specs plus normalized async evidence, writes deterministic `yanote-async-report.json`, emits typed `YANOTE_ASYNC_*` summary/error lines, and keeps the existing HTTP `yanote report` path separate.
 - Spring Kafka producer and consumer recorder seams emit truthful normalized `kafka send` / `kafka receive` evidence against a real broker, including suite/run header propagation across HTTP → Kafka and Kafka → Kafka flows.
 - Payload-bearing Kafka evidence now survives Spring Kafka recorder capture, mixed JSONL round-trip, Node async ingestion, and AsyncAPI schema validation, with retained live-proof `schema-failure-*` artifacts proving fail-closed async contract depth end to end.
+- Retained Kafka header evidence now survives into async analysis/proof surfaces, and AsyncAPI multi-message runtime selection is proven through retained redacted sidecars and typed ambiguity diagnostics instead of remaining an implicit runtime behavior.
 - Payload-bearing HTTP evidence now survives Spring MVC recorder capture, JSONL round-trip, and Node ingestion for supported JSON request/response flows, and the example `POST /users` path plus OpenAPI contract are aligned on a real JSON `201` request/response operation.
 - `yanote report` now carries a separate `httpPayloadConformance` section and CLI summary block for supported HTTP payload truth without changing the established operation/status/parameter coverage numerators.
 - The HTTP payload-conformance model now classifies invalid, missing-body, missing-content-type, unsupported-media, unsupported-schema, no-declared-content, and mixed `PARTIAL` request/response outcomes deterministically across fixtures and the retained live Spring MVC proof path.
 - HTTP report, gate, CLI, and retained artifact-summary surfaces now fail closed on typed `SEMANTIC_HTTP_*` payload drift while preserving operation/status/parameter observation numerators and keeping benign `NO_DECLARED_CONTENT` paths green.
+- HTTP and async truth surfaces now distinguish recorder-policy omission from semantic contract drift more explicitly through additive payload/header provenance, retained header-aware async diagnostics, and stronger fail-closed ordering in the proof/report path.
 - The public `bash scripts/ci/run-v1-e2e.sh` bundle retains both the stable happy-path `out/yanote-report.json` artifact and semantic-red sidecars (`semantic-red.stdout`, `semantic-red.stderr`, `semantic-red-yanote-report.json`) derived from the same live Spring MVC events, with docs/verifiers aligned to that boundary.
 - The hardened `run-v1-e2e.sh` path prewarms runtime dependencies into a shared Gradle home before the offline test-container leg and now copies wrapper distributions into the mounted Gradle home so the containerized public proof can rerun reliably.
 
@@ -63,3 +65,4 @@ See `.gsd/REQUIREMENTS.md` for the explicit capability contract, requirement sta
 - [x] M006: Runtime Delivery Hardening And Public Repo Hygiene — Restore trust in the public demo and CI surfaces, then remove tracked technical artifact trees from the default branch without leaving broken docs or trust contracts behind.
 - [x] M007: AsyncAPI Schema Conformance And Contract Depth — Strengthen the async contract surface by carrying payload-bearing evidence through runtime capture, validating payloads against AsyncAPI schemas, and surfacing schema-level drift truthfully.
 - [x] M008: OpenAPI Contract Depth And Payload Conformance — Extend the HTTP path from operation/status/parameter truth into request/response payload conformance with explicit report and gate semantics.
+- [x] M009: HTTP And Kafka Evidence Truth Hardening — Make recorder, JSONL, analyzer, report, and gate surfaces distinguish omitted evidence from true semantic drift across the existing HTTP/OpenAPI and Kafka/AsyncAPI product boundary.
