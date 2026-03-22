@@ -10,7 +10,7 @@ Any engineering team running Java services can reliably prove that their scoped 
 
 ## Current State
 
-Yanote v1 delivery through M008 is now closed in the codebase: repository maturity, Kafka/AsyncAPI coverage, async schema-depth validation, runtime/public-boundary hardening, and HTTP payload-conformance depth are all complete and backed by retained proof artifacts. The published stable line remains `v1.0.126`; the current repository state is stronger than that release on both async and HTTP contract depth. The next active milestone is M009, which hardens recorder/evidence truth across HTTP and Kafka without widening the public product boundary.
+Yanote v1 delivery through M008 is now closed in the codebase: repository maturity, Kafka/AsyncAPI coverage, async schema-depth validation, runtime/public-boundary hardening, and HTTP payload-conformance depth are all complete and backed by retained proof artifacts. The published stable line remains `v1.0.126`; the current repository state is stronger than that release on both async and HTTP contract depth. Recovered repo-local milestone artifacts currently extend through `M009`, but active runtime state is intentionally not preserved in the committed `.gsd` tree.
 
 What exists now:
 - Deterministic OpenAPI semantic extraction and event-to-operation matching across Node and Java.
