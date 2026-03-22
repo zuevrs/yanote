@@ -47,9 +47,15 @@ coverage/
 .cache/
 tmp/
 
-# ── GSD: local-only project state ───────────────────────────────────────────
-# Keep the whole .gsd tree inside the repo working copy, but out of git.
-/.gsd/
-
-# ── GSD baseline (auto-generated) ──
-.gsd
+# ── GSD: shared docs vs local runtime (gsd-2 recommended model) ────────────
+# Commit durable project docs and milestone artifacts. Keep runtime/session
+# state local-only.
+.gsd/auto.lock
+.gsd/completed-units.json
+.gsd/STATE.md
+.gsd/metrics.json
+.gsd/activity/
+.gsd/runtime/
+.gsd/worktrees/
+.gsd/milestones/**/continue.md
+.gsd/milestones/**/*-CONTINUE.md
