@@ -86,7 +86,7 @@ jobs:
               base_sha="${{ github.event.pull_request.base.sha }}"
               changed_files="$(git diff --name-only "${base_sha}" "${GITHUB_SHA}")"
               printf '%s\n' "${changed_files}" > .yanote-ci/delivery-proof-changed-files.txt
-              if printf '%s\n' "${changed_files}" | grep -Eq '^(examples/|scripts/ci/|yanote-recorder-spring-mvc/|yanote-gradle-plugin/)'; then
+              if printf '%s\n' "${changed_files}" | grep -Eq '^(examples/|scripts/ci/|yanote-recorder-spring-mvc/|yanote-recorder-spring-kafka/|yanote-gradle-plugin/)'; then
                 should_run=true
                 reason="path_match"
               else

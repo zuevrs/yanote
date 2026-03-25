@@ -21,3 +21,41 @@
   > After this: Deliver the Java-native Gradle delivery surface for Yanote without changing analyzer semantics.
 - [x] **S05: Oss Release And Traceable Verification** `risk:medium` `depends:[S04]`
   > After this: Establish the Maven Central release foundation for v1 with deterministic fail-closed preflight behavior.
+
+## Boundary Map
+
+### S01 → S02
+
+Produces:
+- canonical OpenAPI semantic extraction, operation identity, and deterministic invalid/ambiguous diagnostics
+- shared Java/Node parity fixtures for the semantic contract
+
+Consumes:
+- nothing (first slice)
+
+### S02 → S03
+
+Produces:
+- deterministic operation/status/parameter coverage primitives
+- stable report schema and CLI summary/error contracts
+
+Consumes:
+- S01 canonical operation identity and matcher semantics
+
+### S03 → S04
+
+Produces:
+- governance policy resolution, exclusion handling, baseline regression, and fail-closed evidence behavior
+- deterministic report/CLI diagnostics suitable for automated gates
+
+Consumes:
+- S02 coverage result and report contract
+
+### S04 → S05
+
+Produces:
+- Gradle plugin, CI workflow contracts, required-check topology, and Java 21 enforcement
+- stable delivery surfaces wrapping the existing analyzer/governance engine
+
+Consumes:
+- S03 governance/report contract

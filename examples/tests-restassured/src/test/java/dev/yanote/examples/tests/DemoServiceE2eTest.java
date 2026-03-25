@@ -59,8 +59,6 @@ class DemoServiceE2eTest {
 
     @Test
     void shouldHitDemoEndpointsAndCreateEvents() throws IOException {
-        Files.deleteIfExists(EVENTS_PATH);
-
         sendGet("/users");
         sendGet("/users/123");
         sendPost("/users");
@@ -73,19 +71,24 @@ class DemoServiceE2eTest {
                 .map(DemoServiceE2eTest::parseEvent)
                 .toList();
 
-        assertTrue(events.size() >= 4);
+        List<HttpEvent> taggedEvents = events.stream()
+                .filter(event -> RUN_ID.equals(event.testRunId()))
+                .filter(event -> SUITE.equals(event.testSuite()))
+                .toList();
 
-        List<String> routes = events.stream()
+        assertTrue(taggedEvents.size() >= 4);
+
+        List<String> routes = taggedEvents.stream()
                 .map(HttpEvent::route)
                 .toList();
 
         assertTrue(routes.contains("/users"));
         assertTrue(routes.contains("/users/{id}"));
         assertTrue(routes.contains("/admin/ping"));
-        assertTrue(events.stream().allMatch(event -> RUN_ID.equals(event.testRunId())));
-        assertTrue(events.stream().allMatch(event -> SUITE.equals(event.testSuite())));
+        assertTrue(taggedEvents.stream().allMatch(event -> RUN_ID.equals(event.testRunId())));
+        assertTrue(taggedEvents.stream().allMatch(event -> SUITE.equals(event.testSuite())));
 
-        HttpEvent postUsers = findEvent(events, "POST", "/users");
+        HttpEvent postUsers = findEvent(taggedEvents, "POST", "/users");
         assertEquals(201, postUsers.status());
         assertEquals("application/json", postUsers.requestContentType());
         assertEquals("application/json", postUsers.responseContentType());

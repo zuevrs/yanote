@@ -54,8 +54,14 @@ tmp/
 .gsd/completed-units.json
 .gsd/STATE.md
 .gsd/metrics.json
+.gsd/gsd.db
+.gsd/gsd.db-shm
+.gsd/gsd.db-wal
 .gsd/activity/
 .gsd/runtime/
 .gsd/worktrees/
+.gsd/forensics/
+.gsd/parallel/
+.gsd/DISCUSSION-MANIFEST.json
 .gsd/milestones/**/continue.md
 .gsd/milestones/**/*-CONTINUE.md
