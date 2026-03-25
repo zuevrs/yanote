@@ -134,6 +134,7 @@ if [[ "${boundary_doc_present}" == "true" ]]; then
   require_contains "${BOUNDARY_DOC}" "не авторитетный источник стабильного релиза" "analyzer disclaimer"
   require_contains "${BOUNDARY_DOC}" '`yanote-core`' "published Java module"
   require_contains "${BOUNDARY_DOC}" '`yanote-recorder-spring-mvc`' "published Java module"
+  require_contains "${BOUNDARY_DOC}" '`yanote-recorder-spring-kafka`' "published Java module"
   require_contains "${BOUNDARY_DOC}" '`yanote-test-tags-restassured`' "published Java module"
   require_contains "${BOUNDARY_DOC}" '`yanote-test-tags-cucumber`' "published Java module"
   require_contains "${BOUNDARY_DOC}" '`yanote-gradle-plugin`' "published Java module"

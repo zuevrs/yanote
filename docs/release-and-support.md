@@ -16,11 +16,11 @@
 
 ## Последний стабильный релиз
 
-Последний стабильный релиз на момент обновления этого документа — `v1.0.126`.
+Последний стабильный релиз на момент обновления этого документа — `v1.0.127`.
 
 Опубликованные изменения, release notes и release assets нужно смотреть здесь:
 
-- Git tag: `v1.0.126`
+- Git tag: `v1.0.127`
 - GitHub Releases: https://github.com/zuevrs/yanote/releases
 
 `yanote --version` и `yanote-js/package.json` сейчас показывают `0.0.0`. Это технические version markers для source-built analyzer CLI и локального repository `HEAD`, а не публичная release truth.
@@ -31,17 +31,17 @@
 
 Рабочий `HEAD` может быть впереди последнего стабильного тега. Это означает только то, что в репозитории уже есть новые коммиты — например, документационные, инфраструктурные или product-maturity изменения. Сам по себе `HEAD` не означает, что появился новый опубликованный релиз.
 
-Пока не появился новый подписанный тег и соответствующий GitHub Release, публичной истиной остаются последняя стабильная линия `v1.0.x` и последний стабильный тег `v1.0.126`. Поэтому текущий `HEAD` нельзя автоматически считать эквивалентом последнего публичного релиза.
+Пока не появился новый подписанный тег и соответствующий GitHub Release, публичной истиной остаются последняя стабильная линия `v1.0.x` и последний стабильный тег `v1.0.127`. Поэтому текущий `HEAD` нельзя автоматически считать эквивалентом последнего публичного релиза.
 
 ## Стабильные поверхности
 
 Сегодня как стабильные и публично значимые поверхности Yanote нужно читать такие слои:
 
 - релизная линия `v1.0.x` и GitHub Releases как опубликованная change surface;
-- опубликованные Java-модули из release allowlist: `yanote-core`, `yanote-recorder-spring-mvc`, `yanote-test-tags-restassured`, `yanote-test-tags-cucumber`, `yanote-gradle-plugin`;
+- опубликованные Java-модули из release allowlist: `yanote-core`, `yanote-recorder-spring-mvc`, `yanote-recorder-spring-kafka`, `yanote-test-tags-restassured`, `yanote-test-tags-cucumber`, `yanote-gradle-plugin`;
 - Gradle plugin surface: plugin id `io.github.zuevrs.yanote.gradle`, задачи `yanoteReport` и `yanoteCheck`, плюс ограниченная extension surface вместо произвольного API;
 - report contract: файл `yanote-report.json` со schema version `1.0.0` (`schemaVersion = 1.0.0`);
-- проверенный recorder path: dependency-based `yanote-recorder-spring-mvc` для Spring Boot 3.x / Spring MVC с записью в `events.jsonl`;
+- проверенные recorder paths: dependency-based `yanote-recorder-spring-mvc` для Spring Boot 3.x / Spring MVC с записью HTTP evidence в `events.jsonl`, и `yanote-recorder-spring-kafka` как release-published Spring Kafka recorder adapter для Kafka evidence capture;
 - analyzer delivery surface: основной путь — source-built CLI из `yanote-js`, а offline fallback распространяется как release asset через GitHub Releases, а не как tracked documentation surface default branch;
 - публичный HTTP proof surface: `bash scripts/ci/run-v1-e2e.sh`, который удерживает `.yanote-ci/v1-e2e/out/yanote-report.json` как happy-path artifact и рядом сохраняет `semantic-red.stdout`, `semantic-red.stderr` и `semantic-red-yanote-report.json`;
 - observation coverage и `HTTP Payload Conformance` как разные truth surfaces: happy path на Spring MVC demo сейчас показывает `operations/status/parameters/aggregate = 100.00%`, а payload validation отдельно подтверждает JSON request/response у `POST /users`;
@@ -52,7 +52,7 @@
 
 ### Первая волна async относительно релиза и `HEAD`
 
-Первая user-facing async surface уже есть в текущем репозитории, но её нужно читать честно: это **source-built async path** через `yanote-js` на repository `HEAD`, а не отдельная новая стабильная release line поверх `v1.0.x`. Подписанные теги и GitHub Releases по-прежнему определяют публичную release truth; source-built async path просто фиксирует, что текущий `HEAD` уже несёт первую волну AsyncAPI/Kafka onboarding и proof surface.
+Первая user-facing async surface уже есть в текущем репозитории, но её нужно читать честно: это **source-built async path** через `yanote-js` на repository `HEAD`, а не отдельная новая стабильная release line поверх `v1.0.x`. Подписанные теги и GitHub Releases по-прежнему определяют публичную release truth; source-built async path просто фиксирует, что текущий `HEAD` уже несёт первую волну AsyncAPI/Kafka onboarding и proof surface. Публикация `yanote-recorder-spring-kafka` в release allowlist делает Spring Kafka recorder доступным как versioned Java dependency, но не отменяет отдельную async analyzer/report boundary и не превращает её в combined HTTP+async release surface.
 
 Эта первая волна поддерживается только в таких границах:
 

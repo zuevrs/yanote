@@ -84,7 +84,7 @@ test("workflow determines delivery-sensitive scope from PR changes and merge_gro
   assert.match(buildJob, /merge_group\)[\s\S]*?should_run=true/);
   assert.match(buildJob, /pull_request\)[\s\S]*?github\.event\.pull_request\.base\.sha/);
   assert.match(buildJob, /git diff --name-only/);
-  assert.match(buildJob, /examples\/\|scripts\/ci\/\|yanote-recorder-spring-mvc\/\|yanote-gradle-plugin\//);
+  assert.match(buildJob, /examples\/\|scripts\/ci\/\|yanote-recorder-spring-mvc\/\|yanote-recorder-spring-kafka\/\|yanote-gradle-plugin\//);
 });
 
 test("workflow runs delivery-sensitive v1 e2e proof inside build-and-test without adding a required job", async () => {

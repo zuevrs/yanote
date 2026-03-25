@@ -90,6 +90,7 @@ check_identity() {
   for module in \
     "yanote-core/build.gradle.kts" \
     "yanote-recorder-spring-mvc/build.gradle.kts" \
+    "yanote-recorder-spring-kafka/build.gradle.kts" \
     "yanote-test-tags-restassured/build.gradle.kts" \
     "yanote-test-tags-cucumber/build.gradle.kts" \
     "yanote-gradle-plugin/build.gradle.kts"

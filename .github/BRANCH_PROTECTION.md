@@ -25,6 +25,7 @@ Delivery-sensitive changes currently mean edits under:
 - `examples/**`
 - `scripts/ci/**`
 - `yanote-recorder-spring-mvc/**`
+- `yanote-recorder-spring-kafka/**`
 - `yanote-gradle-plugin/**`
 
 `v1-e2e` remains an additional quality gate for main/release flows and is intentionally not part of the default PR required-check pair.
