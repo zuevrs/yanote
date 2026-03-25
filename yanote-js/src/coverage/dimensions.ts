@@ -1,6 +1,8 @@
 export type CoverageDimensionState = "COVERED" | "PARTIAL" | "UNCOVERED" | "N/A";
 
 export type ParameterLocation = "path" | "query" | "header";
+export type HttpRequestParameterLocation = ParameterLocation | "cookie";
+export type HttpRequestParameterStyle = "simple" | "form" | string;
 
 export type DeclaredStatusToken = `${number}` | `${number}XX` | "default";
 
@@ -8,6 +10,60 @@ export type ParameterDefinition = {
   name: string;
   in: ParameterLocation;
   required: boolean;
+};
+
+export type HttpScalarType = "string" | "integer" | "number" | "boolean";
+
+export type HttpScalarSchemaContract = {
+  type: HttpScalarType;
+  enum?: Array<string | number | boolean>;
+  minLength?: number;
+  maxLength?: number;
+  pattern?: string;
+  minimum?: number;
+  maximum?: number;
+  exclusiveMinimum?: number;
+  exclusiveMaximum?: number;
+  multipleOf?: number;
+};
+
+export type HttpRequestScalarContract =
+  | {
+      support: "supported";
+      schema: HttpScalarSchemaContract;
+    }
+  | {
+      support: "unsupported";
+      reason: "style" | "schema";
+    };
+
+export type HttpRequestDeclaredSupportReason = "content" | "style" | "explode" | "schema";
+export type HttpRequestDeclaredSupportShape = "scalar" | "array";
+
+export type HttpRequestDeclaredSupport =
+  | {
+      support: "supported";
+      shape: "scalar";
+      schema: HttpScalarSchemaContract;
+    }
+  | {
+      support: "supported";
+      shape: "array";
+      items: HttpScalarSchemaContract;
+    }
+  | {
+      support: "unsupported";
+      reason: HttpRequestDeclaredSupportReason;
+    };
+
+export type HttpRequestParameterContract = {
+  name: string;
+  in: HttpRequestParameterLocation;
+  required: boolean;
+  style: HttpRequestParameterStyle;
+  explode: boolean;
+  declaredSupport: HttpRequestDeclaredSupport;
+  scalar: HttpRequestScalarContract;
 };
 
 export type ParameterEvidence = {
@@ -88,8 +144,24 @@ const LOCATION_ORDER: Record<ParameterLocation, number> = {
   header: 2
 };
 
+const HTTP_REQUEST_LOCATION_ORDER: Record<HttpRequestParameterLocation, number> = {
+  path: 0,
+  query: 1,
+  header: 2,
+  cookie: 3
+};
+
 export function compareParameterDefinition(left: ParameterDefinition, right: ParameterDefinition): number {
   const locationDelta = LOCATION_ORDER[left.in] - LOCATION_ORDER[right.in];
+  if (locationDelta !== 0) return locationDelta;
+  return left.name.localeCompare(right.name);
+}
+
+export function compareHttpRequestParameterContract(
+  left: Pick<HttpRequestParameterContract, "in" | "name">,
+  right: Pick<HttpRequestParameterContract, "in" | "name">
+): number {
+  const locationDelta = HTTP_REQUEST_LOCATION_ORDER[left.in] - HTTP_REQUEST_LOCATION_ORDER[right.in];
   if (locationDelta !== 0) return locationDelta;
   return left.name.localeCompare(right.name);
 }

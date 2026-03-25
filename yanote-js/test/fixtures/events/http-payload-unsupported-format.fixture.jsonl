@@ -1,0 +1,1 @@
+{"kind":"http","ts":1772449296657,"method":"POST","route":"/custom-format","status":202,"requestBody":{"externalId":"cust-123"},"requestContentType":"application/json; charset=utf-8","responseBody":{"queued":true},"responseContentType":"application/json","queryKeys":[],"headerKeys":["content-type"],"test.run_id":"run-format-unsupported","test.suite":"suite-format-unsupported"}

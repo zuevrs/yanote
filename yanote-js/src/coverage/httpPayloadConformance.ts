@@ -1,4 +1,5 @@
 import Ajv, { type ValidateFunction } from "ajv";
+import addFormats from "ajv-formats";
 import { match } from "path-to-regexp";
 import type { DeclaredStatusToken } from "./dimensions.js";
 import type { HttpEvent, JsonValue } from "../model/httpEvent.js";
@@ -23,6 +24,11 @@ type ValidatorCacheEntry =
   | {
       kind: "validator";
       validator: ValidateFunction<JsonValue>;
+    }
+  | {
+      kind: "unsupported-format";
+      schemaPath: string;
+      format: string;
     }
   | {
       kind: "unsupported";
@@ -55,6 +61,7 @@ export type HttpPayloadConformanceCode =
   | "MISSING_CONTENT_TYPE"
   | "MEDIA_TYPE_MISMATCH"
   | "UNSUPPORTED_MEDIA_TYPE"
+  | "UNSUPPORTED_SCHEMA_FORMAT"
   | "UNSUPPORTED_SCHEMA"
   | "NO_DECLARED_CONTENT"
   | "RECORDER_OMITTED";
@@ -111,11 +118,14 @@ export type ComputeHttpPayloadConformanceOptions = {
   operationContractsByKey?: ReadonlyMap<string, HttpOperationContract>;
 };
 
+const SUPPORTED_PAYLOAD_SCHEMA_FORMATS = new Set(["email"]);
+
 const ajv = new Ajv({
   allErrors: true,
   strict: false,
-  validateFormats: false
+  validateFormats: true
 });
+addFormats(ajv, [...SUPPORTED_PAYLOAD_SCHEMA_FORMATS]);
 
 export function computeHttpPayloadConformance(
   operations: OperationKey[],
@@ -529,6 +539,23 @@ function evaluatePayloadAgainstContent(input: {
     `${input.validatorKeyPrefix}\u0000${matchedMedia.mediaType}`,
     matchedMedia.schema
   );
+  if (validator.kind === "unsupported-format") {
+    return createDiagnostic({
+      input: input.input,
+      target: input.target,
+      state: "SKIPPED",
+      code: "UNSUPPORTED_SCHEMA_FORMAT",
+      message: `Observed ${input.target} JSON payload declares unsupported schema format "${validator.format}" at ${validator.schemaPath}.`,
+      declaredStatus: input.declaredStatus,
+      observedStatus: input.observedStatus,
+      observedMediaType: input.observedMediaType,
+      declaredMediaTypes,
+      errors: [
+        `${validator.schemaPath} declares unsupported schema format "${validator.format}" outside Yanote's supported payload format allowlist.`
+      ]
+    });
+  }
+
   if (validator.kind === "unsupported") {
     return createDiagnostic({
       input: input.input,
@@ -724,26 +751,45 @@ function normalizeObservedMediaType(value: unknown): string | undefined {
 }
 
 function findMatchingMediaType(content: HttpMediaTypeContract[], observedMediaType: string): HttpMediaTypeContract | undefined {
-  return content.find((entry) => mediaTypesMatch(entry.mediaType, observedMediaType));
+  let bestMatch: HttpMediaTypeContract | undefined;
+  let bestSpecificity = Number.NEGATIVE_INFINITY;
+
+  for (const entry of content) {
+    const specificity = scoreMatchingMediaType(entry.mediaType, observedMediaType);
+    if (specificity === null) continue;
+
+    if (
+      !bestMatch ||
+      specificity > bestSpecificity ||
+      (specificity === bestSpecificity && entry.mediaType.localeCompare(bestMatch.mediaType) < 0)
+    ) {
+      bestMatch = entry;
+      bestSpecificity = specificity;
+    }
+  }
+
+  return bestMatch;
 }
 
-function mediaTypesMatch(declaredMediaType: string, observedMediaType: string): boolean {
-  if (declaredMediaType === observedMediaType) return true;
+function scoreMatchingMediaType(declaredMediaType: string, observedMediaType: string): number | null {
+  if (declaredMediaType === observedMediaType) return 40;
 
   const declared = splitMediaType(declaredMediaType);
   const observed = splitMediaType(observedMediaType);
-  if (!declared || !observed) return false;
+  if (!declared || !observed) return null;
 
-  if (declared.type !== "*" && declared.type !== observed.type) return false;
-  if (declared.subtype === "*") return true;
-  if (declared.subtype === observed.subtype) return true;
+  if (declared.type !== "*" && declared.type !== observed.type) return null;
+
+  const typeSpecificity = declared.type === observed.type ? 2 : 1;
+  if (declared.subtype === observed.subtype) return 30 + typeSpecificity;
+  if (declared.subtype === "*") return 10 + typeSpecificity;
 
   if (declared.subtype.startsWith("*+")) {
     const suffix = declared.subtype.slice(2);
-    return suffix.length > 0 && observed.subtype.endsWith(`+${suffix}`);
+    return suffix.length > 0 && observed.subtype.endsWith(`+${suffix}`) ? 20 + typeSpecificity : null;
   }
 
-  return false;
+  return null;
 }
 
 function splitMediaType(value: string): { type: string; subtype: string } | null {
@@ -778,6 +824,17 @@ function getOrCreateValidator(
   const existing = cache.get(cacheKey);
   if (existing) return existing;
 
+  const unsupportedFormat = findUnsupportedSchemaFormat(schema);
+  if (unsupportedFormat) {
+    const entry: ValidatorCacheEntry = {
+      kind: "unsupported-format",
+      schemaPath: unsupportedFormat.schemaPath,
+      format: unsupportedFormat.format
+    };
+    cache.set(cacheKey, entry);
+    return entry;
+  }
+
   try {
     const validator = ajv.compile<JsonValue>(schema);
     const entry: ValidatorCacheEntry = {
@@ -794,6 +851,126 @@ function getOrCreateValidator(
     cache.set(cacheKey, entry);
     return entry;
   }
+}
+
+function findUnsupportedSchemaFormat(schema: JsonSchemaContract): { schemaPath: string; format: string } | null {
+  return visitSchemaForUnsupportedFormat(schema, "");
+}
+
+function visitSchemaForUnsupportedFormat(
+  schema: unknown,
+  schemaPath: string
+): { schemaPath: string; format: string } | null {
+  if (typeof schema === "boolean") return null;
+  if (!isRecord(schema)) return null;
+
+  const format = normalizeDeclaredSchemaFormat(schema.format);
+  if (format && !SUPPORTED_PAYLOAD_SCHEMA_FORMATS.has(format)) {
+    return {
+      schemaPath: schemaPath || "/",
+      format
+    };
+  }
+
+  const mapPaths: Array<[string, unknown]> = [
+    ["properties", schema.properties],
+    ["patternProperties", schema.patternProperties],
+    ["$defs", schema.$defs],
+    ["definitions", schema.definitions],
+    ["dependentSchemas", schema.dependentSchemas]
+  ];
+  for (const [segment, value] of mapPaths) {
+    const nested = visitSchemaMapForUnsupportedFormat(value, joinSchemaPath(schemaPath, segment));
+    if (nested) return nested;
+  }
+
+  const childPaths: Array<[string, unknown]> = [
+    ["items", schema.items],
+    ["additionalItems", schema.additionalItems],
+    ["additionalProperties", schema.additionalProperties],
+    ["unevaluatedItems", schema.unevaluatedItems],
+    ["unevaluatedProperties", schema.unevaluatedProperties],
+    ["propertyNames", schema.propertyNames],
+    ["contains", schema.contains],
+    ["not", schema.not],
+    ["if", schema.if],
+    ["then", schema.then],
+    ["else", schema.else]
+  ];
+  for (const [segment, value] of childPaths) {
+    const nested = visitSchemaNodeForUnsupportedFormat(value, joinSchemaPath(schemaPath, segment));
+    if (nested) return nested;
+  }
+
+  const arrayPaths: Array<[string, unknown]> = [
+    ["allOf", schema.allOf],
+    ["anyOf", schema.anyOf],
+    ["oneOf", schema.oneOf],
+    ["prefixItems", schema.prefixItems]
+  ];
+  for (const [segment, value] of arrayPaths) {
+    const nested = visitSchemaArrayForUnsupportedFormat(value, joinSchemaPath(schemaPath, segment));
+    if (nested) return nested;
+  }
+
+  return null;
+}
+
+function visitSchemaNodeForUnsupportedFormat(
+  value: unknown,
+  schemaPath: string
+): { schemaPath: string; format: string } | null {
+  if (Array.isArray(value)) {
+    return visitSchemaArrayForUnsupportedFormat(value, schemaPath);
+  }
+
+  return visitSchemaForUnsupportedFormat(value, schemaPath);
+}
+
+function visitSchemaMapForUnsupportedFormat(
+  value: unknown,
+  schemaPath: string
+): { schemaPath: string; format: string } | null {
+  if (!isRecord(value)) return null;
+
+  for (const [key, nestedSchema] of Object.entries(value)) {
+    const nested = visitSchemaForUnsupportedFormat(nestedSchema, joinSchemaPath(schemaPath, escapeJsonPointer(key)));
+    if (nested) return nested;
+  }
+
+  return null;
+}
+
+function visitSchemaArrayForUnsupportedFormat(
+  value: unknown,
+  schemaPath: string
+): { schemaPath: string; format: string } | null {
+  if (!Array.isArray(value)) return null;
+
+  for (const [index, nestedSchema] of value.entries()) {
+    const nested = visitSchemaForUnsupportedFormat(nestedSchema, joinSchemaPath(schemaPath, String(index)));
+    if (nested) return nested;
+  }
+
+  return null;
+}
+
+function normalizeDeclaredSchemaFormat(value: unknown): string | undefined {
+  if (typeof value !== "string") return undefined;
+  const normalized = value.trim().toLowerCase();
+  return normalized.length > 0 ? normalized : undefined;
+}
+
+function joinSchemaPath(basePath: string, segment: string): string {
+  return `${basePath}/${segment}`;
+}
+
+function escapeJsonPointer(value: string): string {
+  return value.replace(/~/g, "~0").replace(/\//g, "~1");
+}
+
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === "object" && value !== null && !Array.isArray(value);
 }
 
 function formatSchemaCompileError(error: unknown): string {

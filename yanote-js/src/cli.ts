@@ -13,12 +13,17 @@ import {
 } from "./coverage/asyncCoverage.js";
 import { computeCoverage, type CoverageResult } from "./coverage/coverage.js";
 import { computeHttpPayloadConformance, type HttpPayloadConformanceResult } from "./coverage/httpPayloadConformance.js";
+import { computeHttpRequestConformance, type HttpRequestConformanceResult } from "./coverage/httpRequestConformance.js";
 import { readAsyncEventsJsonl } from "./events/readAsyncEventsJsonl.js";
 import { readHttpEventsJsonl } from "./events/readJsonl.js";
 import { applyExclusionRules, compileExclusionRules, type ExclusionApplicationResult } from "./gates/exclusions.js";
 import { evaluateAsyncGateFailures } from "./gates/asyncEvaluator.js";
 import { evaluateGateFailures } from "./gates/evaluator.js";
 import { classifyHttpPayloadDiagnostic } from "./gates/httpPayloadSemantics.js";
+import {
+  classifyHttpRequestDiagnostic,
+  isHttpRequestSemanticFailureCode
+} from "./gates/httpRequestSemantics.js";
 import {
   selectPrimaryFailure,
   sortFailuresByPrecedence,
@@ -119,6 +124,7 @@ function createProgram(io?: { out?: (chunk: string) => void; err?: (chunk: strin
 async function executeReportCommand(opts: any, writeOut: (chunk: string) => void, writeErr: (chunk: string) => void): Promise<void> {
   let coverage: CoverageResult | undefined;
   let payloadConformance: HttpPayloadConformanceResult | undefined;
+  let requestConformance: HttpRequestConformanceResult | undefined;
   let report: YanoteReport | undefined;
   let reportPath: string | undefined;
   let summaryIssues: SummaryIssue[] = [];
@@ -183,6 +189,9 @@ async function executeReportCommand(opts: any, writeOut: (chunk: string) => void
     payloadConformance = computeHttpPayloadConformance(exclusionResult.includedOperations, events.items, {
       operationContractsByKey: openapiModel.operationContractsByKey
     });
+    requestConformance = computeHttpRequestConformance(exclusionResult.includedOperations, events.items, {
+      operationContractsByKey: openapiModel.operationContractsByKey
+    });
 
     let regressionComparison:
       | ReturnType<typeof compareRegressionAgainstBaseline>
@@ -201,7 +210,8 @@ async function executeReportCommand(opts: any, writeOut: (chunk: string) => void
       coverage,
       policy,
       comparison: regressionComparison,
-      httpPayloadDiagnostics: payloadConformance.diagnostics
+      httpPayloadDiagnostics: payloadConformance.diagnostics,
+      httpRequestDiagnostics: requestConformance.diagnostics
     });
     for (const diagnostic of gateDiagnostics) {
       if (diagnostic.severity === "error") {
@@ -217,6 +227,7 @@ async function executeReportCommand(opts: any, writeOut: (chunk: string) => void
         .map((event) => event.ts)
         .filter((timestamp): timestamp is number => typeof timestamp === "number"),
       payloadConformance,
+      requestConformance,
       governance: {
         exclusions: {
           appliedRules: exclusionResult.appliedExclusions,
@@ -695,7 +706,10 @@ function formatSummaryOutput(input: {
   const totalOperations = summary?.totalOperations ?? 0;
   const coveredOperations = summary?.coveredOperations ?? 0;
 
-  const issues = collectIssues(input.report, input.coverage, input.failures, input.extraIssues);
+  const issues = prioritizePrimaryIssue(
+    collectIssues(input.report, input.coverage, input.failures, input.extraIssues),
+    primaryFailure
+  );
   const maxIssues = input.verbose ? issues.length : 5;
   const shownIssues = issues.slice(0, maxIssues);
   const hiddenCount = Math.max(0, issues.length - shownIssues.length);
@@ -721,6 +735,12 @@ function formatSummaryOutput(input: {
   lines.push(`- request: ${formatPayloadTargetSummary(input.report?.httpPayloadConformance.summary.request)}`);
   lines.push(`- response: ${formatPayloadTargetSummary(input.report?.httpPayloadConformance.summary.response)}`);
   lines.push(`- diagnostics: ${formatPayloadDiagnosticCounts(input.report?.httpPayloadConformance.diagnostics.counts)}`);
+
+  lines.push("");
+  lines.push("HTTP Request Conformance");
+  lines.push(`- observations: ${formatRequestObservationSummary(input.report?.httpRequestConformance.summary)}`);
+  lines.push(`- truths: ${formatRequestTruthCounts(input.report?.httpRequestConformance.summary.counts)}`);
+  lines.push(`- diagnostics: ${formatRequestTruthCounts(input.report?.httpRequestConformance.diagnostics.counts)}`);
 
   lines.push("");
   lines.push("Top Issues");
@@ -751,6 +771,9 @@ function formatSummaryOutput(input: {
       `covered=${coveredOperations}/${totalOperations}`,
       `diagnostics=${input.report?.diagnostics.items.length ?? 0}`,
       `payload_diagnostics=${formatPayloadDiagnosticCountsMachine(input.report?.httpPayloadConformance.diagnostics.counts)}`,
+      `request_observed_operations=${input.report?.httpRequestConformance.summary.observedOperations ?? 0}`,
+      `request_observed_parameters=${input.report?.httpRequestConformance.summary.observedParameters ?? 0}`,
+      `request_truths=${formatRequestTruthCountsMachine(input.report?.httpRequestConformance.summary.counts)}`,
       `report=${input.reportPath ?? "none"}`,
       `primary=${primaryFailure?.code ?? "none"}`,
       `class_counts=${formatClassCounts(input.failures)}`
@@ -780,7 +803,10 @@ function formatAsyncSummaryOutput(input: {
   const totalMessages = summary?.totalMessages ?? 0;
   const coveredMessages = summary?.coveredMessages ?? 0;
 
-  const issues = collectAsyncIssues(input.report, input.coverage, input.failures, input.extraIssues);
+  const issues = prioritizePrimaryIssue(
+    collectAsyncIssues(input.report, input.coverage, input.failures, input.extraIssues),
+    primaryFailure
+  );
   const maxIssues = input.verbose ? issues.length : 5;
   const shownIssues = issues.slice(0, maxIssues);
   const hiddenCount = Math.max(0, issues.length - shownIssues.length);
@@ -849,6 +875,16 @@ function collectIssues(
       .filter((failure) => failure.severity === "error" && failure.failureClass === "semantic")
       .map((failure) => toFailureIssueKey(failure))
   );
+  const requestSemanticIssueKeys = new Set(
+    failures
+      .filter(
+        (failure) =>
+          failure.severity === "error" &&
+          failure.failureClass === "semantic" &&
+          isHttpRequestSemanticFailureCode(failure.code)
+      )
+      .map((failure) => toFailureIssueKey(failure))
+  );
 
   if (report) {
     for (const diagnostic of report.diagnostics.items) {
@@ -894,6 +930,24 @@ function collectIssues(
         });
       }
     }
+
+    for (const diagnostic of report.httpRequestConformance.diagnostics.items) {
+      if (diagnostic.truth === "captured-valid") continue;
+
+      const semanticFailure = classifyHttpRequestDiagnostic(diagnostic);
+      if (semanticFailure && requestSemanticIssueKeys.has(toFailureIssueKey(semanticFailure))) {
+        continue;
+      }
+
+      const severity = requestDiagnosticSeverity(diagnostic.truth);
+      const evidenceReason = diagnostic.evidenceReason ? ` reason=${diagnostic.evidenceReason}` : "";
+      issues.push({
+        severityRank: severity.rank,
+        severityLabel: severity.label,
+        sortKey: `request:${diagnostic.operationKey}:${diagnostic.location}:${diagnostic.name}:${diagnostic.truth}`,
+        text: `${diagnostic.operationKey} ${diagnostic.location}:${diagnostic.name} - ${diagnostic.truth}: ${diagnostic.message}${evidenceReason}`
+      });
+    }
   }
 
   if (coverage) {
@@ -912,7 +966,7 @@ function collectIssues(
       severityRank: 0,
       severityLabel: "high",
       sortKey: `failure:${failure.failureClass}:${failure.code}:${failure.operationKey ?? ""}`,
-      text: `${failure.code} - ${failure.reason}`
+      text: formatFailureSummaryText(failure)
     });
   }
 
@@ -980,7 +1034,7 @@ function collectAsyncIssues(
       severityRank: 0,
       severityLabel: "high",
       sortKey: `failure:${failure.failureClass}:${failure.code}:${failure.operationKey ?? ""}`,
-      text: `${failure.code} - ${failure.reason}`
+      text: formatFailureSummaryText(failure)
     });
   }
 
@@ -1023,8 +1077,30 @@ function toSummaryIssueFromFailure(failure: CliFailure): SummaryIssue {
     severityRank: rank,
     severityLabel: label,
     sortKey: `failure:${failure.failureClass}:${failure.code}:${failure.operationKey ?? ""}`,
-    text: `${failure.code} - ${failure.reason}`
+    text: formatFailureSummaryText(failure)
   };
+}
+
+function prioritizePrimaryIssue(
+  issues: SummaryIssue[],
+  primaryFailure: CliFailure | undefined
+): SummaryIssue[] {
+  if (!primaryFailure) return issues;
+
+  const primaryText = formatFailureSummaryText(primaryFailure);
+  const primaryIndex = issues.findIndex(
+    (issue) => issue.severityRank === 0 && issue.severityLabel === "high" && issue.text === primaryText
+  );
+  if (primaryIndex <= 0) return issues;
+
+  const prioritized = [...issues];
+  const [primaryIssue] = prioritized.splice(primaryIndex, 1);
+  prioritized.unshift(primaryIssue);
+  return prioritized;
+}
+
+function formatFailureSummaryText(failure: CliFailure): string {
+  return `${failure.code} - ${failure.reason}`;
 }
 
 function toAsyncDiagnosticSummaryIssue(diagnostic: AsyncCoverageDiagnostic, index: number): SummaryIssue {
@@ -1051,6 +1127,13 @@ function diagnosticSeverity(kind: "invalid" | "ambiguous" | "unmatched"): { rank
 
 function payloadDiagnosticSeverity(state: "UNCOVERED" | "SKIPPED"): { rank: number; label: "medium" | "low" } {
   if (state === "UNCOVERED") return { rank: 1, label: "medium" };
+  return { rank: 2, label: "low" };
+}
+
+function requestDiagnosticSeverity(
+  truth: YanoteReport["httpRequestConformance"]["diagnostics"]["items"][number]["truth"]
+): { rank: number; label: "medium" | "low" } {
+  if (truth === "captured-invalid" || truth === "unsupported") return { rank: 1, label: "medium" };
   return { rank: 2, label: "low" };
 }
 
@@ -1086,6 +1169,39 @@ function formatPayloadDiagnosticCountsMachine(
 ): string {
   if (!counts) return "covered:0,uncovered:0,skipped:0";
   return `covered:${counts.covered},uncovered:${counts.uncovered},skipped:${counts.skipped}`;
+}
+
+function formatRequestObservationSummary(
+  summary: YanoteReport["httpRequestConformance"]["summary"] | undefined
+): string {
+  if (!summary) return "operations=0 parameters=0";
+  return `operations=${summary.observedOperations} parameters=${summary.observedParameters}`;
+}
+
+function formatRequestTruthCounts(
+  counts: YanoteReport["httpRequestConformance"]["diagnostics"]["counts"] | undefined
+): string {
+  if (!counts) return "captured-valid=0 captured-invalid=0 redacted=0 omitted=0 unsupported=0";
+  return [
+    `captured-valid=${counts.capturedValid}`,
+    `captured-invalid=${counts.capturedInvalid}`,
+    `redacted=${counts.redacted}`,
+    `omitted=${counts.omitted}`,
+    `unsupported=${counts.unsupported}`
+  ].join(" ");
+}
+
+function formatRequestTruthCountsMachine(
+  counts: YanoteReport["httpRequestConformance"]["diagnostics"]["counts"] | undefined
+): string {
+  if (!counts) return "captured_valid:0,captured_invalid:0,redacted:0,omitted:0,unsupported:0";
+  return [
+    `captured_valid:${counts.capturedValid}`,
+    `captured_invalid:${counts.capturedInvalid}`,
+    `redacted:${counts.redacted}`,
+    `omitted:${counts.omitted}`,
+    `unsupported:${counts.unsupported}`
+  ].join(",");
 }
 
 function formatFailureOutput(

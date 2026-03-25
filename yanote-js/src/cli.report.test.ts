@@ -206,6 +206,22 @@ async function createFullObservationPayloadTruthFixture(
   return { dir, specPath, eventsPath, outDir };
 }
 
+async function createSharedFormatMediaFixture(eventFixturePaths: string[]) {
+  const dir = await mkdtemp(path.join(os.tmpdir(), "yanote-cli-format-media-"));
+  const eventsPath = path.join(dir, "events.jsonl");
+  const outDir = path.join(dir, "out");
+  const events = (await Promise.all(eventFixturePaths.map((fixturePath) => readFile(fixturePath, "utf8")))).join("");
+
+  await writeFile(eventsPath, events, "utf8");
+
+  return {
+    dir,
+    specPath: "test/fixtures/openapi/http-payload-format-media.yaml",
+    eventsPath,
+    outDir
+  };
+}
+
 describe("cli report", () => {
   it("writes schema-valid report and exits 0 for deterministic success", async () => {
     const outDir = await mkdtemp(path.join(os.tmpdir(), "yanote-js-out-"));
@@ -647,6 +663,76 @@ describe("cli report", () => {
         "NO_DECLARED_CONTENT"
       ]);
       expect(report.governance.diagnostics).toEqual([]);
+    } finally {
+      await rm(fixture.dir, { recursive: true, force: true });
+    }
+  });
+
+  it("surfaces the shared S03 format/media fixtures through stdout, stderr, and report artifacts without raw diagnostic duplication", async () => {
+    const fixture = await createSharedFormatMediaFixture([
+      "test/fixtures/events/http-payload-valid-format.fixture.jsonl",
+      "test/fixtures/events/http-payload-invalid-format.fixture.jsonl",
+      "test/fixtures/events/http-payload-unsupported-format.fixture.jsonl",
+      "test/fixtures/events/http-payload-media-specificity.fixture.jsonl"
+    ]);
+
+    try {
+      const res = await runCli([
+        "report",
+        "--spec",
+        fixture.specPath,
+        "--events",
+        fixture.eventsPath,
+        "--out",
+        fixture.outDir,
+        "--profile",
+        "local"
+      ]);
+
+      expect(res.code).toBe(5);
+      expect(res.stderr).toContain("YANOTE_ERROR class=semantic code=SEMANTIC_HTTP_INVALID_BODY");
+      expect(res.stderr).toContain(
+        "YANOTE_ERROR_SECONDARY class=semantic code=SEMANTIC_HTTP_UNSUPPORTED_SCHEMA_FORMAT"
+      );
+      expect(res.stdout).toContain("- operations: 4/4 (100.00%)");
+      expect(res.stdout).toContain(
+        "- request: covered=1 partial=0 uncovered=2 skipped=1 n/a=0 observations=4 valid=1 invalid=2 skipped_observations=1"
+      );
+      expect(res.stdout).toContain(
+        "- response: covered=4 partial=0 uncovered=0 skipped=0 n/a=0 observations=4 valid=4 invalid=0 skipped_observations=0"
+      );
+      expect(res.stdout).toContain("- diagnostics: covered=5 uncovered=2 skipped=1");
+      expect(res.stdout).toContain("primary=SEMANTIC_HTTP_INVALID_BODY");
+      expect(res.stdout).not.toContain("request - INVALID_BODY:");
+      expect(res.stdout).not.toContain("request - UNSUPPORTED_SCHEMA_FORMAT:");
+
+      const report = JSON.parse(await readFile(path.join(fixture.outDir, "yanote-report.json"), "utf8"));
+      expect(report.status).toBe("partial");
+      expect(report.coverage.operations).toEqual({ state: "COVERED", percent: 100 });
+      expect(report.governance.diagnostics.map((item: any) => item.code)).toEqual([
+        "SEMANTIC_HTTP_INVALID_BODY",
+        "SEMANTIC_HTTP_INVALID_BODY",
+        "SEMANTIC_HTTP_UNSUPPORTED_SCHEMA_FORMAT"
+      ]);
+      expect(pickPayloadStates(report, [
+        "http POST /subscribers",
+        "http POST /verifications",
+        "http POST /custom-format",
+        "http POST /incidents"
+      ])).toEqual({
+        "http POST /subscribers": { request: "COVERED", response: "COVERED", suites: ["suite-format-valid"] },
+        "http POST /verifications": { request: "UNCOVERED", response: "COVERED", suites: ["suite-format-invalid"] },
+        "http POST /custom-format": { request: "SKIPPED", response: "COVERED", suites: ["suite-format-unsupported"] },
+        "http POST /incidents": { request: "UNCOVERED", response: "COVERED", suites: ["suite-media-specificity"] }
+      });
+      expect(
+        report.httpPayloadConformance.diagnostics.items
+          .filter((item: any) => item.operationKey === "http POST /incidents")
+          .map((item: any) => ({ target: item.target, code: item.code, observedMediaType: item.observedMediaType }))
+      ).toEqual([
+        { target: "request", code: "INVALID_BODY", observedMediaType: "application/problem+json" },
+        { target: "response", code: "VALID", observedMediaType: "application/problem+json" }
+      ]);
     } finally {
       await rm(fixture.dir, { recursive: true, force: true });
     }

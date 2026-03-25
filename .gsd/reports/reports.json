@@ -1,0 +1,24 @@
+{
+  "version": 1,
+  "projectName": "M011",
+  "projectPath": "/Users/zuevrs/Projects/yanote/.gsd/worktrees/M011",
+  "gsdVersion": "2.45.0",
+  "entries": [
+    {
+      "filename": "M011-2026-03-25T20-05-05.html",
+      "generatedAt": "2026-03-25T20:05:05.107Z",
+      "milestoneId": "M011",
+      "milestoneTitle": "OpenAPI Parameter, Cookie, And Media Semantics",
+      "label": "M011: OpenAPI Parameter, Cookie, And Media Semantics",
+      "kind": "milestone",
+      "totalCost": 55.1045115,
+      "totalTokens": 115550827,
+      "totalDuration": 24081468,
+      "doneSlices": 40,
+      "totalSlices": 45,
+      "doneMilestones": 11,
+      "totalMilestones": 15,
+      "phase": "pre-planning"
+    }
+  ]
+}

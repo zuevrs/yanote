@@ -15,6 +15,7 @@ export type HttpPayloadSemanticFailureCode =
   | "SEMANTIC_HTTP_MISSING_CONTENT_TYPE"
   | "SEMANTIC_HTTP_MEDIA_TYPE_MISMATCH"
   | "SEMANTIC_HTTP_UNSUPPORTED_MEDIA_TYPE"
+  | "SEMANTIC_HTTP_UNSUPPORTED_SCHEMA_FORMAT"
   | "SEMANTIC_HTTP_UNSUPPORTED_SCHEMA";
 
 const FAIL_CLOSED_CODE_MAP: Record<FailClosedHttpPayloadCode, HttpPayloadSemanticFailureCode> = {
@@ -23,6 +24,7 @@ const FAIL_CLOSED_CODE_MAP: Record<FailClosedHttpPayloadCode, HttpPayloadSemanti
   MISSING_CONTENT_TYPE: "SEMANTIC_HTTP_MISSING_CONTENT_TYPE",
   MEDIA_TYPE_MISMATCH: "SEMANTIC_HTTP_MEDIA_TYPE_MISMATCH",
   UNSUPPORTED_MEDIA_TYPE: "SEMANTIC_HTTP_UNSUPPORTED_MEDIA_TYPE",
+  UNSUPPORTED_SCHEMA_FORMAT: "SEMANTIC_HTTP_UNSUPPORTED_SCHEMA_FORMAT",
   UNSUPPORTED_SCHEMA: "SEMANTIC_HTTP_UNSUPPORTED_SCHEMA"
 };
 
@@ -71,6 +73,8 @@ function buildReason(diagnostic: HttpPayloadConformanceDiagnostic): string {
       return `${subject} uses a media type outside the declared OpenAPI content map.`;
     case "UNSUPPORTED_MEDIA_TYPE":
       return `${subject} uses a declared media type outside JSON payload conformance support.`;
+    case "UNSUPPORTED_SCHEMA_FORMAT":
+      return `${subject} declares a schema format outside Yanote's supported payload format allowlist.`;
     case "UNSUPPORTED_SCHEMA":
       return `${subject} declares JSON content without a usable validation schema.`;
     default:
@@ -90,6 +94,8 @@ function buildHint(diagnostic: HttpPayloadConformanceDiagnostic): string {
       return "Send a declared media type or update the OpenAPI content map intentionally.";
     case "UNSUPPORTED_MEDIA_TYPE":
       return "Use a JSON media type for payload conformance or accept that this endpoint remains fail-closed until support expands.";
+    case "UNSUPPORTED_SCHEMA_FORMAT":
+      return "Use a supported payload schema format or intentionally widen Yanote's published format allowlist before relying on this contract.";
     case "UNSUPPORTED_SCHEMA":
       return "Declare a JSON schema AJV can compile for payload validation or remove unsupported payload validation expectations intentionally.";
     default:
@@ -160,7 +166,9 @@ function failClosedCodeRank(code: HttpPayloadConformanceCode): number {
       return 3;
     case "UNSUPPORTED_MEDIA_TYPE":
       return 4;
-    case "UNSUPPORTED_SCHEMA":
+    case "UNSUPPORTED_SCHEMA_FORMAT":
       return 5;
+    case "UNSUPPORTED_SCHEMA":
+      return 6;
   }
 }

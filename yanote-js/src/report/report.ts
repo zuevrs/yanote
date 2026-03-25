@@ -4,11 +4,17 @@ import type {
   HttpPayloadConformanceResult,
   HttpPayloadConformanceState
 } from "../coverage/httpPayloadConformance.js";
+import type {
+  HttpRequestConformanceDiagnostic,
+  HttpRequestConformanceResult,
+  HttpRequestConformanceTruth
+} from "../coverage/httpRequestConformance.js";
 import type { PayloadCaptureReason, PayloadCaptureState } from "../model/payloadCapture.js";
 import type { CoverageDimensionState, DeclaredStatusToken } from "../coverage/dimensions.js";
 import type { CoverageResult } from "../coverage/coverage.js";
 import type { AppliedExclusionRule, UnmatchedExclusionRuleWarning } from "../gates/exclusions.js";
 import type { GovernanceFailure } from "../gates/failureOrder.js";
+import { sortFailuresByPrecedence } from "../gates/failureOrder.js";
 import { evaluateHttpPayloadSemanticFailures } from "../gates/httpPayloadSemantics.js";
 import type { SemanticDiagnostic } from "../spec/diagnostics.js";
 import { REPORT_SCHEMA_VERSION } from "./schema.js";
@@ -25,6 +31,14 @@ export type HttpPayloadTargetAggregate = {
   validCount: number;
   invalidCount: number;
   skippedCount: number;
+};
+
+export type HttpRequestTruthAggregate = {
+  capturedValid: number;
+  capturedInvalid: number;
+  redacted: number;
+  omitted: number;
+  unsupported: number;
 };
 
 export type YanoteReport = {
@@ -148,6 +162,55 @@ export type YanoteReport = {
       }>;
     };
   };
+  httpRequestConformance: {
+    summary: {
+      observedOperations: number;
+      observedParameters: number;
+      counts: HttpRequestTruthAggregate;
+    };
+    perOperation: Array<{
+      operationKey: string;
+      method: string;
+      route: string;
+      observedCount: number;
+      counts: HttpRequestTruthAggregate;
+      parameters: Array<{
+        name: string;
+        in: "path" | "query" | "header" | "cookie";
+        required: boolean;
+        style: string;
+        explode: boolean;
+        declaredSupport: "supported" | "unsupported";
+        declaredSupportShape?: "scalar" | "array";
+        declaredSupportReason?: "content" | "style" | "explode" | "schema";
+        scalarSupport: "supported" | "unsupported";
+        scalarSupportReason?: "style" | "schema";
+        observedCount: number;
+        counts: HttpRequestTruthAggregate;
+        suites: string[];
+      }>;
+      suites: string[];
+    }>;
+    diagnostics: {
+      counts: HttpRequestTruthAggregate;
+      items: Array<{
+        operationKey: string;
+        method: string;
+        route: string;
+        suite: string;
+        location: "path" | "query" | "header" | "cookie";
+        name: string;
+        required: boolean;
+        style: string;
+        truth: HttpRequestConformanceTruth;
+        message: string;
+        reason?: string;
+        observedValues?: string[];
+        evidenceState?: "captured" | "redacted" | "omitted";
+        evidenceReason?: "sensitive" | "oversized" | "unsupported" | "unavailable";
+      }>;
+    };
+  };
   diagnostics: {
     counts: {
       invalid: number;
@@ -197,6 +260,7 @@ export function buildReport(
     toolVersion: string;
     eventTimestamps?: number[];
     payloadConformance?: HttpPayloadConformanceResult;
+    requestConformance?: HttpRequestConformanceResult;
     governance?: {
       exclusions?: {
         appliedRules: AppliedExclusionRule[];
@@ -276,6 +340,7 @@ export function buildReport(
       }))
     },
     httpPayloadConformance: buildHttpPayloadConformanceSection(coverage, opts.payloadConformance),
+    httpRequestConformance: buildHttpRequestConformanceSection(coverage, opts.requestConformance),
     diagnostics: {
       counts,
       items: diagnostics
@@ -373,6 +438,192 @@ function buildHttpPayloadConformanceSection(
       items: diagnostics
     }
   };
+}
+
+function buildHttpRequestConformanceSection(
+  coverage: CoverageResult,
+  requestConformance: HttpRequestConformanceResult | undefined
+): YanoteReport["httpRequestConformance"] {
+  const perOperation = sortRequestPerOperation(
+    requestConformance?.perOperation.map((entry) => ({
+      operationKey: entry.operationKey,
+      method: entry.method,
+      route: entry.route,
+      observedCount: entry.observedCount,
+      counts: summarizeRequestTruths(entry.parameters.map((parameter) => parameter.truths)),
+      parameters: entry.parameters.map((parameter) => ({
+        name: parameter.name,
+        in: parameter.in,
+        required: parameter.required,
+        style: parameter.style,
+        explode: parameter.explode,
+        declaredSupport: parameter.declaredSupport,
+        ...(parameter.declaredSupport === "supported"
+          ? { declaredSupportShape: parameter.declaredSupportShape }
+          : { declaredSupportReason: parameter.declaredSupportReason }),
+        scalarSupport: parameter.scalarSupport,
+        ...(parameter.scalarSupport === "unsupported" ? { scalarSupportReason: parameter.scalarSupportReason } : {}),
+        observedCount: parameter.observedCount,
+        counts: toRequestTruthAggregate(parameter.truths),
+        suites: [...parameter.suites]
+      })),
+      suites: [...entry.suites]
+    })) ??
+      coverage.perOperation.map((entry) => ({
+        operationKey: entry.operationKey,
+        method: entry.method,
+        route: entry.route,
+        observedCount: 0,
+        counts: createEmptyRequestTruthAggregate(),
+        parameters: [],
+        suites: [...entry.suites]
+      }))
+  );
+
+  const diagnostics = sortRequestDiagnostics(requestConformance?.diagnostics ?? []);
+  const counts = diagnostics.reduce<HttpRequestTruthAggregate>((summary, diagnostic) => {
+    incrementRequestTruthCount(summary, diagnostic.truth);
+    return summary;
+  }, createEmptyRequestTruthAggregate());
+
+  return {
+    summary: {
+      observedOperations: perOperation.filter((entry) => entry.observedCount > 0).length,
+      observedParameters: diagnostics.length,
+      counts: { ...counts }
+    },
+    perOperation,
+    diagnostics: {
+      counts: { ...counts },
+      items: diagnostics
+    }
+  };
+}
+
+function createEmptyRequestTruthAggregate(): HttpRequestTruthAggregate {
+  return {
+    capturedValid: 0,
+    capturedInvalid: 0,
+    redacted: 0,
+    omitted: 0,
+    unsupported: 0
+  };
+}
+
+function incrementRequestTruthCount(summary: HttpRequestTruthAggregate, truth: HttpRequestConformanceTruth, amount = 1): void {
+  if (truth === "captured-valid") summary.capturedValid += amount;
+  else if (truth === "captured-invalid") summary.capturedInvalid += amount;
+  else if (truth === "redacted") summary.redacted += amount;
+  else if (truth === "omitted") summary.omitted += amount;
+  else summary.unsupported += amount;
+}
+
+function summarizeRequestTruths(
+  parameterTruths: Array<{
+    "captured-valid": number;
+    "captured-invalid": number;
+    redacted: number;
+    omitted: number;
+    unsupported: number;
+  }>
+): HttpRequestTruthAggregate {
+  const summary = createEmptyRequestTruthAggregate();
+
+  for (const truths of parameterTruths) {
+    summary.capturedValid += truths["captured-valid"];
+    summary.capturedInvalid += truths["captured-invalid"];
+    summary.redacted += truths.redacted;
+    summary.omitted += truths.omitted;
+    summary.unsupported += truths.unsupported;
+  }
+
+  return summary;
+}
+
+function toRequestTruthAggregate(truths: {
+  "captured-valid": number;
+  "captured-invalid": number;
+  redacted: number;
+  omitted: number;
+  unsupported: number;
+}): HttpRequestTruthAggregate {
+  return {
+    capturedValid: truths["captured-valid"],
+    capturedInvalid: truths["captured-invalid"],
+    redacted: truths.redacted,
+    omitted: truths.omitted,
+    unsupported: truths.unsupported
+  };
+}
+
+function sortRequestPerOperation(
+  perOperation: YanoteReport["httpRequestConformance"]["perOperation"]
+): YanoteReport["httpRequestConformance"]["perOperation"] {
+  return [...perOperation]
+    .map((entry) => ({
+      ...entry,
+      counts: { ...entry.counts },
+      parameters: [...entry.parameters]
+        .map((parameter) => ({
+          ...parameter,
+          counts: { ...parameter.counts },
+          suites: [...parameter.suites].sort((left, right) => left.localeCompare(right))
+        }))
+        .sort(compareRequestParameterSummaries),
+      suites: [...entry.suites].sort((left, right) => left.localeCompare(right))
+    }))
+    .sort((left, right) => left.operationKey.localeCompare(right.operationKey));
+}
+
+function sortRequestDiagnostics(
+  diagnostics: HttpRequestConformanceDiagnostic[]
+): YanoteReport["httpRequestConformance"]["diagnostics"]["items"] {
+  return [...diagnostics]
+    .map((diagnostic) => ({
+      ...diagnostic,
+      observedValues: diagnostic.observedValues ? [...diagnostic.observedValues] : undefined
+    }))
+    .sort(compareRequestDiagnostics);
+}
+
+function compareRequestParameterSummaries(
+  left: YanoteReport["httpRequestConformance"]["perOperation"][number]["parameters"][number],
+  right: YanoteReport["httpRequestConformance"]["perOperation"][number]["parameters"][number]
+): number {
+  const locationDelta = requestLocationRank(left.in) - requestLocationRank(right.in);
+  if (locationDelta !== 0) return locationDelta;
+  return left.name.localeCompare(right.name);
+}
+
+function compareRequestDiagnostics(left: HttpRequestConformanceDiagnostic, right: HttpRequestConformanceDiagnostic): number {
+  if (left.operationKey !== right.operationKey) return left.operationKey.localeCompare(right.operationKey);
+
+  const locationDelta = requestLocationRank(left.location) - requestLocationRank(right.location);
+  if (locationDelta !== 0) return locationDelta;
+
+  if (left.name !== right.name) return left.name.localeCompare(right.name);
+  const truthDelta = requestTruthRank(left.truth) - requestTruthRank(right.truth);
+  if (truthDelta !== 0) return truthDelta;
+  if ((left.reason ?? "") !== (right.reason ?? "")) return (left.reason ?? "").localeCompare(right.reason ?? "");
+  if ((left.observedValues ?? []).join("\u0000") !== (right.observedValues ?? []).join("\u0000")) {
+    return (left.observedValues ?? []).join("\u0000").localeCompare((right.observedValues ?? []).join("\u0000"));
+  }
+  return left.suite.localeCompare(right.suite);
+}
+
+function requestLocationRank(value: "path" | "query" | "header" | "cookie"): number {
+  if (value === "path") return 0;
+  if (value === "query") return 1;
+  if (value === "header") return 2;
+  return 3;
+}
+
+function requestTruthRank(value: HttpRequestConformanceTruth): number {
+  if (value === "captured-valid") return 0;
+  if (value === "captured-invalid") return 1;
+  if (value === "redacted") return 2;
+  if (value === "omitted") return 3;
+  return 4;
 }
 
 function summarizePayloadTarget(
@@ -622,22 +873,13 @@ function sortUnmatchedRules(
 function sortGovernanceDiagnostics(
   diagnostics: GovernanceFailure[]
 ): YanoteReport["governance"]["diagnostics"] {
-  return [...diagnostics]
-    .map((diagnostic) => ({
-      severity: diagnostic.severity,
-      class: diagnostic.failureClass,
-      code: diagnostic.code,
-      message: diagnostic.reason,
-      operationKey: diagnostic.operationKey
-    }))
-    .sort((left, right) => {
-      const severityDelta = governanceSeverityRank(left.severity) - governanceSeverityRank(right.severity);
-      if (severityDelta !== 0) return severityDelta;
-      const classDelta = governanceClassRank(left.class) - governanceClassRank(right.class);
-      if (classDelta !== 0) return classDelta;
-      if (left.code !== right.code) return left.code.localeCompare(right.code);
-      return (left.operationKey ?? "").localeCompare(right.operationKey ?? "");
-    });
+  return sortFailuresByPrecedence(diagnostics).map((diagnostic) => ({
+    severity: diagnostic.severity,
+    class: diagnostic.failureClass,
+    code: diagnostic.code,
+    message: diagnostic.reason,
+    operationKey: diagnostic.operationKey
+  }));
 }
 
 function governanceSeverityRank(severity: "error" | "warning"): number {

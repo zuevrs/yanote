@@ -10,10 +10,10 @@ This file is the explicit capability and coverage contract for the project.
 - Description: A Java service team can record live HTTP evidence, analyze it against OpenAPI, and see deterministic operation/status/parameter coverage plus file/CLI outputs that show what was actually proven.
 - Why it matters: This is the core product promise.
 - Source: execution
-- Primary owning slice: docs phase 1-2 equivalent
-- Supporting slices: docs phase 3-5 equivalent
+- Primary owning slice: S01
+- Supporting slices: S02,S03,S04
 - Validation: validated
-- Notes: Supported by the current HTTP/OpenAPI recorder → JSONL → analyzer path and retained proof surfaces.
+- Notes: Mapped during M011 planning to preserve the deterministic recorder → JSONL → analyzer/report path while widening HTTP semantics additively.
 
 ### R002 — Coverage thresholds, regressions, exclusions, and invalid/incomplete evidence must produce explicit fail-closed behavior instead of false green output.
 - Class: failure-visibility
@@ -21,10 +21,10 @@ This file is the explicit capability and coverage contract for the project.
 - Description: Coverage thresholds, regressions, exclusions, and invalid/incomplete evidence must produce explicit fail-closed behavior instead of false green output.
 - Why it matters: Coverage tooling is only trustworthy if bad evidence or insufficient proof cannot silently pass.
 - Source: execution
-- Primary owning slice: docs phase 3 equivalent
-- Supporting slices: docs phase 4-5 equivalent
+- Primary owning slice: S02
+- Supporting slices: S01,S03,S04
 - Validation: validated
-- Notes: Supported by the current threshold, regression, exclusion, and semantic-failure contract tests and workflow gates.
+- Notes: Mapped during M011 planning to keep cookie/serialization/media/format expansion fail-closed and to surface redaction/unsupported states explicitly.
 
 ### R003 — The product can be used through the standalone CLI, Gradle plugin tasks, and GitHub Action/CI workflow surfaces.
 - Class: launchability
@@ -32,10 +32,10 @@ This file is the explicit capability and coverage contract for the project.
 - Description: The product can be used through the standalone CLI, Gradle plugin tasks, and GitHub Action/CI workflow surfaces.
 - Why it matters: The tool has to fit actual team delivery paths, not just a local demo.
 - Source: execution
-- Primary owning slice: docs phase 4 equivalent
-- Supporting slices: docs phase 2-5 equivalent
+- Primary owning slice: S04
+- Supporting slices: S01,S02,S03
 - Validation: validated
-- Notes: Supported by the current CLI, Gradle, CI, and release workflow surfaces.
+- Notes: Mapped during M011 planning so the widened HTTP truth remains visible through CLI/report/schema/docs/CI surfaces teams already use.
 
 ### R004 — Public support/release truth is defined by signed tags, GitHub Releases, Maven Central publication, and reproducible release verification rather than by workspace snapshot markers.
 - Class: operability
@@ -58,6 +58,17 @@ This file is the explicit capability and coverage contract for the project.
 - Supporting slices: retained proof/docs boundary
 - Validation: validated
 - Notes: The current docs and retained proof surfaces explicitly preserve this narrow async boundary while proving deeper truth inside it.
+
+### R022 — Extend the HTTP/OpenAPI path from key-presence truth into supported parameter serialization, cookie, media, and format semantics that can be proven through retained evidence.
+- Class: contract-depth
+- Status: validated
+- Description: Extend the HTTP/OpenAPI path from key-presence truth into supported parameter serialization, cookie, media, and format semantics that can be proven through retained evidence.
+- Why it matters: Teams eventually expect the main HTTP contract surface to include more than route hits, declared statuses, and JSON payloads.
+- Source: planning
+- Primary owning slice: S02
+- Supporting slices: S01,S03,S04
+- Validation: M011 closeout reran and passed the public proof stack on current HEAD: `node --test scripts/ci/run-v1-e2e.contract.test.mjs scripts/ci/collect-yanote-artifacts.test.mjs`, `bash scripts/docs/verify-s03-landing.sh`, `bash scripts/docs/verify-s02-doc-links.sh`, `bash scripts/docs/verify-s04-boundaries.sh`, `bash scripts/ci/run-v1-e2e.sh`, `bash scripts/ci/verify-m011-s02-request-semantics.sh`, and `bash scripts/ci/verify-m011-s03-format-media.sh`.
+- Notes: Validated by M011 after S01 safe request evidence, S02 supported request serialization/cookie truth, S03 payload format/media semantics, and S04 public-contract closeout aligned docs, retained CI artifacts, and verifier surfaces. Milestone closeout reran the public proof stack on current HEAD before completion.
 
 ### R031 — When live HTTP traffic returns a status not declared by the OpenAPI contract, Yanote must surface it explicitly instead of silently preserving a green declared-status numerator.
 - Class: contract-depth
@@ -127,17 +138,6 @@ This file is the explicit capability and coverage contract for the project.
 - Validation: unmapped
 - Notes: Explicitly deferred in `docs/requirements.md` as ASYNC-03.
 
-### R022 — Extend the HTTP/OpenAPI path from key-presence truth into supported parameter serialization, cookie, media, and format semantics that can be proven through retained evidence.
-- Class: contract-depth
-- Status: deferred
-- Description: Extend the HTTP/OpenAPI path from key-presence truth into supported parameter serialization, cookie, media, and format semantics that can be proven through retained evidence.
-- Why it matters: Teams eventually expect the main HTTP contract surface to include more than route hits, declared statuses, and JSON payloads.
-- Source: planning
-- Primary owning slice: none
-- Supporting slices: none
-- Validation: unmapped
-- Notes: Planned as the queued M011 follow-on after core contract completeness lands in M010.
-
 ### R023 — Support selected non-request/response OpenAPI constructs such as security schemes, examples, links, callbacks, or webhooks where they can be turned into truthful analyzer surfaces.
 - Class: contract-depth
 - Status: deferred
@@ -188,14 +188,14 @@ This file is the explicit capability and coverage contract for the project.
 
 | ID | Class | Status | Primary owner | Supporting | Proof |
 |---|---|---|---|---|---|
-| R001 | core-capability | validated | docs phase 1-2 equivalent | docs phase 3-5 equivalent | validated |
-| R002 | failure-visibility | validated | docs phase 3 equivalent | docs phase 4-5 equivalent | validated |
-| R003 | launchability | validated | docs phase 4 equivalent | docs phase 2-5 equivalent | validated |
+| R001 | core-capability | validated | S01 | S02,S03,S04 | validated |
+| R002 | failure-visibility | validated | S02 | S01,S03,S04 | validated |
+| R003 | launchability | validated | S04 | S01,S02,S03 | validated |
 | R004 | operability | validated | docs phase 5 equivalent | docs phase 4 equivalent | validated |
 | R005 | constraint | validated | M005/M009 equivalent | retained proof/docs boundary | validated |
 | R020 | admin/support | deferred | none | none | unmapped |
 | R021 | differentiator | deferred | none | none | unmapped |
-| R022 | contract-depth | deferred | none | none | unmapped |
+| R022 | contract-depth | validated | S02 | S01,S03,S04 | M011 closeout reran and passed the public proof stack on current HEAD: `node --test scripts/ci/run-v1-e2e.contract.test.mjs scripts/ci/collect-yanote-artifacts.test.mjs`, `bash scripts/docs/verify-s03-landing.sh`, `bash scripts/docs/verify-s02-doc-links.sh`, `bash scripts/docs/verify-s04-boundaries.sh`, `bash scripts/ci/run-v1-e2e.sh`, `bash scripts/ci/verify-m011-s02-request-semantics.sh`, and `bash scripts/ci/verify-m011-s03-format-media.sh`. |
 | R023 | contract-depth | deferred | none | none | unmapped |
 | R024 | launchability | deferred | none | none | unmapped |
 | R025 | contract-depth | deferred | none | none | unmapped |
@@ -209,5 +209,5 @@ This file is the explicit capability and coverage contract for the project.
 
 - Active requirements: 0
 - Mapped to slices: 0
-- Validated: 9 (R001, R002, R003, R004, R005, R031, R032, R033, R034)
+- Validated: 10 (R001, R002, R003, R004, R005, R022, R031, R032, R033, R034)
 - Unmapped active requirements: 0

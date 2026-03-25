@@ -4,6 +4,14 @@ set -euo pipefail
 ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
 ARTIFACT_DIR="${ROOT_DIR}/.yanote-ci/v1-e2e"
 COMPOSE_FILE="examples/docker-compose.yml"
+REQUEST_SEMANTICS_SPEC="examples/openapi/request-evidence-openapi.yaml"
+REQUEST_SEMANTICS_ROUTE="/request-evidence/users/{userId}"
+REQUEST_SEMANTICS_EVENTS_PATH="${ARTIFACT_DIR}/request-semantics.events.jsonl"
+REQUEST_SEMANTICS_STDOUT_PATH="${ARTIFACT_DIR}/request-semantics.stdout"
+REQUEST_SEMANTICS_STDERR_PATH="${ARTIFACT_DIR}/request-semantics.stderr"
+REQUEST_SEMANTICS_REPORT_PATH="${ARTIFACT_DIR}/request-semantics-yanote-report.json"
+REQUEST_SEMANTICS_FORBIDDEN_STDIO_VALUES=("user-42" "alpha" "bravo" "amber" "compact" "opaque")
+REQUEST_SEMANTICS_FORBIDDEN_SECRET_VALUES=("Bearer proof-secret-token" "proof-session-secret")
 SEMANTIC_RED_SPEC="examples/openapi/demo-openapi-unsupported-schema.yaml"
 SEMANTIC_RED_STDOUT_PATH="${ARTIFACT_DIR}/semantic-red.stdout"
 SEMANTIC_RED_STDERR_PATH="${ARTIFACT_DIR}/semantic-red.stderr"
@@ -12,19 +20,11 @@ SOURCE_PATHS_NOTE_NAME="artifact-source-paths.txt"
 MANIFEST_NAME="artifact-manifest.txt"
 SOURCE_PATHS_NOTE_PATH="${ARTIFACT_DIR}/${SOURCE_PATHS_NOTE_NAME}"
 MANIFEST_PATH="${ARTIFACT_DIR}/${MANIFEST_NAME}"
-HOST_GRADLE_HOME="$(mktemp -d "${TMPDIR:-/tmp}/yanote-v1-e2e-gradle.XXXXXX")"
-FALLBACK_GRADLE_DIST_HOME="${HOME}/.gradle/wrapper/dists"
+HOST_GRADLE_HOME="${YANOTE_GRADLE_HOME:-${GRADLE_USER_HOME:-${HOME}/.gradle}}"
+REQUEST_SEMANTICS_OUT_DIR=""
 SEMANTIC_RED_OUT_DIR=""
 
-preseed_gradle_wrapper_dists() {
-  if [[ -d "${FALLBACK_GRADLE_DIST_HOME}" ]]; then
-    mkdir -p "${HOST_GRADLE_HOME}/wrapper/dists"
-    cp -R "${FALLBACK_GRADLE_DIST_HOME}/." "${HOST_GRADLE_HOME}/wrapper/dists/"
-  fi
-}
-
 mkdir -p "${HOST_GRADLE_HOME}"
-preseed_gradle_wrapper_dists
 export GRADLE_USER_HOME="${HOST_GRADLE_HOME}"
 export YANOTE_GRADLE_HOME="${HOST_GRADLE_HOME}"
 export YANOTE_DOCKER_UID="${YANOTE_DOCKER_UID:-$(id -u)}"
@@ -70,6 +70,94 @@ collect_artifacts() {
   docker compose -f "${COMPOSE_FILE}" logs --no-color > "${ARTIFACT_DIR}/compose.log" 2>&1 || true
 }
 
+filter_request_semantics_events() {
+  python3 - "${ARTIFACT_DIR}/events.jsonl" "${REQUEST_SEMANTICS_ROUTE}" "${REQUEST_SEMANTICS_EVENTS_PATH}" <<'PY'
+import json
+import pathlib
+import sys
+
+source_path = pathlib.Path(sys.argv[1])
+route = sys.argv[2]
+out_path = pathlib.Path(sys.argv[3])
+matched_lines = []
+
+for line in source_path.read_text(encoding="utf-8").splitlines(keepends=True):
+    if not line.strip():
+        continue
+    record = json.loads(line)
+    if record.get("route") == route:
+        matched_lines.append(line if line.endswith("\n") else f"{line}\n")
+
+if not matched_lines:
+    raise SystemExit(f"no retained events matched route {route!r}")
+
+out_path.write_text("".join(matched_lines), encoding="utf-8")
+PY
+}
+
+ensure_no_file_leak() {
+  local file_path="$1"
+  local label="$2"
+  shift 2
+  local forbidden_value
+
+  for forbidden_value in "$@"; do
+    if [[ -f "${file_path}" ]] && grep -Fq "${forbidden_value}" "${file_path}"; then
+      echo "ERROR: ${label} leaked retained request value '${forbidden_value}'." >&2
+      exit 1
+    fi
+  done
+}
+
+run_request_semantics_pass() {
+  local status
+
+  if [[ ! -f "${ARTIFACT_DIR}/events.jsonl" ]]; then
+    echo "ERROR: Missing live events artifact at ${ARTIFACT_DIR}/events.jsonl after compose run." >&2
+    exit 1
+  fi
+
+  rm -f \
+    "${REQUEST_SEMANTICS_EVENTS_PATH}" \
+    "${REQUEST_SEMANTICS_STDOUT_PATH}" \
+    "${REQUEST_SEMANTICS_STDERR_PATH}" \
+    "${REQUEST_SEMANTICS_REPORT_PATH}"
+
+  filter_request_semantics_events
+  REQUEST_SEMANTICS_OUT_DIR="$(mktemp -d "${TMPDIR:-/tmp}/yanote-v1-e2e-request.XXXXXX")"
+
+  set +e
+  node yanote-js/dist/yanote.cjs report \
+    --spec "${REQUEST_SEMANTICS_SPEC}" \
+    --events "${REQUEST_SEMANTICS_EVENTS_PATH}" \
+    --out "${REQUEST_SEMANTICS_OUT_DIR}" \
+    --min-coverage 100 >"${REQUEST_SEMANTICS_STDOUT_PATH}" 2>"${REQUEST_SEMANTICS_STDERR_PATH}"
+  status=$?
+  set -e
+
+  if [[ "${status}" -ne 5 ]]; then
+    echo "ERROR: Expected request-semantics analyzer exit 5, got ${status}." >&2
+    exit 1
+  fi
+
+  if ! grep -q 'YANOTE_ERROR class=semantic code=SEMANTIC_HTTP_UNSUPPORTED_REQUEST_PARAMETER' "${REQUEST_SEMANTICS_STDERR_PATH}"; then
+    echo "ERROR: request-semantics stderr is missing SEMANTIC_HTTP_UNSUPPORTED_REQUEST_PARAMETER." >&2
+    exit 1
+  fi
+
+  if [[ ! -f "${REQUEST_SEMANTICS_OUT_DIR}/yanote-report.json" ]]; then
+    echo "ERROR: request-semantics report did not produce yanote-report.json." >&2
+    exit 1
+  fi
+
+  cp "${REQUEST_SEMANTICS_OUT_DIR}/yanote-report.json" "${REQUEST_SEMANTICS_REPORT_PATH}"
+
+  ensure_no_file_leak "${REQUEST_SEMANTICS_STDOUT_PATH}" "request-semantics stdout" "${REQUEST_SEMANTICS_FORBIDDEN_STDIO_VALUES[@]}"
+  ensure_no_file_leak "${REQUEST_SEMANTICS_STDOUT_PATH}" "request-semantics stdout" "${REQUEST_SEMANTICS_FORBIDDEN_SECRET_VALUES[@]}"
+  ensure_no_file_leak "${REQUEST_SEMANTICS_STDERR_PATH}" "request-semantics stderr" "${REQUEST_SEMANTICS_FORBIDDEN_STDIO_VALUES[@]}"
+  ensure_no_file_leak "${REQUEST_SEMANTICS_STDERR_PATH}" "request-semantics stderr" "${REQUEST_SEMANTICS_FORBIDDEN_SECRET_VALUES[@]}"
+}
+
 run_semantic_red_pass() {
   local status
 
@@ -111,7 +199,9 @@ run_semantic_red_pass() {
 write_bundle_metadata() {
   local exported_artifacts=()
   local missing_artifacts=()
-  local artifact
+  local artifact_count
+  local artifacts_csv
+  local missing_artifacts_csv
 
   : > "${SOURCE_PATHS_NOTE_PATH}"
 
@@ -137,6 +227,38 @@ write_bundle_metadata() {
   else
     missing_artifacts+=("compose.log")
     printf 'compose.log=%s\n' 'none' >> "${SOURCE_PATHS_NOTE_PATH}"
+  fi
+
+  if [[ -f "${REQUEST_SEMANTICS_EVENTS_PATH}" ]]; then
+    exported_artifacts+=("request-semantics.events.jsonl")
+    printf 'request-semantics.events.jsonl=%s\n' 'filtered:.yanote-ci/v1-e2e/events.jsonl route=/request-evidence/users/{userId}' >> "${SOURCE_PATHS_NOTE_PATH}"
+  else
+    missing_artifacts+=("request-semantics.events.jsonl")
+    printf 'request-semantics.events.jsonl=%s\n' 'none' >> "${SOURCE_PATHS_NOTE_PATH}"
+  fi
+
+  if [[ -f "${REQUEST_SEMANTICS_STDOUT_PATH}" ]]; then
+    exported_artifacts+=("request-semantics.stdout")
+    printf 'request-semantics.stdout=%s\n' 'host:node yanote-js/dist/yanote.cjs report --spec examples/openapi/request-evidence-openapi.yaml --events .yanote-ci/v1-e2e/request-semantics.events.jsonl --out <temp> --min-coverage 100' >> "${SOURCE_PATHS_NOTE_PATH}"
+  else
+    missing_artifacts+=("request-semantics.stdout")
+    printf 'request-semantics.stdout=%s\n' 'none' >> "${SOURCE_PATHS_NOTE_PATH}"
+  fi
+
+  if [[ -f "${REQUEST_SEMANTICS_STDERR_PATH}" ]]; then
+    exported_artifacts+=("request-semantics.stderr")
+    printf 'request-semantics.stderr=%s\n' 'host:node yanote-js/dist/yanote.cjs report --spec examples/openapi/request-evidence-openapi.yaml --events .yanote-ci/v1-e2e/request-semantics.events.jsonl --out <temp> --min-coverage 100' >> "${SOURCE_PATHS_NOTE_PATH}"
+  else
+    missing_artifacts+=("request-semantics.stderr")
+    printf 'request-semantics.stderr=%s\n' 'none' >> "${SOURCE_PATHS_NOTE_PATH}"
+  fi
+
+  if [[ -f "${REQUEST_SEMANTICS_REPORT_PATH}" ]]; then
+    exported_artifacts+=("request-semantics-yanote-report.json")
+    printf 'request-semantics-yanote-report.json=%s\n' 'host-output:.yanote-ci/v1-e2e/request-semantics-yanote-report.json' >> "${SOURCE_PATHS_NOTE_PATH}"
+  else
+    missing_artifacts+=("request-semantics-yanote-report.json")
+    printf 'request-semantics-yanote-report.json=%s\n' 'none' >> "${SOURCE_PATHS_NOTE_PATH}"
   fi
 
   if [[ -f "${SEMANTIC_RED_STDOUT_PATH}" ]]; then
@@ -177,6 +299,8 @@ write_bundle_metadata() {
   {
     printf 'created_at=%s\n' "$(date -u +"%Y-%m-%dT%H:%M:%SZ")"
     printf 'happy_path_report_found=%s\n' "$( [[ -f "${ARTIFACT_DIR}/out/yanote-report.json" ]] && printf 'true' || printf 'false' )"
+    printf 'request_semantics_expected_exit=%s\n' '5'
+    printf 'request_semantics_primary=%s\n' 'SEMANTIC_HTTP_UNSUPPORTED_REQUEST_PARAMETER'
     printf 'semantic_red_expected_exit=%s\n' '5'
     printf 'semantic_red_primary=%s\n' 'SEMANTIC_HTTP_UNSUPPORTED_SCHEMA'
     printf 'artifact_count=%s\n' "${artifact_count}"
@@ -190,11 +314,11 @@ write_bundle_metadata() {
 cleanup() {
   collect_artifacts
   docker compose -f "${COMPOSE_FILE}" down --remove-orphans --volumes || true
+  if [[ -n "${REQUEST_SEMANTICS_OUT_DIR}" && -d "${REQUEST_SEMANTICS_OUT_DIR}" ]]; then
+    rm -rf "${REQUEST_SEMANTICS_OUT_DIR}"
+  fi
   if [[ -n "${SEMANTIC_RED_OUT_DIR}" && -d "${SEMANTIC_RED_OUT_DIR}" ]]; then
     rm -rf "${SEMANTIC_RED_OUT_DIR}"
-  fi
-  if [[ -n "${HOST_GRADLE_HOME:-}" && -d "${HOST_GRADLE_HOME}" ]]; then
-    rm -rf "${HOST_GRADLE_HOME}" || true
   fi
 }
 trap cleanup EXIT
@@ -207,5 +331,6 @@ prepare_demo_assets
 
 docker compose -f "${COMPOSE_FILE}" up --build --abort-on-container-exit --exit-code-from report
 collect_artifacts
+run_request_semantics_pass
 run_semantic_red_pass
 write_bundle_metadata

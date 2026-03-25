@@ -7,9 +7,12 @@ import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.node.ArrayNode;
 import com.fasterxml.jackson.databind.node.JsonNodeFactory;
 import com.fasterxml.jackson.databind.node.ObjectNode;
+import java.util.Collections;
 import java.util.Iterator;
+import java.util.LinkedHashMap;
 import java.util.Locale;
 import java.util.Map;
+import java.util.TreeMap;
 
 @JsonIgnoreProperties(ignoreUnknown = true)
 public record HttpEvent(
@@ -27,6 +30,10 @@ public record HttpEvent(
         @JsonInclude(JsonInclude.Include.NON_NULL) PayloadCaptureState responseBodyState,
         @JsonInclude(JsonInclude.Include.NON_NULL) PayloadCaptureReason responseBodyReason,
         @JsonInclude(JsonInclude.Include.NON_NULL) String responseContentType,
+        @JsonInclude(JsonInclude.Include.NON_NULL) Map<String, HttpRequestEvidence> pathParams,
+        @JsonInclude(JsonInclude.Include.NON_NULL) Map<String, HttpRequestEvidence> queryParams,
+        @JsonInclude(JsonInclude.Include.NON_NULL) Map<String, HttpRequestEvidence> requestHeaders,
+        @JsonInclude(JsonInclude.Include.NON_NULL) Map<String, HttpRequestEvidence> cookies,
         String service,
         String instance,
         Boolean error
@@ -43,25 +50,117 @@ public record HttpEvent(
         responseBodyState = normalizeOptionalState(responseBodyState);
         responseBodyReason = normalizeOptionalReason(responseBodyReason);
         responseContentType = normalizeOptionalString(responseContentType);
+        pathParams = normalizeEvidenceMap(pathParams, false);
+        queryParams = normalizeEvidenceMap(queryParams, false);
+        requestHeaders = normalizeEvidenceMap(requestHeaders, true);
+        cookies = normalizeEvidenceMap(cookies, false);
         if (error == null) {
             error = false;
         }
     }
 
     public static HttpEvent of(String method, String route, String testRunId, String testSuite) {
-        return new HttpEvent(System.currentTimeMillis(), method, route, testRunId, testSuite, null, null, null, null, null, null, null, null, null, null, null, false);
+        return new HttpEvent(
+                System.currentTimeMillis(),
+                method,
+                route,
+                testRunId,
+                testSuite,
+                null,
+                null,
+                null,
+                null,
+                null,
+                null,
+                null,
+                null,
+                null,
+                null,
+                null,
+                null,
+                null,
+                null,
+                null,
+                false
+        );
     }
 
     public static HttpEvent of(String method, String route, String testRunId, String testSuite, Integer status) {
-        return new HttpEvent(System.currentTimeMillis(), method, route, testRunId, testSuite, status, null, null, null, null, null, null, null, null, null, null, false);
+        return new HttpEvent(
+                System.currentTimeMillis(),
+                method,
+                route,
+                testRunId,
+                testSuite,
+                status,
+                null,
+                null,
+                null,
+                null,
+                null,
+                null,
+                null,
+                null,
+                null,
+                null,
+                null,
+                null,
+                null,
+                null,
+                false
+        );
     }
 
     public static HttpEvent of(String method, String route, String testRunId, String testSuite, Integer status, String service, String instance) {
-        return new HttpEvent(System.currentTimeMillis(), method, route, testRunId, testSuite, status, null, null, null, null, null, null, null, null, service, instance, false);
+        return new HttpEvent(
+                System.currentTimeMillis(),
+                method,
+                route,
+                testRunId,
+                testSuite,
+                status,
+                null,
+                null,
+                null,
+                null,
+                null,
+                null,
+                null,
+                null,
+                null,
+                null,
+                null,
+                null,
+                service,
+                instance,
+                false
+        );
     }
 
     public static HttpEvent of(long ts, String method, String route, String testRunId, String testSuite, Integer status) {
-        return new HttpEvent(ts, method, route, testRunId, testSuite, status, null, null, null, null, null, null, null, null, null, null, false);
+        return new HttpEvent(
+                ts,
+                method,
+                route,
+                testRunId,
+                testSuite,
+                status,
+                null,
+                null,
+                null,
+                null,
+                null,
+                null,
+                null,
+                null,
+                null,
+                null,
+                null,
+                null,
+                null,
+                null,
+                false
+        );
     }
 
     public static HttpEvent of(
@@ -91,6 +190,10 @@ public record HttpEvent(
                 null,
                 null,
                 responseContentType,
+                null,
+                null,
+                null,
+                null,
                 null,
                 null,
                 false
@@ -145,5 +248,38 @@ public record HttpEvent(
         }
         String normalized = value.trim();
         return normalized.isEmpty() ? null : normalized;
+    }
+
+    private static Map<String, HttpRequestEvidence> normalizeEvidenceMap(Map<String, HttpRequestEvidence> value, boolean lowercaseKeys) {
+        if (value == null || value.isEmpty()) {
+            return null;
+        }
+
+        Map<String, HttpRequestEvidence> normalized = new TreeMap<>();
+        for (Map.Entry<String, HttpRequestEvidence> entry : value.entrySet()) {
+            String key = normalizeKey(entry.getKey(), lowercaseKeys);
+            HttpRequestEvidence evidence = entry.getValue();
+            if (key == null || evidence == null) {
+                continue;
+            }
+            normalized.put(key, evidence);
+        }
+
+        if (normalized.isEmpty()) {
+            return null;
+        }
+
+        return Collections.unmodifiableMap(new LinkedHashMap<>(normalized));
+    }
+
+    private static String normalizeKey(String value, boolean lowercase) {
+        if (value == null) {
+            return null;
+        }
+        String normalized = value.trim();
+        if (normalized.isEmpty()) {
+            return null;
+        }
+        return lowercase ? normalized.toLowerCase(Locale.ROOT) : normalized;
     }
 }

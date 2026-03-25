@@ -196,4 +196,320 @@ describe("openapi loader", () => {
       await rm(tempDir, { recursive: true, force: true });
     }
   });
+
+  it("extracts shape-aware request support contracts without changing legacy coverage parameters", async () => {
+    const tempDir = await mkdtemp(path.join(os.tmpdir(), "yanote-openapi-request-params-"));
+    const specPath = path.join(tempDir, "request-params.yaml");
+
+    await writeFile(
+      specPath,
+      [
+        "openapi: 3.0.0",
+        "info:",
+        "  title: request params",
+        "  version: 1.0.0",
+        "paths:",
+        "  /evidence/users/{id}:",
+        "    get:",
+        "      parameters:",
+        "        - name: id",
+        "          in: path",
+        "          required: true",
+        "          schema:",
+        "            type: string",
+        "            pattern: ^user-[0-9]+$",
+        "        - name: content",
+        "          in: query",
+        "          content:",
+        "            application/json:",
+        "              schema:",
+        "                type: string",
+        "        - name: expand",
+        "          in: query",
+        "          schema:",
+        "            type: boolean",
+        "        - name: ids",
+        "          in: query",
+        "          explode: false",
+        "          schema:",
+        "            type: array",
+        "            items:",
+        "              type: string",
+        "        - name: meta",
+        "          in: query",
+        "          schema:",
+        "            type: object",
+        "            properties:",
+        "              enabled:",
+        "                type: boolean",
+        "        - name: tags",
+        "          in: query",
+        "          schema:",
+        "            type: array",
+        "            items:",
+        "              type: string",
+        "        - name: x-batch",
+        "          in: header",
+        "          schema:",
+        "            type: array",
+        "            items:",
+        "              type: string",
+        "        - name: x-trace-id",
+        "          in: header",
+        "          required: true",
+        "          schema:",
+        "            type: integer",
+        "            minimum: 100",
+        "        - name: prefs",
+        "          in: cookie",
+        "          required: true",
+        "          schema:",
+        "            type: string",
+        "            minLength: 3",
+        "        - name: prefs-list",
+        "          in: cookie",
+        "          schema:",
+        "            type: array",
+        "            items:",
+        "              type: string",
+        "      responses:",
+        "        '200':",
+        "          description: ok"
+      ].join("\n"),
+      "utf8"
+    );
+
+    try {
+      const model = await loadOpenApiCoverageModel(specPath);
+      const operationKey = serializeOperationKey({ kind: "http", method: "GET", route: "/evidence/users/{param}" });
+      const contract = model.operationContractsByKey.get(operationKey);
+
+      expect(contract?.parameters).toEqual([
+        { name: "id", in: "path", required: true },
+        { name: "content", in: "query", required: false },
+        { name: "expand", in: "query", required: false },
+        { name: "ids", in: "query", required: false },
+        { name: "meta", in: "query", required: false },
+        { name: "tags", in: "query", required: false },
+        { name: "x-batch", in: "header", required: false },
+        { name: "x-trace-id", in: "header", required: true }
+      ]);
+
+      expect(contract?.requestParameters).toEqual([
+        {
+          name: "id",
+          in: "path",
+          required: true,
+          style: "simple",
+          explode: false,
+          declaredSupport: {
+            support: "supported",
+            shape: "scalar",
+            schema: { type: "string", pattern: "^user-[0-9]+$" }
+          },
+          scalar: {
+            support: "supported",
+            schema: { type: "string", pattern: "^user-[0-9]+$" }
+          }
+        },
+        {
+          name: "content",
+          in: "query",
+          required: false,
+          style: "form",
+          explode: true,
+          declaredSupport: {
+            support: "unsupported",
+            reason: "content"
+          },
+          scalar: {
+            support: "unsupported",
+            reason: "schema"
+          }
+        },
+        {
+          name: "expand",
+          in: "query",
+          required: false,
+          style: "form",
+          explode: true,
+          declaredSupport: {
+            support: "supported",
+            shape: "scalar",
+            schema: { type: "boolean" }
+          },
+          scalar: {
+            support: "supported",
+            schema: { type: "boolean" }
+          }
+        },
+        {
+          name: "ids",
+          in: "query",
+          required: false,
+          style: "form",
+          explode: false,
+          declaredSupport: {
+            support: "unsupported",
+            reason: "explode"
+          },
+          scalar: {
+            support: "unsupported",
+            reason: "schema"
+          }
+        },
+        {
+          name: "meta",
+          in: "query",
+          required: false,
+          style: "form",
+          explode: true,
+          declaredSupport: {
+            support: "unsupported",
+            reason: "schema"
+          },
+          scalar: {
+            support: "unsupported",
+            reason: "schema"
+          }
+        },
+        {
+          name: "tags",
+          in: "query",
+          required: false,
+          style: "form",
+          explode: true,
+          declaredSupport: {
+            support: "supported",
+            shape: "array",
+            items: { type: "string" }
+          },
+          scalar: {
+            support: "unsupported",
+            reason: "schema"
+          }
+        },
+        {
+          name: "x-batch",
+          in: "header",
+          required: false,
+          style: "simple",
+          explode: false,
+          declaredSupport: {
+            support: "unsupported",
+            reason: "style"
+          },
+          scalar: {
+            support: "unsupported",
+            reason: "schema"
+          }
+        },
+        {
+          name: "x-trace-id",
+          in: "header",
+          required: true,
+          style: "simple",
+          explode: false,
+          declaredSupport: {
+            support: "supported",
+            shape: "scalar",
+            schema: { type: "integer", minimum: 100 }
+          },
+          scalar: {
+            support: "supported",
+            schema: { type: "integer", minimum: 100 }
+          }
+        },
+        {
+          name: "prefs",
+          in: "cookie",
+          required: true,
+          style: "form",
+          explode: true,
+          declaredSupport: {
+            support: "supported",
+            shape: "scalar",
+            schema: { type: "string", minLength: 3 }
+          },
+          scalar: {
+            support: "supported",
+            schema: { type: "string", minLength: 3 }
+          }
+        },
+        {
+          name: "prefs-list",
+          in: "cookie",
+          required: false,
+          style: "form",
+          explode: true,
+          declaredSupport: {
+            support: "unsupported",
+            reason: "style"
+          },
+          scalar: {
+            support: "unsupported",
+            reason: "schema"
+          }
+        }
+      ]);
+    } finally {
+      await rm(tempDir, { recursive: true, force: true });
+    }
+  });
+
+  it("keeps declared media ordering stable while preserving more-specific siblings", async () => {
+    const model = await loadOpenApiCoverageModel("test/fixtures/openapi/http-payload-format-media.yaml");
+    const incidentsKey = serializeOperationKey({ kind: "http", method: "POST", route: "/incidents" });
+    const incidents = model.operationContractsByKey.get(incidentsKey);
+
+    expect(incidents?.requestBody).toMatchObject({
+      required: true,
+      content: [{ mediaType: "application/*+json" }, { mediaType: "application/problem+json" }]
+    });
+    expect(incidents?.requestBody?.content[0]?.schema).toMatchObject({
+      type: "object",
+      required: ["title"],
+      properties: {
+        title: { type: "string" }
+      }
+    });
+    expect(incidents?.requestBody?.content[1]?.schema).toMatchObject({
+      type: "object",
+      required: ["title", "detail"],
+      properties: {
+        title: { type: "string" },
+        detail: { type: "string" }
+      }
+    });
+    expect(incidents?.responseBodies).toEqual([
+      {
+        declaredStatus: "202",
+        content: [
+          {
+            mediaType: "application/*+json",
+            schema: {
+              type: "object",
+              additionalProperties: false,
+              required: ["accepted"],
+              properties: {
+                accepted: { type: "boolean" }
+              }
+            }
+          },
+          {
+            mediaType: "application/problem+json",
+            schema: {
+              type: "object",
+              additionalProperties: false,
+              required: ["title", "detail"],
+              properties: {
+                title: { type: "string" },
+                detail: { type: "string" }
+              }
+            }
+          }
+        ]
+      }
+    ]);
+  });
 });

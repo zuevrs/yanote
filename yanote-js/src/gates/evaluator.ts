@@ -1,9 +1,11 @@
 import type { BaselineDimensionsSnapshot, RegressionComparison } from "../baseline/baseline.js";
 import type { CoverageResult } from "../coverage/coverage.js";
 import type { HttpPayloadConformanceDiagnostic } from "../coverage/httpPayloadConformance.js";
+import type { HttpRequestConformanceDiagnostic } from "../coverage/httpRequestConformance.js";
 import { serializeOperationKey } from "../model/operationKey.js";
 import type { GovernanceFailure } from "./failureOrder.js";
 import { evaluateHttpPayloadSemanticFailures } from "./httpPayloadSemantics.js";
+import { evaluateHttpRequestSemanticFailures } from "./httpRequestSemantics.js";
 import type { GatePolicy } from "./policy.js";
 
 export function evaluateThresholdGate(input: {
@@ -139,8 +141,12 @@ export function evaluateGateFailures(input: {
   policy: GatePolicy;
   comparison?: RegressionComparison;
   httpPayloadDiagnostics?: HttpPayloadConformanceDiagnostic[];
+  httpRequestDiagnostics?: HttpRequestConformanceDiagnostic[];
 }): GovernanceFailure[] {
-  const semantic = evaluateHttpPayloadSemanticFailures(input.httpPayloadDiagnostics ?? []);
+  const semantic = [
+    ...evaluateHttpRequestSemanticFailures(input.httpRequestDiagnostics ?? []),
+    ...evaluateHttpPayloadSemanticFailures(input.httpPayloadDiagnostics ?? [])
+  ];
   if (semantic.length > 0) {
     return semantic;
   }

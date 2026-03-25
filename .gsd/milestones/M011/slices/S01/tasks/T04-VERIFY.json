@@ -1,0 +1,16 @@
+{
+  "schemaVersion": 1,
+  "taskId": "T04",
+  "unitId": "M011/S01/T04",
+  "timestamp": 1774451903013,
+  "passed": true,
+  "discoverySource": "task-plan",
+  "checks": [
+    {
+      "command": "bash scripts/ci/verify-m011-s01-request-evidence.sh",
+      "exitCode": 0,
+      "durationMs": 25808,
+      "verdict": "pass"
+    }
+  ]
+}

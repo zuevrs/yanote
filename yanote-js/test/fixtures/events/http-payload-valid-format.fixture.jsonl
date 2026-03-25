@@ -1,0 +1,1 @@
+{"kind":"http","ts":1772449293657,"method":"POST","route":"/subscribers","status":201,"requestBody":{"email":"ada@example.com"},"requestContentType":"application/json; charset=utf-8","responseBody":{"id":"sub-1","accepted":true},"responseContentType":"application/json","queryKeys":[],"headerKeys":["content-type"],"test.run_id":"run-format-valid","test.suite":"suite-format-valid"}

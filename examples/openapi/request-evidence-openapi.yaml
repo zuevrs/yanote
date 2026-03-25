@@ -1,0 +1,103 @@
+openapi: 3.0.0
+info:
+  title: yanote request evidence proof api
+  version: 1.0.0
+paths:
+  /request-evidence/users/{userId}:
+    get:
+      parameters:
+        - name: userId
+          in: path
+          required: true
+          schema:
+            type: string
+            pattern: '^user-[0-9]+$'
+        - name: expand
+          in: query
+          required: true
+          schema:
+            type: boolean
+        - name: tags
+          in: query
+          required: true
+          style: form
+          explode: true
+          schema:
+            type: array
+            items:
+              type: string
+              minLength: 3
+        - name: meta
+          in: query
+          required: false
+          schema:
+            type: object
+            additionalProperties:
+              type: boolean
+        - name: oversizedHint
+          in: query
+          required: false
+          schema:
+            type: string
+            maxLength: 64
+        - name: X-Request-Flavor
+          in: header
+          required: true
+          schema:
+            type: string
+            enum:
+              - amber
+              - violet
+        - name: clientMode
+          in: cookie
+          required: true
+          schema:
+            type: string
+            enum:
+              - compact
+              - full
+      responses:
+        '200':
+          description: request evidence probe response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/RequestEvidenceProbeResponse'
+components:
+  schemas:
+    RequestEvidenceProbeResponse:
+      type: object
+      additionalProperties: false
+      required:
+        - userId
+        - expand
+        - requestFlavor
+        - clientMode
+        - authorizationProvided
+        - sessionProvided
+        - oversizedHintLength
+        - tags
+        - metaProvided
+      properties:
+        userId:
+          type: string
+        expand:
+          type: boolean
+        requestFlavor:
+          type: string
+        clientMode:
+          type: string
+        authorizationProvided:
+          type: boolean
+        sessionProvided:
+          type: boolean
+        oversizedHintLength:
+          type: integer
+          minimum: 0
+        tags:
+          type: array
+          items:
+            type: string
+            minLength: 3
+        metaProvided:
+          type: boolean

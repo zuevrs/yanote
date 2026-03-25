@@ -1,0 +1,16 @@
+{
+  "schemaVersion": 1,
+  "taskId": "T05",
+  "unitId": "M011/S03/T05",
+  "timestamp": 1774462833157,
+  "passed": true,
+  "discoverySource": "task-plan",
+  "checks": [
+    {
+      "command": "bash scripts/ci/verify-m011-s03-format-media.sh",
+      "exitCode": 0,
+      "durationMs": 4080,
+      "verdict": "pass"
+    }
+  ]
+}

@@ -795,4 +795,200 @@ describe("computeHttpPayloadConformance", () => {
     ]);
     expect(result.diagnostics.map((diagnostic) => diagnostic.code)).not.toContain("MISSING_BODY");
   });
+
+  it("validates supported email formats explicitly instead of treating them as plain strings", async () => {
+    const model = await loadOpenApiCoverageModel("test/fixtures/openapi/http-payload-format-media.yaml");
+    const events = (await readHttpEventsJsonl("test/fixtures/events/http-payload-valid-format.fixture.jsonl")).items;
+
+    const result = computeHttpPayloadConformance(model.operations, events, {
+      operationContractsByKey: model.operationContractsByKey
+    });
+
+    expect(result.perOperation.find((entry) => entry.operationKey === "http POST /subscribers")).toMatchObject({
+      request: {
+        state: "COVERED",
+        observedCount: 1,
+        validCount: 1,
+        invalidCount: 0,
+        skippedCount: 0,
+        observedMediaTypes: ["application/json"]
+      },
+      response: {
+        state: "COVERED",
+        observedCount: 1,
+        validCount: 1,
+        invalidCount: 0,
+        skippedCount: 0,
+        observedMediaTypes: ["application/json"]
+      },
+      suites: ["suite-format-valid"]
+    });
+    expect(result.diagnostics).toEqual([
+      expect.objectContaining({
+        operationKey: "http POST /subscribers",
+        target: "request",
+        state: "COVERED",
+        code: "VALID",
+        observedMediaType: "application/json"
+      }),
+      expect.objectContaining({
+        operationKey: "http POST /subscribers",
+        target: "response",
+        state: "COVERED",
+        code: "VALID",
+        observedMediaType: "application/json"
+      })
+    ]);
+  });
+
+  it("fails invalid email payloads as INVALID_BODY once format validation is enabled", async () => {
+    const model = await loadOpenApiCoverageModel("test/fixtures/openapi/http-payload-format-media.yaml");
+    const events = (await readHttpEventsJsonl("test/fixtures/events/http-payload-invalid-format.fixture.jsonl")).items;
+
+    const result = computeHttpPayloadConformance(model.operations, events, {
+      operationContractsByKey: model.operationContractsByKey
+    });
+
+    expect(result.perOperation.find((entry) => entry.operationKey === "http POST /verifications")).toMatchObject({
+      request: {
+        state: "UNCOVERED",
+        observedCount: 1,
+        validCount: 0,
+        invalidCount: 1,
+        skippedCount: 0,
+        observedMediaTypes: ["application/json"]
+      },
+      response: {
+        state: "COVERED",
+        observedCount: 1,
+        validCount: 1,
+        invalidCount: 0,
+        skippedCount: 0,
+        observedMediaTypes: ["application/json"]
+      },
+      suites: ["suite-format-invalid"]
+    });
+    expect(result.diagnostics).toEqual([
+      expect.objectContaining({
+        operationKey: "http POST /verifications",
+        target: "request",
+        state: "UNCOVERED",
+        code: "INVALID_BODY",
+        observedMediaType: "application/json",
+        errors: [expect.stringContaining("must match format \"email\"")]
+      }),
+      expect.objectContaining({
+        operationKey: "http POST /verifications",
+        target: "response",
+        state: "COVERED",
+        code: "VALID",
+        observedMediaType: "application/json"
+      })
+    ]);
+  });
+
+  it("prefers the most-specific declared media type without reordering declared media output", async () => {
+    const model = await loadOpenApiCoverageModel("test/fixtures/openapi/http-payload-format-media.yaml");
+    const events = (await readHttpEventsJsonl("test/fixtures/events/http-payload-media-specificity.fixture.jsonl")).items;
+
+    const result = computeHttpPayloadConformance(model.operations, events, {
+      operationContractsByKey: model.operationContractsByKey
+    });
+
+    expect(result.perOperation.find((entry) => entry.operationKey === "http POST /incidents")).toMatchObject({
+      request: {
+        state: "UNCOVERED",
+        observedCount: 1,
+        validCount: 0,
+        invalidCount: 1,
+        skippedCount: 0,
+        declaredMediaTypes: ["application/*+json", "application/problem+json"],
+        observedMediaTypes: ["application/problem+json"]
+      },
+      response: {
+        state: "COVERED",
+        observedCount: 1,
+        validCount: 1,
+        invalidCount: 0,
+        skippedCount: 0,
+        declaredMediaTypes: ["application/*+json", "application/problem+json"],
+        observedMediaTypes: ["application/problem+json"],
+        declaredContent: [
+          {
+            declaredStatus: "202",
+            mediaTypes: ["application/*+json", "application/problem+json"]
+          }
+        ]
+      },
+      suites: ["suite-media-specificity"]
+    });
+    expect(result.diagnostics).toEqual([
+      expect.objectContaining({
+        operationKey: "http POST /incidents",
+        target: "request",
+        state: "UNCOVERED",
+        code: "INVALID_BODY",
+        observedMediaType: "application/problem+json",
+        declaredMediaTypes: ["application/*+json", "application/problem+json"],
+        errors: ["/ must have required property 'detail'"]
+      }),
+      expect.objectContaining({
+        operationKey: "http POST /incidents",
+        target: "response",
+        state: "COVERED",
+        code: "VALID",
+        declaredStatus: "202",
+        observedStatus: 202,
+        observedMediaType: "application/problem+json",
+        declaredMediaTypes: ["application/*+json", "application/problem+json"]
+      })
+    ]);
+  });
+
+  it("fails closed on declared unsupported schema formats without inflating invalid counts", async () => {
+    const model = await loadOpenApiCoverageModel("test/fixtures/openapi/http-payload-format-media.yaml");
+    const events = (await readHttpEventsJsonl("test/fixtures/events/http-payload-unsupported-format.fixture.jsonl")).items;
+
+    const result = computeHttpPayloadConformance(model.operations, events, {
+      operationContractsByKey: model.operationContractsByKey
+    });
+
+    expect(result.perOperation.find((entry) => entry.operationKey === "http POST /custom-format")).toMatchObject({
+      request: {
+        state: "SKIPPED",
+        observedCount: 1,
+        validCount: 0,
+        invalidCount: 0,
+        skippedCount: 1,
+        observedMediaTypes: ["application/json"]
+      },
+      response: {
+        state: "COVERED",
+        observedCount: 1,
+        validCount: 1,
+        invalidCount: 0,
+        skippedCount: 0,
+        observedMediaTypes: ["application/json"]
+      },
+      suites: ["suite-format-unsupported"]
+    });
+    expect(result.diagnostics).toEqual([
+      expect.objectContaining({
+        operationKey: "http POST /custom-format",
+        target: "request",
+        state: "SKIPPED",
+        code: "UNSUPPORTED_SCHEMA_FORMAT",
+        message: expect.stringContaining("unsupported schema format \"yanote-customer-id\" at /properties/externalId"),
+        observedMediaType: "application/json",
+        errors: [expect.stringContaining("/properties/externalId")]
+      }),
+      expect.objectContaining({
+        operationKey: "http POST /custom-format",
+        target: "response",
+        state: "COVERED",
+        code: "VALID",
+        observedMediaType: "application/json"
+      })
+    ]);
+  });
 });

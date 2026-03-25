@@ -34,6 +34,10 @@ class EventJsonlRoundTripTest {
                 "application/json",
                 null,
                 null,
+                null,
+                null,
+                null,
+                null,
                 false
         );
         HttpEvent second = HttpEvent.of(1689000000100L, "GET", "/v1/users/{id}", "run-1", "suite-a", 200);
@@ -103,6 +107,10 @@ class EventJsonlRoundTripTest {
                 PayloadCaptureState.CAPTURED,
                 null,
                 "application/json",
+                null,
+                null,
+                null,
+                null,
                 null,
                 null,
                 false

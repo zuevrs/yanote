@@ -1,6 +1,7 @@
 package dev.yanote.recorder.springmvc;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
@@ -10,10 +11,13 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import dev.yanote.core.events.HttpEvent;
+import dev.yanote.core.events.HttpRequestEvidence;
 import dev.yanote.core.events.PayloadCaptureReason;
 import dev.yanote.core.events.PayloadCaptureState;
+import jakarta.servlet.http.Cookie;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.util.List;
 import java.util.Map;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -54,8 +58,12 @@ class RecorderWritesJsonlTest {
 
         mockMvc.perform(
                 post("/v1/users/123")
+                        .queryParam("expand", "roles", "teams")
                         .header("X-Test-Run-Id", "run-1")
                         .header("X-Test-Suite", "suite-a")
+                        .header("X-Trace-Id", "trace-1", "trace-2")
+                        .header("Authorization", "Bearer secret")
+                        .cookie(new Cookie("theme", "dark"), new Cookie("SESSION", "secret-session"))
                         .contentType(MediaType.APPLICATION_JSON)
                         .accept(MediaType.APPLICATION_JSON)
                         .content("""
@@ -79,6 +87,14 @@ class RecorderWritesJsonlTest {
         assertNull(event.requestBodyReason());
         assertEquals(PayloadCaptureState.CAPTURED, event.responseBodyState());
         assertNull(event.responseBodyReason());
+        assertEquals(List.of("123"), event.pathParams().get("id").values());
+        assertEquals(List.of("roles", "teams"), event.queryParams().get("expand").values());
+        assertEquals(List.of("trace-1", "trace-2"), event.requestHeaders().get("x-trace-id").values());
+        assertEquals(HttpRequestEvidence.State.REDACTED, event.requestHeaders().get("authorization").state());
+        assertFalse(event.requestHeaders().containsKey("x-test-run-id"));
+        assertFalse(event.requestHeaders().containsKey("x-test-suite"));
+        assertEquals(List.of("dark"), event.cookies().get("theme").values());
+        assertEquals(HttpRequestEvidence.State.REDACTED, event.cookies().get("SESSION").state());
         assertJsonEquals("""
                 {"name":"Ada"}
                 """, event.requestBody());

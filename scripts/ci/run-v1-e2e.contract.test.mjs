@@ -76,6 +76,26 @@ test("v1 e2e script retains the live compose events and canonical happy-path rep
   assert.match(source, /docker compose -f "\$\{COMPOSE_FILE\}" logs --no-color > "\$\{ARTIFACT_DIR\}\/compose\.log"/);
 });
 
+test("v1 e2e script reruns the analyzer locally against filtered retained request events with the request-evidence spec", async () => {
+  const source = await loadScriptSource();
+  assert.match(source, /REQUEST_SEMANTICS_SPEC="examples\/openapi\/request-evidence-openapi\.yaml"/);
+  assert.match(source, /REQUEST_SEMANTICS_ROUTE="\/request-evidence\/users\/\{userId\}"/);
+  assert.match(source, /REQUEST_SEMANTICS_EVENTS_PATH="\$\{ARTIFACT_DIR\}\/request-semantics\.events\.jsonl"/);
+  assert.match(source, /record\.get\("route"\) == route/);
+  assert.match(source, /node yanote-js\/dist\/yanote\.cjs report \\\n    --spec "\$\{REQUEST_SEMANTICS_SPEC\}" \\\n    --events "\$\{REQUEST_SEMANTICS_EVENTS_PATH\}"/);
+  assert.match(source, /if \[\[ "\$\{status\}" -ne 5 \]\]/);
+  assert.match(source, /grep -q 'YANOTE_ERROR class=semantic code=SEMANTIC_HTTP_UNSUPPORTED_REQUEST_PARAMETER' "\$\{REQUEST_SEMANTICS_STDERR_PATH\}"/);
+  assert.match(source, /cp "\$\{REQUEST_SEMANTICS_OUT_DIR\}\/yanote-report\.json" "\$\{REQUEST_SEMANTICS_REPORT_PATH\}"/);
+});
+
+test("v1 e2e script keeps request-semantics stdout and stderr free of retained request values and secrets", async () => {
+  const source = await loadScriptSource();
+  assert.match(source, /REQUEST_SEMANTICS_FORBIDDEN_STDIO_VALUES=\("user-42" "alpha" "bravo" "amber" "compact" "opaque"\)/);
+  assert.match(source, /REQUEST_SEMANTICS_FORBIDDEN_SECRET_VALUES=\("Bearer proof-secret-token" "proof-session-secret"\)/);
+  assert.match(source, /ensure_no_file_leak "\$\{REQUEST_SEMANTICS_STDOUT_PATH\}" "request-semantics stdout" "\$\{REQUEST_SEMANTICS_FORBIDDEN_STDIO_VALUES\[@\]\}"/);
+  assert.match(source, /ensure_no_file_leak "\$\{REQUEST_SEMANTICS_STDERR_PATH\}" "request-semantics stderr" "\$\{REQUEST_SEMANTICS_FORBIDDEN_SECRET_VALUES\[@\]\}"/);
+});
+
 test("v1 e2e script reruns the analyzer locally against the retained events with the unsupported-schema spec", async () => {
   const source = await loadScriptSource();
   assert.match(source, /SEMANTIC_RED_SPEC="examples\/openapi\/demo-openapi-unsupported-schema\.yaml"/);
@@ -85,10 +105,17 @@ test("v1 e2e script reruns the analyzer locally against the retained events with
   assert.match(source, /cp "\$\{SEMANTIC_RED_OUT_DIR\}\/yanote-report\.json" "\$\{SEMANTIC_RED_REPORT_PATH\}"/);
 });
 
-test("v1 e2e script writes deterministic bundle manifest and source-path notes for retained green and red artifacts", async () => {
+test("v1 e2e script writes deterministic bundle manifest and source-path notes for retained green, request, and red artifacts", async () => {
   const source = await loadScriptSource();
   assert.match(source, /SOURCE_PATHS_NOTE_NAME="artifact-source-paths\.txt"/);
   assert.match(source, /MANIFEST_NAME="artifact-manifest\.txt"/);
+  assert.match(source, /request-semantics\.events\.jsonl/);
+  assert.match(source, /request-semantics\.stdout/);
+  assert.match(source, /request-semantics\.stderr/);
+  assert.match(source, /request-semantics-yanote-report\.json/);
+  assert.match(source, /request-semantics\.events\.jsonl=%s\\n' 'filtered:\.yanote-ci\/v1-e2e\/events\.jsonl route=\/request-evidence\/users\/\{userId\}'/);
+  assert.match(source, /request_semantics_expected_exit=%s\\n' '5'/);
+  assert.match(source, /request_semantics_primary=%s\\n' 'SEMANTIC_HTTP_UNSUPPORTED_REQUEST_PARAMETER'/);
   assert.match(source, /semantic-red\.stdout/);
   assert.match(source, /semantic-red\.stderr/);
   assert.match(source, /semantic-red-yanote-report\.json/);

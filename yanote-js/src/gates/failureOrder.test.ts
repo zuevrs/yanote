@@ -109,6 +109,16 @@ describe("failure precedence ordering", () => {
       },
       {
         failureClass: "semantic",
+        code: "SEMANTIC_HTTP_UNSUPPORTED_SCHEMA_FORMAT",
+        reason:
+          "request payload for http POST /custom-format media=application/json declares a schema format outside Yanote's supported payload format allowlist.",
+        hint: "unsupported format",
+        exitCode: 5,
+        severity: "error",
+        operationKey: "http POST /custom-format"
+      },
+      {
+        failureClass: "semantic",
         code: "SEMANTIC_FAIL_CLOSED",
         reason: "generic semantic fail-closed wrapper",
         hint: "generic",
@@ -122,11 +132,81 @@ describe("failure precedence ordering", () => {
       "SEMANTIC_HTTP_INVALID_BODY",
       "SEMANTIC_HTTP_MISSING_BODY",
       "SEMANTIC_HTTP_UNSUPPORTED_MEDIA_TYPE",
+      "SEMANTIC_HTTP_UNSUPPORTED_SCHEMA_FORMAT",
       "SEMANTIC_HTTP_UNSUPPORTED_SCHEMA",
       "SEMANTIC_FAIL_CLOSED",
       "GATE_MIN_COVERAGE"
     ]);
     expect(selectPrimaryFailure(failures)?.code).toBe("SEMANTIC_HTTP_INVALID_BODY");
+  });
+
+  it("orders request semantic failures ahead of payload semantics, generic fail-closed wrappers, and gate failures", () => {
+    const failures: GovernanceFailure[] = [
+      {
+        failureClass: "gate",
+        gateKind: "threshold",
+        code: "GATE_MIN_COVERAGE",
+        reason: "threshold",
+        hint: "threshold",
+        exitCode: 3,
+        severity: "error"
+      },
+      {
+        failureClass: "semantic",
+        code: "SEMANTIC_HTTP_INVALID_BODY",
+        reason: "request payload for http POST /orders media=application/json failed JSON schema validation.",
+        hint: "invalid body",
+        exitCode: 5,
+        severity: "error",
+        operationKey: "http POST /orders"
+      },
+      {
+        failureClass: "semantic",
+        code: "SEMANTIC_HTTP_UNSUPPORTED_REQUEST_PARAMETER",
+        reason: "query parameter 'filter' for http POST /orders falls outside the published supported request serialization subset.",
+        hint: "unsupported request",
+        exitCode: 5,
+        severity: "error",
+        operationKey: "http POST /orders"
+      },
+      {
+        failureClass: "semantic",
+        code: "SEMANTIC_HTTP_INVALID_REQUEST_PARAMETER",
+        reason: "query parameter 'count' for http POST /orders failed supported request-parameter validation.",
+        hint: "invalid request",
+        exitCode: 5,
+        severity: "error",
+        operationKey: "http POST /orders"
+      },
+      {
+        failureClass: "semantic",
+        code: "SEMANTIC_HTTP_UNAVAILABLE_REQUEST_PARAMETER",
+        reason: "request header 'x-auth' for http POST /orders was unavailable for request-semantic verification because retained evidence was redacted.",
+        hint: "unavailable request",
+        exitCode: 5,
+        severity: "error",
+        operationKey: "http POST /orders"
+      },
+      {
+        failureClass: "semantic",
+        code: "SEMANTIC_FAIL_CLOSED",
+        reason: "generic semantic fail-closed wrapper",
+        hint: "generic",
+        exitCode: 5,
+        severity: "error"
+      }
+    ];
+
+    const ordered = sortFailuresByPrecedence(failures);
+    expect(ordered.map((failure) => failure.code)).toEqual([
+      "SEMANTIC_HTTP_INVALID_REQUEST_PARAMETER",
+      "SEMANTIC_HTTP_UNAVAILABLE_REQUEST_PARAMETER",
+      "SEMANTIC_HTTP_UNSUPPORTED_REQUEST_PARAMETER",
+      "SEMANTIC_HTTP_INVALID_BODY",
+      "SEMANTIC_FAIL_CLOSED",
+      "GATE_MIN_COVERAGE"
+    ]);
+    expect(selectPrimaryFailure(failures)?.code).toBe("SEMANTIC_HTTP_INVALID_REQUEST_PARAMETER");
   });
 
   it("returns undefined primary when only warnings exist", () => {
