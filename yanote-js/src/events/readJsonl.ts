@@ -1,6 +1,8 @@
 import { createReadStream } from "node:fs";
 import readline from "node:readline";
 import {
+  getCapturedRequestEvidenceKeys,
+  normalizeHttpRequestEvidenceMap,
   normalizeJsonValue,
   normalizeMethod,
   normalizeOptionalHttpText,
@@ -48,6 +50,19 @@ export async function readHttpEventsJsonl(filePath: string): Promise<ReadJsonlRe
 
     const testRunId = normalizeRunId(obj["test.run_id"]);
     const testSuite = normalizeSuite(obj["test.suite"]);
+    const pathParams = normalizeHttpRequestEvidenceMap(obj.pathParams);
+    const queryParams = normalizeHttpRequestEvidenceMap(obj.queryParams);
+    const requestHeaders = normalizeHttpRequestEvidenceMap(obj.requestHeaders, { lowercaseKeys: true });
+    const cookies = normalizeHttpRequestEvidenceMap(obj.cookies);
+
+    const queryKeys = normalizeQueryKeys(
+      obj.queryKeys,
+      Array.isArray(obj.queryKeys) ? undefined : getCapturedRequestEvidenceKeys(queryParams)
+    );
+    const headerKeys = normalizeHeaderKeys(
+      obj.headerKeys,
+      Array.isArray(obj.headerKeys) ? undefined : getCapturedRequestEvidenceKeys(requestHeaders, { lowercaseKeys: true })
+    );
 
     const event: HttpEvent = {
       kind: "http",
@@ -63,11 +78,15 @@ export async function readHttpEventsJsonl(filePath: string): Promise<ReadJsonlRe
       responseBodyState: normalizePayloadCaptureState(obj.responseBodyState),
       responseBodyReason: normalizePayloadCaptureReason(obj.responseBodyReason),
       responseContentType: normalizeOptionalHttpText(obj.responseContentType),
+      ...(pathParams ? { pathParams } : {}),
+      ...(queryParams ? { queryParams } : {}),
+      ...(requestHeaders ? { requestHeaders } : {}),
+      ...(cookies ? { cookies } : {}),
       service: typeof obj.service === "string" ? obj.service : obj.service ?? undefined,
       instance: typeof obj.instance === "string" ? obj.instance : obj.instance ?? undefined,
       error: typeof obj.error === "boolean" ? obj.error : undefined,
-      queryKeys: normalizeQueryKeys(obj.queryKeys),
-      headerKeys: normalizeHeaderKeys(obj.headerKeys),
+      queryKeys,
+      headerKeys,
       testRunId,
       testSuite
     };
@@ -77,8 +96,8 @@ export async function readHttpEventsJsonl(filePath: string): Promise<ReadJsonlRe
   return { items, invalidLines, invalidLineNumbers };
 }
 
-function normalizeQueryKeys(value: unknown): string[] {
-  if (!Array.isArray(value)) return [];
+function normalizeQueryKeys(value: unknown, fallback: string[] = []): string[] {
+  if (!Array.isArray(value)) return fallback;
   const seen = new Set<string>();
   for (const key of value) {
     if (typeof key !== "string") continue;
@@ -89,8 +108,8 @@ function normalizeQueryKeys(value: unknown): string[] {
   return Array.from(seen).sort((left, right) => left.localeCompare(right));
 }
 
-function normalizeHeaderKeys(value: unknown): string[] {
-  if (!Array.isArray(value)) return [];
+function normalizeHeaderKeys(value: unknown, fallback: string[] = []): string[] {
+  if (!Array.isArray(value)) return fallback;
   const seen = new Set<string>();
   for (const key of value) {
     if (typeof key !== "string") continue;

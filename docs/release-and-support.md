@@ -16,11 +16,11 @@
 
 ## Последний стабильный релиз
 
-Последний стабильный релиз на момент обновления этого документа — `v1.0.127`.
+Последний стабильный релиз на момент обновления этого документа — `v1.0.128`.
 
 Опубликованные изменения, release notes и release assets нужно смотреть здесь:
 
-- Git tag: `v1.0.127`
+- Git tag: `v1.0.128`
 - GitHub Releases: https://github.com/zuevrs/yanote/releases
 
 `yanote --version` и `yanote-js/package.json` сейчас показывают `0.0.0`. Это технические version markers для source-built analyzer CLI и локального repository `HEAD`, а не публичная release truth.
@@ -31,7 +31,7 @@
 
 Рабочий `HEAD` может быть впереди последнего стабильного тега. Это означает только то, что в репозитории уже есть новые коммиты — например, документационные, инфраструктурные или product-maturity изменения. Сам по себе `HEAD` не означает, что появился новый опубликованный релиз.
 
-Пока не появился новый подписанный тег и соответствующий GitHub Release, публичной истиной остаются последняя стабильная линия `v1.0.x` и последний стабильный тег `v1.0.127`. Поэтому текущий `HEAD` нельзя автоматически считать эквивалентом последнего публичного релиза.
+Пока не появился новый подписанный тег и соответствующий GitHub Release, публичной истиной остаются последняя стабильная линия `v1.0.x` и последний стабильный тег `v1.0.128`. Поэтому текущий `HEAD` нельзя автоматически считать эквивалентом последнего публичного релиза.
 
 ## Стабильные поверхности
 
@@ -43,8 +43,11 @@
 - report contract: файл `yanote-report.json` со schema version `1.0.0` (`schemaVersion = 1.0.0`);
 - проверенные recorder paths: dependency-based `yanote-recorder-spring-mvc` для Spring Boot 3.x / Spring MVC с записью HTTP evidence в `events.jsonl`, и `yanote-recorder-spring-kafka` как release-published Spring Kafka recorder adapter для Kafka evidence capture;
 - analyzer delivery surface: основной путь — source-built CLI из `yanote-js`, а offline fallback распространяется как release asset через GitHub Releases, а не как tracked documentation surface default branch;
-- публичный HTTP proof surface: `bash scripts/ci/run-v1-e2e.sh`, который удерживает `.yanote-ci/v1-e2e/out/yanote-report.json` как happy-path artifact и рядом сохраняет `semantic-red.stdout`, `semantic-red.stderr` и `semantic-red-yanote-report.json`;
-- observation coverage и `HTTP Payload Conformance` как разные truth surfaces: happy path на Spring MVC demo сейчас показывает `operations/status/parameters/aggregate = 100.00%`, а payload validation отдельно подтверждает JSON request/response у `POST /users`;
+- публичный HTTP proof surface: `bash scripts/ci/run-v1-e2e.sh`, который удерживает `.yanote-ci/v1-e2e/out/yanote-report.json` как happy-path artifact, рядом сохраняет additive request sidecar `.yanote-ci/v1-e2e/request-semantics.events.jsonl`, `.yanote-ci/v1-e2e/request-semantics.stdout`, `.yanote-ci/v1-e2e/request-semantics.stderr`, `.yanote-ci/v1-e2e/request-semantics-yanote-report.json`, а также payload semantic-red sidecars `semantic-red.stdout`, `semantic-red.stderr` и `semantic-red-yanote-report.json`;
+- публичный request semantics surface: additive `httpRequestConformance` в report contract, per-parameter `declaredSupport`, `declaredSupportShape`, `declaredSupportReason` и request `YANOTE_SUMMARY` токены `request_observed_operations`, `request_observed_parameters`, `request_truths`, `primary`;
+- поддерживаемый request serialization subset публикуется буквально: `path=simple`, `query=form`, `header=simple`, `cookie=form`; повторяющиеся массивы поддерживаются только для `query=form` + `explode=true` + scalar `items`, а `content`-parameters, неподдерживаемые styles и cookie arrays не считаются supported public surface;
+- focused retained proofs `bash scripts/ci/verify-m011-s02-request-semantics.sh` и `bash scripts/ci/verify-m011-s03-format-media.sh` остаются deep-proof surface за публичным summary bundle и support wording;
+- observation coverage и `HTTP Payload Conformance` / `HTTP Request Conformance` как разные truth surfaces: happy path на Spring MVC demo сейчас показывает `operations/status/parameters/aggregate = 100.00%`, request sidecar отдельно публикует supported request subset и fail-closed `SEMANTIC_HTTP_UNSUPPORTED_REQUEST_PARAMETER`, а payload validation подтверждает JSON request/response у `POST /users`;
 - benign omission boundaries на happy path разделены явно: `GET /users` остаётся `NO_DECLARED_CONTENT`, а `GET /admin/ping` и `GET /users/{param}` публикуют `RECORDER_OMITTED` с `captureState=omitted` и `captureReason=policy-filtered`, но эти сигналы не считаются контрактной ошибкой и не понижают observation coverage;
 - fail-closed payload boundary: retained semantic-red pass на тех же live events завершает анализ с `SEMANTIC_HTTP_UNSUPPORTED_SCHEMA`, если declared JSON content нельзя честно провалидировать usable schema.
 
@@ -95,7 +98,7 @@ Yanote сейчас нужно воспринимать как Java-first пут
 - first-class не-Java onboarding пока нет;
 - отдельного runnable Cucumber demo в репозитории пока нет: текущий Cucumber contract проверяется тестами и документацией, а не живым demo-flow;
 - analyzer version markers (`0.0.0`) полезны только как технический build marker и не должны читаться как публичная release version;
-- payload validation публично поддерживается как JSON-first path на Spring MVC demo/runtime surfaces, а не как обещание универсального media-type coverage;
+- payload validation публично поддерживается как JSON-first path на Spring MVC demo/runtime surfaces, а не как обещание универсального media-type coverage; поддерживаемый payload format allowlist сейчас intentionally `email`-only, а media selection идёт по most-specific declared match;
 - examples, retained proof bundle, fallback release assets и maintainer-only workflow полезны для диагностики и сопровождения, но не равны по статусу опубликованной продуктовой поверхности;
 - HTTP и async surfaces публикуются раздельно: сегодня нет общего combined HTTP+async report surface и нет одной общей boundary-метрики поверх обоих режимов.
 

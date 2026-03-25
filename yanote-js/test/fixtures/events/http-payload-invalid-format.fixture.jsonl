@@ -1,0 +1,1 @@
+{"kind":"http","ts":1772449295657,"method":"POST","route":"/verifications","status":202,"requestBody":{"email":"not-an-email"},"requestContentType":"application/json; charset=utf-8","responseBody":{"queued":true},"responseContentType":"application/json","queryKeys":[],"headerKeys":["content-type"],"test.run_id":"run-format-invalid","test.suite":"suite-format-invalid"}

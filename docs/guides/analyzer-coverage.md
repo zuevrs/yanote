@@ -1,18 +1,18 @@
-# Канонический путь: запуск analyzer и интерпретация покрытия
+# Канонический путь: запуск analyzer и чтение HTTP coverage/conformance
 
-Это основной и проверенный путь анализа для `yanote`: собирайте `yanote-js` из исходников в этом репозитории, запускайте `report`, читайте `Summary`/`YANOTE_SUMMARY`, затем открывайте `yanote-report.json`.
+Это основной и проверенный HTTP/OpenAPI путь для `yanote`: соберите `yanote-js` из исходников этого репозитория, запустите `report`, прочитайте `Summary`, `HTTP Payload Conformance`, `HTTP Request Conformance`, финальную строку `YANOTE_SUMMARY ...`, а затем откройте `yanote-report.json`.
 
-Если в вашем контуре нельзя выполнить `npm -C yanote-js ci && npm -C yanote-js run build`, fallback остаётся только через release assets GitHub Releases. Командная форма и структура отчёта у такого fallback-та же; меняется только способ доставки CLI. Текущие границы и release truth смотрите в [`docs/release-and-support.md`](../release-and-support.md).
+Если в вашем контуре нельзя выполнить `npm -C yanote-js ci && npm -C yanote-js run build`, offline fallback остаётся только через release assets GitHub Releases. Командная форма и структура отчёта у такого fallback те же; меняется только способ доставки CLI. Актуальные release/support границы и текущую release truth смотрите в [`docs/release-and-support.md`](../release-and-support.md).
 
 Если вам нужен не HTTP/OpenAPI путь, а первая волна AsyncAPI/Kafka, не смешивайте этот guide с async semantics: отдельный onboarding вынесен в [`docs/guides/asyncapi-kafka.md`](asyncapi-kafka.md), где описаны Kafka evidence inputs, `async-report`, `YANOTE_ASYNC_SUMMARY` и `yanote-async-report.json`.
 
-Если хотите сначала перепроверить live-path репозитория, а потом редактировать этот гайд, используйте:
+Если хотите сначала перепроверить live-path репозитория, а потом редактировать этот guide, используйте:
 
 ```bash
 bash scripts/docs/verify-s02-analysis-path.sh
 ```
 
-## 1. Что нужно на входе
+## 1. Что analyzer ждёт на входе
 
 Analyzer всегда ждёт три вещи:
 
@@ -66,201 +66,126 @@ node yanote-js/dist/yanote.cjs report \
 bash scripts/ci/run-v1-e2e.sh
 ```
 
-После него happy path остаётся в `.yanote-ci/v1-e2e/out/yanote-report.json`, а retained semantic-red sidecars лежат рядом в `.yanote-ci/v1-e2e/semantic-red.stdout`, `.yanote-ci/v1-e2e/semantic-red.stderr` и `.yanote-ci/v1-e2e/semantic-red-yanote-report.json`.
+После него в `.yanote-ci/v1-e2e/` удерживаются такие публичные артефакты:
 
-Что важно про флаги:
+- happy path: `.yanote-ci/v1-e2e/out/yanote-report.json`;
+- retained request sidecar: `.yanote-ci/v1-e2e/request-semantics.events.jsonl`, `.yanote-ci/v1-e2e/request-semantics.stdout`, `.yanote-ci/v1-e2e/request-semantics.stderr`, `.yanote-ci/v1-e2e/request-semantics-yanote-report.json`;
+- retained payload semantic-red sidecar: `.yanote-ci/v1-e2e/semantic-red.stdout`, `.yanote-ci/v1-e2e/semantic-red.stderr`, `.yanote-ci/v1-e2e/semantic-red-yanote-report.json`.
 
-- `--min-coverage` проверяет только dimension `operations`.
-- `--min-aggregate` включает gate по взвешенному aggregate-coverage.
-- `--exclude` используйте только когда хотите сознательно исключить route, который **реально объявлен в spec**. Не копируйте старое `--exclude /health` по инерции: в текущем demo-spec `/health` вообще не объявлен, поэтому такой флаг только создаёт `governance.exclusions.unmatchedRules` и шум в summary.
+Если нужно не summary-level подтверждение, а более глубокая retained proof truth, запускайте точечные проверки:
+
+```bash
+bash scripts/ci/verify-m011-s02-request-semantics.sh
+bash scripts/ci/verify-m011-s03-format-media.sh
+```
 
 ## 4. Что означает plain-text вывод CLI
 
-У `report` три устойчивых surface-а:
+У `report` теперь есть четыре устойчивые HTTP-поверхности:
 
-1. **Читаемый stdout** с секциями `Summary`, `Coverage Dimensions`, `HTTP Payload Conformance`, `Top Issues`, `Report Path`
-2. **Финальная machine-readable строка** `YANOTE_SUMMARY ...`
-3. **Fail-closed stderr** с `YANOTE_ERROR ...`, если semantic/gate boundary не выполнена
+1. **`Summary`** — общий статус и observation coverage;
+2. **`HTTP Payload Conformance`** — truth по request/response body, schema formats и media-type matching;
+3. **`HTTP Request Conformance`** — truth по supported request serialization subset;
+4. **финальная machine-readable строка `YANOTE_SUMMARY ...`**.
 
-Если есть fail-closed ошибка, CLI дополнительно пишет в `stderr` строку `YANOTE_ERROR ...` и завершает процесс с ненулевым кодом. При gate-failure или semantic-red path после построения отчёта `yanote-report.json` всё равно сохраняется.
+Fail-closed semantic boundary по-прежнему уходит в `stderr` строками `YANOTE_ERROR ...`, но `yanote-report.json` при этом сохраняется для последующего разбора.
 
-### Summary
+### Summary и Coverage Dimensions
 
-- `status: ok` — нет invalid/ambiguous diagnostics, нет uncovered operations, aggregate dimension имеет состояние `COVERED`, и fail-closed semantic diagnostics отсутствуют.
-- `status: partial` — отчёт собран, но хотя бы одна coverage-dimension не закрыта полностью **или** payload boundary сработал как fail-closed semantic path.
-- `status: invalid` — есть invalid/ambiguous semantic diagnostics, поэтому CLI работает fail-closed.
-
-`operations: covered/total (percent)` показывает только факт наблюдения операций, а не полноту payload validation.
-
-### Coverage Dimensions
-
-CLI всегда печатает четыре измерения observation coverage:
-
-- `operations` — доля объявленных операций, для которых вообще был matched event;
-- `status` — доля объявленных response-status токенов (`200`, `4XX`, `default` и т.д.), реально покрытых событиями;
-- `parameters` — доля **required** path/query/header-параметров, для которых есть evidence;
-- `aggregate` — взвешенная метрика: `operations * 0.60 + status * 0.25 + parameters * 0.15`.
-
-Состояния измерений:
-
-- `COVERED` — 100%
-- `PARTIAL` — между 0% и 100%
-- `UNCOVERED` — 0%
-- `N/A` — измерение не вычисляется из-за отсутствия объявленного контракта (например, нет required parameters или declared statuses)
-
-Если хотя бы одно из измерений `status` или `parameters` равно `N/A`, то `aggregate` тоже будет `N/A` с пояснением в `aggregate.explanation`.
+`Summary` и `Coverage Dimensions` отвечают только за observation coverage: были ли замечены операции, статусы и required parameters. Эти числа не эквивалентны полноте request/payload validation.
 
 ### HTTP Payload Conformance
 
-Это отдельная поверхность поверх observation coverage. Она отвечает не на вопрос «была ли операция/статус/required parameter замечена», а на вопрос «можно ли честно проверить observed request/response payload против объявленного JSON content».
+Эта поверхность отвечает на вопрос, можно ли честно проверить observed request/response body против объявленного JSON content.
 
-На этой поверхности важно различать четыре случая:
+Публичная граница здесь такая:
 
-- `COVERED` / `VALID` — observed JSON payload удалось сопоставить с declared schema;
-- `SKIPPED` + `NO_DECLARED_CONTENT` — observed response был, но spec для этого status не объявляет content; это **не** ломает observation coverage и не считается fail-closed ошибкой;
-- `SKIPPED` + `RECORDER_OMITTED` — observed response intentionally omitted by recorder policy; этот benign provenance-сигнал тоже не ломает observation coverage, но сохраняет `captureState` / `captureReason`, чтобы отличать recorder omission от отсутствующего declared content;
-- fail-closed semantic diagnostics вроде `SEMANTIC_HTTP_UNSUPPORTED_SCHEMA` — JSON content объявлен, но usable validation schema нет, поэтому CLI завершает анализ ошибкой даже при `100%` observation coverage.
+- Yanote поддерживает только `email` как публичный payload format allowlist;
+- format вне этой allowlist приводит к fail-closed `SEMANTIC_HTTP_UNSUPPORTED_SCHEMA_FORMAT`;
+- выбор media type идёт по most-specific declared match, поэтому `application/problem+json` выигрывает у wildcard вроде `application/*+json`;
+- benign `NO_DECLARED_CONTENT` и `RECORDER_OMITTED` остаются раздельными диагностическими состояниями; у `RECORDER_OMITTED` сохраняются provenance-поля вроде `captureState=omitted` и `captureReason=policy-filtered`, и сами по себе эти сигналы не понижают observation coverage.
 
-### Top Issues
+### HTTP Request Conformance
 
-`Top Issues` показывает только явные warnings/errors/diagnostics, а не каждую неполную метрику. Поэтому у зелёного happy path секция может содержать `- none`, а у semantic-red path — только retained `SEMANTIC_HTTP_UNSUPPORTED_SCHEMA` issues при тех же `100%` observation dimensions.
+Это отдельная поверхность поверх observation coverage. Она публикует truth по тому, какая часть observed request лежит внутри публично поддерживаемого request serialization subset.
 
-### Report Path
+Поддерживаемый subset нужно читать буквально:
 
-Это путь к записанному `yanote-report.json`. Для CI это полезнее, чем парсить весь stdout.
+- `path=simple`;
+- `query=form`;
+- `header=simple`;
+- `cookie=form`;
+- повторяющиеся массивы поддерживаются только для `query=form` + `explode=true` + scalar `items`;
+- `content`-parameters, неподдерживаемые serialization styles, cookie arrays и schema-формы вне этого subset не считаются supported public surface.
+
+В `yanote-report.json` эта поверхность публикуется через:
+
+- `httpRequestConformance.summary`;
+- `httpRequestConformance.perOperation[]`;
+- `httpRequestConformance.diagnostics.items[]`;
+- per-parameter поля `declaredSupport`, `declaredSupportShape`, `declaredSupportReason`.
+
+Если observed request выходит за published subset, CLI удерживает fail-closed semantic boundary кодом `SEMANTIC_HTTP_UNSUPPORTED_REQUEST_PARAMETER`.
 
 ### YANOTE_SUMMARY
 
-Последняя строка stdout имеет стабильный формат. Для текущего happy path она выглядит так:
+Финальная строка stdout остаётся machine-readable и теперь дополнительно публикует request-specific токены:
 
-```text
-YANOTE_SUMMARY status=ok operations=100.00 status_dimension=100.00 parameters=100.00 aggregate=100.00 covered=4/4 diagnostics=0 payload_diagnostics=covered:2,uncovered:0,skipped:3 report=./out/yanote-report.json primary=none class_counts=input:0,semantic:0,gate:0,runtime:0
-```
+- `request_observed_operations`;
+- `request_observed_parameters`;
+- `request_truths`;
+- `primary`.
 
-Semantic-red retained pass на тех же live events меняет именно boundary truth, а не observation numerators: `primary=SEMANTIC_HTTP_UNSUPPORTED_SCHEMA`, `status=partial`, `payload_diagnostics=covered:0,uncovered:0,skipped:5`, но `operations/status_dimension/parameters/aggregate` остаются `100.00`.
-
-### YANOTE_ERROR
-
-Если вы включили semantic-red retained path из публичного proof bundle, stderr содержит строки вида:
-
-```text
-YANOTE_ERROR class=semantic code=SEMANTIC_HTTP_UNSUPPORTED_SCHEMA ...
-YANOTE_ERROR_SECONDARY class=semantic code=SEMANTIC_HTTP_UNSUPPORTED_SCHEMA ...
-```
-
-Проверяемый public-proof пример — `.yanote-ci/v1-e2e/semantic-red.stderr`: он должен содержать `SEMANTIC_HTTP_UNSUPPORTED_SCHEMA`, а `.yanote-ci/v1-e2e/semantic-red-yanote-report.json` должен сохраниться для последующего разбора.
+Эти additive токены не переименовывают legacy percentages: `operations`, `status_dimension`, `parameters` и `aggregate` остаются отдельной observation surface.
 
 ## 5. Что искать в `yanote-report.json`
 
-Минимальный каркас happy-path отчёта такой:
-
-```json
-{
-  "schemaVersion": "1.0.0",
-  "generatedAt": "2026-03-21T00:00:00.000Z",
-  "toolVersion": "...",
-  "phase": { "id": "02", "slug": "coverage-metrics-and-cli-reporting" },
-  "status": "ok",
-  "summary": {
-    "totalOperations": 4,
-    "coveredOperations": 4,
-    "operationCoveragePercent": 100,
-    "aggregateCoveragePercent": 100
-  },
-  "coverage": {
-    "operations": { "state": "COVERED", "percent": 100 },
-    "status": { "state": "COVERED", "percent": 100 },
-    "parameters": { "state": "COVERED", "percent": 100 },
-    "aggregate": { "state": "COVERED", "percent": 100 },
-    "perOperation": []
-  },
-  "diagnostics": {
-    "counts": { "invalid": 0, "ambiguous": 0, "unmatched": 0 },
-    "items": []
-  },
-  "httpPayloadConformance": {
-    "summary": {
-      "request": { "coveredOperations": 1, "skippedOperations": 0, "notApplicableOperations": 3 },
-      "response": { "coveredOperations": 1, "skippedOperations": 3, "notApplicableOperations": 0 }
-    },
-    "diagnostics": { "counts": { "covered": 2, "uncovered": 0, "skipped": 3 } }
-  },
-  "governance": {
-    "exclusions": { "appliedRules": [], "unmatchedRules": [] },
-    "diagnostics": []
-  }
-}
-```
-
-На практике обычно смотрят поля в таком порядке:
+Минимальный порядок чтения такой:
 
 1. `status` — можно ли считать отчёт зелёным (`ok`) или он лишь partial/fail-closed;
-2. `summary.totalOperations` / `summary.coveredOperations` / `summary.operationCoveragePercent` — общая видимость операций;
-3. `coverage.operations|status|parameters|aggregate` — truth по observation coverage;
-4. `httpPayloadConformance.summary` и `httpPayloadConformance.diagnostics` — truth по request/response payload validation;
-5. `coverage.perOperation[]` и `httpPayloadConformance.perOperation[]` — где именно не хватает статусов, параметров или usable payload boundary;
-6. `diagnostics.counts` и `governance.diagnostics` — есть ли unmatched/ambiguous/semantic fail-closed сигналы;
-7. `governance.exclusions.*` — какие исключения применились и какие gate/policy-сигналы сработали.
+2. `summary.*` и `coverage.*` — truth по observation coverage;
+3. `httpPayloadConformance.summary`, `httpPayloadConformance.perOperation[]`, `httpPayloadConformance.diagnostics` — truth по payload boundary;
+4. `httpRequestConformance.summary`, `httpRequestConformance.perOperation[]`, `httpRequestConformance.diagnostics` — truth по request boundary;
+5. `governance.diagnostics` — какой semantic/gate/runtime boundary реально сработал.
 
-Особенно полезные поля в `coverage.perOperation[]`:
+Особенно полезные поля для request surface:
 
-- `operationKey`, `method`, `route` — стабильная идентификация операции;
-- `operation.state` — наблюдалась ли операция хотя бы раз;
-- `status.declared` / `status.covered` / `status.missing` — truth по response status tokens;
-- `parameters.required.total|covered|missing` — truth по required parameters;
-- `parameters.optional.*` — дополнительные сигналы по optional parameters;
-- `suites` — какие test suites реально дали покрытие этой операции; происхождение этих значений и граница с `test.run_id` описаны в [`docs/guides/test-tagging.md`](test-tagging.md).
+- `httpRequestConformance.summary.observedOperations` и `httpRequestConformance.summary.observedParameters`;
+- `httpRequestConformance.summary.counts` — агрегированные `capturedValid` / `capturedInvalid` / `redacted` / `omitted` / `unsupported`;
+- `httpRequestConformance.perOperation[].parameters[].declaredSupport` — поддерживается ли параметр публичным subset;
+- `httpRequestConformance.perOperation[].parameters[].declaredSupportShape` — scalar или array;
+- `httpRequestConformance.perOperation[].parameters[].declaredSupportReason` — почему поддержка отсутствует (`content`, `style`, `explode`, `schema`);
+- `httpRequestConformance.diagnostics.items[].truth` — итоговая truth per observed parameter.
 
-И отдельно полезные поля в `httpPayloadConformance.*`:
+Особенно полезные поля для payload surface:
 
-- `summary.request` / `summary.response` — сколько операций реально покрыты, skipped или n/a по payload surface;
-- `diagnostics.items[]` — чем именно объясняется `VALID`, `NO_DECLARED_CONTENT`, `RECORDER_OMITTED` или `UNSUPPORTED_SCHEMA`;
-- `perOperation[].request|response.state` — где payload boundary зелёная, а где честно skipped/n/a;
-- `perOperation[].response.declaredContent` — какие media types и statuses вообще объявлены для payload validation.
+- `httpPayloadConformance.summary.request` и `httpPayloadConformance.summary.response`;
+- `httpPayloadConformance.diagnostics.items[]` с кодами `VALID`, `INVALID_BODY`, `UNSUPPORTED_SCHEMA_FORMAT`, `NO_DECLARED_CONTENT`, `RECORDER_OMITTED`;
+- `httpPayloadConformance.perOperation[].response.declaredContent` — какие media types и statuses вообще объявлены для payload validation.
 
-## 6. Как читать реальные числа из текущего demo-path
+## 6. Как читать публичный retained proof bundle
 
-Проверяемый public proof путь — `bash scripts/ci/run-v1-e2e.sh`.
+`bash scripts/ci/run-v1-e2e.sh` остаётся стандартным публичным proof entrypoint. Его нужно читать как bundle из трёх truth-поверхностей:
 
-### Happy path: `.yanote-ci/v1-e2e/out/yanote-report.json`
+1. `.yanote-ci/v1-e2e/out/yanote-report.json` — зелёный happy path для observation coverage и supported payload path;
+2. `.yanote-ci/v1-e2e/request-semantics.*` — retained request subset proof поверх тех же live events;
+3. `.yanote-ci/v1-e2e/semantic-red.*` — retained payload fail-closed proof поверх тех же live events.
 
-Текущий happy path даёт такие числа:
+Это важно интерпретировать так:
 
-- `operations`: `4/4`, то есть `100.00%`
-- `status`: `100.00%`
-- `parameters`: `100.00%`
-- `aggregate`: `100.00%`
-- `report.status`: `ok`
+- observation coverage, request conformance и payload conformance — разные поверхности;
+- полный `operations/status/parameters/aggregate` не отменяет request/payload semantic boundary;
+- request/payload sidecars публикуются additive, рядом с happy path, а не вместо него;
+- retained stdout/stderr/report артефакты redacted и не должны утекать raw Authorization/session values.
 
-И это не просто зелёные observation numbers. В `HTTP Payload Conformance` здесь тоже есть проверяемая truth:
+## 7. Когда использовать focused proof scripts
 
-- `POST /users` даёт `VALID` для request и response JSON payload;
-- `GET /users` честно даёт `NO_DECLARED_CONTENT` для response surface, потому что spec не объявляет content для observed `200` response;
-- `GET /admin/ping` и `GET /users/{param}` отдельно дают `RECORDER_OMITTED`, потому что recorder policy не удерживает их text/plain response body и сохраняет provenance через `captureState=omitted` и `captureReason=policy-filtered`;
-- эти benign `SKIPPED` diagnostics сохраняются раздельно и не считаются fail-closed ошибкой.
+Используйте focused proof scripts, когда нужно доказать конкретную boundary truth, а не только summary-level bundle shape:
 
-Это важная граница: benign `NO_DECLARED_CONTENT` и `RECORDER_OMITTED` видны в отчёте, но не ломают ни `operations/status/parameters/aggregate`, ни `status: ok`.
+- `bash scripts/ci/verify-m011-s02-request-semantics.sh` — request subset, `httpRequestConformance`, `declaredSupport*`, `request_truths`, `SEMANTIC_HTTP_UNSUPPORTED_REQUEST_PARAMETER`;
+- `bash scripts/ci/verify-m011-s03-format-media.sh` — `email`-only format allowlist, `SEMANTIC_HTTP_UNSUPPORTED_SCHEMA_FORMAT`, most-specific media matching и fail-closed `INVALID_BODY` path.
 
-### Semantic red path: `.yanote-ci/v1-e2e/semantic-red.*`
-
-Retained semantic-red pass использует те же live events, но OpenAPI variant из `examples/openapi/demo-openapi-unsupported-schema.yaml`.
-
-Что именно он доказывает:
-
-1. Observation coverage не меняется: `operations/status/parameters/aggregate` остаются `100.00%`.
-2. `HTTP Payload Conformance` перестаёт быть зелёной для `POST /users`, потому что declared JSON schema intentionally unusable for validation.
-3. CLI завершает анализ fail-closed с exit code `5`.
-4. `.yanote-ci/v1-e2e/semantic-red.stderr` удерживает `YANOTE_ERROR ... SEMANTIC_HTTP_UNSUPPORTED_SCHEMA`.
-5. `.yanote-ci/v1-e2e/semantic-red-yanote-report.json` сохраняет per-operation truth для последующего разбора.
-
-В этом retained отчёте вы увидите два связанных, но разных сигнала:
-
-- `governance.diagnostics` содержит `SEMANTIC_HTTP_UNSUPPORTED_SCHEMA` как fail-closed semantic boundary;
-- `httpPayloadConformance.diagnostics.items[]` помечает `POST /users` request/response как `UNSUPPORTED_SCHEMA`, а benign GET-path omissions по-прежнему остаются раздельными: `GET /users` как `NO_DECLARED_CONTENT`, а `GET /admin/ping` и `GET /users/{param}` как `RECORDER_OMITTED` с retained provenance.
-
-Главный интерпретационный момент теперь такой: **observation coverage и payload conformance — разные поверхности**. Полное покрытие операций/статусов/параметров не отменяет fail-closed semantic boundary, если JSON content объявлен без usable validation schema.
-
-## 7. Когда использовать offline fallback
+## 8. Когда использовать offline fallback
 
 Offline fallback нужен только когда основной source-built путь недоступен в вашем контуре. Смысл и интерпретация отчёта остаются теми же; меняется только способ доставки CLI через release assets GitHub Releases. Границы этого пути и актуальную release truth смотрите в [`docs/release-and-support.md`](../release-and-support.md).
 
@@ -271,8 +196,3 @@ Offline fallback нужен только когда основной source-buil
 - Runnable demo-service: [`examples/springmvc-service/README.md`](../../examples/springmvc-service/README.md)
 - RestAssured handoff для тестовых метаданных: [`examples/tests-restassured/README.md`](../../examples/tests-restassured/README.md)
 - Release/support boundary и fallback assets: [`docs/release-and-support.md`](../release-and-support.md)
-d/README.md)
-- Release/support boundary и fallback assets: [`docs/release-and-support.md`](../release-and-support.md)
-tests-restassured/README.md)
-- Release/support boundary и fallback assets: [`docs/release-and-support.md`](../release-and-support.md)
-llback assets: [`docs/release-and-support.md`](../release-and-support.md)

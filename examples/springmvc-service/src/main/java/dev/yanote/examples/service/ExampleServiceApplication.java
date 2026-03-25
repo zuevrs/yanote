@@ -1,6 +1,7 @@
 package dev.yanote.examples.service;
 
 import java.nio.charset.StandardCharsets;
+import java.util.List;
 import java.util.Locale;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeUnit;
@@ -21,11 +22,14 @@ import org.springframework.kafka.annotation.EnableKafka;
 import org.springframework.kafka.annotation.KafkaListener;
 import org.springframework.kafka.config.TopicBuilder;
 import org.springframework.kafka.core.KafkaTemplate;
+import org.springframework.web.bind.annotation.CookieValue;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
+import org.springframework.web.bind.annotation.RequestHeader;
 import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.ResponseStatus;
 import org.springframework.web.bind.annotation.RestController;
 
@@ -149,6 +153,31 @@ public class ExampleServiceApplication {
         public String adminPing() {
             return "pong";
         }
+
+        @GetMapping(path = "/request-evidence/users/{userId}", produces = MediaType.APPLICATION_JSON_VALUE)
+        public RequestEvidenceProbeResponse requestEvidenceProbe(
+                @PathVariable("userId") String userId,
+                @RequestParam("expand") boolean expand,
+                @RequestParam("tags") List<String> tags,
+                @RequestParam(value = "meta", required = false) String meta,
+                @RequestParam(value = "oversizedHint", required = false) String oversizedHint,
+                @RequestHeader("X-Request-Flavor") String requestFlavor,
+                @RequestHeader(value = "Authorization", required = false) String authorization,
+                @CookieValue("clientMode") String clientMode,
+                @CookieValue(value = "SESSION", required = false) String session
+        ) {
+            return new RequestEvidenceProbeResponse(
+                    userId,
+                    expand,
+                    requestFlavor,
+                    clientMode,
+                    authorization != null && !authorization.isBlank(),
+                    session != null && !session.isBlank(),
+                    oversizedHint == null ? 0 : oversizedHint.length(),
+                    List.copyOf(tags),
+                    meta != null && !meta.isBlank()
+            );
+        }
     }
 
     static class UserCreatedPublisher {
@@ -174,6 +203,19 @@ public class ExampleServiceApplication {
     }
 
     record CreateUserResponse(String id, String name, String email, boolean created) {
+    }
+
+    record RequestEvidenceProbeResponse(
+            String userId,
+            boolean expand,
+            String requestFlavor,
+            String clientMode,
+            boolean authorizationProvided,
+            boolean sessionProvided,
+            int oversizedHintLength,
+            List<String> tags,
+            boolean metaProvided
+    ) {
     }
 
     static class UserRepublishedPublisher {

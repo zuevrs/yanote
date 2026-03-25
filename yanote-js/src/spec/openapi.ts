@@ -2,9 +2,15 @@ import SwaggerParser from "@apidevtools/swagger-parser";
 import type { OpenAPI } from "openapi-types";
 import {
   compareDeclaredStatusToken,
+  compareHttpRequestParameterContract,
   compareParameterDefinition,
   normalizeDeclaredStatusToken,
   type DeclaredStatusToken,
+  type HttpRequestDeclaredSupport,
+  type HttpRequestParameterContract,
+  type HttpRequestParameterLocation,
+  type HttpRequestParameterStyle,
+  type HttpScalarSchemaContract,
   type ParameterDefinition
 } from "../coverage/dimensions.js";
 import type { OperationKey } from "../model/operationKey.js";
@@ -12,6 +18,26 @@ import { serializeOperationKey } from "../model/operationKey.js";
 import { buildHttpSemantics } from "./semantics.js";
 
 const HTTP_METHODS = ["get", "put", "post", "delete", "patch", "options", "head", "trace"] as const;
+const SUPPORTED_PARAMETER_STYLE_BY_LOCATION: Record<HttpRequestParameterLocation, ReadonlySet<string>> = {
+  path: new Set(["simple"]),
+  query: new Set(["form"]),
+  header: new Set(["simple"]),
+  cookie: new Set(["form"])
+};
+const IGNORED_PARAMETER_SCHEMA_KEYS = new Set([
+  "description",
+  "title",
+  "example",
+  "examples",
+  "default",
+  "deprecated",
+  "readOnly",
+  "writeOnly",
+  "xml",
+  "externalDocs"
+]);
+
+const HTTP_SCALAR_TYPES = new Set<HttpScalarSchemaContract["type"]>(["string", "integer", "number", "boolean"]);
 
 type HttpMethod = (typeof HTTP_METHODS)[number];
 
@@ -35,6 +61,7 @@ export type HttpResponseBodyContract = {
 export type HttpOperationContract = {
   declaredStatuses: string[];
   parameters: ParameterDefinition[];
+  requestParameters?: HttpRequestParameterContract[];
   requestBody?: HttpRequestBodyContract;
   responseBodies: HttpResponseBodyContract[];
 };
@@ -85,7 +112,7 @@ function extractHttpContracts(document: OpenAPI.Document): Map<string, HttpOpera
     if (!isRecord(pathItem)) continue;
 
     const canonicalRoute = normalizeTemplatedRoute(rawRoute);
-    const pathParameters = extractParameters(pathItem.parameters);
+    const pathRequestParameters = extractRequestParameters(pathItem.parameters);
 
     for (const method of HTTP_METHODS) {
       const operation = pathItem[method];
@@ -99,13 +126,21 @@ function extractHttpContracts(document: OpenAPI.Document): Map<string, HttpOpera
 
       if (out.has(operationKey)) continue;
 
-      const operationParameters = extractParameters(operation.parameters);
-      const mergedParameters = mergeParameters(pathParameters, operationParameters);
+      const operationRequestParameters = extractRequestParameters(operation.parameters);
+      const mergedRequestParameters = mergeRequestParameters(pathRequestParameters, operationRequestParameters);
       const declaredStatuses = extractDeclaredStatuses(operation.responses);
 
       out.set(operationKey, {
         declaredStatuses,
-        parameters: mergedParameters,
+        parameters: mergedRequestParameters
+          .filter((parameter): parameter is HttpRequestParameterContract & { in: ParameterDefinition["in"] } => parameter.in !== "cookie")
+          .map((parameter) => ({
+            name: parameter.name,
+            in: parameter.in,
+            required: parameter.required
+          }))
+          .sort(compareParameterDefinition),
+        requestParameters: mergedRequestParameters,
         requestBody: extractRequestBodyContract(operation.requestBody),
         responseBodies: extractResponseBodyContracts(operation.responses)
       });
@@ -119,6 +154,7 @@ function createEmptyHttpOperationContract(): HttpOperationContract {
   return {
     declaredStatuses: [],
     parameters: [],
+    requestParameters: [],
     responseBodies: []
   };
 }
@@ -300,8 +336,11 @@ function applyNullableSchema(schema: Record<string, unknown>): JsonSchemaContrac
   };
 }
 
-function mergeParameters(pathParameters: ParameterDefinition[], operationParameters: ParameterDefinition[]): ParameterDefinition[] {
-  const merged = new Map<string, ParameterDefinition>();
+function mergeRequestParameters(
+  pathParameters: HttpRequestParameterContract[],
+  operationParameters: HttpRequestParameterContract[]
+): HttpRequestParameterContract[] {
+  const merged = new Map<string, HttpRequestParameterContract>();
 
   for (const parameter of pathParameters) {
     merged.set(`${parameter.in}:${parameter.name}`, parameter);
@@ -311,30 +350,232 @@ function mergeParameters(pathParameters: ParameterDefinition[], operationParamet
     merged.set(`${parameter.in}:${parameter.name}`, parameter);
   }
 
-  return Array.from(merged.values()).sort(compareParameterDefinition);
+  return Array.from(merged.values()).sort(compareHttpRequestParameterContract);
 }
 
-function extractParameters(value: unknown): ParameterDefinition[] {
+function extractRequestParameters(value: unknown): HttpRequestParameterContract[] {
   if (!Array.isArray(value)) return [];
 
-  const out: ParameterDefinition[] = [];
+  const out: HttpRequestParameterContract[] = [];
 
   for (const entry of value) {
     if (!isRecord(entry)) continue;
 
-    const location = entry.in;
-    const name = entry.name;
-    if (typeof name !== "string") continue;
-    if (location !== "path" && location !== "query" && location !== "header") continue;
+    const location = extractParameterLocation(entry.in);
+    const name = typeof entry.name === "string" ? entry.name : undefined;
+    if (!location || !name) continue;
+
+    const style = normalizeParameterStyle(entry.style, location);
+    const explode = typeof entry.explode === "boolean" ? entry.explode : style === "form";
+    const declaredSupport = extractDeclaredRequestSupport(entry, location, style, explode);
+    const scalar = extractRequestScalarContract(entry, location, style);
 
     out.push({
       name,
       in: location,
-      required: location === "path" ? true : Boolean(entry.required)
+      required: location === "path" ? true : Boolean(entry.required),
+      style,
+      explode,
+      declaredSupport,
+      scalar
     });
   }
 
   return out;
+}
+
+function extractParameterLocation(value: unknown): HttpRequestParameterLocation | undefined {
+  return value === "path" || value === "query" || value === "header" || value === "cookie" ? value : undefined;
+}
+
+function normalizeParameterStyle(value: unknown, location: HttpRequestParameterLocation): HttpRequestParameterStyle {
+  if (typeof value === "string") {
+    const normalized = value.trim();
+    if (normalized.length > 0) return normalized;
+  }
+
+  switch (location) {
+    case "path":
+    case "header":
+      return "simple";
+    case "query":
+    case "cookie":
+      return "form";
+  }
+}
+
+function extractDeclaredRequestSupport(
+  parameter: Record<string, unknown>,
+  location: HttpRequestParameterLocation,
+  style: HttpRequestParameterStyle,
+  explode: boolean
+): HttpRequestDeclaredSupport {
+  if (parameter.content !== undefined) {
+    return { support: "unsupported", reason: "content" };
+  }
+
+  if (!SUPPORTED_PARAMETER_STYLE_BY_LOCATION[location].has(style)) {
+    return { support: "unsupported", reason: "style" };
+  }
+
+  const scalarSchema = extractSupportedScalarSchema(parameter.schema);
+  if (scalarSchema) {
+    return {
+      support: "supported",
+      shape: "scalar",
+      schema: scalarSchema
+    };
+  }
+
+  const arrayItems = extractSupportedRepeatedQueryArrayItems(parameter.schema);
+  if (!arrayItems) {
+    return { support: "unsupported", reason: "schema" };
+  }
+
+  if (location !== "query") {
+    return { support: "unsupported", reason: "style" };
+  }
+
+  if (style !== "form") {
+    return { support: "unsupported", reason: "style" };
+  }
+
+  if (!explode) {
+    return { support: "unsupported", reason: "explode" };
+  }
+
+  return {
+    support: "supported",
+    shape: "array",
+    items: arrayItems
+  };
+}
+
+function extractRequestScalarContract(
+  parameter: Record<string, unknown>,
+  location: HttpRequestParameterLocation,
+  style: HttpRequestParameterStyle
+): HttpRequestParameterContract["scalar"] {
+  if (parameter.content !== undefined) {
+    return { support: "unsupported", reason: "schema" };
+  }
+
+  if (!SUPPORTED_PARAMETER_STYLE_BY_LOCATION[location].has(style)) {
+    return { support: "unsupported", reason: "style" };
+  }
+
+  const schema = extractSupportedScalarSchema(parameter.schema);
+  if (!schema) {
+    return { support: "unsupported", reason: "schema" };
+  }
+
+  return {
+    support: "supported",
+    schema
+  };
+}
+
+function extractSupportedRepeatedQueryArrayItems(value: unknown): HttpScalarSchemaContract | undefined {
+  if (!isRecord(value) || value.nullable === true || value.type !== "array") {
+    return undefined;
+  }
+
+  for (const key of Object.keys(value)) {
+    if (key === "type" || key === "items") continue;
+    if (IGNORED_PARAMETER_SCHEMA_KEYS.has(key)) continue;
+    return undefined;
+  }
+
+  return extractSupportedScalarSchema(value.items);
+}
+
+function extractSupportedScalarSchema(value: unknown): HttpScalarSchemaContract | undefined {
+  if (!isRecord(value)) return undefined;
+
+  const type = value.type;
+  if (typeof type !== "string" || !HTTP_SCALAR_TYPES.has(type as HttpScalarSchemaContract["type"])) {
+    return undefined;
+  }
+
+  if (value.nullable === true) return undefined;
+
+  const schema: HttpScalarSchemaContract = {
+    type: type as HttpScalarSchemaContract["type"]
+  };
+
+  for (const [key, entry] of Object.entries(value)) {
+    if (key === "type") continue;
+    if (IGNORED_PARAMETER_SCHEMA_KEYS.has(key)) continue;
+
+    switch (key) {
+      case "enum": {
+        const normalized = normalizeScalarEnum(entry, schema.type);
+        if (!normalized) return undefined;
+        schema.enum = normalized;
+        break;
+      }
+      case "minLength":
+      case "maxLength": {
+        if (schema.type !== "string") return undefined;
+        const normalized = normalizeNonNegativeInteger(entry);
+        if (normalized === undefined) return undefined;
+        schema[key] = normalized;
+        break;
+      }
+      case "pattern": {
+        if (schema.type !== "string" || typeof entry !== "string") return undefined;
+        try {
+          new RegExp(entry);
+        } catch {
+          return undefined;
+        }
+        schema.pattern = entry;
+        break;
+      }
+      case "minimum":
+      case "maximum":
+      case "exclusiveMinimum":
+      case "exclusiveMaximum":
+      case "multipleOf": {
+        if (schema.type !== "integer" && schema.type !== "number") return undefined;
+        if (typeof entry !== "number" || !Number.isFinite(entry)) return undefined;
+        if (key === "multipleOf" && entry <= 0) return undefined;
+        schema[key] = entry;
+        break;
+      }
+      default:
+        return undefined;
+    }
+  }
+
+  if (schema.minLength !== undefined && schema.maxLength !== undefined && schema.minLength > schema.maxLength) {
+    return undefined;
+  }
+
+  return schema;
+}
+
+function normalizeScalarEnum(
+  value: unknown,
+  type: HttpScalarSchemaContract["type"]
+): Array<string | number | boolean> | undefined {
+  if (!Array.isArray(value) || value.length === 0) return undefined;
+
+  switch (type) {
+    case "string":
+      return value.every((entry) => typeof entry === "string") ? [...value] : undefined;
+    case "boolean":
+      return value.every((entry) => typeof entry === "boolean") ? [...value] : undefined;
+    case "integer":
+      return value.every((entry) => typeof entry === "number" && Number.isInteger(entry)) ? [...value] : undefined;
+    case "number":
+      return value.every((entry) => typeof entry === "number" && Number.isFinite(entry)) ? [...value] : undefined;
+  }
+}
+
+function normalizeNonNegativeInteger(value: unknown): number | undefined {
+  if (typeof value !== "number" || !Number.isInteger(value) || value < 0) return undefined;
+  return value;
 }
 
 function normalizeTemplatedRoute(route: string): string {

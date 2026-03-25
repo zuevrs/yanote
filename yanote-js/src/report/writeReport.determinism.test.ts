@@ -143,6 +143,82 @@ function makeReport(): YanoteReport {
         items: []
       }
     },
+    httpRequestConformance: {
+      summary: {
+        observedOperations: 0,
+        observedParameters: 0,
+        counts: {
+          capturedValid: 0,
+          capturedInvalid: 0,
+          redacted: 0,
+          omitted: 0,
+          unsupported: 0
+        }
+      },
+      perOperation: [
+        {
+          operationKey: "http GET /b",
+          method: "GET",
+          route: "/b",
+          observedCount: 0,
+          counts: {
+            capturedValid: 0,
+            capturedInvalid: 0,
+            redacted: 0,
+            omitted: 0,
+            unsupported: 0
+          },
+          parameters: [],
+          suites: []
+        },
+        {
+          operationKey: "http GET /a",
+          method: "GET",
+          route: "/a",
+          observedCount: 0,
+          counts: {
+            capturedValid: 0,
+            capturedInvalid: 0,
+            redacted: 0,
+            omitted: 0,
+            unsupported: 0
+          },
+          parameters: [
+            {
+              name: "tags",
+              in: "query",
+              required: false,
+              style: "form",
+              explode: true,
+              declaredSupport: "supported",
+              declaredSupportShape: "array",
+              scalarSupport: "unsupported",
+              scalarSupportReason: "schema",
+              observedCount: 0,
+              counts: {
+                capturedValid: 0,
+                capturedInvalid: 0,
+                redacted: 0,
+                omitted: 0,
+                unsupported: 0
+              },
+              suites: ["suite-2", "suite-1"]
+            }
+          ],
+          suites: ["suite-2", "suite-1"]
+        }
+      ],
+      diagnostics: {
+        counts: {
+          capturedValid: 0,
+          capturedInvalid: 0,
+          redacted: 0,
+          omitted: 0,
+          unsupported: 0
+        },
+        items: []
+      }
+    },
     diagnostics: {
       counts: {
         invalid: 0,

@@ -1,0 +1,143 @@
+openapi: 3.0.0
+info:
+  title: http payload format and media sample
+  version: 1.0.0
+paths:
+  /subscribers:
+    post:
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              required:
+                - email
+              properties:
+                email:
+                  type: string
+                  format: email
+      responses:
+        '201':
+          description: created
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: false
+                required:
+                  - id
+                  - accepted
+                properties:
+                  id:
+                    type: string
+                  accepted:
+                    type: boolean
+  /verifications:
+    post:
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              required:
+                - email
+              properties:
+                email:
+                  type: string
+                  format: email
+      responses:
+        '202':
+          description: queued
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: false
+                required:
+                  - queued
+                properties:
+                  queued:
+                    type: boolean
+  /custom-format:
+    post:
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              required:
+                - externalId
+              properties:
+                externalId:
+                  type: string
+                  format: yanote-customer-id
+      responses:
+        '202':
+          description: accepted
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: false
+                required:
+                  - queued
+                properties:
+                  queued:
+                    type: boolean
+  /incidents:
+    post:
+      requestBody:
+        required: true
+        content:
+          application/*+json:
+            schema:
+              type: object
+              additionalProperties: false
+              required:
+                - title
+              properties:
+                title:
+                  type: string
+          application/problem+json:
+            schema:
+              type: object
+              additionalProperties: false
+              required:
+                - title
+                - detail
+              properties:
+                title:
+                  type: string
+                detail:
+                  type: string
+      responses:
+        '202':
+          description: accepted
+          content:
+            application/*+json:
+              schema:
+                type: object
+                additionalProperties: false
+                required:
+                  - accepted
+                properties:
+                  accepted:
+                    type: boolean
+            application/problem+json:
+              schema:
+                type: object
+                additionalProperties: false
+                required:
+                  - title
+                  - detail
+                properties:
+                  title:
+                    type: string
+                  detail:
+                    type: string

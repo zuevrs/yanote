@@ -13,7 +13,7 @@
 
 Итог этого маршрута — не абстрактное «тесты прошли», а inspectable цепочка артефактов: живые запросы → `events.jsonl` → analyzer → `yanote-report.json`.
 
-Для публичного retained proof поверх этого demo-path используйте `bash scripts/ci/run-v1-e2e.sh`. Он сохраняет `.yanote-ci/v1-e2e/out/yanote-report.json` как стабильный happy-path artifact и рядом удерживает `semantic-red.stdout`, `semantic-red.stderr` и `semantic-red-yanote-report.json`, чтобы можно было сверить green-path `100.00% / 100.00% / 100.00% / 100.00%` observation coverage с fail-closed payload boundary `SEMANTIC_HTTP_UNSUPPORTED_SCHEMA` на тех же live events.
+Для публичного retained proof поверх этого demo-path используйте `bash scripts/ci/run-v1-e2e.sh`. Он сохраняет `.yanote-ci/v1-e2e/out/yanote-report.json` как стабильный happy-path artifact, рядом публикует additive request sidecar `.yanote-ci/v1-e2e/request-semantics.events.jsonl`, `.yanote-ci/v1-e2e/request-semantics.stdout`, `.yanote-ci/v1-e2e/request-semantics.stderr`, `.yanote-ci/v1-e2e/request-semantics-yanote-report.json`, а также удерживает `semantic-red.stdout`, `semantic-red.stderr` и `semantic-red-yanote-report.json`, чтобы можно было сверить green-path `100.00% / 100.00% / 100.00% / 100.00%` observation coverage с fail-closed request/payload boundary. Request sidecar публикует буквальную поддержку `path=simple`, `query=form`, `header=simple`, `cookie=form` и массивов только для `query=form` + `explode=true` + scalar `items`; payload sidecar удерживает `email`-only format allowlist и most-specific media matching. Для deeper retained truth запускайте `bash scripts/ci/verify-m011-s02-request-semantics.sh` и `bash scripts/ci/verify-m011-s03-format-media.sh`.
 
 ## Что лежит в директории
 

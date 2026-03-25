@@ -31,6 +31,25 @@ async function buildPayloadFixtureReport(eventsPath: string): Promise<YanoteRepo
   });
 }
 
+async function buildFormatMediaFixtureReport(eventsPaths: string[]): Promise<YanoteReport> {
+  const model = await loadOpenApiCoverageModel("test/fixtures/openapi/http-payload-format-media.yaml");
+  const eventBatches = await Promise.all(eventsPaths.map((eventsPath) => readHttpEventsJsonl(eventsPath)));
+  const items = eventBatches.flatMap((batch) => batch.items);
+
+  const coverage = computeCoverage(model.operations, items, [], {
+    operationContractsByKey: model.operationContractsByKey
+  });
+  const payloadConformance = computeHttpPayloadConformance(model.operations, items, {
+    operationContractsByKey: model.operationContractsByKey
+  });
+
+  return buildReport(coverage, {
+    toolVersion: "test",
+    eventTimestamps: items.map((event) => event.ts).filter((timestamp): timestamp is number => typeof timestamp === "number"),
+    payloadConformance
+  });
+}
+
 async function buildFullObservationPayloadTruthReport(
   scenario: "invalid-body" | "unsupported-media" | "unsupported-schema"
 ): Promise<YanoteReport> {
@@ -330,6 +349,46 @@ const baseReport: YanoteReport = {
       items: []
     }
   },
+  httpRequestConformance: {
+    summary: {
+      observedOperations: 0,
+      observedParameters: 0,
+      counts: {
+        capturedValid: 0,
+        capturedInvalid: 0,
+        redacted: 0,
+        omitted: 0,
+        unsupported: 0
+      }
+    },
+    perOperation: [
+      {
+        operationKey: "http GET /users/{param}",
+        method: "GET",
+        route: "/users/{param}",
+        observedCount: 0,
+        counts: {
+          capturedValid: 0,
+          capturedInvalid: 0,
+          redacted: 0,
+          omitted: 0,
+          unsupported: 0
+        },
+        parameters: [],
+        suites: ["suite-a"]
+      }
+    ],
+    diagnostics: {
+      counts: {
+        capturedValid: 0,
+        capturedInvalid: 0,
+        redacted: 0,
+        omitted: 0,
+        unsupported: 0
+      },
+      items: []
+    }
+  },
   diagnostics: {
     counts: {
       invalid: 0,
@@ -552,6 +611,20 @@ describe("report schema contract", () => {
         },
         diagnostics: [
           { severity: "warning", class: "gate", code: "WARN_B", message: "b" },
+          {
+            severity: "error",
+            class: "semantic",
+            code: "SEMANTIC_HTTP_UNSUPPORTED_SCHEMA",
+            message: "unsupported schema",
+            operationKey: "http POST /compile-fail"
+          },
+          {
+            severity: "error",
+            class: "semantic",
+            code: "SEMANTIC_HTTP_UNSUPPORTED_SCHEMA_FORMAT",
+            message: "unsupported schema format",
+            operationKey: "http POST /custom-format"
+          },
           { severity: "error", class: "input", code: "ERR_A", message: "a", operationKey: "http GET /z" }
         ]
       }
@@ -578,7 +651,160 @@ describe("report schema contract", () => {
     expect(normalized.httpPayloadConformance.diagnostics.items[0].errors).toEqual(["/a error", "/b error"]);
     expect(normalized.diagnostics.items.map((item) => item.kind)).toEqual(["invalid", "ambiguous", "unmatched"]);
     expect(normalized.governance.exclusions.appliedRules.map((rule) => rule.id)).toEqual(["rule-1", "rule-2"]);
-    expect(normalized.governance.diagnostics.map((item) => item.code)).toEqual(["ERR_A", "WARN_B"]);
+    expect(normalized.governance.diagnostics.map((item) => item.code)).toEqual([
+      "ERR_A",
+      "SEMANTIC_HTTP_UNSUPPORTED_SCHEMA_FORMAT",
+      "SEMANTIC_HTTP_UNSUPPORTED_SCHEMA",
+      "WARN_B"
+    ]);
+  });
+
+  it("keeps the shared S03 format/media matrix schema-valid while surfacing invalid-format and unsupported-format truth", async () => {
+    const report = normalizeReport(
+      await buildFormatMediaFixtureReport([
+        "test/fixtures/events/http-payload-valid-format.fixture.jsonl",
+        "test/fixtures/events/http-payload-invalid-format.fixture.jsonl",
+        "test/fixtures/events/http-payload-unsupported-format.fixture.jsonl",
+        "test/fixtures/events/http-payload-media-specificity.fixture.jsonl"
+      ])
+    );
+
+    expect(validateReport(report).ok).toBe(true);
+    expect(report.status).toBe("partial");
+    expect(report.summary.totalOperations).toBe(4);
+    expect(report.summary.coveredOperations).toBe(4);
+    expect(report.summary.operationCoveragePercent).toBe(100);
+    expect(report.coverage.operations).toEqual({ state: "COVERED", percent: 100 });
+    expect(report.httpPayloadConformance.summary.request).toEqual({
+      coveredOperations: 1,
+      partialOperations: 0,
+      uncoveredOperations: 2,
+      skippedOperations: 1,
+      notApplicableOperations: 0,
+      observedCount: 4,
+      validCount: 1,
+      invalidCount: 2,
+      skippedCount: 1
+    });
+    expect(report.httpPayloadConformance.summary.response).toEqual({
+      coveredOperations: 4,
+      partialOperations: 0,
+      uncoveredOperations: 0,
+      skippedOperations: 0,
+      notApplicableOperations: 0,
+      observedCount: 4,
+      validCount: 4,
+      invalidCount: 0,
+      skippedCount: 0
+    });
+    expect(summarizePayloadStates(report)).toEqual([
+      { operationKey: "http POST /custom-format", request: "SKIPPED", response: "COVERED", suites: ["suite-format-unsupported"] },
+      { operationKey: "http POST /incidents", request: "UNCOVERED", response: "COVERED", suites: ["suite-media-specificity"] },
+      { operationKey: "http POST /subscribers", request: "COVERED", response: "COVERED", suites: ["suite-format-valid"] },
+      { operationKey: "http POST /verifications", request: "UNCOVERED", response: "COVERED", suites: ["suite-format-invalid"] }
+    ]);
+    expect(summarizePayloadDiagnostics(report)).toEqual([
+      {
+        operationKey: "http POST /custom-format",
+        target: "request",
+        state: "SKIPPED",
+        code: "UNSUPPORTED_SCHEMA_FORMAT",
+        suite: "suite-format-unsupported",
+        declaredStatus: undefined,
+        observedStatus: undefined,
+        observedMediaType: "application/json",
+        errors: [
+          "/properties/externalId declares unsupported schema format \"yanote-customer-id\" outside Yanote's supported payload format allowlist."
+        ]
+      },
+      {
+        operationKey: "http POST /custom-format",
+        target: "response",
+        state: "COVERED",
+        code: "VALID",
+        suite: "suite-format-unsupported",
+        declaredStatus: "202",
+        observedStatus: 202,
+        observedMediaType: "application/json",
+        errors: undefined
+      },
+      {
+        operationKey: "http POST /incidents",
+        target: "request",
+        state: "UNCOVERED",
+        code: "INVALID_BODY",
+        suite: "suite-media-specificity",
+        declaredStatus: undefined,
+        observedStatus: undefined,
+        observedMediaType: "application/problem+json",
+        errors: ["/ must have required property 'detail'"]
+      },
+      {
+        operationKey: "http POST /incidents",
+        target: "response",
+        state: "COVERED",
+        code: "VALID",
+        suite: "suite-media-specificity",
+        declaredStatus: "202",
+        observedStatus: 202,
+        observedMediaType: "application/problem+json",
+        errors: undefined
+      },
+      {
+        operationKey: "http POST /subscribers",
+        target: "request",
+        state: "COVERED",
+        code: "VALID",
+        suite: "suite-format-valid",
+        declaredStatus: undefined,
+        observedStatus: undefined,
+        observedMediaType: "application/json",
+        errors: undefined
+      },
+      {
+        operationKey: "http POST /subscribers",
+        target: "response",
+        state: "COVERED",
+        code: "VALID",
+        suite: "suite-format-valid",
+        declaredStatus: "201",
+        observedStatus: 201,
+        observedMediaType: "application/json",
+        errors: undefined
+      },
+      {
+        operationKey: "http POST /verifications",
+        target: "request",
+        state: "UNCOVERED",
+        code: "INVALID_BODY",
+        suite: "suite-format-invalid",
+        declaredStatus: undefined,
+        observedStatus: undefined,
+        observedMediaType: "application/json",
+        errors: ["/email must match format \"email\""]
+      },
+      {
+        operationKey: "http POST /verifications",
+        target: "response",
+        state: "COVERED",
+        code: "VALID",
+        suite: "suite-format-invalid",
+        declaredStatus: "202",
+        observedStatus: 202,
+        observedMediaType: "application/json",
+        errors: undefined
+      }
+    ]);
+    expect(report.governance.diagnostics.map((diagnostic) => diagnostic.code)).toEqual([
+      "SEMANTIC_HTTP_INVALID_BODY",
+      "SEMANTIC_HTTP_INVALID_BODY",
+      "SEMANTIC_HTTP_UNSUPPORTED_SCHEMA_FORMAT"
+    ]);
+    expect(report.governance.diagnostics.map((diagnostic) => diagnostic.message)).toEqual([
+      "request payload for http POST /incidents media=application/problem+json failed JSON schema validation.",
+      "request payload for http POST /verifications media=application/json failed JSON schema validation.",
+      "request payload for http POST /custom-format media=application/json declares a schema format outside Yanote's supported payload format allowlist."
+    ]);
   });
 
   it.each([

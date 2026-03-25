@@ -24,21 +24,24 @@ public class HttpEventRecordingFilter extends OncePerRequestFilter {
     private final String serviceName;
     private final RouteTemplateResolver routeTemplateResolver;
     private final HttpPayloadCapture payloadCapture;
+    private final HttpRequestEvidenceCapture requestEvidenceCapture;
 
     public HttpEventRecordingFilter(String eventsPath, String serviceName, RouteTemplateResolver routeTemplateResolver) {
-        this(eventsPath, serviceName, routeTemplateResolver, new HttpPayloadCapture());
+        this(eventsPath, serviceName, routeTemplateResolver, new HttpPayloadCapture(), new HttpRequestEvidenceCapture());
     }
 
     HttpEventRecordingFilter(
             String eventsPath,
             String serviceName,
             RouteTemplateResolver routeTemplateResolver,
-            HttpPayloadCapture payloadCapture
+            HttpPayloadCapture payloadCapture,
+            HttpRequestEvidenceCapture requestEvidenceCapture
     ) {
         this.eventsPath = eventsPath;
         this.serviceName = serviceName;
         this.routeTemplateResolver = routeTemplateResolver;
         this.payloadCapture = payloadCapture;
+        this.requestEvidenceCapture = requestEvidenceCapture;
     }
 
     @Override
@@ -79,6 +82,7 @@ public class HttpEventRecordingFilter extends OncePerRequestFilter {
         String route = routeTemplateResolver.resolve(request);
         HttpPayloadCapture.PayloadSnapshot requestPayload = payloadCapture.captureRequest(request);
         HttpPayloadCapture.PayloadSnapshot responsePayload = payloadCapture.captureResponse(request, response);
+        HttpRequestEvidenceCapture.RequestEvidenceSnapshot requestEvidence = requestEvidenceCapture.capture(request);
         try {
             new EventJsonlWriter(Path.of(eventsPath)).write(new HttpEvent(
                     System.currentTimeMillis(),
@@ -95,6 +99,10 @@ public class HttpEventRecordingFilter extends OncePerRequestFilter {
                     responsePayload.state(),
                     responsePayload.reason(),
                     responsePayload.contentType(),
+                    requestEvidence.pathParams(),
+                    requestEvidence.queryParams(),
+                    requestEvidence.requestHeaders(),
+                    requestEvidence.cookies(),
                     serviceName,
                     null,
                     false

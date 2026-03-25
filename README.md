@@ -1,6 +1,6 @@
 # yanote
 
-Yanote помогает инженерной команде увидеть не абстрактное «тесты прошли», а реальное покрытие HTTP-контракта по живым вызовам. Сервис пишет события в `events.jsonl`, analyzer сопоставляет их со спецификацией OpenAPI и собирает `yanote-report.json`, где видно, какие операции, статусы и обязательные параметры действительно наблюдались.
+Yanote помогает инженерной команде увидеть не абстрактное «тесты прошли», а реальное покрытие HTTP-контракта по живым вызовам. Сервис пишет события в `events.jsonl`, analyzer сопоставляет их со спецификацией OpenAPI и собирает `yanote-report.json`, где видно не только какие операции, статусы и обязательные параметры действительно наблюдались, но и где проходит честная публичная граница request/payload semantics.
 
 ## Что такое Yanote
 
@@ -8,7 +8,7 @@ Yanote — это связка из рекордера, событийного �
 
 - рекордер подключается к сервису и пишет evidence в `events.jsonl`;
 - analyzer читает OpenAPI + `events.jsonl` и считает покрытие;
-- результат остаётся в читаемом stdout, строке `YANOTE_SUMMARY ...` и файле `yanote-report.json`.
+- результат остаётся в читаемом stdout, секциях `HTTP Payload Conformance` и `HTTP Request Conformance`, строке `YANOTE_SUMMARY ...` и файле `yanote-report.json`.
 
 Практический результат для команды простой: после прогона тестов или ручных вызовов можно ответить не только на вопрос «были ли запросы», но и на вопрос «какая часть контракта реально доказана событиями, а где coverage ещё partial».
 
@@ -42,16 +42,16 @@ Yanote нужен инженеру, который одновременно от
    После живого HTTP-запроса или прогона тестов проверьте, что файл создан, не пустой и содержит ожидаемые поля маршрута, статуса и сервиса. Это первый доказуемый артефакт цикла, который потом пойдёт в analyzer.
 
 3. **Прогоните analyzer по OpenAPI и событиям.**
-   Канонический путь запуска и интерпретации описан в [`docs/guides/analyzer-coverage.md`](docs/guides/analyzer-coverage.md): собрать `yanote-js`, выполнить `report` против OpenAPI и `events.jsonl`, получить stdout с `Summary`, секцией `HTTP Payload Conformance`, строку `YANOTE_SUMMARY ...` и стабильный файл `yanote-report.json`.
+   Канонический путь запуска и интерпретации описан в [`docs/guides/analyzer-coverage.md`](docs/guides/analyzer-coverage.md): собрать `yanote-js`, выполнить `report` против OpenAPI и `events.jsonl`, получить stdout с `Summary`, секциями `HTTP Payload Conformance` и `HTTP Request Conformance`, строку `YANOTE_SUMMARY ...` и стабильный файл `yanote-report.json`.
 
-   Если нужен runnable repo demo целиком, используйте [`examples/README.md`](examples/README.md) и [`examples/docker-compose.yml`](examples/docker-compose.yml). Для публичного proof-bundle в репозитории есть `bash scripts/ci/run-v1-e2e.sh`: он сохраняет happy-path артефакт `.yanote-ci/v1-e2e/out/yanote-report.json` и рядом удерживает `semantic-red.stdout`, `semantic-red.stderr` и `semantic-red-yanote-report.json`, чтобы можно было проверить fail-closed путь `SEMANTIC_HTTP_UNSUPPORTED_SCHEMA` на тех же live events.
+   Если нужен runnable repo demo целиком, используйте [`examples/README.md`](examples/README.md) и [`examples/docker-compose.yml`](examples/docker-compose.yml). Для публичного proof-bundle в репозитории есть `bash scripts/ci/run-v1-e2e.sh`: он сохраняет happy-path артефакт `.yanote-ci/v1-e2e/out/yanote-report.json`, рядом публикует retained request sidecar `.yanote-ci/v1-e2e/request-semantics.events.jsonl`, `.yanote-ci/v1-e2e/request-semantics.stdout`, `.yanote-ci/v1-e2e/request-semantics.stderr`, `.yanote-ci/v1-e2e/request-semantics-yanote-report.json`, а также удерживает payload semantic-red sidecars `semantic-red.stdout`, `semantic-red.stderr` и `semantic-red-yanote-report.json`. Если нужно deeper retained truth, используйте `bash scripts/ci/verify-m011-s02-request-semantics.sh` и `bash scripts/ci/verify-m011-s03-format-media.sh`.
 
    Offline fallback для analyzer остаётся вторичным путём через release assets GitHub Releases; публичные tracked `dist/*` docs больше не считаются supported entrypoint, поэтому ориентируйтесь на [`docs/release-and-support.md`](docs/release-and-support.md).
 
    Если вам нужен не HTTP/OpenAPI path, а первая волна AsyncAPI/Kafka, не смешивайте её с этим циклом: отдельный guide [`docs/guides/asyncapi-kafka.md`](docs/guides/asyncapi-kafka.md) ведёт по Kafka evidence, команде `async-report`, отдельному артефакту `yanote-async-report.json` и retained runtime-selection sidecar для multi-message AsyncAPI path.
 
 4. **Прочитайте отчёт, а не только exit code.**
-   В текущем публичном demo-path happy path показывает `operations/status/parameters/aggregate = 100.00%`, но это не отменяет отдельную поверхность `HTTP Payload Conformance`. Для `POST /users` она подтверждает JSON request/response payload на зелёном пути, для `GET /users` честно сохраняет `NO_DECLARED_CONTENT` как benign `SKIPPED`-diagnostic, а для `GET /admin/ping` и `GET /users/{param}` отдельно показывает `RECORDER_OMITTED` с `captureState=omitted` и `captureReason=policy-filtered`. Это различие не считается контрактной ошибкой и не понижает observation coverage. Retained semantic-red sidecars из `.yanote-ci/v1-e2e/` отдельно показывают, что при unsupported schema observation coverage остаётся `100%`, но payload boundary fail-closed возвращает `SEMANTIC_HTTP_UNSUPPORTED_SCHEMA`.
+   В текущем публичном demo-path happy path показывает `operations/status/parameters/aggregate = 100.00%`, но это не отменяет две отдельные поверхности — `HTTP Payload Conformance` и `HTTP Request Conformance`. Request boundary публикует только поддерживаемый subset `path=simple`, `query=form`, `header=simple`, `cookie=form`; повторяющиеся массивы поддерживаются только для `query=form` + `explode=true` + scalar `items`, а выход за этот subset удерживается как `SEMANTIC_HTTP_UNSUPPORTED_REQUEST_PARAMETER` через `httpRequestConformance`, `declaredSupport*` и request-токены `YANOTE_SUMMARY` (`request_observed_operations`, `request_observed_parameters`, `request_truths`, `primary`). Payload boundary отдельно подтверждает `email`-only format allowlist, most-specific media matching, benign `NO_DECLARED_CONTENT`, `RECORDER_OMITTED` с `captureState=omitted` и `captureReason=policy-filtered`, а на retained semantic-red path показывает fail-closed `SEMANTIC_HTTP_UNSUPPORTED_SCHEMA`.
 
 ### Канонический путь тестовых метаданных
 

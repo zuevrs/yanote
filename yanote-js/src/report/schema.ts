@@ -14,6 +14,7 @@ const REPORT_SCHEMA = {
     "summary",
     "coverage",
     "httpPayloadConformance",
+    "httpRequestConformance",
     "diagnostics",
     "governance"
   ],
@@ -230,6 +231,7 @@ const REPORT_SCHEMA = {
                       "MISSING_CONTENT_TYPE",
                       "MEDIA_TYPE_MISMATCH",
                       "UNSUPPORTED_MEDIA_TYPE",
+                      "UNSUPPORTED_SCHEMA_FORMAT",
                       "UNSUPPORTED_SCHEMA",
                       "NO_DECLARED_CONTENT",
                       "RECORDER_OMITTED"
@@ -243,6 +245,119 @@ const REPORT_SCHEMA = {
                   captureState: { enum: ["captured", "omitted"] },
                   captureReason: { enum: ["malformed", "oversized", "unsupported", "policy-filtered"] },
                   errors: { type: "array", items: { type: "string" } }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    httpRequestConformance: {
+      type: "object",
+      additionalProperties: false,
+      required: ["summary", "perOperation", "diagnostics"],
+      properties: {
+        summary: {
+          type: "object",
+          additionalProperties: false,
+          required: ["observedOperations", "observedParameters", "counts"],
+          properties: {
+            observedOperations: { type: "integer", minimum: 0 },
+            observedParameters: { type: "integer", minimum: 0 },
+            counts: { $ref: "#/$defs/httpRequestTruthAggregate" }
+          }
+        },
+        perOperation: {
+          type: "array",
+          items: {
+            type: "object",
+            additionalProperties: false,
+            required: ["operationKey", "method", "route", "observedCount", "counts", "parameters", "suites"],
+            properties: {
+              operationKey: { type: "string", minLength: 1 },
+              method: { type: "string", minLength: 1 },
+              route: { type: "string", minLength: 1 },
+              observedCount: { type: "integer", minimum: 0 },
+              counts: { $ref: "#/$defs/httpRequestTruthAggregate" },
+              parameters: {
+                type: "array",
+                items: {
+                  type: "object",
+                  additionalProperties: false,
+                  required: [
+                    "name",
+                    "in",
+                    "required",
+                    "style",
+                    "explode",
+                    "declaredSupport",
+                    "scalarSupport",
+                    "observedCount",
+                    "counts",
+                    "suites"
+                  ],
+                  properties: {
+                    name: { type: "string", minLength: 1 },
+                    in: { enum: ["path", "query", "header", "cookie"] },
+                    required: { type: "boolean" },
+                    style: { type: "string", minLength: 1 },
+                    explode: { type: "boolean" },
+                    declaredSupport: { enum: ["supported", "unsupported"] },
+                    declaredSupportShape: { enum: ["scalar", "array"] },
+                    declaredSupportReason: { enum: ["content", "style", "explode", "schema"] },
+                    scalarSupport: { enum: ["supported", "unsupported"] },
+                    scalarSupportReason: { enum: ["style", "schema"] },
+                    observedCount: { type: "integer", minimum: 0 },
+                    counts: { $ref: "#/$defs/httpRequestTruthAggregate" },
+                    suites: { type: "array", items: { type: "string" } }
+                  }
+                }
+              },
+              suites: {
+                type: "array",
+                items: { type: "string" }
+              }
+            }
+          }
+        },
+        diagnostics: {
+          type: "object",
+          additionalProperties: false,
+          required: ["counts", "items"],
+          properties: {
+            counts: { $ref: "#/$defs/httpRequestTruthAggregate" },
+            items: {
+              type: "array",
+              items: {
+                type: "object",
+                additionalProperties: false,
+                required: [
+                  "operationKey",
+                  "method",
+                  "route",
+                  "suite",
+                  "location",
+                  "name",
+                  "required",
+                  "style",
+                  "truth",
+                  "message"
+                ],
+                properties: {
+                  operationKey: { type: "string", minLength: 1 },
+                  method: { type: "string", minLength: 1 },
+                  route: { type: "string", minLength: 1 },
+                  suite: { type: "string", minLength: 1 },
+                  location: { enum: ["path", "query", "header", "cookie"] },
+                  name: { type: "string", minLength: 1 },
+                  required: { type: "boolean" },
+                  style: { type: "string", minLength: 1 },
+                  truth: { enum: ["captured-valid", "captured-invalid", "redacted", "omitted", "unsupported"] },
+                  message: { type: "string", minLength: 1 },
+                  reason: { type: "string" },
+                  observedValues: { type: "array", items: { type: "string" } },
+                  evidenceState: { enum: ["captured", "redacted", "omitted"] },
+                  evidenceReason: { enum: ["sensitive", "oversized", "unsupported", "unavailable"] }
                 }
               }
             }
@@ -375,6 +490,18 @@ const REPORT_SCHEMA = {
     }
   },
   $defs: {
+    httpRequestTruthAggregate: {
+      type: "object",
+      additionalProperties: false,
+      required: ["capturedValid", "capturedInvalid", "redacted", "omitted", "unsupported"],
+      properties: {
+        capturedValid: { type: "integer", minimum: 0 },
+        capturedInvalid: { type: "integer", minimum: 0 },
+        redacted: { type: "integer", minimum: 0 },
+        omitted: { type: "integer", minimum: 0 },
+        unsupported: { type: "integer", minimum: 0 }
+      }
+    },
     httpPayloadTargetAggregate: {
       type: "object",
       additionalProperties: false,

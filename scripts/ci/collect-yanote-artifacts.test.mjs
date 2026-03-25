@@ -58,10 +58,35 @@ async function seedV1E2eBundle(workDir) {
   const v1BundleDir = path.join(workDir, ".yanote-ci/v1-e2e");
   await mkdir(path.join(v1BundleDir, "out"), { recursive: true });
 
-  await writeFile(path.join(v1BundleDir, "artifact-manifest.txt"), "happy_path_report_found=true\nsemantic_red_primary=SEMANTIC_HTTP_UNSUPPORTED_SCHEMA\n", "utf8");
-  await writeFile(path.join(v1BundleDir, "artifact-source-paths.txt"), "events.jsonl=report:/data/yanote/events.jsonl\nout/yanote-report.json=report:/data/yanote/out/yanote-report.json\n", "utf8");
+  await writeFile(
+    path.join(v1BundleDir, "artifact-manifest.txt"),
+    [
+      "happy_path_report_found=true",
+      "request_semantics_primary=SEMANTIC_HTTP_UNSUPPORTED_REQUEST_PARAMETER",
+      "semantic_red_primary=SEMANTIC_HTTP_UNSUPPORTED_SCHEMA"
+    ].join("\n") + "\n",
+    "utf8"
+  );
+  await writeFile(
+    path.join(v1BundleDir, "artifact-source-paths.txt"),
+    [
+      "events.jsonl=report:/data/yanote/events.jsonl",
+      "out/yanote-report.json=report:/data/yanote/out/yanote-report.json",
+      "request-semantics.events.jsonl=filtered:.yanote-ci/v1-e2e/events.jsonl route=/request-evidence/users/{userId}",
+      "request-semantics.stdout=host:node yanote-js/dist/yanote.cjs report --spec examples/openapi/request-evidence-openapi.yaml --events .yanote-ci/v1-e2e/request-semantics.events.jsonl --out <temp> --min-coverage 100"
+    ].join("\n") + "\n",
+    "utf8"
+  );
   await writeFile(path.join(v1BundleDir, "compose.log"), "compose log\n", "utf8");
   await writeFile(path.join(v1BundleDir, "events.jsonl"), '{"kind":"http"}\n', "utf8");
+  await writeFile(path.join(v1BundleDir, "request-semantics.events.jsonl"), '{"kind":"http","route":"/request-evidence/users/{userId}"}\n', "utf8");
+  await writeFile(path.join(v1BundleDir, "request-semantics.stdout"), "Summary\nprimary=SEMANTIC_HTTP_UNSUPPORTED_REQUEST_PARAMETER\n", "utf8");
+  await writeFile(
+    path.join(v1BundleDir, "request-semantics.stderr"),
+    "YANOTE_ERROR class=semantic code=SEMANTIC_HTTP_UNSUPPORTED_REQUEST_PARAMETER\n",
+    "utf8"
+  );
+  await writeFile(path.join(v1BundleDir, "request-semantics-yanote-report.json"), '{"status":"ok"}\n', "utf8");
   await writeFile(path.join(v1BundleDir, "semantic-red.stdout"), "Summary\nprimary=SEMANTIC_HTTP_UNSUPPORTED_SCHEMA\n", "utf8");
   await writeFile(path.join(v1BundleDir, "semantic-red.stderr"), "YANOTE_ERROR class=semantic code=SEMANTIC_HTTP_UNSUPPORTED_SCHEMA\n", "utf8");
   await writeFile(path.join(v1BundleDir, "semantic-red-yanote-report.json"), '{"status":"partial"}\n', "utf8");
@@ -133,6 +158,10 @@ test("collects the widened async proof bundle and replaces stale copied director
       "compose.log",
       "events.jsonl",
       "out",
+      "request-semantics-yanote-report.json",
+      "request-semantics.events.jsonl",
+      "request-semantics.stderr",
+      "request-semantics.stdout",
       "semantic-red-yanote-report.json",
       "semantic-red.stderr",
       "semantic-red.stdout"

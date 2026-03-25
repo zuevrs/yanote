@@ -63,6 +63,28 @@ export function normalizeReport(report: YanoteReport): YanoteReport {
     }))
     .sort(comparePayloadDiagnostics);
 
+  const httpRequestPerOperation = [...report.httpRequestConformance.perOperation]
+    .map((entry) => ({
+      ...entry,
+      counts: { ...entry.counts },
+      parameters: [...entry.parameters]
+        .map((parameter) => ({
+          ...parameter,
+          counts: { ...parameter.counts },
+          suites: [...parameter.suites].sort((left, right) => left.localeCompare(right))
+        }))
+        .sort(compareRequestParameterSummaries),
+      suites: [...entry.suites].sort((left, right) => left.localeCompare(right))
+    }))
+    .sort((left, right) => left.operationKey.localeCompare(right.operationKey));
+
+  const httpRequestDiagnostics = [...report.httpRequestConformance.diagnostics.items]
+    .map((item) => ({
+      ...item,
+      observedValues: item.observedValues ? [...item.observedValues] : undefined
+    }))
+    .sort(compareRequestDiagnostics);
+
   return {
     ...report,
     summary: {
@@ -122,6 +144,22 @@ export function normalizeReport(report: YanoteReport): YanoteReport {
         items: httpPayloadDiagnostics
       }
     },
+    httpRequestConformance: {
+      summary: {
+        observedOperations: report.httpRequestConformance.summary.observedOperations,
+        observedParameters: report.httpRequestConformance.summary.observedParameters,
+        counts: {
+          ...report.httpRequestConformance.summary.counts
+        }
+      },
+      perOperation: httpRequestPerOperation,
+      diagnostics: {
+        counts: {
+          ...report.httpRequestConformance.diagnostics.counts
+        },
+        items: httpRequestDiagnostics
+      }
+    },
     diagnostics: {
       counts: {
         ...report.diagnostics.counts
@@ -154,8 +192,13 @@ export function normalizeReport(report: YanoteReport): YanoteReport {
         if (severity !== 0) return severity;
         const klass = governanceClassRank(left.class) - governanceClassRank(right.class);
         if (klass !== 0) return klass;
+        const semantic = governanceSemanticCodeRank(left) - governanceSemanticCodeRank(right);
+        if (semantic !== 0) return semantic;
         if (left.code !== right.code) return left.code.localeCompare(right.code);
-        return (left.operationKey ?? "").localeCompare(right.operationKey ?? "");
+        if ((left.operationKey ?? "") !== (right.operationKey ?? "")) {
+          return (left.operationKey ?? "").localeCompare(right.operationKey ?? "");
+        }
+        return left.message.localeCompare(right.message);
       })
     }
   };
@@ -212,6 +255,49 @@ function comparePayloadDiagnostics(
   return left.suite.localeCompare(right.suite);
 }
 
+function compareRequestParameterSummaries(
+  left: YanoteReport["httpRequestConformance"]["perOperation"][number]["parameters"][number],
+  right: YanoteReport["httpRequestConformance"]["perOperation"][number]["parameters"][number]
+): number {
+  const locationDelta = requestLocationRank(left.in) - requestLocationRank(right.in);
+  if (locationDelta !== 0) return locationDelta;
+  return left.name.localeCompare(right.name);
+}
+
+function compareRequestDiagnostics(
+  left: YanoteReport["httpRequestConformance"]["diagnostics"]["items"][number],
+  right: YanoteReport["httpRequestConformance"]["diagnostics"]["items"][number]
+): number {
+  if (left.operationKey !== right.operationKey) return left.operationKey.localeCompare(right.operationKey);
+
+  const locationDelta = requestLocationRank(left.location) - requestLocationRank(right.location);
+  if (locationDelta !== 0) return locationDelta;
+
+  if (left.name !== right.name) return left.name.localeCompare(right.name);
+  const truthDelta = requestTruthRank(left.truth) - requestTruthRank(right.truth);
+  if (truthDelta !== 0) return truthDelta;
+  if ((left.reason ?? "") !== (right.reason ?? "")) return (left.reason ?? "").localeCompare(right.reason ?? "");
+  if ((left.observedValues ?? []).join("\u0000") !== (right.observedValues ?? []).join("\u0000")) {
+    return (left.observedValues ?? []).join("\u0000").localeCompare((right.observedValues ?? []).join("\u0000"));
+  }
+  return left.suite.localeCompare(right.suite);
+}
+
+function requestLocationRank(value: "path" | "query" | "header" | "cookie"): number {
+  if (value === "path") return 0;
+  if (value === "query") return 1;
+  if (value === "header") return 2;
+  return 3;
+}
+
+function requestTruthRank(value: "captured-valid" | "captured-invalid" | "redacted" | "omitted" | "unsupported"): number {
+  if (value === "captured-valid") return 0;
+  if (value === "captured-invalid") return 1;
+  if (value === "redacted") return 2;
+  if (value === "omitted") return 3;
+  return 4;
+}
+
 function severityRank(kind: "invalid" | "ambiguous" | "unmatched"): number {
   if (kind === "invalid") return 0;
   if (kind === "ambiguous") return 1;
@@ -227,4 +313,61 @@ function governanceClassRank(value: "input" | "semantic" | "gate" | "runtime"): 
   if (value === "semantic") return 1;
   if (value === "gate") return 2;
   return 3;
+}
+
+function governanceSemanticCodeRank(diagnostic: YanoteReport["governance"]["diagnostics"][number]): number {
+  if (diagnostic.class !== "semantic") return 0;
+
+  switch (diagnostic.code) {
+    case "ASYNC_SEMANTIC_SPEC_INVALID":
+      return 0;
+    case "ASYNC_SEMANTIC_UNSUPPORTED_CONTENT_TYPE":
+      return 1;
+    case "ASYNC_SEMANTIC_UNSUPPORTED_SCHEMA_FORMAT":
+      return 2;
+    case "ASYNC_SEMANTIC_MISSING_PAYLOAD":
+      return 3;
+    case "ASYNC_SEMANTIC_INVALID_PAYLOAD":
+      return 4;
+    case "ASYNC_SEMANTIC_MISSING_HEADER":
+      return 5;
+    case "ASYNC_SEMANTIC_UNAVAILABLE_HEADER":
+      return 6;
+    case "ASYNC_SEMANTIC_INVALID_HEADER":
+      return 7;
+    case "ASYNC_SEMANTIC_UNVERIFIABLE_HEADERS":
+      return 8;
+    case "ASYNC_SEMANTIC_AMBIGUOUS_MESSAGE":
+      return 9;
+    case "ASYNC_SEMANTIC_MESSAGE_MISMATCH":
+      return 10;
+    case "ASYNC_SEMANTIC_UNMATCHED_EVIDENCE":
+      return 11;
+    case "SEMANTIC_HTTP_INVALID_REQUEST_PARAMETER":
+      return 20;
+    case "SEMANTIC_HTTP_UNAVAILABLE_REQUEST_PARAMETER":
+      return 21;
+    case "SEMANTIC_HTTP_UNSUPPORTED_REQUEST_PARAMETER":
+      return 22;
+    case "SEMANTIC_HTTP_INVALID_BODY":
+      return 30;
+    case "SEMANTIC_HTTP_MISSING_BODY":
+      return 31;
+    case "SEMANTIC_HTTP_MISSING_CONTENT_TYPE":
+      return 32;
+    case "SEMANTIC_HTTP_MEDIA_TYPE_MISMATCH":
+      return 33;
+    case "SEMANTIC_HTTP_UNSUPPORTED_MEDIA_TYPE":
+      return 34;
+    case "SEMANTIC_HTTP_UNSUPPORTED_SCHEMA_FORMAT":
+      return 35;
+    case "SEMANTIC_HTTP_UNSUPPORTED_SCHEMA":
+      return 36;
+    case "SEMANTIC_SPEC_INVALID":
+      return 40;
+    case "SEMANTIC_FAIL_CLOSED":
+      return 99;
+    default:
+      return 100;
+  }
 }

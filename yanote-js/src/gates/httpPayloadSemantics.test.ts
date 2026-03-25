@@ -11,6 +11,19 @@ import {
   isHttpPayloadSemanticFailureCode
 } from "./httpPayloadSemantics.js";
 
+async function computeFormatMediaFixtureSemanticFailures(eventsPath: string) {
+  const model = await loadOpenApiCoverageModel("test/fixtures/openapi/http-payload-format-media.yaml");
+  const events = (await readHttpEventsJsonl(eventsPath)).items;
+  const payload = computeHttpPayloadConformance(model.operations, events, {
+    operationContractsByKey: model.operationContractsByKey
+  });
+
+  return {
+    payload,
+    failures: evaluateHttpPayloadSemanticFailures(payload.diagnostics)
+  };
+}
+
 describe("http payload semantic classifier", () => {
   it("maps raw HTTP payload diagnostics to stable fail-closed semantic failures", () => {
     const diagnostic: HttpPayloadConformanceDiagnostic = {
@@ -74,6 +87,46 @@ describe("http payload semantic classifier", () => {
     expect(unsupported.map((failure) => failure.code)).toEqual([
       "SEMANTIC_HTTP_UNSUPPORTED_MEDIA_TYPE",
       "SEMANTIC_HTTP_UNSUPPORTED_MEDIA_TYPE"
+    ]);
+  });
+
+  it("classifies shared S03 format/media fixtures without leaking values or misclassifying specific media matches", async () => {
+    const invalidFormat = await computeFormatMediaFixtureSemanticFailures(
+      "test/fixtures/events/http-payload-invalid-format.fixture.jsonl"
+    );
+    const unsupportedFormat = await computeFormatMediaFixtureSemanticFailures(
+      "test/fixtures/events/http-payload-unsupported-format.fixture.jsonl"
+    );
+    const mediaSpecificity = await computeFormatMediaFixtureSemanticFailures(
+      "test/fixtures/events/http-payload-media-specificity.fixture.jsonl"
+    );
+
+    expect(invalidFormat.failures.map((failure) => failure.code)).toEqual(["SEMANTIC_HTTP_INVALID_BODY"]);
+    expect(invalidFormat.failures[0]?.reason).toContain("http POST /verifications");
+    expect(invalidFormat.failures[0]?.reason).not.toContain("not-an-email");
+
+    expect(unsupportedFormat.failures.map((failure) => failure.code)).toEqual(["SEMANTIC_HTTP_UNSUPPORTED_SCHEMA_FORMAT"]);
+    expect(unsupportedFormat.failures[0]?.reason).toContain("supported payload format allowlist");
+    expect(unsupportedFormat.failures[0]?.reason).not.toContain("cust-123");
+
+    expect(mediaSpecificity.failures.map((failure) => failure.code)).toEqual(["SEMANTIC_HTTP_INVALID_BODY"]);
+    expect(
+      mediaSpecificity.payload.diagnostics.map((diagnostic) => ({
+        target: diagnostic.target,
+        code: diagnostic.code,
+        observedMediaType: diagnostic.observedMediaType
+      }))
+    ).toEqual([
+      {
+        target: "request",
+        code: "INVALID_BODY",
+        observedMediaType: "application/problem+json"
+      },
+      {
+        target: "response",
+        code: "VALID",
+        observedMediaType: "application/problem+json"
+      }
     ]);
   });
 
