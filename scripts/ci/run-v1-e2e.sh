@@ -14,8 +14,6 @@ SOURCE_PATHS_NOTE_PATH="${ARTIFACT_DIR}/${SOURCE_PATHS_NOTE_NAME}"
 MANIFEST_PATH="${ARTIFACT_DIR}/${MANIFEST_NAME}"
 HOST_GRADLE_HOME="$(mktemp -d "${TMPDIR:-/tmp}/yanote-v1-e2e-gradle.XXXXXX")"
 FALLBACK_GRADLE_DIST_HOME="${HOME}/.gradle/wrapper/dists"
-FALLBACK_GRADLE_MODULES_CACHE="${HOME}/.gradle/caches/modules-2"
-FALLBACK_GRADLE_JARS_CACHE="${HOME}/.gradle/caches/jars-9"
 SEMANTIC_RED_OUT_DIR=""
 
 preseed_gradle_wrapper_dists() {
@@ -25,24 +23,10 @@ preseed_gradle_wrapper_dists() {
   fi
 }
 
-preseed_gradle_dependency_caches() {
-  if [[ -d "${FALLBACK_GRADLE_MODULES_CACHE}" ]]; then
-    mkdir -p "${HOST_GRADLE_HOME}/caches"
-    ln -s "${FALLBACK_GRADLE_MODULES_CACHE}" "${HOST_GRADLE_HOME}/caches/modules-2"
-  fi
-  if [[ -d "${FALLBACK_GRADLE_JARS_CACHE}" ]]; then
-    mkdir -p "${HOST_GRADLE_HOME}/caches"
-    ln -s "${FALLBACK_GRADLE_JARS_CACHE}" "${HOST_GRADLE_HOME}/caches/jars-9"
-  fi
-}
-
 mkdir -p "${HOST_GRADLE_HOME}"
 preseed_gradle_wrapper_dists
-preseed_gradle_dependency_caches
 export GRADLE_USER_HOME="${HOST_GRADLE_HOME}"
 export YANOTE_GRADLE_HOME="${HOST_GRADLE_HOME}"
-export YANOTE_GRADLE_MODULES_CACHE="${YANOTE_GRADLE_MODULES_CACHE:-${FALLBACK_GRADLE_MODULES_CACHE}}"
-export YANOTE_GRADLE_JARS_CACHE="${YANOTE_GRADLE_JARS_CACHE:-${FALLBACK_GRADLE_JARS_CACHE}}"
 export YANOTE_DOCKER_UID="${YANOTE_DOCKER_UID:-$(id -u)}"
 export YANOTE_DOCKER_GID="${YANOTE_DOCKER_GID:-$(id -g)}"
 

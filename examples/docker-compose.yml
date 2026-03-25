@@ -30,8 +30,6 @@ services:
       - ../:/workspace-tests
       - yanote-events:/data/yanote
       - ${YANOTE_GRADLE_HOME:-${HOME}/.gradle}:/data/gradle
-      - ${YANOTE_GRADLE_MODULES_CACHE:-${HOME}/.gradle/caches/modules-2}:/data/gradle/caches/modules-2
-      - ${YANOTE_GRADLE_JARS_CACHE:-${HOME}/.gradle/caches/jars-9}:/data/gradle/caches/jars-9
     environment:
       YANOTE_RUN_ID: compose-run-1
       YANOTE_SUITE: restassured-suite
