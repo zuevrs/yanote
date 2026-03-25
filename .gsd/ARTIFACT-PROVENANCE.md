@@ -54,8 +54,9 @@ Use these categories strictly:
 
 - `M008`
   - Status: `restored-from-backup`
-  - Current terminal artifacts: `M008-SUMMARY.md`, `M008-VALIDATION.md`
+  - Current terminal artifacts: `M008-ROADMAP.md`, `M008-SUMMARY.md`, `M008-VALIDATION.md`
   - Source: restored in commit `727b658` from preserved backup state after the terminal closeout files were found missing in the repo-local tree.
+  - Canonicalization note: `M008-ROADMAP.md` was reconstructed on 2026-03-23 from the surviving context, summary, and validation artifacts so the milestone once again has a canonical roadmap surface.
 
 - `M009`
   - Status: `recovered-from-repo-evidence`
@@ -76,3 +77,6 @@ It means:
 - the milestone outcome is considered true;
 - the terminal `.gsd` closeout file is not original;
 - the closeout was reconstructed from durable repo evidence because the original milestone summary artifact was lost.
+2 template shape;
+- the file now matches current canonical artifact conventions;
+- the exact historical wording or structure did not survive unchanged.

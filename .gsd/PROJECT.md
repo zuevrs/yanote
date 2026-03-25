@@ -36,7 +36,7 @@ What exists now:
 - The hardened `run-v1-e2e.sh` path prewarms runtime dependencies into a shared Gradle home before the offline test-container leg and now copies wrapper distributions into the mounted Gradle home so the containerized public proof can rerun reliably.
 
 Current product-level gap:
-- The hardened `v1.0.126` line is published; remaining work is deferred or follow-on hardening rather than blocked core capability.
+- The hardened `v1.0.127` line is published; remaining work is deferred or follow-on hardening rather than blocked core capability.
 - The compose surface still assumes host-prepared Gradle/Node assets via `run-v1-e2e.sh`; if the project wants raw `docker compose up` to be a cold-start supported entrypoint too, that expectation needs an explicit follow-up rather than an implicit promise.
 - A truly empty local dependency cache still depends on successful network/TLS access during the host prebuild phase of `run-v1-e2e.sh`; the current guarantee is runtime truth on supported runners, not zero-network bootstrap.
 - Unified HTTP+async reporting, broader transport support, richer ecosystem onboarding, coverage/mutation hardening, and compatibility-matrix work remain explicitly deferred rather than silently promised.
@@ -65,5 +65,12 @@ See `.gsd/ARTIFACT-PROVENANCE.md` for the provenance classification of restored 
 - [x] M005: Async Productization And End-to-End Proof — Turn the new async capability into a trustable product surface with docs, support boundaries, CI proof, and release-grade acceptance.
 - [x] M006: Runtime Delivery Hardening And Public Repo Hygiene — Restore trust in the public demo and CI surfaces, then remove tracked technical artifact trees from the default branch without leaving broken docs or trust contracts behind.
 - [x] M007: AsyncAPI Schema Conformance And Contract Depth — Strengthen the async contract surface by carrying payload-bearing evidence through runtime capture, validating payloads against AsyncAPI schemas, and surfacing schema-level drift truthfully.
-- [x] M008: OpenAPI Contract Depth And Payload Conformance — Extend the HTTP path from operation/status/parameter truth into request/response payload conformance with explicit report and gate semantics.
+- [x] M008: OpenAPI Payload Conformance And Contract Depth — Extend the HTTP path from operation/status/parameter truth into request/response payload conformance with explicit report and gate semantics.
 - [x] M009: HTTP And Kafka Evidence Truth Hardening — Make recorder, JSONL, analyzer, report, and gate surfaces distinguish omitted evidence from true semantic drift across the existing HTTP/OpenAPI and Kafka/AsyncAPI product boundary.
+- [ ] M010: Core Contract Coverage Completeness For HTTP And Kafka — Extend the supported core HTTP/OpenAPI and Kafka/AsyncAPI paths so real services get explicit truth for the main status/parameter/header/payload contract surfaces.
+- [ ] M011: OpenAPI Parameter, Cookie, And Media Semantics — Broaden the supported HTTP contract surface beyond current core checks into cookie, serialization, and media/format semantics that the recorder path can prove truthfully.
+- [ ] M012: OpenAPI Surface Expansion Beyond Request/Response Core — Decide and implement which broader OpenAPI objects become first-class supported analyzer surfaces after the request/response core is complete.
+- [ ] M013: Analyzer Delivery, Remote Spec, And Report UX — Improve how teams load specs and consume analyzer truth through remote spec retrieval, deprecated-operation handling, and human-friendly report artifacts.
+- [ ] M014: AsyncAPI Semantic Breadth Within Kafka-First Boundaries — Deepen the supported Kafka-only async path with richer AsyncAPI semantics that still fit the current truthful runtime boundary.
+- [ ] M015: Async Platform Expansion And Cross-Surface Reporting — Revisit the explicitly deferred platform-boundary changes: broker expansion beyond Kafka and any intentional combined HTTP+async reporting surface.
+yond Kafka and any intentional combined HTTP+async reporting surface.
