@@ -9,6 +9,8 @@ services:
     command: >
       sh -c '
         set -e;
+        mkdir -p /data/yanote;
+        chmod 0777 /data/yanote;
         BOOT_JAR="$$(./examples/resolve-springmvc-boot-jar.sh)";
         exec java -Dyanote.recorder.events-path=/data/yanote/events.jsonl -Dyanote.recorder.enabled=true -jar "$${BOOT_JAR}";
       '
@@ -20,6 +22,7 @@ services:
   tests:
     image: eclipse-temurin:21-jdk
     container_name: yanote-demo-tests
+    user: "${YANOTE_DOCKER_UID:-0}:${YANOTE_DOCKER_GID:-0}"
     depends_on:
       - api
     working_dir: /workspace-tests
@@ -27,6 +30,8 @@ services:
       - ../:/workspace-tests
       - yanote-events:/data/yanote
       - ${YANOTE_GRADLE_HOME:-${HOME}/.gradle}:/data/gradle
+      - ${YANOTE_GRADLE_MODULES_CACHE:-${HOME}/.gradle/caches/modules-2}:/data/gradle/caches/modules-2
+      - ${YANOTE_GRADLE_JARS_CACHE:-${HOME}/.gradle/caches/jars-9}:/data/gradle/caches/jars-9
     environment:
       YANOTE_RUN_ID: compose-run-1
       YANOTE_SUITE: restassured-suite
