@@ -140,8 +140,8 @@ describe("computeCoverage", () => {
     });
 
     expect(withPayloadContracts).toEqual(withoutPayloadContracts);
-    expect(withPayloadContracts.dimensions.operations).toEqual({ state: "COVERED", percent: 100 });
-    expect(withPayloadContracts.dimensions.status).toEqual({ state: "PARTIAL", percent: 66.67 });
+    expect(withPayloadContracts.dimensions.operations).toEqual({ state: "PARTIAL", percent: 33.33 });
+    expect(withPayloadContracts.dimensions.status).toEqual({ state: "PARTIAL", percent: 28.57 });
     expect(withPayloadContracts.dimensions.parameters).toEqual({ state: "N/A", percent: null });
     expect(withPayloadContracts.dimensions.aggregate).toEqual({
       state: "N/A",

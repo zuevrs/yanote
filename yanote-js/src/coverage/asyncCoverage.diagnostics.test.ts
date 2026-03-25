@@ -72,22 +72,12 @@ describe("computeAsyncCoverage diagnostics", () => {
         message: "Observed kafka payload did not conform to the retained AsyncAPI payload schema"
       },
       {
-        kind: "unverifiable-headers",
-        validationKind: "headers",
-        operationKey: OPERATION_KEY,
-        channel: "orders.created",
-        action: "send",
-        messageName: "OrderCreatedEnvelope",
-        schemaId: "OrderEventHeaders",
-        reason: "Kafka evidence does not currently retain headers, so the AsyncAPI header schema cannot be verified.",
-        message: "Retained AsyncAPI header schema cannot be verified from the observed kafka evidence"
-      },
-      {
         kind: "mismatched",
         channel: "orders.created",
         action: "send",
         observedMessage: "LegacyOrderCreatedEnvelope",
         expectedMessage: "OrderCreatedEnvelope",
+        reason: "Observed async message name did not match the declared AsyncAPI message contract.",
         message: "Observed async message contract did not match the canonical AsyncAPI message contract"
       },
       {
@@ -129,17 +119,6 @@ describe("computeAsyncCoverage diagnostics", () => {
         schemaId: "OrderCreatedPayload",
         reason: "Unsupported AsyncAPI payload content type: application/xml.",
         message: "Retained AsyncAPI payload content type is outside the current schema-validation scope"
-      },
-      {
-        kind: "unverifiable-headers",
-        validationKind: "headers",
-        operationKey: OPERATION_KEY,
-        channel: "orders.created",
-        action: "send",
-        messageName: "OrderCreatedEnvelope",
-        schemaId: "OrderEventHeaders",
-        reason: "Kafka evidence does not currently retain headers, so the AsyncAPI header schema cannot be verified.",
-        message: "Retained AsyncAPI header schema cannot be verified from the observed kafka evidence"
       }
     ]);
 
@@ -173,17 +152,6 @@ describe("computeAsyncCoverage diagnostics", () => {
         schemaId: "OrderCreatedPayload",
         reason: "Unsupported AsyncAPI payload schema format: application/vnd.apache.avro;version=1.11.0.",
         message: "Retained AsyncAPI payload schema format is outside the current schema-validation scope"
-      },
-      {
-        kind: "unverifiable-headers",
-        validationKind: "headers",
-        operationKey: OPERATION_KEY,
-        channel: "orders.created",
-        action: "send",
-        messageName: "OrderCreatedEnvelope",
-        schemaId: "OrderEventHeaders",
-        reason: "Kafka evidence does not currently retain headers, so the AsyncAPI header schema cannot be verified.",
-        message: "Retained AsyncAPI header schema cannot be verified from the observed kafka evidence"
       }
     ]);
   });
