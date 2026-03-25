@@ -63,6 +63,10 @@ signing {
     sign(publishing.publications)
 }
 
+tasks.matching { it.name == "cyclonedxDirectBom" }.configureEach {
+    dependsOn(tasks.named("pluginUnderTestMetadata"))
+}
+
 tasks.withType<Test>().configureEach {
     useJUnitPlatform()
 }
