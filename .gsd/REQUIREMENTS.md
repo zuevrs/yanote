@@ -1,56 +1,10 @@
 # Requirements
 
-Current capability contract for the project.
-
-## Active
-
-### R031 — Observed HTTP statuses that are not declared in OpenAPI surface as first-class drift
-- Class: contract-depth
-- Status: active
-- Description: When live HTTP traffic returns a status not declared by the OpenAPI contract, Yanote must surface it explicitly instead of silently preserving a green declared-status numerator.
-- Why it matters: Teams need to know when implementation behavior has escaped the documented status surface.
-- Source: planning
-- Primary owning slice: M010
-- Supporting slices: none
-- Validation: planned
-- Notes: Activated for the M010 core contract completeness milestone.
-
-### R032 — Supported HTTP path/query/header parameter values are validated from retained evidence
-- Class: contract-depth
-- Status: active
-- Description: Yanote validates supported OpenAPI path/query/header parameter values against retained evidence instead of only counting key presence.
-- Why it matters: Key presence alone is not enough to tell whether the main declared parameter contract was actually honored.
-- Source: planning
-- Primary owning slice: M010
-- Supporting slices: none
-- Validation: planned
-- Notes: M010 intentionally limits this to the retained evidence shapes the recorder path can prove truthfully.
-
-### R033 — Supported HTTP response headers are checked as part of contract conformance
-- Class: contract-depth
-- Status: active
-- Description: Yanote treats supported OpenAPI response-header declarations as a first-class HTTP conformance surface.
-- Why it matters: Real API contracts often encode important semantics in response headers, not only in payloads.
-- Source: planning
-- Primary owning slice: M010
-- Supporting slices: none
-- Validation: planned
-- Notes: M010 covers the supported core header surface, not every possible OpenAPI response-header nuance.
-
-### R034 — Kafka-first AsyncAPI header diagnostics are a supported public surface
-- Class: contract-depth
-- Status: active
-- Description: On the proven Kafka-first async path, Yanote surfaces missing, invalid, unavailable, and unverifiable header diagnostics as a supported user-facing contract surface.
-- Why it matters: Async header truth is already part of the implementation seam and should become explicit public contract truth on the proven Kafka path.
-- Source: planning
-- Primary owning slice: M010
-- Supporting slices: none
-- Validation: planned
-- Notes: This does not widen the product beyond Kafka-only or introduce broker-agnostic header promises.
+This file is the explicit capability and coverage contract for the project.
 
 ## Validated
 
-### R001 — Teams can prove supported HTTP contract coverage from recorded evidence
+### R001 — A Java service team can record live HTTP evidence, analyze it against OpenAPI, and see deterministic operation/status/parameter coverage plus file/CLI outputs that show what was actually proven.
 - Class: core-capability
 - Status: validated
 - Description: A Java service team can record live HTTP evidence, analyze it against OpenAPI, and see deterministic operation/status/parameter coverage plus file/CLI outputs that show what was actually proven.
@@ -61,7 +15,7 @@ Current capability contract for the project.
 - Validation: validated
 - Notes: Supported by the current HTTP/OpenAPI recorder → JSONL → analyzer path and retained proof surfaces.
 
-### R002 — Governance gates fail closed on insufficient or invalid evidence
+### R002 — Coverage thresholds, regressions, exclusions, and invalid/incomplete evidence must produce explicit fail-closed behavior instead of false green output.
 - Class: failure-visibility
 - Status: validated
 - Description: Coverage thresholds, regressions, exclusions, and invalid/incomplete evidence must produce explicit fail-closed behavior instead of false green output.
@@ -72,7 +26,7 @@ Current capability contract for the project.
 - Validation: validated
 - Notes: Supported by the current threshold, regression, exclusion, and semantic-failure contract tests and workflow gates.
 
-### R003 — Delivery surfaces work in local and CI workflows
+### R003 — The product can be used through the standalone CLI, Gradle plugin tasks, and GitHub Action/CI workflow surfaces.
 - Class: launchability
 - Status: validated
 - Description: The product can be used through the standalone CLI, Gradle plugin tasks, and GitHub Action/CI workflow surfaces.
@@ -83,7 +37,7 @@ Current capability contract for the project.
 - Validation: validated
 - Notes: Supported by the current CLI, Gradle, CI, and release workflow surfaces.
 
-### R004 — Public release and support truth is versioned and explicit
+### R004 — Public support/release truth is defined by signed tags, GitHub Releases, Maven Central publication, and reproducible release verification rather than by workspace snapshot markers.
 - Class: operability
 - Status: validated
 - Description: Public support/release truth is defined by signed tags, GitHub Releases, Maven Central publication, and reproducible release verification rather than by workspace snapshot markers.
@@ -92,9 +46,9 @@ Current capability contract for the project.
 - Primary owning slice: docs phase 5 equivalent
 - Supporting slices: docs phase 4 equivalent
 - Validation: validated
-- Notes: Release truth now includes published `v1.0.127` surfaces and the underlying release-proof workflow.
+- Notes: Release truth now includes published `v1.0.128` surfaces and the underlying release-proof workflow.
 
-### R005 — The current async surface stays narrow, truthful, and separate from HTTP reporting
+### R005 — The supported async path remains Kafka-only, Spring-Kafka-first, and reported through a separate `async-report` / `yanote-async-report.json` surface without pretending to offer a broker-agnostic or combined HTTP+async report contract.
 - Class: constraint
 - Status: validated
 - Description: The supported async path remains Kafka-only, Spring-Kafka-first, and reported through a separate `async-report` / `yanote-async-report.json` surface without pretending to offer a broker-agnostic or combined HTTP+async report contract.
@@ -105,9 +59,53 @@ Current capability contract for the project.
 - Validation: validated
 - Notes: The current docs and retained proof surfaces explicitly preserve this narrow async boundary while proving deeper truth inside it.
 
+### R031 — When live HTTP traffic returns a status not declared by the OpenAPI contract, Yanote must surface it explicitly instead of silently preserving a green declared-status numerator.
+- Class: contract-depth
+- Status: validated
+- Description: When live HTTP traffic returns a status not declared by the OpenAPI contract, Yanote must surface it explicitly instead of silently preserving a green declared-status numerator.
+- Why it matters: Teams need to know when implementation behavior has escaped the documented status surface.
+- Source: planning
+- Primary owning slice: M010
+- Supporting slices: none
+- Validation: Validated by the M010 closeout stack: `bash scripts/docs/verify-m010-s04-final-boundary.sh` and the focused HTTP core gate/CLI suite proved undeclared HTTP statuses surface as explicit drift on the live Spring MVC path.
+- Notes: Activated for the M010 core contract completeness milestone.
+
+### R032 — Yanote validates supported OpenAPI path/query/header parameter values against retained evidence instead of only counting key presence.
+- Class: contract-depth
+- Status: validated
+- Description: Yanote validates supported OpenAPI path/query/header parameter values against retained evidence instead of only counting key presence.
+- Why it matters: Key presence alone is not enough to tell whether the main declared parameter contract was actually honored.
+- Source: planning
+- Primary owning slice: M010
+- Supporting slices: none
+- Validation: Validated by live retained-evidence proof in `bash scripts/docs/verify-m010-s01-http-evidence-depth.sh` and the final boundary verifier, which proved supported path/query/header parameter values are checked from retained evidence on the Spring MVC example path.
+- Notes: M010 intentionally limits this to the retained evidence shapes the recorder path can prove truthfully.
+
+### R033 — Yanote treats supported OpenAPI response-header declarations as a first-class HTTP conformance surface.
+- Class: contract-depth
+- Status: validated
+- Description: Yanote treats supported OpenAPI response-header declarations as a first-class HTTP conformance surface.
+- Why it matters: Real API contracts often encode important semantics in response headers, not only in payloads.
+- Source: planning
+- Primary owning slice: M010
+- Supporting slices: none
+- Validation: Validated by `bash scripts/docs/verify-m010-s01-http-evidence-depth.sh`, the focused HTTP core gate/CLI suite, and `npm -C yanote-js test -- src/report/report.contract.test.ts`, which proved supported response-header truth is a first-class HTTP conformance surface.
+- Notes: M010 covers the supported core header surface, not every possible OpenAPI response-header nuance.
+
+### R034 — On the proven Kafka-first async path, Yanote surfaces missing, invalid, unavailable, and unverifiable header diagnostics as a supported user-facing contract surface.
+- Class: contract-depth
+- Status: validated
+- Description: On the proven Kafka-first async path, Yanote surfaces missing, invalid, unavailable, and unverifiable header diagnostics as a supported user-facing contract surface.
+- Why it matters: Async header truth is already part of the implementation seam and should become explicit public contract truth on the proven Kafka path.
+- Source: planning
+- Primary owning slice: M010
+- Supporting slices: none
+- Validation: Validated by `bash scripts/ci/verify-m004-s03-live-kafka-proof.sh` and `bash scripts/docs/verify-m010-s04-final-boundary.sh`, which proved live missing, invalid, unavailable, and unverifiable Kafka header diagnostics on the supported Spring Kafka path.
+- Notes: This does not widen the product beyond Kafka-only or introduce broker-agnostic header promises.
+
 ## Deferred
 
-### R020 — Combined HTTP + async report/gate surface
+### R020 — Produce one combined HTTP + async report/gate surface without losing the current truthful split between `report` and `async-report`.
 - Class: admin/support
 - Status: deferred
 - Description: Produce one combined HTTP + async report/gate surface without losing the current truthful split between `report` and `async-report`.
@@ -118,7 +116,7 @@ Current capability contract for the project.
 - Validation: unmapped
 - Notes: Explicitly deferred in `docs/requirements.md` as ASYNC-02.
 
-### R021 — Broker-agnostic or non-Kafka async coverage
+### R021 — Extend the async path beyond the current Kafka-only boundary to non-Kafka brokers or a broker-agnostic runtime promise.
 - Class: differentiator
 - Status: deferred
 - Description: Extend the async path beyond the current Kafka-only boundary to non-Kafka brokers or a broker-agnostic runtime promise.
@@ -129,7 +127,7 @@ Current capability contract for the project.
 - Validation: unmapped
 - Notes: Explicitly deferred in `docs/requirements.md` as ASYNC-03.
 
-### R022 — Broader HTTP parameter, cookie, and media semantics
+### R022 — Extend the HTTP/OpenAPI path from key-presence truth into supported parameter serialization, cookie, media, and format semantics that can be proven through retained evidence.
 - Class: contract-depth
 - Status: deferred
 - Description: Extend the HTTP/OpenAPI path from key-presence truth into supported parameter serialization, cookie, media, and format semantics that can be proven through retained evidence.
@@ -140,7 +138,7 @@ Current capability contract for the project.
 - Validation: unmapped
 - Notes: Planned as the queued M011 follow-on after core contract completeness lands in M010.
 
-### R023 — Broader OpenAPI object support beyond request/response core
+### R023 — Support selected non-request/response OpenAPI constructs such as security schemes, examples, links, callbacks, or webhooks where they can be turned into truthful analyzer surfaces.
 - Class: contract-depth
 - Status: deferred
 - Description: Support selected non-request/response OpenAPI constructs such as security schemes, examples, links, callbacks, or webhooks where they can be turned into truthful analyzer surfaces.
@@ -151,7 +149,7 @@ Current capability contract for the project.
 - Validation: unmapped
 - Notes: Planned as the queued M012 follow-on and intentionally kept separate from the core HTTP surfaces in M010/M011.
 
-### R024 — Analyzer delivery and human-facing report ergonomics
+### R024 — Improve analyzer consumption through supported remote spec loading, explicit deprecated-operation handling, and human-friendly report artifacts that reflect the same canonical truth as machine-readable outputs.
 - Class: launchability
 - Status: deferred
 - Description: Improve analyzer consumption through supported remote spec loading, explicit deprecated-operation handling, and human-friendly report artifacts that reflect the same canonical truth as machine-readable outputs.
@@ -162,7 +160,7 @@ Current capability contract for the project.
 - Validation: unmapped
 - Notes: Planned as the queued M013 follow-on after the HTTP/OpenAPI contract surfaces stabilize.
 
-### R025 — Richer AsyncAPI semantics within the Kafka-first path
+### R025 — Extend the proven Kafka-first async path to selected richer AsyncAPI constructs such as bindings, traits, correlation, or reply semantics where they can be verified truthfully from runtime evidence.
 - Class: contract-depth
 - Status: deferred
 - Description: Extend the proven Kafka-first async path to selected richer AsyncAPI constructs such as bindings, traits, correlation, or reply semantics where they can be verified truthfully from runtime evidence.
@@ -175,7 +173,7 @@ Current capability contract for the project.
 
 ## Out of Scope
 
-### R030 — Web dashboard/UI as a required product surface
+### R030 — A web dashboard/report UI is not required for the current product value; CLI plus file reports are the supported surfaces.
 - Class: anti-feature
 - Status: out-of-scope
 - Description: A web dashboard/report UI is not required for the current product value; CLI plus file reports are the supported surfaces.
@@ -190,10 +188,6 @@ Current capability contract for the project.
 
 | ID | Class | Status | Primary owner | Supporting | Proof |
 |---|---|---|---|---|---|
-| R031 | contract-depth | active | M010 | none | planned |
-| R032 | contract-depth | active | M010 | none | planned |
-| R033 | contract-depth | active | M010 | none | planned |
-| R034 | contract-depth | active | M010 | none | planned |
 | R001 | core-capability | validated | docs phase 1-2 equivalent | docs phase 3-5 equivalent | validated |
 | R002 | failure-visibility | validated | docs phase 3 equivalent | docs phase 4-5 equivalent | validated |
 | R003 | launchability | validated | docs phase 4 equivalent | docs phase 2-5 equivalent | validated |
@@ -206,10 +200,14 @@ Current capability contract for the project.
 | R024 | launchability | deferred | none | none | unmapped |
 | R025 | contract-depth | deferred | none | none | unmapped |
 | R030 | anti-feature | out-of-scope | none | none | n/a |
+| R031 | contract-depth | validated | M010 | none | Validated by the M010 closeout stack: `bash scripts/docs/verify-m010-s04-final-boundary.sh` and the focused HTTP core gate/CLI suite proved undeclared HTTP statuses surface as explicit drift on the live Spring MVC path. |
+| R032 | contract-depth | validated | M010 | none | Validated by live retained-evidence proof in `bash scripts/docs/verify-m010-s01-http-evidence-depth.sh` and the final boundary verifier, which proved supported path/query/header parameter values are checked from retained evidence on the Spring MVC example path. |
+| R033 | contract-depth | validated | M010 | none | Validated by `bash scripts/docs/verify-m010-s01-http-evidence-depth.sh`, the focused HTTP core gate/CLI suite, and `npm -C yanote-js test -- src/report/report.contract.test.ts`, which proved supported response-header truth is a first-class HTTP conformance surface. |
+| R034 | contract-depth | validated | M010 | none | Validated by `bash scripts/ci/verify-m004-s03-live-kafka-proof.sh` and `bash scripts/docs/verify-m010-s04-final-boundary.sh`, which proved live missing, invalid, unavailable, and unverifiable Kafka header diagnostics on the supported Spring Kafka path. |
 
 ## Coverage Summary
 
-- Active requirements: 4
-- Mapped to slices: 9
-- Validated: 5
+- Active requirements: 0
+- Mapped to slices: 0
+- Validated: 9 (R001, R002, R003, R004, R005, R031, R032, R033, R034)
 - Unmapped active requirements: 0
