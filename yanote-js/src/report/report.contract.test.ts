@@ -389,6 +389,50 @@ const baseReport: YanoteReport = {
       items: []
     }
   },
+  httpSecurityConformance: {
+    summary: {
+      declaredOperations: 0,
+      observedOperations: 0,
+      observedEvaluations: 0,
+      counts: {
+        satisfied: 0,
+        missing: 0,
+        unavailable: 0,
+        unsupported: 0,
+        optional: 0,
+        clear: 0
+      }
+    },
+    perOperation: [
+      {
+        operationKey: "http GET /users/{param}",
+        method: "GET",
+        route: "/users/{param}",
+        observedCount: 0,
+        overallTruths: {
+          satisfied: 0,
+          missing: 0,
+          unavailable: 0,
+          unsupported: 0,
+          optional: 0,
+          clear: 0
+        },
+        branches: [],
+        suites: ["suite-a"]
+      }
+    ],
+    diagnostics: {
+      counts: {
+        satisfied: 0,
+        missing: 0,
+        unavailable: 0,
+        unsupported: 0,
+        optional: 0,
+        clear: 0
+      },
+      items: []
+    }
+  },
   diagnostics: {
     counts: {
       invalid: 0,

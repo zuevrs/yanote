@@ -63,6 +63,7 @@ async function seedV1E2eBundle(workDir) {
     [
       "happy_path_report_found=true",
       "request_semantics_primary=SEMANTIC_HTTP_UNSUPPORTED_REQUEST_PARAMETER",
+      "security_semantics_primary=SEMANTIC_HTTP_MISSING_SECURITY",
       "semantic_red_primary=SEMANTIC_HTTP_UNSUPPORTED_SCHEMA"
     ].join("\n") + "\n",
     "utf8"
@@ -73,7 +74,10 @@ async function seedV1E2eBundle(workDir) {
       "events.jsonl=report:/data/yanote/events.jsonl",
       "out/yanote-report.json=report:/data/yanote/out/yanote-report.json",
       "request-semantics.events.jsonl=filtered:.yanote-ci/v1-e2e/events.jsonl route=/request-evidence/users/{userId}",
-      "request-semantics.stdout=host:node yanote-js/dist/yanote.cjs report --spec examples/openapi/request-evidence-openapi.yaml --events .yanote-ci/v1-e2e/request-semantics.events.jsonl --out <temp> --min-coverage 100"
+      "request-semantics.stdout=host:node yanote-js/dist/yanote.cjs report --spec examples/openapi/request-evidence-openapi.yaml --events .yanote-ci/v1-e2e/request-semantics.events.jsonl --out <temp> --min-coverage 100",
+      "security_semantics_spec=yanote-js/test/fixtures/openapi/http-security-api-key.yaml",
+      "security_semantics_events=yanote-js/test/fixtures/events/http-security-api-key.fixture.jsonl",
+      "security-semantics.stdout=host:node yanote-js/dist/yanote.cjs report --spec yanote-js/test/fixtures/openapi/http-security-api-key.yaml --events yanote-js/test/fixtures/events/http-security-api-key.fixture.jsonl --out <temp> --profile local --verbose"
     ].join("\n") + "\n",
     "utf8"
   );
@@ -87,6 +91,18 @@ async function seedV1E2eBundle(workDir) {
     "utf8"
   );
   await writeFile(path.join(v1BundleDir, "request-semantics-yanote-report.json"), '{"status":"ok"}\n', "utf8");
+  await writeFile(path.join(v1BundleDir, "security-semantics.stdout"), "Summary\nprimary=SEMANTIC_HTTP_MISSING_SECURITY\n", "utf8");
+  await writeFile(
+    path.join(v1BundleDir, "security-semantics.stderr"),
+    [
+      "YANOTE_ERROR class=semantic code=SEMANTIC_HTTP_MISSING_SECURITY",
+      "YANOTE_ERROR_SECONDARY class=semantic code=SEMANTIC_HTTP_UNAVAILABLE_SECURITY",
+      "YANOTE_ERROR_SECONDARY class=semantic code=SEMANTIC_HTTP_UNSUPPORTED_SECURITY",
+      ""
+    ].join("\n"),
+    "utf8"
+  );
+  await writeFile(path.join(v1BundleDir, "security-semantics-yanote-report.json"), '{"status":"partial"}\n', "utf8");
   await writeFile(path.join(v1BundleDir, "semantic-red.stdout"), "Summary\nprimary=SEMANTIC_HTTP_UNSUPPORTED_SCHEMA\n", "utf8");
   await writeFile(path.join(v1BundleDir, "semantic-red.stderr"), "YANOTE_ERROR class=semantic code=SEMANTIC_HTTP_UNSUPPORTED_SCHEMA\n", "utf8");
   await writeFile(path.join(v1BundleDir, "semantic-red-yanote-report.json"), '{"status":"partial"}\n', "utf8");
@@ -162,6 +178,9 @@ test("collects the widened async proof bundle and replaces stale copied director
       "request-semantics.events.jsonl",
       "request-semantics.stderr",
       "request-semantics.stdout",
+      "security-semantics-yanote-report.json",
+      "security-semantics.stderr",
+      "security-semantics.stdout",
       "semantic-red-yanote-report.json",
       "semantic-red.stderr",
       "semantic-red.stdout"
@@ -176,6 +195,16 @@ test("collects the widened async proof bundle and replaces stale copied director
     assert.match(manifest, /async_bundle_source=\.yanote-ci\/live-kafka-proof/);
     assert.match(manifest, /v1_e2e_bundle_found=true/);
     assert.match(manifest, /v1_e2e_bundle_source=\.yanote-ci\/v1-e2e/);
+
+    const v1Manifest = await readFile(path.join(outDir, "v1-e2e", "artifact-manifest.txt"), "utf8");
+    assert.match(v1Manifest, /request_semantics_primary=SEMANTIC_HTTP_UNSUPPORTED_REQUEST_PARAMETER/);
+    assert.match(v1Manifest, /security_semantics_primary=SEMANTIC_HTTP_MISSING_SECURITY/);
+    assert.match(v1Manifest, /semantic_red_primary=SEMANTIC_HTTP_UNSUPPORTED_SCHEMA/);
+
+    const v1SourcePaths = await readFile(path.join(outDir, "v1-e2e", "artifact-source-paths.txt"), "utf8");
+    assert.match(v1SourcePaths, /security_semantics_spec=yanote-js\/test\/fixtures\/openapi\/http-security-api-key\.yaml/);
+    assert.match(v1SourcePaths, /security_semantics_events=yanote-js\/test\/fixtures\/events\/http-security-api-key\.fixture\.jsonl/);
+    assert.match(v1SourcePaths, /security-semantics\.stdout=host:node yanote-js\/dist\/yanote\.cjs report --spec yanote-js\/test\/fixtures\/openapi\/http-security-api-key\.yaml --events yanote-js\/test\/fixtures\/events\/http-security-api-key\.fixture\.jsonl --out <temp> --profile local --verbose/);
   } finally {
     await rm(workDir, { recursive: true, force: true });
   }

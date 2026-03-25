@@ -9,28 +9,38 @@
 Это основной пользовательский путь. Если нужно понять и воспроизвести Yanote без fallback-first навигации, идите в таком порядке:
 
 1. [`guides/recorder-spring-mvc.md`](guides/recorder-spring-mvc.md) — подключение Spring MVC рекордера, writable путь до `events.jsonl`, проверка того, что сервис действительно пишет evidence.
-2. [`guides/analyzer-coverage.md`](guides/analyzer-coverage.md) — запуск analyzer по OpenAPI и `events.jsonl`, чтение `Summary`, `HTTP Payload Conformance`, `HTTP Request Conformance`, `YANOTE_SUMMARY`, `yanote-report.json` и retained `.yanote-ci/v1-e2e/` proof bundle c additive request sidecar.
+2. [`guides/analyzer-coverage.md`](guides/analyzer-coverage.md) — запуск analyzer по OpenAPI и `events.jsonl`, чтение `Summary`, `HTTP Payload Conformance`, `HTTP Request Conformance`, `HTTP Security Conformance`, `YANOTE_SUMMARY`, `yanote-report.json` и retained `.yanote-ci/v1-e2e/` proof bundle c additive request/payload/security sidecars.
 3. [`guides/asyncapi-kafka.md`](guides/asyncapi-kafka.md) — отдельная ветка первой волны AsyncAPI/Kafka: Kafka evidence inputs, `async-report`, `YANOTE_ASYNC_SUMMARY` и `yanote-async-report.json` без подмены HTTP guide.
 4. [`guides/test-tagging.md`](guides/test-tagging.md) — contract для `X-Test-Run-Id`, `X-Test-Suite`, `test.run_id`, `test.suite` и `coverage.perOperation[].suites`.
 
-Эти четыре guide-level surface-а остаются каноническими, но concept-first HTTP onboarding по-прежнему первичен: для обычного recorder/analyzer цикла идите по пунктам 1 → 2 → 4, а если у вас есть первая волна AsyncAPI/Kafka, ответвляйтесь в пункт 3 к отдельному `async-report` / `yanote-async-report.json` пути. HTTP guide при этом публикует точную публичную границу: `path=simple`, `query=form`, `header=simple`, `cookie=form`, повторяющиеся массивы только для `query=form` + `explode=true` + scalar `items`, плюс `email`-only payload format allowlist и most-specific media matching. Если вам нужен smoke/offline путь без обычного dependency-based или source-built setup, не начинайте с отдельной bundle-документации: сначала пройдите этот пользовательский маршрут, а затем смотрите release/support границы и release assets в [`release-and-support.md`](release-and-support.md).
+Эти четыре guide-level surface-а остаются каноническими, но concept-first HTTP onboarding по-прежнему первичен: для обычного recorder/analyzer цикла идите по пунктам 1 → 2 → 4, а если у вас есть первая волна AsyncAPI/Kafka, ответвляйтесь в пункт 3 к отдельному `async-report` / `yanote-async-report.json` пути.
+
+HTTP guide при этом публикует точную публичную границу:
+
+- request subset: `path=simple`, `query=form`, `header=simple`, `cookie=form`, массивы только для `query=form` + `explode=true` + scalar `items`;
+- payload subset: `email`-only payload format allowlist и most-specific media matching;
+- security subset: root inheritance, operation override, `security: []`, `{}` optional branch, OR между объектами Security Requirement, AND внутри одного объекта и truthful `apiKey` query/header/cookie subset;
+- additive surfaces: `httpSecurityConformance`, отдельный CLI блок `HTTP Security Conformance`, security-токены `YANOTE_SUMMARY` и retained `security-semantics.*` sidecars не меняют legacy `coverage.operations/status/parameters/aggregate` numerators;
+- deferred broader OpenAPI objects: `examples`, `links`, `callbacks`, `webhooks`.
+
+Если вам нужен smoke/offline путь без обычного dependency-based или source-built setup, не начинайте с отдельной bundle-документации: сначала пройдите этот пользовательский маршрут, а затем смотрите release/support границы и release assets в [`release-and-support.md`](release-and-support.md). Текущая публичная стабильная линия там описана как `v1.0.x`.
 
 ## Примеры и демо
 
 Когда нужен runnable demo-path по реальным repo assets, а не только guide-level объяснение, переходите сюда:
 
-- [`../examples/README.md`](../examples/README.md) — карта demo-активов, включая public proof `bash scripts/ci/run-v1-e2e.sh`, retained bundle `.yanote-ci/v1-e2e/` и focused proof-команды `bash scripts/ci/verify-m011-s02-request-semantics.sh` / `bash scripts/ci/verify-m011-s03-format-media.sh`.
+- [`../examples/README.md`](../examples/README.md) — карта demo-активов, включая public proof `bash scripts/ci/run-v1-e2e.sh`, retained bundle `.yanote-ci/v1-e2e/`, request/payload sidecars, fixture-backed security sidecars `security-semantics.stdout`, `security-semantics.stderr`, `security-semantics-yanote-report.json` и focused proof-команды `bash scripts/ci/verify-m011-s02-request-semantics.sh` / `bash scripts/ci/verify-m011-s03-format-media.sh` / `bash scripts/ci/verify-m012-s02-security-semantics.sh`.
 - [`../examples/docker-compose.yml`](../examples/docker-compose.yml) — самый короткий repo demo: поднимает сервис, прогоняет тесты, собирает `events.jsonl` и запускает analyzer.
 - [`../examples/springmvc-service/README.md`](../examples/springmvc-service/README.md) — сервисная сторона recorder path, где видно, как появляется `events.jsonl`.
 - [`../examples/tests-restassured/README.md`](../examples/tests-restassured/README.md) — тестовая сторона metadata handoff для `X-Test-Run-Id` / `X-Test-Suite`.
 
-Используйте examples как runnable companion к каноническим гайдам, а не как замену документации: детали и терминология всё равно закреплены в guide-level docs выше.
+Используйте examples как runnable companion к каноническим гайдам, а не как замену документации: детали и терминология всё равно закреплены в guide-level docs выше. Security matrix там тоже должен читаться truthfully: это fixture-backed proof, а не следствие live Spring MVC demo.
 
 ## Глубже в контракт и границы продукта
 
 Эта секция для инженера, который уже понял основной путь и хочет увидеть текущие продуктовые границы и проверяемые ожидания.
 
-- [`release-and-support.md`](release-and-support.md) — текущая публичная стабильная линия `v1.0.x`, последний стабильный тег, опубликованные изменения в GitHub Releases, совместимость, ограничения, additive request/payload retained proof artifacts и граница между текущим `HEAD` репозитория и опубликованным релизом.
+- [`release-and-support.md`](release-and-support.md) — текущая публичная стабильная линия `v1.0.x`, последний стабильный тег, опубликованные изменения в GitHub Releases, совместимость, ограничения, additive request/payload/security retained proof artifacts и граница между текущим `HEAD` репозитория и опубликованным релизом.
 - [`requirements.md`](requirements.md) — текущий inventory требований Yanote, границы v1/v2 и явный out-of-scope.
 - Корневой [`README.md`](../README.md) — короткий продуктовый маршрут и навигация между основными surface-ами.
 
@@ -45,7 +55,7 @@
 - [`maintainers/README.md`](maintainers/README.md) — owner map maintainer-only workflow-ов и точка входа к release/signing surface-ам.
 - [`traceability/README.md`](traceability/README.md) — owner map requirement/test traceability, machine-readable snapshots и schema-level reference.
 - [`plans/README.md`](plans/README.md) — owner map historical design/proof notes.
-- [`release-and-support.md`](release-and-support.md) — owner map для стабильной линии, GitHub Releases и границ fallback/release assets; открывайте его только после канонических guide-level docs, если обычный dependency/source-built путь недоступен.
+- [`release-and-support.md`](release-and-support.md) — owner map для стабильной линии, GitHub Releases, additive `security-semantics.*` proof surface и deferred broader OpenAPI objects (`examples`, `links`, `callbacks`, `webhooks`); открывайте его только после канонических guide-level docs, если обычный dependency/source-built путь недоступен.
 
 ### Только для мейнтейнера
 

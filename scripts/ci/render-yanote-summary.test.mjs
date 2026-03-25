@@ -129,6 +129,168 @@ function createHttpSemanticReportFixture() {
   };
 }
 
+function createHttpSecurityReportFixture() {
+  return {
+    schemaVersion: "1.0.0",
+    generatedAt: "2026-03-25T00:00:00.000Z",
+    toolVersion: "0.0.0",
+    phase: { id: "02", slug: "coverage-metrics-and-cli-reporting" },
+    status: "partial",
+    summary: {
+      totalOperations: 12,
+      coveredOperations: 12,
+      operationCoveragePercent: 100,
+      aggregateCoveragePercent: null,
+      aggregateExplanation: "aggregate is N/A because weighted dimensions include N/A"
+    },
+    coverage: {
+      operations: { state: "COVERED", percent: 100 },
+      status: { state: "COVERED", percent: 100 },
+      parameters: { state: "N/A", percent: null },
+      aggregate: { state: "N/A", percent: null, explanation: "aggregate is N/A because weighted dimensions include N/A" },
+      perOperation: []
+    },
+    diagnostics: {
+      counts: { invalid: 0, ambiguous: 0, unmatched: 0 },
+      items: []
+    },
+    httpPayloadConformance: {
+      summary: {
+        request: {
+          coveredOperations: 0,
+          partialOperations: 0,
+          uncoveredOperations: 0,
+          skippedOperations: 0,
+          notApplicableOperations: 12,
+          observedCount: 0,
+          validCount: 0,
+          invalidCount: 0,
+          skippedCount: 0
+        },
+        response: {
+          coveredOperations: 0,
+          partialOperations: 0,
+          uncoveredOperations: 0,
+          skippedOperations: 0,
+          notApplicableOperations: 12,
+          observedCount: 0,
+          validCount: 0,
+          invalidCount: 0,
+          skippedCount: 0
+        }
+      },
+      diagnostics: {
+        counts: { covered: 0, uncovered: 0, skipped: 0 },
+        items: []
+      }
+    },
+    httpRequestConformance: {
+      summary: {
+        observedOperations: 0,
+        observedParameters: 0,
+        counts: {
+          capturedValid: 0,
+          capturedInvalid: 0,
+          redacted: 0,
+          omitted: 0,
+          unsupported: 0
+        }
+      },
+      diagnostics: {
+        counts: {
+          capturedValid: 0,
+          capturedInvalid: 0,
+          redacted: 0,
+          omitted: 0,
+          unsupported: 0
+        },
+        items: []
+      }
+    },
+    httpSecurityConformance: {
+      summary: {
+        declaredOperations: 12,
+        observedOperations: 12,
+        observedEvaluations: 12,
+        counts: {
+          satisfied: 3,
+          missing: 1,
+          unavailable: 2,
+          unsupported: 4,
+          optional: 1,
+          clear: 1
+        }
+      },
+      diagnostics: {
+        counts: {
+          satisfied: 3,
+          missing: 1,
+          unavailable: 2,
+          unsupported: 4,
+          optional: 1,
+          clear: 1
+        },
+        items: []
+      }
+    },
+    governance: {
+      exclusions: { appliedRules: [], unmatchedRules: [] },
+      diagnostics: [
+        {
+          severity: "error",
+          class: "semantic",
+          code: "SEMANTIC_HTTP_MISSING_SECURITY",
+          message:
+            "required query apiKey 'api_key' for security scheme 'queryKey' on http GET /or-and-missing was not retained in request evidence."
+        },
+        {
+          severity: "error",
+          class: "semantic",
+          code: "SEMANTIC_HTTP_UNAVAILABLE_SECURITY",
+          message:
+            "required header apiKey 'X-Api-Key' for security scheme 'headerKey' on http GET /redacted was unavailable for security verification because retained evidence was redacted (reason: sensitive)."
+        },
+        {
+          severity: "error",
+          class: "semantic",
+          code: "SEMANTIC_HTTP_UNAVAILABLE_SECURITY",
+          message:
+            "required query apiKey 'api_key' for security scheme 'queryKey' on http GET /unavailable was unavailable for security verification because retained evidence was omitted (reason: unavailable)."
+        },
+        {
+          severity: "error",
+          class: "semantic",
+          code: "SEMANTIC_HTTP_UNSUPPORTED_SECURITY",
+          message:
+            "security scheme 'basicAuth' on http GET /unsupported-http uses unsupported OpenAPI security type 'http' within Yanote's truthful apiKey-only subset."
+        },
+        {
+          severity: "error",
+          class: "semantic",
+          code: "SEMANTIC_HTTP_UNSUPPORTED_SECURITY",
+          message:
+            "required path apiKey 'secret' for security scheme 'pathKey' on http GET /unsupported-location uses unsupported apiKey location 'path'."
+        },
+        {
+          severity: "error",
+          class: "semantic",
+          code: "SEMANTIC_HTTP_UNSUPPORTED_SECURITY",
+          message:
+            "security scheme 'oauthKey' on http GET /unsupported-oauth uses unsupported OpenAPI security type 'oauth2' within Yanote's truthful apiKey-only subset."
+        },
+        {
+          severity: "error",
+          class: "semantic",
+          code: "SEMANTIC_HTTP_UNSUPPORTED_SECURITY",
+          message:
+            "security scheme 'oidcAuth' on http GET /unsupported-openid uses unsupported OpenAPI security type 'openIdConnect' within Yanote's truthful apiKey-only subset."
+        }
+      ]
+    },
+    rawPayload: "SECRET_HTTP_SECURITY_PAYLOAD_MUST_NOT_APPEAR"
+  };
+}
+
 function createAsyncHappyPathReportFixture() {
   return {
     schemaVersion: "1.0.0",
@@ -469,6 +631,65 @@ test("renders HTTP semantic summaries from report-first artifacts without payloa
   }
 });
 
+test("renders HTTP security summaries from governance-driven report data without secret leaks", async () => {
+  const workDir = await mkdtemp(path.join(os.tmpdir(), "yanote-summary-http-security-"));
+  try {
+    const artifactsDir = path.join(workDir, "artifacts");
+    const reportPath = path.join(artifactsDir, "yanote-report.json");
+    const summaryPath = path.join(workDir, "summary.md");
+    const stderrPath = path.join(workDir, "yanote-validation.stderr.log");
+
+    await writeArtifactFiles(artifactsDir, {
+      "evidence.events.jsonl": '{"requestHeaders":{"x-api-key":{"state":"captured","values":["SECRET_HEADER"]}}}\n',
+      "yanote-report.json": JSON.stringify(createHttpSecurityReportFixture()),
+      "yanote-validation.stderr.log": 'YANOTE_ERROR class=gate code=GATE_THRESHOLD reason="stale threshold should not win" hint="stale artifact"\n'
+    });
+    await writeFile(
+      stderrPath,
+      'YANOTE_ERROR class=gate code=GATE_THRESHOLD reason="stale threshold should not win" hint="stale artifact"\n',
+      "utf8"
+    );
+
+    const markdown = await renderSummary({
+      reportPath,
+      stderrPath,
+      artifactsDir,
+      outputPath: summaryPath,
+      exitCode: 5
+    });
+
+    const expected = [
+      "## Yanote Validation Summary",
+      "- status: partial",
+      "- operations: 12/12 (100.00%)",
+      "- aggregate: N/A (N/A)",
+      "- status dimension: 100.00% (COVERED)",
+      "- parameters: N/A (N/A)",
+      "- security observations: declared=12 observed_operations=12 evaluations=12",
+      "- security truths: satisfied=3 missing=1 unavailable=2 unsupported=4 optional=1 clear=1",
+      "- primary failure: SEMANTIC_HTTP_MISSING_SECURITY - required query apiKey 'api_key' for security scheme 'queryKey' on http GET /or-and-missing was not retained in request evidence.",
+      "- report: yanote-report.json",
+      "- artifacts: evidence.events.jsonl, yanote-report.json, yanote-validation.stderr.log",
+      "",
+      "### Top Issues",
+      "1. high: SEMANTIC_HTTP_MISSING_SECURITY - required query apiKey 'api_key' for security scheme 'queryKey' on http GET /or-and-missing was not retained in request evidence.",
+      "2. high: SEMANTIC_HTTP_UNAVAILABLE_SECURITY - required header apiKey 'X-Api-Key' for security scheme 'headerKey' on http GET /redacted was unavailable for security verification because retained evidence was redacted (reason: sensitive).",
+      "3. high: SEMANTIC_HTTP_UNAVAILABLE_SECURITY - required query apiKey 'api_key' for security scheme 'queryKey' on http GET /unavailable was unavailable for security verification because retained evidence was omitted (reason: unavailable).",
+      "4. high: SEMANTIC_HTTP_UNSUPPORTED_SECURITY - required path apiKey 'secret' for security scheme 'pathKey' on http GET /unsupported-location uses unsupported apiKey location 'path'.",
+      "5. high: SEMANTIC_HTTP_UNSUPPORTED_SECURITY - security scheme 'basicAuth' on http GET /unsupported-http uses unsupported OpenAPI security type 'http' within Yanote's truthful apiKey-only subset.",
+      "... +2 more issues in report artifacts",
+      ""
+    ].join("\n");
+
+    assert.equal(markdown, expected);
+    assert.equal(markdown.includes("SECRET_HTTP_SECURITY_PAYLOAD_MUST_NOT_APPEAR"), false);
+    assert.equal(markdown.includes("SECRET_HEADER"), false);
+    assert.equal(await readFile(summaryPath, "utf8"), markdown);
+  } finally {
+    await rm(workDir, { recursive: true, force: true });
+  }
+});
+
 test("renders async report artifacts with typed stderr failures and no payload leaks", async () => {
   const workDir = await mkdtemp(path.join(os.tmpdir(), "yanote-summary-async-report-"));
   try {
@@ -671,3 +892,5 @@ test("fails with actionable diagnostics when the report is missing and no async 
   assert.notEqual(result.status, 0);
   assert.match(result.stderr, /Unable to read report file/);
 });
+;
+;

@@ -242,6 +242,40 @@ function parseCoveredRatio(value) {
   };
 }
 
+function hasHttpSecuritySummary(report) {
+  const summary = report?.httpSecurityConformance?.summary;
+  if (!summary) {
+    return false;
+  }
+
+  return Number(summary.declaredOperations ?? 0) > 0 || Number(summary.observedOperations ?? 0) > 0 || Number(summary.observedEvaluations ?? 0) > 0;
+}
+
+function formatHttpSecurityObservationSummary(report) {
+  const summary = report?.httpSecurityConformance?.summary;
+  if (!summary) {
+    return "declared=0 observed_operations=0 evaluations=0";
+  }
+
+  return `declared=${Number(summary.declaredOperations ?? 0)} observed_operations=${Number(summary.observedOperations ?? 0)} evaluations=${Number(summary.observedEvaluations ?? 0)}`;
+}
+
+function formatHttpSecurityTruthSummary(report) {
+  const counts = report?.httpSecurityConformance?.summary?.counts;
+  if (!counts) {
+    return "satisfied=0 missing=0 unavailable=0 unsupported=0 optional=0 clear=0";
+  }
+
+  return [
+    `satisfied=${Number(counts.satisfied ?? 0)}`,
+    `missing=${Number(counts.missing ?? 0)}`,
+    `unavailable=${Number(counts.unavailable ?? 0)}`,
+    `unsupported=${Number(counts.unsupported ?? 0)}`,
+    `optional=${Number(counts.optional ?? 0)}`,
+    `clear=${Number(counts.clear ?? 0)}`
+  ].join(" ");
+}
+
 function asyncDiagnosticPrecedence(kind) {
   return ASYNC_DIAGNOSTIC_PRECEDENCE[safeString(kind)] ?? 100;
 }
@@ -589,6 +623,10 @@ function renderHttpSummary({ report, reportPath, stderrText, artifactNames, maxI
   lines.push(`- aggregate: ${formatPercent(report.coverage?.aggregate?.percent)} (${safeString(report.coverage?.aggregate?.state, "N/A")})`);
   lines.push(`- status dimension: ${formatPercent(report.coverage?.status?.percent)} (${safeString(report.coverage?.status?.state, "N/A")})`);
   lines.push(`- parameters: ${formatPercent(report.coverage?.parameters?.percent)} (${safeString(report.coverage?.parameters?.state, "N/A")})`);
+  if (hasHttpSecuritySummary(report)) {
+    lines.push(`- security observations: ${formatHttpSecurityObservationSummary(report)}`);
+    lines.push(`- security truths: ${formatHttpSecurityTruthSummary(report)}`);
+  }
   lines.push(`- primary failure: ${primaryFailure}`);
   lines.push(`- report: ${path.basename(reportPath)}`);
   if (artifactNames.length > 0) {

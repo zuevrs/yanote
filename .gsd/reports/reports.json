@@ -1,7 +1,7 @@
 {
   "version": 1,
-  "projectName": "M011",
-  "projectPath": "/Users/zuevrs/Projects/yanote/.gsd/worktrees/M011",
+  "projectName": "M012",
+  "projectPath": "/Users/zuevrs/Projects/yanote/.gsd/worktrees/M012",
   "gsdVersion": "2.45.0",
   "entries": [
     {
@@ -17,6 +17,22 @@
       "doneSlices": 40,
       "totalSlices": 45,
       "doneMilestones": 11,
+      "totalMilestones": 15,
+      "phase": "pre-planning"
+    },
+    {
+      "filename": "M012-2026-03-25T22-53-52.html",
+      "generatedAt": "2026-03-25T22:53:52.645Z",
+      "milestoneId": "M012",
+      "milestoneTitle": "OpenAPI Surface Expansion Beyond Request/Response Core",
+      "label": "M012: OpenAPI Surface Expansion Beyond Request/Response Core",
+      "kind": "milestone",
+      "totalCost": 79.19628900000002,
+      "totalTokens": 166502455,
+      "totalDuration": 34168567,
+      "doneSlices": 42,
+      "totalSlices": 47,
+      "doneMilestones": 12,
       "totalMilestones": 15,
       "phase": "pre-planning"
     }

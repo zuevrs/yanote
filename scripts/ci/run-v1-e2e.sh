@@ -12,6 +12,22 @@ REQUEST_SEMANTICS_STDERR_PATH="${ARTIFACT_DIR}/request-semantics.stderr"
 REQUEST_SEMANTICS_REPORT_PATH="${ARTIFACT_DIR}/request-semantics-yanote-report.json"
 REQUEST_SEMANTICS_FORBIDDEN_STDIO_VALUES=("user-42" "alpha" "bravo" "amber" "compact" "opaque")
 REQUEST_SEMANTICS_FORBIDDEN_SECRET_VALUES=("Bearer proof-secret-token" "proof-session-secret")
+SECURITY_SEMANTICS_SPEC="yanote-js/test/fixtures/openapi/http-security-api-key.yaml"
+SECURITY_SEMANTICS_EVENTS_FIXTURE="yanote-js/test/fixtures/events/http-security-api-key.fixture.jsonl"
+SECURITY_SEMANTICS_STDOUT_PATH="${ARTIFACT_DIR}/security-semantics.stdout"
+SECURITY_SEMANTICS_STDERR_PATH="${ARTIFACT_DIR}/security-semantics.stderr"
+SECURITY_SEMANTICS_REPORT_PATH="${ARTIFACT_DIR}/security-semantics-yanote-report.json"
+SECURITY_SEMANTICS_FORBIDDEN_VALUES=(
+  "header-secret-123"
+  "query-secret-456"
+  "header-and-789"
+  "query-and-789"
+  "header-only-000"
+  "Basic dXNlcjpzZWNyZXQ="
+  "Bearer oauth-secret"
+  "Bearer oidc-secret"
+  "path-secret-xyz"
+)
 SEMANTIC_RED_SPEC="examples/openapi/demo-openapi-unsupported-schema.yaml"
 SEMANTIC_RED_STDOUT_PATH="${ARTIFACT_DIR}/semantic-red.stdout"
 SEMANTIC_RED_STDERR_PATH="${ARTIFACT_DIR}/semantic-red.stderr"
@@ -22,6 +38,7 @@ SOURCE_PATHS_NOTE_PATH="${ARTIFACT_DIR}/${SOURCE_PATHS_NOTE_NAME}"
 MANIFEST_PATH="${ARTIFACT_DIR}/${MANIFEST_NAME}"
 HOST_GRADLE_HOME="${YANOTE_GRADLE_HOME:-${GRADLE_USER_HOME:-${HOME}/.gradle}}"
 REQUEST_SEMANTICS_OUT_DIR=""
+SECURITY_SEMANTICS_OUT_DIR=""
 SEMANTIC_RED_OUT_DIR=""
 
 mkdir -p "${HOST_GRADLE_HOME}"
@@ -103,7 +120,7 @@ ensure_no_file_leak() {
 
   for forbidden_value in "$@"; do
     if [[ -f "${file_path}" ]] && grep -Fq "${forbidden_value}" "${file_path}"; then
-      echo "ERROR: ${label} leaked retained request value '${forbidden_value}'." >&2
+      echo "ERROR: ${label} leaked forbidden retained value '${forbidden_value}'." >&2
       exit 1
     fi
   done
@@ -156,6 +173,58 @@ run_request_semantics_pass() {
   ensure_no_file_leak "${REQUEST_SEMANTICS_STDOUT_PATH}" "request-semantics stdout" "${REQUEST_SEMANTICS_FORBIDDEN_SECRET_VALUES[@]}"
   ensure_no_file_leak "${REQUEST_SEMANTICS_STDERR_PATH}" "request-semantics stderr" "${REQUEST_SEMANTICS_FORBIDDEN_STDIO_VALUES[@]}"
   ensure_no_file_leak "${REQUEST_SEMANTICS_STDERR_PATH}" "request-semantics stderr" "${REQUEST_SEMANTICS_FORBIDDEN_SECRET_VALUES[@]}"
+}
+
+run_security_semantics_pass() {
+  local status
+
+  rm -f \
+    "${SECURITY_SEMANTICS_STDOUT_PATH}" \
+    "${SECURITY_SEMANTICS_STDERR_PATH}" \
+    "${SECURITY_SEMANTICS_REPORT_PATH}"
+
+  SECURITY_SEMANTICS_OUT_DIR="$(mktemp -d "${TMPDIR:-/tmp}/yanote-v1-e2e-security.XXXXXX")"
+
+  set +e
+  node yanote-js/dist/yanote.cjs report \
+    --spec "${SECURITY_SEMANTICS_SPEC}" \
+    --events "${SECURITY_SEMANTICS_EVENTS_FIXTURE}" \
+    --out "${SECURITY_SEMANTICS_OUT_DIR}" \
+    --profile local \
+    --verbose >"${SECURITY_SEMANTICS_STDOUT_PATH}" 2>"${SECURITY_SEMANTICS_STDERR_PATH}"
+  status=$?
+  set -e
+
+  if [[ "${status}" -ne 5 ]]; then
+    echo "ERROR: Expected security-semantics analyzer exit 5, got ${status}." >&2
+    exit 1
+  fi
+
+  if ! grep -q '^HTTP Security Conformance$' "${SECURITY_SEMANTICS_STDOUT_PATH}"; then
+    echo "ERROR: security-semantics stdout is missing the HTTP Security Conformance section." >&2
+    exit 1
+  fi
+
+  if ! grep -q 'YANOTE_ERROR class=semantic code=SEMANTIC_HTTP_MISSING_SECURITY' "${SECURITY_SEMANTICS_STDERR_PATH}"; then
+    echo "ERROR: security-semantics stderr is missing SEMANTIC_HTTP_MISSING_SECURITY." >&2
+    exit 1
+  fi
+
+  if ! grep -q 'primary=SEMANTIC_HTTP_MISSING_SECURITY' "${SECURITY_SEMANTICS_STDOUT_PATH}"; then
+    echo "ERROR: security-semantics stdout is missing the SEMANTIC_HTTP_MISSING_SECURITY summary token." >&2
+    exit 1
+  fi
+
+  if [[ ! -f "${SECURITY_SEMANTICS_OUT_DIR}/yanote-report.json" ]]; then
+    echo "ERROR: security-semantics report did not produce yanote-report.json." >&2
+    exit 1
+  fi
+
+  cp "${SECURITY_SEMANTICS_OUT_DIR}/yanote-report.json" "${SECURITY_SEMANTICS_REPORT_PATH}"
+
+  ensure_no_file_leak "${SECURITY_SEMANTICS_STDOUT_PATH}" "security-semantics stdout" "${SECURITY_SEMANTICS_FORBIDDEN_VALUES[@]}"
+  ensure_no_file_leak "${SECURITY_SEMANTICS_STDERR_PATH}" "security-semantics stderr" "${SECURITY_SEMANTICS_FORBIDDEN_VALUES[@]}"
+  ensure_no_file_leak "${SECURITY_SEMANTICS_REPORT_PATH}" "security-semantics yanote-report" "${SECURITY_SEMANTICS_FORBIDDEN_VALUES[@]}"
 }
 
 run_semantic_red_pass() {
@@ -261,6 +330,33 @@ write_bundle_metadata() {
     printf 'request-semantics-yanote-report.json=%s\n' 'none' >> "${SOURCE_PATHS_NOTE_PATH}"
   fi
 
+  printf 'security_semantics_spec=%s\n' 'yanote-js/test/fixtures/openapi/http-security-api-key.yaml' >> "${SOURCE_PATHS_NOTE_PATH}"
+  printf 'security_semantics_events=%s\n' 'yanote-js/test/fixtures/events/http-security-api-key.fixture.jsonl' >> "${SOURCE_PATHS_NOTE_PATH}"
+
+  if [[ -f "${SECURITY_SEMANTICS_STDOUT_PATH}" ]]; then
+    exported_artifacts+=("security-semantics.stdout")
+    printf 'security-semantics.stdout=%s\n' 'host:node yanote-js/dist/yanote.cjs report --spec yanote-js/test/fixtures/openapi/http-security-api-key.yaml --events yanote-js/test/fixtures/events/http-security-api-key.fixture.jsonl --out <temp> --profile local --verbose' >> "${SOURCE_PATHS_NOTE_PATH}"
+  else
+    missing_artifacts+=("security-semantics.stdout")
+    printf 'security-semantics.stdout=%s\n' 'none' >> "${SOURCE_PATHS_NOTE_PATH}"
+  fi
+
+  if [[ -f "${SECURITY_SEMANTICS_STDERR_PATH}" ]]; then
+    exported_artifacts+=("security-semantics.stderr")
+    printf 'security-semantics.stderr=%s\n' 'host:node yanote-js/dist/yanote.cjs report --spec yanote-js/test/fixtures/openapi/http-security-api-key.yaml --events yanote-js/test/fixtures/events/http-security-api-key.fixture.jsonl --out <temp> --profile local --verbose' >> "${SOURCE_PATHS_NOTE_PATH}"
+  else
+    missing_artifacts+=("security-semantics.stderr")
+    printf 'security-semantics.stderr=%s\n' 'none' >> "${SOURCE_PATHS_NOTE_PATH}"
+  fi
+
+  if [[ -f "${SECURITY_SEMANTICS_REPORT_PATH}" ]]; then
+    exported_artifacts+=("security-semantics-yanote-report.json")
+    printf 'security-semantics-yanote-report.json=%s\n' 'host-output:.yanote-ci/v1-e2e/security-semantics-yanote-report.json' >> "${SOURCE_PATHS_NOTE_PATH}"
+  else
+    missing_artifacts+=("security-semantics-yanote-report.json")
+    printf 'security-semantics-yanote-report.json=%s\n' 'none' >> "${SOURCE_PATHS_NOTE_PATH}"
+  fi
+
   if [[ -f "${SEMANTIC_RED_STDOUT_PATH}" ]]; then
     exported_artifacts+=("semantic-red.stdout")
     printf 'semantic-red.stdout=%s\n' 'host:node yanote-js/dist/yanote.cjs report --spec examples/openapi/demo-openapi-unsupported-schema.yaml --events .yanote-ci/v1-e2e/events.jsonl --out <temp> --min-coverage 100' >> "${SOURCE_PATHS_NOTE_PATH}"
@@ -301,6 +397,8 @@ write_bundle_metadata() {
     printf 'happy_path_report_found=%s\n' "$( [[ -f "${ARTIFACT_DIR}/out/yanote-report.json" ]] && printf 'true' || printf 'false' )"
     printf 'request_semantics_expected_exit=%s\n' '5'
     printf 'request_semantics_primary=%s\n' 'SEMANTIC_HTTP_UNSUPPORTED_REQUEST_PARAMETER'
+    printf 'security_semantics_expected_exit=%s\n' '5'
+    printf 'security_semantics_primary=%s\n' 'SEMANTIC_HTTP_MISSING_SECURITY'
     printf 'semantic_red_expected_exit=%s\n' '5'
     printf 'semantic_red_primary=%s\n' 'SEMANTIC_HTTP_UNSUPPORTED_SCHEMA'
     printf 'artifact_count=%s\n' "${artifact_count}"
@@ -317,6 +415,9 @@ cleanup() {
   if [[ -n "${REQUEST_SEMANTICS_OUT_DIR}" && -d "${REQUEST_SEMANTICS_OUT_DIR}" ]]; then
     rm -rf "${REQUEST_SEMANTICS_OUT_DIR}"
   fi
+  if [[ -n "${SECURITY_SEMANTICS_OUT_DIR}" && -d "${SECURITY_SEMANTICS_OUT_DIR}" ]]; then
+    rm -rf "${SECURITY_SEMANTICS_OUT_DIR}"
+  fi
   if [[ -n "${SEMANTIC_RED_OUT_DIR}" && -d "${SEMANTIC_RED_OUT_DIR}" ]]; then
     rm -rf "${SEMANTIC_RED_OUT_DIR}"
   fi
@@ -332,5 +433,6 @@ prepare_demo_assets
 docker compose -f "${COMPOSE_FILE}" up --build --abort-on-container-exit --exit-code-from report
 collect_artifacts
 run_request_semantics_pass
+run_security_semantics_pass
 run_semantic_red_pass
 write_bundle_metadata

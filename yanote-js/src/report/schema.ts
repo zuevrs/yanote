@@ -15,6 +15,7 @@ const REPORT_SCHEMA = {
     "coverage",
     "httpPayloadConformance",
     "httpRequestConformance",
+    "httpSecurityConformance",
     "diagnostics",
     "governance"
   ],
@@ -365,6 +366,110 @@ const REPORT_SCHEMA = {
         }
       }
     },
+    httpSecurityConformance: {
+      type: "object",
+      additionalProperties: false,
+      required: ["summary", "perOperation", "diagnostics"],
+      properties: {
+        summary: {
+          type: "object",
+          additionalProperties: false,
+          required: ["declaredOperations", "observedOperations", "observedEvaluations", "counts"],
+          properties: {
+            declaredOperations: { type: "integer", minimum: 0 },
+            observedOperations: { type: "integer", minimum: 0 },
+            observedEvaluations: { type: "integer", minimum: 0 },
+            counts: { $ref: "#/$defs/httpSecurityTruthAggregate" }
+          }
+        },
+        perOperation: {
+          type: "array",
+          items: {
+            type: "object",
+            additionalProperties: false,
+            required: ["operationKey", "method", "route", "observedCount", "overallTruths", "branches", "suites"],
+            properties: {
+              operationKey: { type: "string", minLength: 1 },
+              method: { type: "string", minLength: 1 },
+              route: { type: "string", minLength: 1 },
+              observedCount: { type: "integer", minimum: 0 },
+              overallTruths: { $ref: "#/$defs/httpSecurityTruthAggregate" },
+              branches: {
+                type: "array",
+                items: {
+                  type: "object",
+                  additionalProperties: false,
+                  required: ["branchIndex", "kind", "observedCount", "truths", "schemes", "suites"],
+                  properties: {
+                    branchIndex: { type: "integer", minimum: 0 },
+                    kind: { enum: ["requirement", "optional", "clear"] },
+                    observedCount: { type: "integer", minimum: 0 },
+                    truths: { $ref: "#/$defs/httpSecurityTruthAggregate" },
+                    schemes: {
+                      type: "array",
+                      items: {
+                        type: "object",
+                        additionalProperties: false,
+                        required: ["schemeName", "type", "scopes"],
+                        properties: {
+                          schemeName: { type: "string", minLength: 1 },
+                          type: { enum: ["apiKey", "http", "oauth2", "openIdConnect", "mutualTLS", "unsupported"] },
+                          location: { type: "string" },
+                          keyName: { type: "string" },
+                          scopes: { type: "array", items: { type: "string" } }
+                        }
+                      }
+                    },
+                    suites: { type: "array", items: { type: "string" } }
+                  }
+                }
+              },
+              suites: { type: "array", items: { type: "string" } }
+            }
+          }
+        },
+        diagnostics: {
+          type: "object",
+          additionalProperties: false,
+          required: ["counts", "items"],
+          properties: {
+            counts: { $ref: "#/$defs/httpSecurityTruthAggregate" },
+            items: {
+              type: "array",
+              items: {
+                type: "object",
+                additionalProperties: false,
+                required: ["operationKey", "method", "route", "suite", "truth", "branchIndex", "branchKind", "message"],
+                properties: {
+                  operationKey: { type: "string", minLength: 1 },
+                  method: { type: "string", minLength: 1 },
+                  route: { type: "string", minLength: 1 },
+                  suite: { type: "string", minLength: 1 },
+                  truth: { enum: ["satisfied", "missing", "unavailable", "unsupported", "optional", "clear"] },
+                  branchIndex: { type: "integer", minimum: 0 },
+                  branchKind: { enum: ["requirement", "optional", "clear"] },
+                  message: { type: "string", minLength: 1 },
+                  schemeName: { type: "string" },
+                  schemeType: { enum: ["apiKey", "http", "oauth2", "openIdConnect", "mutualTLS", "unsupported"] },
+                  schemeLocation: { type: "string" },
+                  schemeKeyName: { type: "string" },
+                  evidenceState: { enum: ["captured", "redacted", "omitted"] },
+                  evidenceReason: { enum: ["sensitive", "oversized", "unsupported", "unavailable"] },
+                  semanticCode: {
+                    enum: [
+                      "SEMANTIC_HTTP_MISSING_SECURITY",
+                      "SEMANTIC_HTTP_UNAVAILABLE_SECURITY",
+                      "SEMANTIC_HTTP_UNSUPPORTED_SECURITY"
+                    ]
+                  },
+                  semanticMessage: { type: "string" }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     diagnostics: {
       type: "object",
       additionalProperties: false,
@@ -500,6 +605,19 @@ const REPORT_SCHEMA = {
         redacted: { type: "integer", minimum: 0 },
         omitted: { type: "integer", minimum: 0 },
         unsupported: { type: "integer", minimum: 0 }
+      }
+    },
+    httpSecurityTruthAggregate: {
+      type: "object",
+      additionalProperties: false,
+      required: ["satisfied", "missing", "unavailable", "unsupported", "optional", "clear"],
+      properties: {
+        satisfied: { type: "integer", minimum: 0 },
+        missing: { type: "integer", minimum: 0 },
+        unavailable: { type: "integer", minimum: 0 },
+        unsupported: { type: "integer", minimum: 0 },
+        optional: { type: "integer", minimum: 0 },
+        clear: { type: "integer", minimum: 0 }
       }
     },
     httpPayloadTargetAggregate: {

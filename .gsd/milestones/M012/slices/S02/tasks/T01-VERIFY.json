@@ -1,0 +1,28 @@
+{
+  "schemaVersion": 1,
+  "taskId": "T01",
+  "unitId": "M012/S02/T01",
+  "timestamp": 1774477490345,
+  "passed": true,
+  "discoverySource": "task-plan",
+  "checks": [
+    {
+      "command": "bash scripts/ci/verify-m012-s02-security-semantics.sh",
+      "exitCode": 0,
+      "durationMs": 3174,
+      "verdict": "pass"
+    },
+    {
+      "command": "node --test scripts/ci/run-v1-e2e.contract.test.mjs scripts/ci/collect-yanote-artifacts.test.mjs",
+      "exitCode": 0,
+      "durationMs": 220,
+      "verdict": "pass"
+    },
+    {
+      "command": "bash scripts/ci/run-v1-e2e.sh",
+      "exitCode": 0,
+      "durationMs": 21504,
+      "verdict": "pass"
+    }
+  ]
+}
