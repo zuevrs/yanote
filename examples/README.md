@@ -13,7 +13,13 @@
 
 Итог этого маршрута — не абстрактное «тесты прошли», а inspectable цепочка артефактов: живые запросы → `events.jsonl` → analyzer → `yanote-report.json`.
 
-Для публичного retained proof поверх этого demo-path используйте `bash scripts/ci/run-v1-e2e.sh`. Он сохраняет `.yanote-ci/v1-e2e/out/yanote-report.json` как стабильный happy-path artifact, рядом публикует additive request sidecar `.yanote-ci/v1-e2e/request-semantics.events.jsonl`, `.yanote-ci/v1-e2e/request-semantics.stdout`, `.yanote-ci/v1-e2e/request-semantics.stderr`, `.yanote-ci/v1-e2e/request-semantics-yanote-report.json`, а также удерживает `semantic-red.stdout`, `semantic-red.stderr` и `semantic-red-yanote-report.json`, чтобы можно было сверить green-path `100.00% / 100.00% / 100.00% / 100.00%` observation coverage с fail-closed request/payload boundary. Request sidecar публикует буквальную поддержку `path=simple`, `query=form`, `header=simple`, `cookie=form` и массивов только для `query=form` + `explode=true` + scalar `items`; payload sidecar удерживает `email`-only format allowlist и most-specific media matching. Для deeper retained truth запускайте `bash scripts/ci/verify-m011-s02-request-semantics.sh` и `bash scripts/ci/verify-m011-s03-format-media.sh`.
+Для публичного retained proof поверх этого demo-path используйте `bash scripts/ci/run-v1-e2e.sh`. Он сохраняет `.yanote-ci/v1-e2e/out/yanote-report.json` как стабильный happy-path artifact, рядом публикует additive request sidecar `.yanote-ci/v1-e2e/request-semantics.events.jsonl`, `.yanote-ci/v1-e2e/request-semantics.stdout`, `.yanote-ci/v1-e2e/request-semantics.stderr`, `.yanote-ci/v1-e2e/request-semantics-yanote-report.json`, удерживает `semantic-red.stdout`, `semantic-red.stderr`, `semantic-red-yanote-report.json`, а также добавляет fixture-backed security sidecars `.yanote-ci/v1-e2e/security-semantics.stdout`, `.yanote-ci/v1-e2e/security-semantics.stderr`, `.yanote-ci/v1-e2e/security-semantics-yanote-report.json` с provenance в `artifact-manifest.txt` и `artifact-source-paths.txt`.
+
+Request sidecar публикует буквальную поддержку `path=simple`, `query=form`, `header=simple`, `cookie=form` и массивов только для `query=form` + `explode=true` + scalar `items`. Payload sidecar удерживает `email`-only format allowlist и most-specific media matching. Security sidecar публикует root inheritance, operation override, `security: []`, `{}` optional branch, OR между объектами Security Requirement, AND внутри одного объекта и truthful `apiKey` query/header/cookie subset. Для deeper retained truth запускайте `bash scripts/ci/verify-m011-s02-request-semantics.sh`, `bash scripts/ci/verify-m011-s03-format-media.sh` и `bash scripts/ci/verify-m012-s02-security-semantics.sh`.
+
+Важно: security matrix в examples-path остаётся fixture-backed proof, а не emergent property live Spring MVC demo-service. `security-semantics.*` собирается из `yanote-js/test/fixtures/openapi/http-security-api-key.yaml` и `yanote-js/test/fixtures/events/http-security-api-key.fixture.jsonl`; raw fixture JSONL не redistribut-ится в `.yanote-ci/v1-e2e/`.
+
+`httpSecurityConformance`, CLI блок `HTTP Security Conformance`, security-токены `YANOTE_SUMMARY` и retained `security-semantics.*` sidecars additive: они не меняют legacy `coverage.operations/status/parameters/aggregate` numerators. Broader OpenAPI objects `examples`, `links`, `callbacks`, `webhooks` здесь тоже публикуются как deferred boundary.
 
 ## Что лежит в директории
 
@@ -33,8 +39,8 @@ Fallback bundles здесь намеренно не продвигаются к�
 
 - [`../docs/README.md`](../docs/README.md) — карта документации и разделение между user-facing, maintainer и historical surface-ами.
 - [`../docs/guides/recorder-spring-mvc.md`](../docs/guides/recorder-spring-mvc.md) — канонический recorder path.
-- [`../docs/guides/analyzer-coverage.md`](../docs/guides/analyzer-coverage.md) — канонический analyzer path, интерпретация отчёта и retained green/red proof bundle.
+- [`../docs/guides/analyzer-coverage.md`](../docs/guides/analyzer-coverage.md) — канонический analyzer path, интерпретация отчёта, additive security surface и retained green/red/security proof bundle.
 - [`../docs/guides/test-tagging.md`](../docs/guides/test-tagging.md) — канонический contract test metadata.
-- [`../docs/release-and-support.md`](../docs/release-and-support.md) — текущая stable line, GitHub Releases и границы fallback/release assets, если обычный dependency/source-built путь недоступен.
+- [`../docs/release-and-support.md`](../docs/release-and-support.md) — текущая stable line `v1.0.x`, GitHub Releases, additive request/payload/security proof boundary и deferred broader OpenAPI objects, если обычный dependency/source-built путь недоступен.
 
 Если вы зашли сразу в leaf example, сначала вернитесь к этой карте примеров, затем — в каноническую документацию за guide-level деталями.

@@ -1,0 +1,125 @@
+openapi: 3.0.0
+info:
+  title: http security apiKey sample
+  version: 1.0.0
+security:
+  - headerKey: []
+components:
+  securitySchemes:
+    headerKey:
+      type: apiKey
+      in: header
+      name: X-Api-Key
+    queryKey:
+      type: apiKey
+      in: query
+      name: api_key
+    cookieKey:
+      type: apiKey
+      in: cookie
+      name: session
+    basicAuth:
+      type: http
+      scheme: basic
+    oauthKey:
+      type: oauth2
+      flows:
+        clientCredentials:
+          tokenUrl: https://example.com/oauth/token
+          scopes:
+            read: Read access
+    oidcAuth:
+      type: openIdConnect
+      openIdConnectUrl: https://example.com/.well-known/openid-configuration
+    pathKey:
+      type: apiKey
+      in: path
+      name: secret
+paths:
+  /root-inherited:
+    get:
+      responses:
+        '200':
+          description: ok
+  /override-query:
+    get:
+      security:
+        - queryKey: []
+      responses:
+        '200':
+          description: ok
+  /clear:
+    get:
+      security: []
+      responses:
+        '200':
+          description: ok
+  /optional:
+    get:
+      security:
+        - {}
+        - cookieKey: []
+      responses:
+        '200':
+          description: ok
+  /or-and-satisfied:
+    get:
+      security:
+        - headerKey: []
+          queryKey: []
+        - cookieKey: []
+      responses:
+        '200':
+          description: ok
+  /or-and-missing:
+    get:
+      security:
+        - headerKey: []
+          queryKey: []
+        - cookieKey: []
+      responses:
+        '200':
+          description: ok
+  /redacted:
+    get:
+      security:
+        - headerKey: []
+      responses:
+        '200':
+          description: ok
+  /unavailable:
+    get:
+      security:
+        - queryKey: []
+      responses:
+        '200':
+          description: ok
+  /unsupported-http:
+    get:
+      security:
+        - basicAuth: []
+      responses:
+        '200':
+          description: ok
+  /unsupported-oauth:
+    get:
+      security:
+        - oauthKey:
+            - read
+      responses:
+        '200':
+          description: ok
+  /unsupported-openid:
+    get:
+      security:
+        - oidcAuth: []
+      responses:
+        '200':
+          description: ok
+  /unsupported-location:
+    get:
+      security:
+        - pathKey: []
+      responses:
+        '200':
+          description: ok

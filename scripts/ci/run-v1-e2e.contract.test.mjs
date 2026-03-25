@@ -88,12 +88,34 @@ test("v1 e2e script reruns the analyzer locally against filtered retained reques
   assert.match(source, /cp "\$\{REQUEST_SEMANTICS_OUT_DIR\}\/yanote-report\.json" "\$\{REQUEST_SEMANTICS_REPORT_PATH\}"/);
 });
 
+test("v1 e2e script reruns the analyzer locally against the focused security fixtures and retains public sidecars", async () => {
+  const source = await loadScriptSource();
+  assert.match(source, /SECURITY_SEMANTICS_SPEC="yanote-js\/test\/fixtures\/openapi\/http-security-api-key\.yaml"/);
+  assert.match(source, /SECURITY_SEMANTICS_EVENTS_FIXTURE="yanote-js\/test\/fixtures\/events\/http-security-api-key\.fixture\.jsonl"/);
+  assert.match(source, /SECURITY_SEMANTICS_STDOUT_PATH="\$\{ARTIFACT_DIR\}\/security-semantics\.stdout"/);
+  assert.match(source, /SECURITY_SEMANTICS_STDERR_PATH="\$\{ARTIFACT_DIR\}\/security-semantics\.stderr"/);
+  assert.match(source, /SECURITY_SEMANTICS_REPORT_PATH="\$\{ARTIFACT_DIR\}\/security-semantics-yanote-report\.json"/);
+  assert.match(source, /node yanote-js\/dist\/yanote\.cjs report \\\n    --spec "\$\{SECURITY_SEMANTICS_SPEC\}" \\\n    --events "\$\{SECURITY_SEMANTICS_EVENTS_FIXTURE\}" \\\n    --out "\$\{SECURITY_SEMANTICS_OUT_DIR\}" \\\n    --profile local \\\n    --verbose/);
+  assert.match(source, /grep -q '\^HTTP Security Conformance\$' "\$\{SECURITY_SEMANTICS_STDOUT_PATH\}"/);
+  assert.match(source, /grep -q 'YANOTE_ERROR class=semantic code=SEMANTIC_HTTP_MISSING_SECURITY' "\$\{SECURITY_SEMANTICS_STDERR_PATH\}"/);
+  assert.match(source, /grep -q 'primary=SEMANTIC_HTTP_MISSING_SECURITY' "\$\{SECURITY_SEMANTICS_STDOUT_PATH\}"/);
+  assert.match(source, /cp "\$\{SECURITY_SEMANTICS_OUT_DIR\}\/yanote-report\.json" "\$\{SECURITY_SEMANTICS_REPORT_PATH\}"/);
+});
+
 test("v1 e2e script keeps request-semantics stdout and stderr free of retained request values and secrets", async () => {
   const source = await loadScriptSource();
   assert.match(source, /REQUEST_SEMANTICS_FORBIDDEN_STDIO_VALUES=\("user-42" "alpha" "bravo" "amber" "compact" "opaque"\)/);
   assert.match(source, /REQUEST_SEMANTICS_FORBIDDEN_SECRET_VALUES=\("Bearer proof-secret-token" "proof-session-secret"\)/);
   assert.match(source, /ensure_no_file_leak "\$\{REQUEST_SEMANTICS_STDOUT_PATH\}" "request-semantics stdout" "\$\{REQUEST_SEMANTICS_FORBIDDEN_STDIO_VALUES\[@\]\}"/);
   assert.match(source, /ensure_no_file_leak "\$\{REQUEST_SEMANTICS_STDERR_PATH\}" "request-semantics stderr" "\$\{REQUEST_SEMANTICS_FORBIDDEN_SECRET_VALUES\[@\]\}"/);
+});
+
+test("v1 e2e script keeps retained security sidecars and report free of fixture secrets", async () => {
+  const source = await loadScriptSource();
+  assert.match(source, /SECURITY_SEMANTICS_FORBIDDEN_VALUES=\([\s\S]*"header-secret-123"[\s\S]*"query-secret-456"[\s\S]*"path-secret-xyz"[\s\S]*\)/);
+  assert.match(source, /ensure_no_file_leak "\$\{SECURITY_SEMANTICS_STDOUT_PATH\}" "security-semantics stdout" "\$\{SECURITY_SEMANTICS_FORBIDDEN_VALUES\[@\]\}"/);
+  assert.match(source, /ensure_no_file_leak "\$\{SECURITY_SEMANTICS_STDERR_PATH\}" "security-semantics stderr" "\$\{SECURITY_SEMANTICS_FORBIDDEN_VALUES\[@\]\}"/);
+  assert.match(source, /ensure_no_file_leak "\$\{SECURITY_SEMANTICS_REPORT_PATH\}" "security-semantics yanote-report" "\$\{SECURITY_SEMANTICS_FORBIDDEN_VALUES\[@\]\}"/);
 });
 
 test("v1 e2e script reruns the analyzer locally against the retained events with the unsupported-schema spec", async () => {
@@ -105,7 +127,7 @@ test("v1 e2e script reruns the analyzer locally against the retained events with
   assert.match(source, /cp "\$\{SEMANTIC_RED_OUT_DIR\}\/yanote-report\.json" "\$\{SEMANTIC_RED_REPORT_PATH\}"/);
 });
 
-test("v1 e2e script writes deterministic bundle manifest and source-path notes for retained green, request, and red artifacts", async () => {
+test("v1 e2e script writes deterministic bundle manifest and source-path notes for retained green, request, security, and red artifacts", async () => {
   const source = await loadScriptSource();
   assert.match(source, /SOURCE_PATHS_NOTE_NAME="artifact-source-paths\.txt"/);
   assert.match(source, /MANIFEST_NAME="artifact-manifest\.txt"/);
@@ -116,6 +138,14 @@ test("v1 e2e script writes deterministic bundle manifest and source-path notes f
   assert.match(source, /request-semantics\.events\.jsonl=%s\\n' 'filtered:\.yanote-ci\/v1-e2e\/events\.jsonl route=\/request-evidence\/users\/\{userId\}'/);
   assert.match(source, /request_semantics_expected_exit=%s\\n' '5'/);
   assert.match(source, /request_semantics_primary=%s\\n' 'SEMANTIC_HTTP_UNSUPPORTED_REQUEST_PARAMETER'/);
+  assert.match(source, /security_semantics_spec=%s\\n' 'yanote-js\/test\/fixtures\/openapi\/http-security-api-key\.yaml'/);
+  assert.match(source, /security_semantics_events=%s\\n' 'yanote-js\/test\/fixtures\/events\/http-security-api-key\.fixture\.jsonl'/);
+  assert.match(source, /security-semantics\.stdout/);
+  assert.match(source, /security-semantics\.stderr/);
+  assert.match(source, /security-semantics-yanote-report\.json/);
+  assert.match(source, /security-semantics\.stdout=%s\\n' 'host:node yanote-js\/dist\/yanote\.cjs report --spec yanote-js\/test\/fixtures\/openapi\/http-security-api-key\.yaml --events yanote-js\/test\/fixtures\/events\/http-security-api-key\.fixture\.jsonl --out <temp> --profile local --verbose'/);
+  assert.match(source, /security_semantics_expected_exit=%s\\n' '5'/);
+  assert.match(source, /security_semantics_primary=%s\\n' 'SEMANTIC_HTTP_MISSING_SECURITY'/);
   assert.match(source, /semantic-red\.stdout/);
   assert.match(source, /semantic-red\.stderr/);
   assert.match(source, /semantic-red-yanote-report\.json/);

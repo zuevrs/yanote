@@ -1,16 +1,16 @@
 # yanote
 
-Yanote помогает инженерной команде увидеть не абстрактное «тесты прошли», а реальное покрытие HTTP-контракта по живым вызовам. Сервис пишет события в `events.jsonl`, analyzer сопоставляет их со спецификацией OpenAPI и собирает `yanote-report.json`, где видно не только какие операции, статусы и обязательные параметры действительно наблюдались, но и где проходит честная публичная граница request/payload semantics.
+Yanote помогает инженерной команде увидеть не абстрактное «тесты прошли», а реальное покрытие HTTP-контракта по живым вызовам. Сервис пишет события в `events.jsonl`, analyzer сопоставляет их со спецификацией OpenAPI и собирает `yanote-report.json`, где видно не только какие операции, статусы и обязательные параметры действительно наблюдались, но и где проходят буквальные request/payload/security semantics границы.
 
 ## Что такое Yanote
 
 Yanote — это связка из рекордера, событийного формата и analyzer-а для контрактного покрытия API:
 
 - рекордер подключается к сервису и пишет evidence в `events.jsonl`;
-- analyzer читает OpenAPI + `events.jsonl` и считает покрытие;
-- результат остаётся в читаемом stdout, секциях `HTTP Payload Conformance` и `HTTP Request Conformance`, строке `YANOTE_SUMMARY ...` и файле `yanote-report.json`.
+- analyzer читает OpenAPI + `events.jsonl` и считает coverage;
+- результат остаётся в читаемом stdout, секциях `HTTP Payload Conformance`, `HTTP Request Conformance`, `HTTP Security Conformance`, строке `YANOTE_SUMMARY ...` и файле `yanote-report.json`.
 
-Практический результат для команды простой: после прогона тестов или ручных вызовов можно ответить не только на вопрос «были ли запросы», но и на вопрос «какая часть контракта реально доказана событиями, а где coverage ещё partial».
+Практический результат для команды простой: после прогона тестов или ручных вызовов можно ответить не только на вопрос «были ли запросы», но и на вопрос «какая часть контракта реально доказана событиями, а где coverage ещё partial и начинается fail-closed boundary».
 
 ## Для кого
 
@@ -23,7 +23,7 @@ Yanote нужен инженеру, который одновременно от
 - source-built analyzer из `yanote-js`;
 - OpenAPI как источник объявленного контракта.
 
-Если вам важно быстро понять, где тесты наблюдали операции, но не закрыли нужные response statuses или required parameters, это как раз целевой сценарий Yanote.
+Если вам важно быстро понять, где тесты наблюдали операции, но не закрыли нужные response statuses, required parameters или security semantics boundary, это как раз целевой сценарий Yanote.
 
 > **Версия и границы поддержки.** Текущая публичная стабильная линия Yanote — `v1.0.x`. Последний стабильный тег, опубликованные изменения в GitHub Releases, совместимость, ограничения и разницу между текущим `HEAD` репозитория и опубликованным релизом смотрите в [`docs/release-and-support.md`](docs/release-and-support.md).
 
@@ -42,16 +42,26 @@ Yanote нужен инженеру, который одновременно от
    После живого HTTP-запроса или прогона тестов проверьте, что файл создан, не пустой и содержит ожидаемые поля маршрута, статуса и сервиса. Это первый доказуемый артефакт цикла, который потом пойдёт в analyzer.
 
 3. **Прогоните analyzer по OpenAPI и событиям.**
-   Канонический путь запуска и интерпретации описан в [`docs/guides/analyzer-coverage.md`](docs/guides/analyzer-coverage.md): собрать `yanote-js`, выполнить `report` против OpenAPI и `events.jsonl`, получить stdout с `Summary`, секциями `HTTP Payload Conformance` и `HTTP Request Conformance`, строку `YANOTE_SUMMARY ...` и стабильный файл `yanote-report.json`.
+   Канонический путь запуска и интерпретации описан в [`docs/guides/analyzer-coverage.md`](docs/guides/analyzer-coverage.md): собрать `yanote-js`, выполнить `report` против OpenAPI и `events.jsonl`, получить stdout с `Summary`, секциями `HTTP Payload Conformance`, `HTTP Request Conformance`, `HTTP Security Conformance`, строку `YANOTE_SUMMARY ...` и стабильный файл `yanote-report.json`.
 
-   Если нужен runnable repo demo целиком, используйте [`examples/README.md`](examples/README.md) и [`examples/docker-compose.yml`](examples/docker-compose.yml). Для публичного proof-bundle в репозитории есть `bash scripts/ci/run-v1-e2e.sh`: он сохраняет happy-path артефакт `.yanote-ci/v1-e2e/out/yanote-report.json`, рядом публикует retained request sidecar `.yanote-ci/v1-e2e/request-semantics.events.jsonl`, `.yanote-ci/v1-e2e/request-semantics.stdout`, `.yanote-ci/v1-e2e/request-semantics.stderr`, `.yanote-ci/v1-e2e/request-semantics-yanote-report.json`, а также удерживает payload semantic-red sidecars `semantic-red.stdout`, `semantic-red.stderr` и `semantic-red-yanote-report.json`. Если нужно deeper retained truth, используйте `bash scripts/ci/verify-m011-s02-request-semantics.sh` и `bash scripts/ci/verify-m011-s03-format-media.sh`.
+   Если нужен runnable repo demo целиком, используйте [`examples/README.md`](examples/README.md) и [`examples/docker-compose.yml`](examples/docker-compose.yml). Для публичного proof-bundle в репозитории есть `bash scripts/ci/run-v1-e2e.sh`: он сохраняет happy-path артефакт `.yanote-ci/v1-e2e/out/yanote-report.json`, рядом публикует retained request sidecar `.yanote-ci/v1-e2e/request-semantics.events.jsonl`, `.yanote-ci/v1-e2e/request-semantics.stdout`, `.yanote-ci/v1-e2e/request-semantics.stderr`, `.yanote-ci/v1-e2e/request-semantics-yanote-report.json`, payload sidecars `semantic-red.stdout`, `semantic-red.stderr`, `semantic-red-yanote-report.json`, а также fixture-backed security sidecars `.yanote-ci/v1-e2e/security-semantics.stdout`, `.yanote-ci/v1-e2e/security-semantics.stderr`, `.yanote-ci/v1-e2e/security-semantics-yanote-report.json` с provenance в `artifact-manifest.txt` и `artifact-source-paths.txt`. Если нужно deeper retained truth, используйте `bash scripts/ci/verify-m011-s02-request-semantics.sh`, `bash scripts/ci/verify-m011-s03-format-media.sh` и `bash scripts/ci/verify-m012-s02-security-semantics.sh`.
+
+   Важно: security matrix публикуется как fixture-backed proof, а не как emergent property Spring MVC demo-service. `security-semantics.*` строится из `yanote-js/test/fixtures/openapi/http-security-api-key.yaml` и `yanote-js/test/fixtures/events/http-security-api-key.fixture.jsonl`, а raw fixture JSONL не попадает в `.yanote-ci/v1-e2e/`.
 
    Offline fallback для analyzer остаётся вторичным путём через release assets GitHub Releases; публичные tracked `dist/*` docs больше не считаются supported entrypoint, поэтому ориентируйтесь на [`docs/release-and-support.md`](docs/release-and-support.md).
 
    Если вам нужен не HTTP/OpenAPI path, а первая волна AsyncAPI/Kafka, не смешивайте её с этим циклом: отдельный guide [`docs/guides/asyncapi-kafka.md`](docs/guides/asyncapi-kafka.md) ведёт по Kafka evidence, команде `async-report`, отдельному артефакту `yanote-async-report.json` и retained runtime-selection sidecar для multi-message AsyncAPI path.
 
 4. **Прочитайте отчёт, а не только exit code.**
-   В текущем публичном demo-path happy path показывает `operations/status/parameters/aggregate = 100.00%`, но это не отменяет две отдельные поверхности — `HTTP Payload Conformance` и `HTTP Request Conformance`. Request boundary публикует только поддерживаемый subset `path=simple`, `query=form`, `header=simple`, `cookie=form`; повторяющиеся массивы поддерживаются только для `query=form` + `explode=true` + scalar `items`, а выход за этот subset удерживается как `SEMANTIC_HTTP_UNSUPPORTED_REQUEST_PARAMETER` через `httpRequestConformance`, `declaredSupport*` и request-токены `YANOTE_SUMMARY` (`request_observed_operations`, `request_observed_parameters`, `request_truths`, `primary`). Payload boundary отдельно подтверждает `email`-only format allowlist, most-specific media matching, benign `NO_DECLARED_CONTENT`, `RECORDER_OMITTED` с `captureState=omitted` и `captureReason=policy-filtered`, а на retained semantic-red path показывает fail-closed `SEMANTIC_HTTP_UNSUPPORTED_SCHEMA`.
+   В текущем публичном demo-path happy path показывает `operations/status/parameters/aggregate = 100.00%`, но это не отменяет три отдельные surfaces — `HTTP Payload Conformance`, `HTTP Request Conformance` и `HTTP Security Conformance`.
+
+   - Request boundary публикует только поддерживаемый subset `path=simple`, `query=form`, `header=simple`, `cookie=form`; повторяющиеся массивы поддерживаются только для `query=form` + `explode=true` + scalar `items`, а выход за этот subset удерживается как `SEMANTIC_HTTP_UNSUPPORTED_REQUEST_PARAMETER` через `httpRequestConformance`, `declaredSupport*` и request-токены `YANOTE_SUMMARY` (`request_observed_operations`, `request_observed_parameters`, `request_truths`, `primary`).
+   - Payload boundary отдельно подтверждает `email`-only format allowlist, most-specific media matching, benign `NO_DECLARED_CONTENT`, `RECORDER_OMITTED` с `captureState=omitted` и `captureReason=policy-filtered`, а на retained semantic-red path показывает fail-closed `SEMANTIC_HTTP_UNSUPPORTED_SCHEMA`.
+   - Security boundary публикует root inheritance, operation override, `security: []`, `{}` optional branch, OR между объектами Security Requirement и AND внутри одного объекта. Truthful subset здесь только `apiKey` в `query/header/cookie`; fail-closed коды `SEMANTIC_HTTP_MISSING_SECURITY`, `SEMANTIC_HTTP_UNAVAILABLE_SECURITY` и `SEMANTIC_HTTP_UNSUPPORTED_SECURITY` живут в additive `httpSecurityConformance`, отдельном CLI блоке `HTTP Security Conformance` и security-токенах `YANOTE_SUMMARY` (`security_declared_operations`, `security_observed_operations`, `security_observed_evaluations`, `security_truths`, `primary`).
+
+   `httpSecurityConformance`, CLI security block и security-токены `YANOTE_SUMMARY` additive: они не меняют legacy `coverage.operations/status/parameters/aggregate` numerators.
+
+   Broader OpenAPI objects `examples`, `links`, `callbacks`, `webhooks` пока публикуются как deferred boundary и не входят в поддерживаемую публичную proof surface.
 
 ### Канонический путь тестовых метаданных
 
@@ -69,7 +79,7 @@ Yanote нужен инженеру, который одновременно от
 - **Понять пользовательскую документацию целиком:** [`docs/README.md`](docs/README.md)
 - **Пройти runnable demo по repo assets и retained proof bundle:** [`examples/README.md`](examples/README.md)
 - **Сразу подключить рекордер к Spring MVC сервису:** [`docs/guides/recorder-spring-mvc.md`](docs/guides/recorder-spring-mvc.md)
-- **Сразу запустить analyzer и научиться читать observation coverage и `HTTP Payload Conformance`:** [`docs/guides/analyzer-coverage.md`](docs/guides/analyzer-coverage.md)
+- **Сразу запустить analyzer и научиться читать observation coverage, `HTTP Payload Conformance`, `HTTP Request Conformance` и `HTTP Security Conformance`:** [`docs/guides/analyzer-coverage.md`](docs/guides/analyzer-coverage.md)
 - **Пройти отдельный AsyncAPI/Kafka path и получить `yanote-async-report.json`:** [`docs/guides/asyncapi-kafka.md`](docs/guides/asyncapi-kafka.md)
 - **Разобрать suite/run metadata и их путь до отчёта:** [`docs/guides/test-tagging.md`](docs/guides/test-tagging.md)
 
@@ -84,7 +94,7 @@ Yanote нужен инженеру, который одновременно от
 - traceability map: [`docs/traceability/README.md`](docs/traceability/README.md) — owner map для requirement/test matrix и schema-level reference.
   - direct matrix: [`docs/traceability/v1-requirements-tests.md`](docs/traceability/v1-requirements-tests.md)
 - historical plans map: [`docs/plans/README.md`](docs/plans/README.md) — owner map для design/proof history без подмены текущих guide-level docs.
-- release/support boundary: [`docs/release-and-support.md`](docs/release-and-support.md) — где смотреть текущую stable line, GitHub Releases и границы fallback/release assets без опоры на tracked `dist/` surface.
+- release/support boundary: [`docs/release-and-support.md`](docs/release-and-support.md) — где смотреть текущую stable line, GitHub Releases, deferred broader OpenAPI objects (`examples`, `links`, `callbacks`, `webhooks`) и границы fallback/release assets без опоры на tracked `dist/` surface.
 
 Состав репозитория тоже остаётся вторичным навигационным слоем:
 

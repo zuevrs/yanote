@@ -15,7 +15,7 @@ import {
 } from "../coverage/dimensions.js";
 import type { OperationKey } from "../model/operationKey.js";
 import { serializeOperationKey } from "../model/operationKey.js";
-import { buildHttpSemantics } from "./semantics.js";
+import { buildHttpSemantics, type HttpResolvedOperationSecurity } from "./semantics.js";
 
 const HTTP_METHODS = ["get", "put", "post", "delete", "patch", "options", "head", "trace"] as const;
 const SUPPORTED_PARAMETER_STYLE_BY_LOCATION: Record<HttpRequestParameterLocation, ReadonlySet<string>> = {
@@ -41,6 +41,8 @@ const HTTP_SCALAR_TYPES = new Set<HttpScalarSchemaContract["type"]>(["string", "
 
 type HttpMethod = (typeof HTTP_METHODS)[number];
 
+type SecuritySchemeRecord = Record<string, unknown>;
+
 export type JsonSchemaContract = Record<string, unknown> | boolean;
 
 export type HttpMediaTypeContract = {
@@ -58,12 +60,58 @@ export type HttpResponseBodyContract = {
   content: HttpMediaTypeContract[];
 };
 
+export type HttpSecuritySchemeContract =
+  | {
+      schemeName: string;
+      type: "apiKey";
+      in: string;
+      keyName: string;
+    }
+  | {
+      schemeName: string;
+      type: "http";
+      scheme?: string;
+    }
+  | {
+      schemeName: string;
+      type: "oauth2";
+    }
+  | {
+      schemeName: string;
+      type: "openIdConnect";
+    }
+  | {
+      schemeName: string;
+      type: "mutualTLS";
+    }
+  | {
+      schemeName: string;
+      type: "unsupported";
+      rawType?: string;
+    };
+
+export type HttpSecurityRequirementSchemeContract = {
+  scheme: HttpSecuritySchemeContract;
+  scopes: string[];
+};
+
+export type HttpSecurityRequirementContract = {
+  schemes: HttpSecurityRequirementSchemeContract[];
+};
+
+export type HttpOperationSecurityContract = {
+  source: "implicit-open" | "root" | "operation";
+  cleared: boolean;
+  requirements: HttpSecurityRequirementContract[];
+};
+
 export type HttpOperationContract = {
   declaredStatuses: string[];
   parameters: ParameterDefinition[];
   requestParameters?: HttpRequestParameterContract[];
   requestBody?: HttpRequestBodyContract;
   responseBodies: HttpResponseBodyContract[];
+  security?: HttpOperationSecurityContract;
 };
 
 export type OpenApiCoverageModel = {
@@ -82,7 +130,7 @@ export async function loadOpenApiCoverageModel(specPath: string): Promise<OpenAp
     throw new Error(`OpenAPI semantic extraction failed: ${details}`);
   }
 
-  const extracted = extractHttpContracts(api);
+  const extracted = extractHttpContracts(api, semantics.operationSecurityByKey);
   const operations = semantics.operations.filter((operation): operation is Extract<OperationKey, { kind: "http" }> => {
     return operation.kind === "http";
   });
@@ -90,7 +138,10 @@ export async function loadOpenApiCoverageModel(specPath: string): Promise<OpenAp
   const operationContractsByKey = new Map<string, HttpOperationContract>();
   for (const operation of operations) {
     const operationKey = serializeOperationKey(operation);
-    operationContractsByKey.set(operationKey, extracted.get(operationKey) ?? createEmptyHttpOperationContract());
+    operationContractsByKey.set(
+      operationKey,
+      extracted.get(operationKey) ?? createEmptyHttpOperationContract(semantics.operationSecurityByKey.get(operationKey))
+    );
   }
 
   return {
@@ -103,10 +154,15 @@ export async function loadOpenApiOperations(specPath: string): Promise<Operation
   return (await loadOpenApiCoverageModel(specPath)).operations;
 }
 
-function extractHttpContracts(document: OpenAPI.Document): Map<string, HttpOperationContract> {
+function extractHttpContracts(
+  document: OpenAPI.Document,
+  operationSecurityByKey: ReadonlyMap<string, HttpResolvedOperationSecurity>
+): Map<string, HttpOperationContract> {
   const out = new Map<string, HttpOperationContract>();
   const paths = isRecord(document.paths) ? document.paths : undefined;
   if (!paths) return out;
+
+  const securitySchemes = extractSecuritySchemes(document);
 
   for (const [rawRoute, pathItem] of Object.entries(paths)) {
     if (!isRecord(pathItem)) continue;
@@ -142,7 +198,8 @@ function extractHttpContracts(document: OpenAPI.Document): Map<string, HttpOpera
           .sort(compareParameterDefinition),
         requestParameters: mergedRequestParameters,
         requestBody: extractRequestBodyContract(operation.requestBody),
-        responseBodies: extractResponseBodyContracts(operation.responses)
+        responseBodies: extractResponseBodyContracts(operation.responses),
+        security: materializeOperationSecurityContract(operationSecurityByKey.get(operationKey), securitySchemes)
       });
     }
   }
@@ -150,13 +207,140 @@ function extractHttpContracts(document: OpenAPI.Document): Map<string, HttpOpera
   return out;
 }
 
-function createEmptyHttpOperationContract(): HttpOperationContract {
+function createEmptyHttpOperationContract(security: HttpResolvedOperationSecurity | undefined): HttpOperationContract {
   return {
     declaredStatuses: [],
     parameters: [],
     requestParameters: [],
-    responseBodies: []
+    responseBodies: [],
+    security: materializeOperationSecurityContract(security, new Map())
   };
+}
+
+function extractSecuritySchemes(document: OpenAPI.Document): Map<string, HttpSecuritySchemeContract> {
+  const out = new Map<string, HttpSecuritySchemeContract>();
+  const components = isRecord(document.components) ? document.components : undefined;
+  const securitySchemes = isRecord(components?.securitySchemes) ? components.securitySchemes : undefined;
+  if (!securitySchemes) {
+    return out;
+  }
+
+  for (const [schemeName, rawScheme] of Object.entries(securitySchemes)) {
+    if (!isRecord(rawScheme)) {
+      continue;
+    }
+
+    out.set(schemeName, materializeSecuritySchemeContract(schemeName, rawScheme));
+  }
+
+  return out;
+}
+
+function materializeOperationSecurityContract(
+  security: HttpResolvedOperationSecurity | undefined,
+  securitySchemes: ReadonlyMap<string, HttpSecuritySchemeContract>
+): HttpOperationSecurityContract {
+  const resolved = security ?? {
+    source: "implicit-open",
+    cleared: false,
+    requirements: []
+  } satisfies HttpResolvedOperationSecurity;
+
+  return {
+    source: resolved.source,
+    cleared: resolved.cleared,
+    requirements: resolved.requirements.map((requirement) => ({
+      schemes: requirement.schemes.map((entry) => ({
+        scheme: cloneSecuritySchemeContract(
+          securitySchemes.get(entry.schemeName) ?? {
+            schemeName: entry.schemeName,
+            type: "unsupported"
+          }
+        ),
+        scopes: [...entry.scopes]
+      }))
+    }))
+  };
+}
+
+function materializeSecuritySchemeContract(schemeName: string, scheme: SecuritySchemeRecord): HttpSecuritySchemeContract {
+  const type = normalizeNonEmptyString(scheme.type);
+
+  switch (type) {
+    case "apiKey":
+      return {
+        schemeName,
+        type: "apiKey",
+        in: normalizeNonEmptyString(scheme.in) ?? "",
+        keyName: normalizeNonEmptyString(scheme.name) ?? ""
+      };
+    case "http":
+      return {
+        schemeName,
+        type: "http",
+        scheme: normalizeNonEmptyString(scheme.scheme)
+      };
+    case "oauth2":
+      return {
+        schemeName,
+        type: "oauth2"
+      };
+    case "openIdConnect":
+      return {
+        schemeName,
+        type: "openIdConnect"
+      };
+    case "mutualTLS":
+      return {
+        schemeName,
+        type: "mutualTLS"
+      };
+    default:
+      return {
+        schemeName,
+        type: "unsupported",
+        rawType: type
+      };
+  }
+}
+
+function cloneSecuritySchemeContract(scheme: HttpSecuritySchemeContract): HttpSecuritySchemeContract {
+  switch (scheme.type) {
+    case "apiKey":
+      return {
+        schemeName: scheme.schemeName,
+        type: "apiKey",
+        in: scheme.in,
+        keyName: scheme.keyName
+      };
+    case "http":
+      return {
+        schemeName: scheme.schemeName,
+        type: "http",
+        scheme: scheme.scheme
+      };
+    case "oauth2":
+      return {
+        schemeName: scheme.schemeName,
+        type: "oauth2"
+      };
+    case "openIdConnect":
+      return {
+        schemeName: scheme.schemeName,
+        type: "openIdConnect"
+      };
+    case "mutualTLS":
+      return {
+        schemeName: scheme.schemeName,
+        type: "mutualTLS"
+      };
+    case "unsupported":
+      return {
+        schemeName: scheme.schemeName,
+        type: "unsupported",
+        rawType: scheme.rawType
+      };
+  }
 }
 
 function extractDeclaredStatuses(value: unknown): string[] {
@@ -270,9 +454,7 @@ function normalizeSchemaContract(value: unknown): JsonSchemaContract | undefined
 function normalizeSchemaMap(value: unknown): unknown {
   if (!isRecord(value)) return value;
 
-  return Object.fromEntries(
-    Object.entries(value).map(([key, entry]) => [key, normalizeNestedSchema(entry)])
-  );
+  return Object.fromEntries(Object.entries(value).map(([key, entry]) => [key, normalizeNestedSchema(entry)]));
 }
 
 function normalizeSchemaArray(value: unknown): unknown {
@@ -588,6 +770,12 @@ function normalizeMediaType(value: string): string | undefined {
 
   const mediaType = normalized.split(";", 1)[0]?.trim();
   return mediaType && mediaType.length > 0 ? mediaType : undefined;
+}
+
+function normalizeNonEmptyString(value: unknown): string | undefined {
+  if (typeof value !== "string") return undefined;
+  const normalized = value.trim();
+  return normalized.length > 0 ? normalized : undefined;
 }
 
 function isRecord(value: unknown): value is Record<string, any> {

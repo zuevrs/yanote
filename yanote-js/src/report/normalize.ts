@@ -85,6 +85,29 @@ export function normalizeReport(report: YanoteReport): YanoteReport {
     }))
     .sort(compareRequestDiagnostics);
 
+  const httpSecurityPerOperation = [...report.httpSecurityConformance.perOperation]
+    .map((entry) => ({
+      ...entry,
+      overallTruths: { ...entry.overallTruths },
+      branches: [...entry.branches]
+        .map((branch) => ({
+          ...branch,
+          truths: { ...branch.truths },
+          schemes: [...branch.schemes]
+            .map((scheme) => ({
+              ...scheme,
+              scopes: [...scheme.scopes].sort((left, right) => left.localeCompare(right))
+            }))
+            .sort(compareSecuritySchemeSummaries),
+          suites: [...branch.suites].sort((left, right) => left.localeCompare(right))
+        }))
+        .sort((left, right) => left.branchIndex - right.branchIndex),
+      suites: [...entry.suites].sort((left, right) => left.localeCompare(right))
+    }))
+    .sort((left, right) => left.operationKey.localeCompare(right.operationKey));
+
+  const httpSecurityDiagnostics = [...report.httpSecurityConformance.diagnostics.items].sort(compareSecurityDiagnostics);
+
   return {
     ...report,
     summary: {
@@ -158,6 +181,23 @@ export function normalizeReport(report: YanoteReport): YanoteReport {
           ...report.httpRequestConformance.diagnostics.counts
         },
         items: httpRequestDiagnostics
+      }
+    },
+    httpSecurityConformance: {
+      summary: {
+        declaredOperations: report.httpSecurityConformance.summary.declaredOperations,
+        observedOperations: report.httpSecurityConformance.summary.observedOperations,
+        observedEvaluations: report.httpSecurityConformance.summary.observedEvaluations,
+        counts: {
+          ...report.httpSecurityConformance.summary.counts
+        }
+      },
+      perOperation: httpSecurityPerOperation,
+      diagnostics: {
+        counts: {
+          ...report.httpSecurityConformance.diagnostics.counts
+        },
+        items: httpSecurityDiagnostics
       }
     },
     diagnostics: {
@@ -283,6 +323,63 @@ function compareRequestDiagnostics(
   return left.suite.localeCompare(right.suite);
 }
 
+function compareSecuritySchemeSummaries(
+  left: YanoteReport["httpSecurityConformance"]["perOperation"][number]["branches"][number]["schemes"][number],
+  right: YanoteReport["httpSecurityConformance"]["perOperation"][number]["branches"][number]["schemes"][number]
+): number {
+  if (left.schemeName !== right.schemeName) return left.schemeName.localeCompare(right.schemeName);
+  if (left.type !== right.type) return left.type.localeCompare(right.type);
+  if ((left.location ?? "") !== (right.location ?? "")) return (left.location ?? "").localeCompare(right.location ?? "");
+  if ((left.keyName ?? "") !== (right.keyName ?? "")) return (left.keyName ?? "").localeCompare(right.keyName ?? "");
+  return left.scopes.join("\u0000").localeCompare(right.scopes.join("\u0000"));
+}
+
+function compareSecurityDiagnostics(
+  left: YanoteReport["httpSecurityConformance"]["diagnostics"]["items"][number],
+  right: YanoteReport["httpSecurityConformance"]["diagnostics"]["items"][number]
+): number {
+  if (left.operationKey !== right.operationKey) return left.operationKey.localeCompare(right.operationKey);
+  if (left.branchIndex !== right.branchIndex) return left.branchIndex - right.branchIndex;
+
+  const truthDelta = securityTruthRank(left.truth) - securityTruthRank(right.truth);
+  if (truthDelta !== 0) return truthDelta;
+
+  if ((left.schemeName ?? "") !== (right.schemeName ?? "")) {
+    return (left.schemeName ?? "").localeCompare(right.schemeName ?? "");
+  }
+
+  if ((left.schemeType ?? "") !== (right.schemeType ?? "")) {
+    return (left.schemeType ?? "").localeCompare(right.schemeType ?? "");
+  }
+
+  if ((left.schemeLocation ?? "") !== (right.schemeLocation ?? "")) {
+    return (left.schemeLocation ?? "").localeCompare(right.schemeLocation ?? "");
+  }
+
+  if ((left.schemeKeyName ?? "") !== (right.schemeKeyName ?? "")) {
+    return (left.schemeKeyName ?? "").localeCompare(right.schemeKeyName ?? "");
+  }
+
+  if ((left.evidenceState ?? "") !== (right.evidenceState ?? "")) {
+    return (left.evidenceState ?? "").localeCompare(right.evidenceState ?? "");
+  }
+
+  if ((left.evidenceReason ?? "") !== (right.evidenceReason ?? "")) {
+    return (left.evidenceReason ?? "").localeCompare(right.evidenceReason ?? "");
+  }
+
+  return left.suite.localeCompare(right.suite);
+}
+
+function securityTruthRank(value: YanoteReport["httpSecurityConformance"]["diagnostics"]["items"][number]["truth"]): number {
+  if (value === "clear") return 0;
+  if (value === "optional") return 1;
+  if (value === "satisfied") return 2;
+  if (value === "missing") return 3;
+  if (value === "unavailable") return 4;
+  return 5;
+}
+
 function requestLocationRank(value: "path" | "query" | "header" | "cookie"): number {
   if (value === "path") return 0;
   if (value === "query") return 1;
@@ -343,28 +440,34 @@ function governanceSemanticCodeRank(diagnostic: YanoteReport["governance"]["diag
       return 10;
     case "ASYNC_SEMANTIC_UNMATCHED_EVIDENCE":
       return 11;
-    case "SEMANTIC_HTTP_INVALID_REQUEST_PARAMETER":
+    case "SEMANTIC_HTTP_MISSING_SECURITY":
       return 20;
-    case "SEMANTIC_HTTP_UNAVAILABLE_REQUEST_PARAMETER":
+    case "SEMANTIC_HTTP_UNAVAILABLE_SECURITY":
       return 21;
-    case "SEMANTIC_HTTP_UNSUPPORTED_REQUEST_PARAMETER":
+    case "SEMANTIC_HTTP_UNSUPPORTED_SECURITY":
       return 22;
-    case "SEMANTIC_HTTP_INVALID_BODY":
+    case "SEMANTIC_HTTP_INVALID_REQUEST_PARAMETER":
       return 30;
-    case "SEMANTIC_HTTP_MISSING_BODY":
+    case "SEMANTIC_HTTP_UNAVAILABLE_REQUEST_PARAMETER":
       return 31;
-    case "SEMANTIC_HTTP_MISSING_CONTENT_TYPE":
+    case "SEMANTIC_HTTP_UNSUPPORTED_REQUEST_PARAMETER":
       return 32;
-    case "SEMANTIC_HTTP_MEDIA_TYPE_MISMATCH":
-      return 33;
-    case "SEMANTIC_HTTP_UNSUPPORTED_MEDIA_TYPE":
-      return 34;
-    case "SEMANTIC_HTTP_UNSUPPORTED_SCHEMA_FORMAT":
-      return 35;
-    case "SEMANTIC_HTTP_UNSUPPORTED_SCHEMA":
-      return 36;
-    case "SEMANTIC_SPEC_INVALID":
+    case "SEMANTIC_HTTP_INVALID_BODY":
       return 40;
+    case "SEMANTIC_HTTP_MISSING_BODY":
+      return 41;
+    case "SEMANTIC_HTTP_MISSING_CONTENT_TYPE":
+      return 42;
+    case "SEMANTIC_HTTP_MEDIA_TYPE_MISMATCH":
+      return 43;
+    case "SEMANTIC_HTTP_UNSUPPORTED_MEDIA_TYPE":
+      return 44;
+    case "SEMANTIC_HTTP_UNSUPPORTED_SCHEMA_FORMAT":
+      return 45;
+    case "SEMANTIC_HTTP_UNSUPPORTED_SCHEMA":
+      return 46;
+    case "SEMANTIC_SPEC_INVALID":
+      return 50;
     case "SEMANTIC_FAIL_CLOSED":
       return 99;
     default:

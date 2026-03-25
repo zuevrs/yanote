@@ -14,6 +14,7 @@ import {
 import { computeCoverage, type CoverageResult } from "./coverage/coverage.js";
 import { computeHttpPayloadConformance, type HttpPayloadConformanceResult } from "./coverage/httpPayloadConformance.js";
 import { computeHttpRequestConformance, type HttpRequestConformanceResult } from "./coverage/httpRequestConformance.js";
+import { computeHttpSecurityConformance, type HttpSecurityConformanceResult } from "./coverage/httpSecurityConformance.js";
 import { readAsyncEventsJsonl } from "./events/readAsyncEventsJsonl.js";
 import { readHttpEventsJsonl } from "./events/readJsonl.js";
 import { applyExclusionRules, compileExclusionRules, type ExclusionApplicationResult } from "./gates/exclusions.js";
@@ -24,6 +25,10 @@ import {
   classifyHttpRequestDiagnostic,
   isHttpRequestSemanticFailureCode
 } from "./gates/httpRequestSemantics.js";
+import {
+  classifyHttpSecurityDiagnostic,
+  isHttpSecuritySemanticFailureCode
+} from "./gates/httpSecuritySemantics.js";
 import {
   selectPrimaryFailure,
   sortFailuresByPrecedence,
@@ -125,6 +130,7 @@ async function executeReportCommand(opts: any, writeOut: (chunk: string) => void
   let coverage: CoverageResult | undefined;
   let payloadConformance: HttpPayloadConformanceResult | undefined;
   let requestConformance: HttpRequestConformanceResult | undefined;
+  let securityConformance: HttpSecurityConformanceResult | undefined;
   let report: YanoteReport | undefined;
   let reportPath: string | undefined;
   let summaryIssues: SummaryIssue[] = [];
@@ -192,6 +198,9 @@ async function executeReportCommand(opts: any, writeOut: (chunk: string) => void
     requestConformance = computeHttpRequestConformance(exclusionResult.includedOperations, events.items, {
       operationContractsByKey: openapiModel.operationContractsByKey
     });
+    securityConformance = computeHttpSecurityConformance(exclusionResult.includedOperations, events.items, {
+      operationContractsByKey: openapiModel.operationContractsByKey
+    });
 
     let regressionComparison:
       | ReturnType<typeof compareRegressionAgainstBaseline>
@@ -211,7 +220,8 @@ async function executeReportCommand(opts: any, writeOut: (chunk: string) => void
       policy,
       comparison: regressionComparison,
       httpPayloadDiagnostics: payloadConformance.diagnostics,
-      httpRequestDiagnostics: requestConformance.diagnostics
+      httpRequestDiagnostics: requestConformance.diagnostics,
+      httpSecurityDiagnostics: securityConformance.diagnostics
     });
     for (const diagnostic of gateDiagnostics) {
       if (diagnostic.severity === "error") {
@@ -228,6 +238,7 @@ async function executeReportCommand(opts: any, writeOut: (chunk: string) => void
         .filter((timestamp): timestamp is number => typeof timestamp === "number"),
       payloadConformance,
       requestConformance,
+      securityConformance,
       governance: {
         exclusions: {
           appliedRules: exclusionResult.appliedExclusions,
@@ -742,6 +753,14 @@ function formatSummaryOutput(input: {
   lines.push(`- truths: ${formatRequestTruthCounts(input.report?.httpRequestConformance.summary.counts)}`);
   lines.push(`- diagnostics: ${formatRequestTruthCounts(input.report?.httpRequestConformance.diagnostics.counts)}`);
 
+  if (shouldRenderSecuritySummary(input.report?.httpSecurityConformance.summary)) {
+    lines.push("");
+    lines.push("HTTP Security Conformance");
+    lines.push(`- observations: ${formatSecurityObservationSummary(input.report?.httpSecurityConformance.summary)}`);
+    lines.push(`- truths: ${formatSecurityTruthCounts(input.report?.httpSecurityConformance.summary.counts)}`);
+    lines.push(`- diagnostics: ${formatSecurityTruthCounts(input.report?.httpSecurityConformance.diagnostics.counts)}`);
+  }
+
   lines.push("");
   lines.push("Top Issues");
   if (shownIssues.length === 0) {
@@ -774,6 +793,10 @@ function formatSummaryOutput(input: {
       `request_observed_operations=${input.report?.httpRequestConformance.summary.observedOperations ?? 0}`,
       `request_observed_parameters=${input.report?.httpRequestConformance.summary.observedParameters ?? 0}`,
       `request_truths=${formatRequestTruthCountsMachine(input.report?.httpRequestConformance.summary.counts)}`,
+      `security_declared_operations=${input.report?.httpSecurityConformance.summary.declaredOperations ?? 0}`,
+      `security_observed_operations=${input.report?.httpSecurityConformance.summary.observedOperations ?? 0}`,
+      `security_observed_evaluations=${input.report?.httpSecurityConformance.summary.observedEvaluations ?? 0}`,
+      `security_truths=${formatSecurityTruthCountsMachine(input.report?.httpSecurityConformance.summary.counts)}`,
       `report=${input.reportPath ?? "none"}`,
       `primary=${primaryFailure?.code ?? "none"}`,
       `class_counts=${formatClassCounts(input.failures)}`
@@ -885,6 +908,16 @@ function collectIssues(
       )
       .map((failure) => toFailureIssueKey(failure))
   );
+  const securitySemanticIssueKeys = new Set(
+    failures
+      .filter(
+        (failure) =>
+          failure.severity === "error" &&
+          failure.failureClass === "semantic" &&
+          isHttpSecuritySemanticFailureCode(failure.code)
+      )
+      .map((failure) => toFailureIssueKey(failure))
+  );
 
   if (report) {
     for (const diagnostic of report.diagnostics.items) {
@@ -946,6 +979,27 @@ function collectIssues(
         severityLabel: severity.label,
         sortKey: `request:${diagnostic.operationKey}:${diagnostic.location}:${diagnostic.name}:${diagnostic.truth}`,
         text: `${diagnostic.operationKey} ${diagnostic.location}:${diagnostic.name} - ${diagnostic.truth}: ${diagnostic.message}${evidenceReason}`
+      });
+    }
+
+    for (const diagnostic of report.httpSecurityConformance.diagnostics.items) {
+      if (diagnostic.truth === "satisfied" || diagnostic.truth === "optional" || diagnostic.truth === "clear") continue;
+
+      const semanticFailure = classifyHttpSecurityDiagnostic(diagnostic);
+      if (semanticFailure && securitySemanticIssueKeys.has(toFailureIssueKey(semanticFailure))) {
+        continue;
+      }
+
+      const severity = securityDiagnosticSeverity(diagnostic.truth);
+      const schemeName = diagnostic.schemeName ? ` scheme=${diagnostic.schemeName}` : "";
+      const schemeLocation = diagnostic.schemeLocation ? ` location=${diagnostic.schemeLocation}` : "";
+      const evidenceState = diagnostic.evidenceState ? ` evidence=${diagnostic.evidenceState}` : "";
+      const evidenceReason = diagnostic.evidenceReason ? ` reason=${diagnostic.evidenceReason}` : "";
+      issues.push({
+        severityRank: severity.rank,
+        severityLabel: severity.label,
+        sortKey: `security:${diagnostic.operationKey}:${diagnostic.branchIndex}:${diagnostic.truth}:${diagnostic.schemeName ?? ""}`,
+        text: `${diagnostic.operationKey} security branch=${diagnostic.branchIndex} (${diagnostic.branchKind}) - ${diagnostic.truth}: ${diagnostic.message}${schemeName}${schemeLocation}${evidenceState}${evidenceReason}`
       });
     }
   }
@@ -1135,6 +1189,57 @@ function requestDiagnosticSeverity(
 ): { rank: number; label: "medium" | "low" } {
   if (truth === "captured-invalid" || truth === "unsupported") return { rank: 1, label: "medium" };
   return { rank: 2, label: "low" };
+}
+
+function securityDiagnosticSeverity(
+  truth: YanoteReport["httpSecurityConformance"]["diagnostics"]["items"][number]["truth"]
+): { rank: number; label: "medium" | "low" } {
+  if (truth === "missing" || truth === "unavailable" || truth === "unsupported") {
+    return { rank: 1, label: "medium" };
+  }
+  return { rank: 2, label: "low" };
+}
+
+function shouldRenderSecuritySummary(
+  summary: YanoteReport["httpSecurityConformance"]["summary"] | undefined
+): boolean {
+  if (!summary) return false;
+  return summary.declaredOperations > 0 || summary.observedOperations > 0 || summary.observedEvaluations > 0;
+}
+
+function formatSecurityObservationSummary(
+  summary: YanoteReport["httpSecurityConformance"]["summary"] | undefined
+): string {
+  if (!summary) return "declared=0 observed_operations=0 evaluations=0";
+  return `declared=${summary.declaredOperations} observed_operations=${summary.observedOperations} evaluations=${summary.observedEvaluations}`;
+}
+
+function formatSecurityTruthCounts(
+  counts: YanoteReport["httpSecurityConformance"]["diagnostics"]["counts"] | undefined
+): string {
+  if (!counts) return "satisfied=0 missing=0 unavailable=0 unsupported=0 optional=0 clear=0";
+  return [
+    `satisfied=${counts.satisfied}`,
+    `missing=${counts.missing}`,
+    `unavailable=${counts.unavailable}`,
+    `unsupported=${counts.unsupported}`,
+    `optional=${counts.optional}`,
+    `clear=${counts.clear}`
+  ].join(" ");
+}
+
+function formatSecurityTruthCountsMachine(
+  counts: YanoteReport["httpSecurityConformance"]["diagnostics"]["counts"] | undefined
+): string {
+  if (!counts) return "satisfied:0,missing:0,unavailable:0,unsupported:0,optional:0,clear:0";
+  return [
+    `satisfied:${counts.satisfied}`,
+    `missing:${counts.missing}`,
+    `unavailable:${counts.unavailable}`,
+    `unsupported:${counts.unsupported}`,
+    `optional:${counts.optional}`,
+    `clear:${counts.clear}`
+  ].join(",");
 }
 
 function formatPayloadTargetSummary(

@@ -209,6 +209,85 @@ describe("failure precedence ordering", () => {
     expect(selectPrimaryFailure(failures)?.code).toBe("SEMANTIC_HTTP_INVALID_REQUEST_PARAMETER");
   });
 
+  it("orders security semantic failures ahead of request, payload, generic fail-closed wrappers, and gate failures", () => {
+    const failures: GovernanceFailure[] = [
+      {
+        failureClass: "gate",
+        gateKind: "threshold",
+        code: "GATE_MIN_COVERAGE",
+        reason: "threshold",
+        hint: "threshold",
+        exitCode: 3,
+        severity: "error"
+      },
+      {
+        failureClass: "semantic",
+        code: "SEMANTIC_HTTP_INVALID_BODY",
+        reason: "request payload for http POST /orders media=application/json failed JSON schema validation.",
+        hint: "invalid body",
+        exitCode: 5,
+        severity: "error",
+        operationKey: "http POST /orders"
+      },
+      {
+        failureClass: "semantic",
+        code: "SEMANTIC_HTTP_INVALID_REQUEST_PARAMETER",
+        reason: "query parameter 'count' for http POST /orders failed supported request-parameter validation.",
+        hint: "invalid request",
+        exitCode: 5,
+        severity: "error",
+        operationKey: "http POST /orders"
+      },
+      {
+        failureClass: "semantic",
+        code: "SEMANTIC_HTTP_UNSUPPORTED_SECURITY",
+        reason: "security scheme 'basicAuth' on http POST /orders uses unsupported OpenAPI security type 'http' within Yanote's truthful apiKey-only subset.",
+        hint: "unsupported security",
+        exitCode: 5,
+        severity: "error",
+        operationKey: "http POST /orders"
+      },
+      {
+        failureClass: "semantic",
+        code: "SEMANTIC_HTTP_UNAVAILABLE_SECURITY",
+        reason: "required header apiKey 'X-Api-Key' for security scheme 'headerKey' on http POST /orders was unavailable for security verification because retained evidence was redacted (reason: sensitive).",
+        hint: "unavailable security",
+        exitCode: 5,
+        severity: "error",
+        operationKey: "http POST /orders"
+      },
+      {
+        failureClass: "semantic",
+        code: "SEMANTIC_HTTP_MISSING_SECURITY",
+        reason: "required query apiKey 'api_key' for security scheme 'queryKey' on http POST /orders was not retained in request evidence.",
+        hint: "missing security",
+        exitCode: 5,
+        severity: "error",
+        operationKey: "http POST /orders"
+      },
+      {
+        failureClass: "semantic",
+        code: "SEMANTIC_FAIL_CLOSED",
+        reason: "generic semantic fail-closed wrapper",
+        hint: "generic",
+        exitCode: 5,
+        severity: "error"
+      }
+    ];
+
+    const ordered = sortFailuresByPrecedence(failures);
+    expect(ordered.map((failure) => failure.code)).toEqual([
+      "SEMANTIC_HTTP_MISSING_SECURITY",
+      "SEMANTIC_HTTP_UNAVAILABLE_SECURITY",
+      "SEMANTIC_HTTP_UNSUPPORTED_SECURITY",
+      "SEMANTIC_HTTP_INVALID_REQUEST_PARAMETER",
+      "SEMANTIC_HTTP_INVALID_BODY",
+      "SEMANTIC_FAIL_CLOSED",
+      "GATE_MIN_COVERAGE"
+    ]);
+    expect(selectPrimaryFailure(failures)?.code).toBe("SEMANTIC_HTTP_MISSING_SECURITY");
+  });
+
   it("returns undefined primary when only warnings exist", () => {
     const warningOnly: GovernanceFailure[] = [
       {

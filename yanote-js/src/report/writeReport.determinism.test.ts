@@ -219,6 +219,165 @@ function makeReport(): YanoteReport {
         items: []
       }
     },
+    httpSecurityConformance: {
+      summary: {
+        declaredOperations: 2,
+        observedOperations: 1,
+        observedEvaluations: 2,
+        counts: {
+          satisfied: 0,
+          missing: 1,
+          unavailable: 1,
+          unsupported: 0,
+          optional: 0,
+          clear: 0
+        }
+      },
+      perOperation: [
+        {
+          operationKey: "http GET /b",
+          method: "GET",
+          route: "/b",
+          observedCount: 0,
+          overallTruths: {
+            satisfied: 0,
+            missing: 0,
+            unavailable: 0,
+            unsupported: 0,
+            optional: 0,
+            clear: 0
+          },
+          branches: [
+            {
+              branchIndex: 0,
+              kind: "clear",
+              observedCount: 0,
+              truths: {
+                satisfied: 0,
+                missing: 0,
+                unavailable: 0,
+                unsupported: 0,
+                optional: 0,
+                clear: 0
+              },
+              schemes: [],
+              suites: []
+            }
+          ],
+          suites: []
+        },
+        {
+          operationKey: "http GET /a",
+          method: "GET",
+          route: "/a",
+          observedCount: 2,
+          overallTruths: {
+            satisfied: 0,
+            missing: 1,
+            unavailable: 1,
+            unsupported: 0,
+            optional: 0,
+            clear: 0
+          },
+          branches: [
+            {
+              branchIndex: 1,
+              kind: "optional",
+              observedCount: 2,
+              truths: {
+                satisfied: 0,
+                missing: 0,
+                unavailable: 0,
+                unsupported: 0,
+                optional: 2,
+                clear: 0
+              },
+              schemes: [],
+              suites: ["suite-2", "suite-1"]
+            },
+            {
+              branchIndex: 0,
+              kind: "requirement",
+              observedCount: 2,
+              truths: {
+                satisfied: 0,
+                missing: 1,
+                unavailable: 1,
+                unsupported: 0,
+                optional: 0,
+                clear: 0
+              },
+              schemes: [
+                {
+                  schemeName: "queryKey",
+                  type: "apiKey",
+                  location: "query",
+                  keyName: "api_key",
+                  scopes: ["beta", "alpha"]
+                },
+                {
+                  schemeName: "headerKey",
+                  type: "apiKey",
+                  location: "header",
+                  keyName: "X-Api-Key",
+                  scopes: []
+                }
+              ],
+              suites: ["suite-2", "suite-1"]
+            }
+          ],
+          suites: ["suite-2", "suite-1"]
+        }
+      ],
+      diagnostics: {
+        counts: {
+          satisfied: 0,
+          missing: 1,
+          unavailable: 1,
+          unsupported: 0,
+          optional: 0,
+          clear: 0
+        },
+        items: [
+          {
+            operationKey: "http GET /a",
+            method: "GET",
+            route: "/a",
+            suite: "suite-2",
+            truth: "unavailable",
+            branchIndex: 0,
+            branchKind: "requirement",
+            message: "Required header apiKey 'X-Api-Key' for security scheme 'headerKey' was unavailable.",
+            schemeName: "headerKey",
+            schemeType: "apiKey",
+            schemeLocation: "header",
+            schemeKeyName: "X-Api-Key",
+            evidenceState: "redacted",
+            evidenceReason: "sensitive",
+            semanticCode: "SEMANTIC_HTTP_UNAVAILABLE_SECURITY",
+            semanticMessage:
+              "required header apiKey 'X-Api-Key' for security scheme 'headerKey' on http GET /a was unavailable for security verification because retained evidence was redacted (reason: sensitive)."
+          },
+          {
+            operationKey: "http GET /a",
+            method: "GET",
+            route: "/a",
+            suite: "suite-1",
+            truth: "missing",
+            branchIndex: 0,
+            branchKind: "requirement",
+            message: "Required query apiKey 'api_key' for security scheme 'queryKey' was not retained in request evidence.",
+            schemeName: "queryKey",
+            schemeType: "apiKey",
+            schemeLocation: "query",
+            schemeKeyName: "api_key",
+            semanticCode: "SEMANTIC_HTTP_MISSING_SECURITY",
+            semanticMessage:
+              "required query apiKey 'api_key' for security scheme 'queryKey' on http GET /a was not retained in request evidence."
+          }
+        ]
+      }
+    },
     diagnostics: {
       counts: {
         invalid: 0,
@@ -264,6 +423,20 @@ describe("writeYanoteReport determinism", () => {
         coverage: {
           ...report.coverage,
           perOperation: [...report.coverage.perOperation].reverse()
+        },
+        httpSecurityConformance: {
+          ...report.httpSecurityConformance,
+          perOperation: [...report.httpSecurityConformance.perOperation]
+            .map((entry) => ({
+              ...entry,
+              branches: [...entry.branches].reverse(),
+              suites: [...entry.suites].reverse()
+            }))
+            .reverse(),
+          diagnostics: {
+            ...report.httpSecurityConformance.diagnostics,
+            items: [...report.httpSecurityConformance.diagnostics.items].reverse()
+          }
         }
       });
       const secondBytes = await readFile(secondPath, "utf8");

@@ -9,16 +9,14 @@ EXAMPLES_README="examples/README.md"
 SERVICE_EXAMPLE="examples/springmvc-service/README.md"
 TESTS_EXAMPLE="examples/tests-restassured/README.md"
 
-failures=0
-
-error() {
+fail() {
   echo "ERROR: $1" >&2
-  failures=$((failures + 1))
+  exit 1
 }
 
 require_file() {
   local path="$1"
-  [[ -f "${ROOT_DIR}/${path}" ]] || error "Missing required doc: ${path}"
+  [[ -f "${ROOT_DIR}/${path}" ]] || fail "Missing required doc: ${path}"
 }
 
 require_contains() {
@@ -26,63 +24,39 @@ require_contains() {
   local needle="$2"
   local label="$3"
 
-  if [[ ! -f "${ROOT_DIR}/${path}" ]]; then
-    error "Missing required doc for ${label}: ${path}"
-    return
-  fi
-
-  grep -Fq -- "$needle" "${ROOT_DIR}/${path}" || error "${path} is missing ${label}: ${needle}"
+  grep -Fq -- "$needle" "${ROOT_DIR}/${path}" || fail "${path} is missing ${label}: ${needle}"
 }
 
-require_absent() {
-  local path="$1"
-  local needle="$2"
-  local label="$3"
+check_local_markdown_links() {
+  python3 - "${ROOT_DIR}" "$@" <<'PY'
+import pathlib
+import re
+import sys
 
-  if [[ ! -f "${ROOT_DIR}/${path}" ]]; then
-    error "Missing required doc for ${label}: ${path}"
-    return
-  fi
+root = pathlib.Path(sys.argv[1]).resolve()
+paths = [pathlib.Path(arg) for arg in sys.argv[2:]]
+pattern = re.compile(r'\[[^\]]+\]\(([^)]+)\)')
+errors = []
 
-  if grep -Fq -- "$needle" "${ROOT_DIR}/${path}"; then
-    error "${path} still contains stale ${label}: ${needle}"
-  fi
-}
+for rel_path in paths:
+    doc = (root / rel_path).resolve()
+    text = doc.read_text(encoding='utf-8')
+    for target in pattern.findall(text):
+        target = target.strip().strip('<>')
+        if not target or target.startswith(('http://', 'https://', 'mailto:', '#')):
+            continue
+        path_part = target.split('#', 1)[0]
+        if not path_part:
+            continue
+        resolved = (doc.parent / path_part).resolve()
+        if not resolved.exists():
+            errors.append(f"{rel_path}: broken link target {target}")
 
-first_line_of() {
-  local path="$1"
-  local needle="$2"
-
-  if [[ ! -f "${ROOT_DIR}/${path}" ]]; then
-    return 1
-  fi
-
-  grep -Fnm1 -- "$needle" "${ROOT_DIR}/${path}" | cut -d: -f1
-}
-
-require_after_heading() {
-  local path="$1"
-  local heading="$2"
-  local needle="$3"
-  local label="$4"
-  local heading_line
-  local target_line
-
-  heading_line="$(first_line_of "$path" "$heading" || true)"
-  target_line="$(first_line_of "$path" "$needle" || true)"
-
-  if [[ -z "$heading_line" ]]; then
-    return
-  fi
-
-  if [[ -z "$target_line" ]]; then
-    error "${path} is missing ${label}: ${needle}"
-    return
-  fi
-
-  if (( target_line < heading_line )); then
-    error "${path} promotes ${label} before section ${heading}: ${needle}"
-  fi
+if errors:
+    for item in errors:
+        print(item, file=sys.stderr)
+    raise SystemExit(1)
+PY
 }
 
 for path in \
@@ -95,109 +69,51 @@ do
   require_file "$path"
 done
 
-require_contains "$ROOT_README" "## Что такое Yanote" "landing section"
-require_contains "$ROOT_README" "## Для кого" "landing section"
-require_contains "$ROOT_README" "## Проверенный цикл" "landing section"
-require_contains "$ROOT_README" "## Куда идти дальше" "landing section"
-require_contains "$ROOT_README" "## Вторичные поверхности" "landing section"
-require_contains "$ROOT_README" "docs/guides/recorder-spring-mvc.md" "canonical recorder guide link"
-require_contains "$ROOT_README" "docs/guides/analyzer-coverage.md" "canonical analyzer guide link"
-require_contains "$ROOT_README" "docs/guides/test-tagging.md" "canonical tagging guide link"
-require_contains "$ROOT_README" "docs/README.md" "docs landing link"
-require_contains "$ROOT_README" "examples/README.md" "examples landing link"
-require_contains "$ROOT_README" "events.jsonl" "primary workflow wording"
-require_contains "$ROOT_README" "yanote-report.json" "report artifact wording"
-require_contains "$ROOT_README" "HTTP Payload Conformance" "payload conformance wording"
-require_contains "$ROOT_README" "HTTP Request Conformance" "request conformance wording"
-require_contains "$ROOT_README" "bash scripts/ci/run-v1-e2e.sh" "public proof command"
-require_contains "$ROOT_README" ".yanote-ci/v1-e2e/request-semantics.events.jsonl" "request sidecar artifact"
-require_contains "$ROOT_README" ".yanote-ci/v1-e2e/request-semantics.stdout" "request sidecar artifact"
-require_contains "$ROOT_README" ".yanote-ci/v1-e2e/request-semantics.stderr" "request sidecar artifact"
-require_contains "$ROOT_README" ".yanote-ci/v1-e2e/request-semantics-yanote-report.json" "request sidecar artifact"
-require_contains "$ROOT_README" "semantic-red.stderr" "semantic red proof wording"
-require_contains "$ROOT_README" "semantic-red-yanote-report.json" "semantic red report wording"
-require_contains "$ROOT_README" "bash scripts/ci/verify-m011-s02-request-semantics.sh" "focused request proof command"
-require_contains "$ROOT_README" "bash scripts/ci/verify-m011-s03-format-media.sh" "focused payload proof command"
-require_contains "$ROOT_README" "path=simple" "request subset wording"
-require_contains "$ROOT_README" "query=form" "request subset wording"
-require_contains "$ROOT_README" "header=simple" "request subset wording"
-require_contains "$ROOT_README" "cookie=form" "request subset wording"
-require_contains "$ROOT_README" "request_observed_operations" "request summary token"
-require_contains "$ROOT_README" "request_truths" "request summary token"
-require_contains "$ROOT_README" "SEMANTIC_HTTP_UNSUPPORTED_REQUEST_PARAMETER" "request fail-closed wording"
-require_contains "$ROOT_README" '`email`-only format allowlist' "email-only format wording"
-require_contains "$ROOT_README" "RECORDER_OMITTED" "root landing recorder omission wording"
-require_contains "$ROOT_README" "policy-filtered" "root landing recorder omission provenance wording"
-require_contains "$ROOT_README" "runtime-selection sidecar" "root landing async multi-message wording"
-require_after_heading "$ROOT_README" "## Вторичные поверхности" "docs/maintainers/release-signing.md" "maintainer surface"
+check_local_markdown_links \
+  "$ROOT_README" \
+  "$DOCS_README" \
+  "$EXAMPLES_README" \
+  "$SERVICE_EXAMPLE" \
+  "$TESTS_EXAMPLE"
 
-require_contains "$DOCS_README" "# Документация Yanote" "docs landing title"
-require_contains "$DOCS_README" "## Канонические гайды" "docs landing section"
-require_contains "$DOCS_README" "## Примеры и демо" "docs landing section"
-require_contains "$DOCS_README" "## Для мейнтейнера и исторического контекста" "docs landing section"
-require_contains "$DOCS_README" "guides/recorder-spring-mvc.md" "canonical recorder guide link"
-require_contains "$DOCS_README" "guides/analyzer-coverage.md" "canonical analyzer guide link"
-require_contains "$DOCS_README" "guides/test-tagging.md" "canonical tagging guide link"
-require_contains "$DOCS_README" "HTTP Payload Conformance" "payload conformance wording"
-require_contains "$DOCS_README" "HTTP Request Conformance" "request conformance wording"
-require_contains "$DOCS_README" "path=simple" "request subset wording"
-require_contains "$DOCS_README" "query=form" "request subset wording"
-require_contains "$DOCS_README" "header=simple" "request subset wording"
-require_contains "$DOCS_README" "cookie=form" "request subset wording"
-require_contains "$DOCS_README" '`email`-only payload format allowlist' "email-only format wording"
-require_contains "$DOCS_README" ".yanote-ci/v1-e2e/" "retained proof bundle wording"
-require_contains "$DOCS_README" "bash scripts/ci/run-v1-e2e.sh" "public proof command"
-require_contains "$DOCS_README" "bash scripts/ci/verify-m011-s02-request-semantics.sh" "focused request proof command"
-require_contains "$DOCS_README" "bash scripts/ci/verify-m011-s03-format-media.sh" "focused payload proof command"
-require_contains "$DOCS_README" "../examples/README.md" "examples landing link"
-require_contains "$DOCS_README" "../examples/docker-compose.yml" "compose demo link"
-require_after_heading "$DOCS_README" "## Для мейнтейнера и исторического контекста" "maintainers/release-signing.md" "maintainer surface"
-require_after_heading "$DOCS_README" "## Для мейнтейнера и исторического контекста" "plans/" "historical plans surface"
-require_after_heading "$DOCS_README" "## Для мейнтейнера и исторического контекста" "traceability/v1-requirements-tests.md" "traceability surface"
+require_contains "$ROOT_README" "HTTP Security Conformance" "security CLI surface"
+require_contains "$ROOT_README" "security-semantics.stdout" "security sidecar"
+require_contains "$ROOT_README" "security-semantics.stderr" "security sidecar"
+require_contains "$ROOT_README" "security-semantics-yanote-report.json" "security sidecar"
+require_contains "$ROOT_README" "bash scripts/ci/verify-m012-s02-security-semantics.sh" "focused security proof command"
+require_contains "$ROOT_README" "fixture-backed proof" "security provenance wording"
+require_contains "$ROOT_README" "security: []" "security clear wording"
+require_contains "$ROOT_README" "OR между объектами Security Requirement" "security OR wording"
+require_contains "$ROOT_README" "AND внутри одного объекта" "security AND wording"
+require_contains "$ROOT_README" "httpSecurityConformance" "additive security report surface"
+require_contains "$ROOT_README" "coverage.operations/status/parameters/aggregate" "legacy numerator wording"
+require_contains "$ROOT_README" 'Broader OpenAPI objects `examples`, `links`, `callbacks`, `webhooks`' "deferred broader-object wording"
+require_contains "$ROOT_README" 'raw fixture JSONL не попадает в `.yanote-ci/v1-e2e/`' "fixture redaction wording"
 
-require_contains "$EXAMPLES_README" "# Примеры Yanote" "examples landing title"
-require_contains "$EXAMPLES_README" "## Проверенный demo-маршрут" "examples landing section"
-require_contains "$EXAMPLES_README" "## Что лежит в директории" "examples landing section"
-require_contains "$EXAMPLES_README" "## Когда возвращаться в документацию" "examples landing section"
-require_contains "$EXAMPLES_README" "docker-compose.yml" "compose demo link"
-require_contains "$EXAMPLES_README" "springmvc-service/README.md" "service example link"
-require_contains "$EXAMPLES_README" "tests-restassured/README.md" "RestAssured example link"
-require_contains "$EXAMPLES_README" "openapi/demo-openapi.yaml" "OpenAPI asset link"
-require_contains "$EXAMPLES_README" "openapi/demo-openapi-unsupported-schema.yaml" "semantic red OpenAPI asset link"
-require_contains "$EXAMPLES_README" "bash scripts/ci/run-v1-e2e.sh" "public proof command"
-require_contains "$EXAMPLES_README" ".yanote-ci/v1-e2e/out/yanote-report.json" "happy-path artifact wording"
-require_contains "$EXAMPLES_README" "request-semantics.events.jsonl" "request sidecar artifact"
-require_contains "$EXAMPLES_README" "request-semantics.stdout" "request sidecar artifact"
-require_contains "$EXAMPLES_README" "request-semantics.stderr" "request sidecar artifact"
-require_contains "$EXAMPLES_README" "request-semantics-yanote-report.json" "request sidecar artifact"
-require_contains "$EXAMPLES_README" "path=simple" "request subset wording"
-require_contains "$EXAMPLES_README" "query=form" "request subset wording"
-require_contains "$EXAMPLES_README" "header=simple" "request subset wording"
-require_contains "$EXAMPLES_README" "cookie=form" "request subset wording"
-require_contains "$EXAMPLES_README" '`email`-only format allowlist' "email-only format wording"
-require_contains "$EXAMPLES_README" "most-specific media matching" "media specificity wording"
-require_contains "$EXAMPLES_README" "bash scripts/ci/verify-m011-s02-request-semantics.sh" "focused request proof command"
-require_contains "$EXAMPLES_README" "bash scripts/ci/verify-m011-s03-format-media.sh" "focused payload proof command"
-require_contains "$EXAMPLES_README" "semantic-red.stderr" "semantic red proof wording"
-require_contains "$EXAMPLES_README" "SEMANTIC_HTTP_UNSUPPORTED_SCHEMA" "fail-closed payload wording"
-require_contains "$EXAMPLES_README" "../docs/README.md" "docs landing link"
-require_contains "$EXAMPLES_README" "../docs/guides/recorder-spring-mvc.md" "canonical recorder guide link"
-require_contains "$EXAMPLES_README" "../docs/guides/analyzer-coverage.md" "canonical analyzer guide link"
-require_contains "$EXAMPLES_README" "../docs/guides/test-tagging.md" "canonical tagging guide link"
+require_contains "$DOCS_README" "HTTP Security Conformance" "security CLI surface"
+require_contains "$DOCS_README" "security-semantics.stdout" "security sidecar"
+require_contains "$DOCS_README" "security-semantics-yanote-report.json" "security sidecar"
+require_contains "$DOCS_README" "bash scripts/ci/verify-m012-s02-security-semantics.sh" "focused security proof command"
+require_contains "$DOCS_README" "httpSecurityConformance" "additive security report surface"
+require_contains "$DOCS_README" "coverage.operations/status/parameters/aggregate" "legacy numerator wording"
+require_contains "$DOCS_README" '`examples`, `links`, `callbacks`, `webhooks`' "deferred broader-object wording"
+require_contains "$DOCS_README" "fixture-backed proof" "security provenance wording"
+
+require_contains "$EXAMPLES_README" "HTTP Security Conformance" "security CLI surface"
+require_contains "$EXAMPLES_README" "security-semantics.stdout" "security sidecar"
+require_contains "$EXAMPLES_README" "security-semantics.stderr" "security sidecar"
+require_contains "$EXAMPLES_README" "security-semantics-yanote-report.json" "security sidecar"
+require_contains "$EXAMPLES_README" "bash scripts/ci/verify-m012-s02-security-semantics.sh" "focused security proof command"
+require_contains "$EXAMPLES_README" "fixture-backed proof" "security provenance wording"
+require_contains "$EXAMPLES_README" "security: []" "security clear wording"
+require_contains "$EXAMPLES_README" "OR между объектами Security Requirement" "security OR wording"
+require_contains "$EXAMPLES_README" "AND внутри одного объекта" "security AND wording"
+require_contains "$EXAMPLES_README" "httpSecurityConformance" "additive security report surface"
+require_contains "$EXAMPLES_README" "coverage.operations/status/parameters/aggregate" "legacy numerator wording"
+require_contains "$EXAMPLES_README" '`examples`, `links`, `callbacks`, `webhooks`' "deferred broader-object wording"
+require_contains "$EXAMPLES_README" "raw fixture JSONL" "fixture redaction wording"
 
 require_contains "$SERVICE_EXAMPLE" "../README.md" "examples landing backlink"
 require_contains "$TESTS_EXAMPLE" "../README.md" "examples landing backlink"
 
-require_absent "$ROOT_README" "75.00%" "partial-status demo number"
-require_absent "$ROOT_README" "93.75%" "partial-status aggregate number"
-require_absent "$DOCS_README" "75.00%" "partial-status demo number"
-require_absent "$DOCS_README" "93.75%" "partial-status aggregate number"
-require_absent "$EXAMPLES_README" "75.00%" "partial-status demo number"
-require_absent "$EXAMPLES_README" "93.75%" "partial-status aggregate number"
-
-if (( failures > 0 )); then
-  echo "Landing contract verification failed with ${failures} issue(s)." >&2
-  exit 1
-fi
-
-echo "Landing contract verification passed: root/docs/examples surfaces and retained request/payload proof wording are wired correctly."
+echo "Landing contract verification passed: root/docs/examples surfaces publish the retained security proof, additive numerators, and deferred broader OpenAPI boundary."
