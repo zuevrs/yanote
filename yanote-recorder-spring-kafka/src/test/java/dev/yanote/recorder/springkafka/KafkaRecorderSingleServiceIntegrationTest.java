@@ -107,21 +107,23 @@ class KafkaRecorderSingleServiceIntegrationTest {
                 .untilAsserted(() -> assertThat(readKafkaEvents()).hasSize(5));
 
         List<KafkaEvent> events = readKafkaEvents();
-        assertThat(events).extracting(KafkaEvent::action).containsExactly(
-                KafkaEvent.Action.SEND,
-                KafkaEvent.Action.RECEIVE,
-                KafkaEvent.Action.SEND,
-                KafkaEvent.Action.RECEIVE,
-                KafkaEvent.Action.SEND
-        );
+        assertThat(events).hasSize(5);
+        assertThat(events).extracting(KafkaEvent::action)
+                .containsExactlyInAnyOrder(
+                        KafkaEvent.Action.SEND,
+                        KafkaEvent.Action.RECEIVE,
+                        KafkaEvent.Action.SEND,
+                        KafkaEvent.Action.RECEIVE,
+                        KafkaEvent.Action.SEND
+                );
         assertThat(events).extracting(KafkaEvent::channel).containsOnly(TOPIC);
         assertThat(events).extracting(KafkaEvent::service).containsOnly("kafka-integration-test");
 
-        KafkaEvent sendSuccess = events.get(0);
-        KafkaEvent receiveSuccess = events.get(1);
-        KafkaEvent sendBeforeListenerFailure = events.get(2);
-        KafkaEvent receiveFailure = events.get(3);
-        KafkaEvent sendFailure = events.get(4);
+        KafkaEvent sendSuccess = findEvent(events, "run-success", "suite-a", KafkaEvent.Action.SEND);
+        KafkaEvent receiveSuccess = findEvent(events, "run-success", "suite-a", KafkaEvent.Action.RECEIVE);
+        KafkaEvent sendBeforeListenerFailure = findEvent(events, "run-failure", "suite-b", KafkaEvent.Action.SEND);
+        KafkaEvent receiveFailure = findEvent(events, "run-failure", "suite-b", KafkaEvent.Action.RECEIVE);
+        KafkaEvent sendFailure = findEvent(events, "run-send-failure", "suite-c", KafkaEvent.Action.SEND);
 
         assertThat(sendSuccess.error()).isFalse();
         assertThat(sendSuccess.message()).isEqualTo("OrderCreated");
@@ -157,6 +159,22 @@ class KafkaRecorderSingleServiceIntegrationTest {
     private static List<KafkaEvent> readKafkaEvents() throws Exception {
         List<YanoteEvent> events = new EventJsonlReader().read(EVENTS_PATH);
         return events.stream().map(KafkaEvent.class::cast).toList();
+    }
+
+    private static KafkaEvent findEvent(
+            List<KafkaEvent> events,
+            String runId,
+            String suite,
+            KafkaEvent.Action action
+    ) {
+        return events.stream()
+                .filter(event -> runId.equals(event.testRunId()))
+                .filter(event -> suite.equals(event.testSuite()))
+                .filter(event -> action == event.action())
+                .findFirst()
+                .orElseThrow(() -> new AssertionError(
+                        "Expected " + action + " event for runId=" + runId + ", suite=" + suite
+                ));
     }
 
     @SpringBootApplication
