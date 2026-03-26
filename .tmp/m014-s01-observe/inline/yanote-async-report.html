@@ -1,0 +1,332 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Yanote async report</title>
+  <style>
+:root {
+  color-scheme: light;
+  --bg: #ffffff;
+  --surface: #f6f8fc;
+  --surface-strong: #eaf0fb;
+  --text: #142033;
+  --muted: #4c5971;
+  --border: #c9d3e4;
+  --accent: #005fcc;
+  --good-bg: #e7f6eb;
+  --good-text: #0f5d2d;
+  --warn-bg: #fff4d6;
+  --warn-text: #7b5300;
+  --bad-bg: #fbe7ea;
+  --bad-text: #8a1d32;
+  --neutral-bg: #edf1f7;
+  --neutral-text: #344056;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html {
+  background: var(--bg);
+  color: var(--text);
+  font-family: ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  line-height: 1.5;
+  scroll-behavior: smooth;
+}
+
+body {
+  margin: 0;
+  background: var(--bg);
+  color: var(--text);
+}
+
+main,
+header,
+footer,
+nav {
+  width: min(76rem, calc(100% - 2rem));
+  margin-inline: auto;
+}
+
+header,
+nav,
+main,
+footer {
+  padding-block: 1rem;
+}
+
+header {
+  padding-top: 2.5rem;
+}
+
+footer {
+  padding-bottom: 3rem;
+  color: var(--muted);
+}
+
+section {
+  margin-block: 1.25rem;
+  padding: 1.25rem;
+  border: 1px solid var(--border);
+  border-radius: 1rem;
+  background: var(--surface);
+}
+
+a {
+  color: var(--accent);
+}
+
+a:focus-visible,
+summary:focus-visible {
+  outline: 3px solid var(--accent);
+  outline-offset: 2px;
+}
+
+.skip-link {
+  position: absolute;
+  left: 1rem;
+  top: -3rem;
+  padding: 0.75rem 1rem;
+  border-radius: 0.75rem;
+  background: #111827;
+  color: #ffffff;
+  text-decoration: none;
+  z-index: 10;
+}
+
+.skip-link:focus {
+  top: 1rem;
+}
+
+.eyebrow {
+  margin: 0 0 0.5rem;
+  color: var(--muted);
+  font-size: 0.95rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.page-title {
+  margin: 0;
+  font-size: clamp(2rem, 3vw, 2.75rem);
+  line-height: 1.15;
+}
+
+.page-summary,
+.section-summary,
+.muted {
+  color: var(--muted);
+}
+
+.section-summary {
+  margin-top: 0.5rem;
+}
+
+.section-title {
+  margin: 0;
+  font-size: 1.5rem;
+}
+
+.in-page-nav ul,
+.chip-list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.75rem;
+  list-style: none;
+  padding: 0;
+  margin: 0;
+}
+
+.in-page-nav a {
+  display: inline-flex;
+  padding: 0.5rem 0.75rem;
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  background: var(--surface);
+  text-decoration: none;
+}
+
+.metric-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(11rem, 1fr));
+  gap: 0.75rem;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.metric-card {
+  padding: 0.9rem;
+  border: 1px solid var(--border);
+  border-radius: 0.9rem;
+  background: var(--bg);
+}
+
+.metric-label {
+  display: block;
+  color: var(--muted);
+  font-size: 0.95rem;
+}
+
+.metric-value {
+  display: block;
+  margin-top: 0.25rem;
+  font-size: 1.35rem;
+  font-weight: 700;
+}
+
+.metric-note {
+  margin-top: 0.4rem;
+  color: var(--muted);
+  font-size: 0.92rem;
+}
+
+.definition-list {
+  display: grid;
+  grid-template-columns: minmax(9rem, max-content) 1fr;
+  gap: 0.6rem 1rem;
+  margin: 0;
+}
+
+.definition-list dt {
+  font-weight: 700;
+}
+
+.definition-list dd {
+  margin: 0;
+}
+
+code {
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", monospace;
+  font-size: 0.95em;
+}
+
+.table-wrap {
+  overflow-x: auto;
+}
+
+table {
+  width: 100%;
+  border-collapse: collapse;
+  background: var(--bg);
+}
+
+caption {
+  padding-bottom: 0.75rem;
+  text-align: left;
+  font-weight: 700;
+}
+
+th,
+ td {
+  padding: 0.7rem;
+  border: 1px solid var(--border);
+  vertical-align: top;
+  text-align: left;
+}
+
+thead th {
+  background: var(--surface-strong);
+}
+
+.status-pill {
+  display: inline-flex;
+  align-items: center;
+  border-radius: 999px;
+  padding: 0.2rem 0.6rem;
+  font-weight: 700;
+  font-size: 0.9rem;
+}
+
+.status-pill--good {
+  background: var(--good-bg);
+  color: var(--good-text);
+}
+
+.status-pill--warn {
+  background: var(--warn-bg);
+  color: var(--warn-text);
+}
+
+.status-pill--bad {
+  background: var(--bad-bg);
+  color: var(--bad-text);
+}
+
+.status-pill--neutral {
+  background: var(--neutral-bg);
+  color: var(--neutral-text);
+}
+
+.chip {
+  display: inline-flex;
+  align-items: center;
+  padding: 0.2rem 0.55rem;
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  background: var(--bg);
+}
+
+.stack {
+  display: grid;
+  gap: 1rem;
+}
+
+.cell-stack {
+  display: grid;
+  gap: 0.35rem;
+}
+
+@media (max-width: 48rem) {
+  header,
+  nav,
+  main,
+  footer {
+    width: min(76rem, calc(100% - 1rem));
+  }
+
+  section {
+    padding: 1rem;
+  }
+
+  .definition-list {
+    grid-template-columns: 1fr;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  html {
+    scroll-behavior: auto;
+  }
+
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+}
+</style>
+</head>
+<body>
+  <a class="skip-link" href="#main-content">Skip to main content</a>
+  <header>
+    <p class="eyebrow">Yanote static report</p>
+    <h1 class="page-title">Yanote async report</h1>
+    <p class="page-summary">Offline HTML artifact derived from the same normalized canonical truth as yanote-async-report.json.</p>
+  </header>
+  <nav class="in-page-nav" aria-label="Report sections">
+    <ul><li><a href="#overview">Overview</a></li><li><a href="#provenance">Provenance</a></li><li><a href="#async-coverage-summary">Async coverage summary</a></li><li><a href="#declared-semantics">Declared semantics</a></li><li><a href="#channel-coverage">Channel coverage</a></li><li><a href="#operation-coverage">Operation coverage</a></li><li><a href="#message-coverage">Message coverage</a></li><li><a href="#diagnostics">Diagnostics</a></li></ul>
+  </nav>
+  <main id="main-content" tabindex="-1">
+    <section id="overview" aria-labelledby="overview-title"><h2 id="overview-title" class="section-title">Overview</h2><p class="section-summary">Document metadata and the JSON-centered delivery contract for the async surface.</p><div class="stack"><ul class="metric-grid"><li class="metric-card"><span class="metric-label">Status</span><span class="metric-value"><span class="status-pill status-pill--good">ok</span></span></li><li class="metric-card"><span class="metric-label">Total channels</span><span class="metric-value">1</span></li><li class="metric-card"><span class="metric-label">Covered channels</span><span class="metric-value">1</span></li><li class="metric-card"><span class="metric-label">Channel coverage</span><span class="metric-value">100%</span></li><li class="metric-card"><span class="metric-label">Total operations</span><span class="metric-value">1</span></li><li class="metric-card"><span class="metric-label">Covered operations</span><span class="metric-value">1</span></li><li class="metric-card"><span class="metric-label">Operation coverage</span><span class="metric-value">100%</span></li><li class="metric-card"><span class="metric-label">Total messages</span><span class="metric-value">1</span></li><li class="metric-card"><span class="metric-label">Covered messages</span><span class="metric-value">1</span></li><li class="metric-card"><span class="metric-label">Message coverage</span><span class="metric-value">100%</span></li></ul><dl class="definition-list"><dt>Schema version</dt><dd><code>1.0.0</code></dd><dt>Generated at</dt><dd><code>1970-01-01T00:00:00.000Z</code></dd><dt>Tool version</dt><dd><code>0.0.0</code></dd><dt>Phase</dt><dd><code>03</code> <span class="muted">async-report-and-gate-surface</span></dd><dt>Report artifact</dt><dd><code>yanote-async-report.json</code> remains the machine-facing report path; <code>yanote-async-report.html</code> is the sibling human artifact.</dd></dl></div></section><section id="provenance" aria-labelledby="provenance-title"><h2 id="provenance-title" class="section-title">Provenance</h2><p class="section-summary">Sanitized source identity copied from the canonical normalized async report truth.</p><dl class="definition-list"><dt>specSource kind</dt><dd><code>local-file</code></dd><dt>specSource reference</dt><dd><code>yanote-js/test/fixtures/asyncapi/trait-declarations-inline-v3.yaml</code></dd></dl></section><section id="async-coverage-summary" aria-labelledby="async-coverage-summary-title"><h2 id="async-coverage-summary-title" class="section-title">Async coverage summary</h2><p class="section-summary">Top-level channel, operation, and message truth from the same normalized DTO as JSON.</p><div class="stack"><div class="table-wrap"><table><caption>Async coverage dimensions</caption><thead><tr><th scope="col">Dimension</th><th scope="col">State</th><th scope="col">Percent</th><th scope="col">Covered</th><th scope="col">Total</th></tr></thead><tbody><tr><td>Channels</td><td><span class="status-pill status-pill--good">COVERED</span></td><td>100%</td><td>1</td><td>1</td></tr><tr><td>Operations</td><td><span class="status-pill status-pill--good">COVERED</span></td><td>100%</td><td>1</td><td>1</td></tr><tr><td>Messages</td><td><span class="status-pill status-pill--good">COVERED</span></td><td>100%</td><td>1</td><td>1</td></tr></tbody></table></div></div></section><section id="declared-semantics" aria-labelledby="declared-semantics-title"><h2 id="declared-semantics-title" class="section-title">Declared semantics</h2><p class="section-summary">Additive declared correlationId and reply truth derived from canonical async contracts without changing coverage math.</p><div class="stack"><ul class="metric-grid"><li class="metric-card"><span class="metric-label">Operations with declarations</span><span class="metric-value">1</span><div class="metric-note">Only operations with retained declared semantics appear below.</div></li><li class="metric-card"><span class="metric-label">Operations with correlationId</span><span class="metric-value">1</span></li><li class="metric-card"><span class="metric-label">Message correlationIds</span><span class="metric-value">1</span></li><li class="metric-card"><span class="metric-label">Operations with reply</span><span class="metric-value">1</span></li></ul><div class="table-wrap"><table><caption>Declared semantics by async operation</caption><thead><tr><th scope="col">Operation</th><th scope="col">Declared correlationId</th><th scope="col">Declared reply</th></tr></thead><tbody><tr><td><div class="cell-stack"><strong>send orders.command</strong><span class="muted"><code>kafka send orders.command</code></span></div></td><td><div class="stack"><div class="cell-stack"><strong><code>OrderCommand</code></strong><span class="muted"><code>$message.header#/correlation_id</code></span></div></div></td><td><code>$message.header#/reply_to</code></td></tr></tbody></table></div></div></section><section id="channel-coverage" aria-labelledby="channel-coverage-title"><h2 id="channel-coverage-title" class="section-title">Channel coverage</h2><p class="section-summary">Per-channel action coverage without HTTP request, response, or security wording.</p><div class="table-wrap"><table><caption>Coverage by channel</caption><thead><tr><th scope="col">Channel</th><th scope="col">State</th><th scope="col">Covered actions</th><th scope="col">Missing actions</th></tr></thead><tbody><tr><td><code>orders.command</code></td><td><span class="status-pill status-pill--good">COVERED</span></td><td><ul class="chip-list"><li class="chip">send</li></ul></td><td><ul class="chip-list"><li class="chip">None</li></ul></td></tr></tbody></table></div></section><section id="operation-coverage" aria-labelledby="operation-coverage-title"><h2 id="operation-coverage-title" class="section-title">Operation coverage</h2><p class="section-summary">Stable async operation truth, including message-contract selection details and covered suites.</p><div class="table-wrap"><table><caption>Coverage by async operation</caption><thead><tr><th scope="col">Operation</th><th scope="col">Operation state</th><th scope="col">Message contract</th><th scope="col">Contract state</th><th scope="col">Suites</th></tr></thead><tbody><tr><td><div class="cell-stack"><strong>send orders.command</strong><span class="muted"><code>kafka send orders.command</code></span></div></td><td><span class="status-pill status-pill--good">COVERED</span></td><td><div class="cell-stack"><div><strong>Name:</strong> <code>OrderCommand</code></div><div><strong>Selection:</strong> single</div></div></td><td><span class="status-pill status-pill--good">COVERED</span></td><td><ul class="chip-list"><li class="chip">suite-declared</li></ul></td></tr></tbody></table></div></section><section id="message-coverage" aria-labelledby="message-coverage-title"><h2 id="message-coverage-title" class="section-title">Message coverage</h2><p class="section-summary">Declared async message truth derived from canonical operation and message coverage arrays.</p><div class="table-wrap"><table><caption>Coverage by async message</caption><thead><tr><th scope="col">Operation</th><th scope="col">Message</th><th scope="col">State</th><th scope="col">Suites</th></tr></thead><tbody><tr><td><div class="cell-stack"><strong>send orders.command</strong><span class="muted"><code>kafka send orders.command</code></span></div></td><td><code>OrderCommand [payload: &lt;anonymous-schema-1&gt;]</code></td><td><span class="status-pill status-pill--good">COVERED</span></td><td><ul class="chip-list"><li class="chip">suite-declared</li></ul></td></tr></tbody></table></div></section><section id="diagnostics" aria-labelledby="diagnostics-title"><h2 id="diagnostics-title" class="section-title">Diagnostics</h2><p class="section-summary">Schema-safe async diagnostics without payload dumps, raw headers, or credential values.</p><div class="stack"><div class="table-wrap"><table><caption>Async diagnostic counts</caption><thead><tr><th scope="col">Unsupported content type</th><th scope="col">Unsupported schema format</th><th scope="col">Missing payload</th><th scope="col">Invalid payload</th><th scope="col">Missing header</th><th scope="col">Unavailable header</th><th scope="col">Invalid header</th><th scope="col">Unverifiable headers</th><th scope="col">Ambiguous</th><th scope="col">Mismatched</th><th scope="col">Unmatched</th></tr></thead><tbody><tr><td>0</td><td>0</td><td>0</td><td>0</td><td>0</td><td>0</td><td>0</td><td>0</td><td>0</td><td>0</td><td>0</td></tr></tbody></table></div><div class="table-wrap"><table><caption>Async diagnostics</caption><thead><tr><th scope="col">Kind</th><th scope="col">Scope</th><th scope="col">Schema or contract</th><th scope="col">Observed truth</th><th scope="col">Message</th></tr></thead><tbody><tr><td colspan="5">No async diagnostics were present in the normalized report.</td></tr></tbody></table></div></div></section>
+  </main>
+  <footer>
+    <p>This self-contained artifact is designed for offline inspection and does not rely on external scripts, styles, fonts, or images.</p>
+  </footer>
+</body>
+</html>

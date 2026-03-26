@@ -158,6 +158,31 @@ class KafkaRecorderTwoServiceIntegrationTest {
         assertThat(text(event, "test.run_id")).isEqualTo(TEST_RUN_ID);
         assertThat(text(event, "test.suite")).isEqualTo(TEST_SUITE);
         assertThat(event.get("error").booleanValue()).isFalse();
+        JsonNode headers = event.get("headers");
+        assertThat(headers).isNotNull();
+        assertCapturedHeader(headers, "yanote.message", ExampleServiceApplication.USER_CREATED_MESSAGE);
+        assertCapturedHeader(headers, "yanote.test.run_id", TEST_RUN_ID);
+        assertCapturedHeader(headers, "yanote.test.suite", TEST_SUITE);
+        assertCapturedHeader(
+                headers,
+                ExampleServiceApplication.CORRELATION_ID_HEADER,
+                ExampleServiceApplication.proofCorrelationId(ExampleServiceApplication.USER_CREATED_MESSAGE)
+        );
+        assertCapturedHeader(
+                headers,
+                ExampleServiceApplication.REPLY_TO_HEADER,
+                ExampleServiceApplication.proofReplyAddress(ExampleServiceApplication.USER_EVENTS_TOPIC)
+        );
+    }
+
+    private static void assertCapturedHeader(JsonNode headers, String headerName, String expectedValue) {
+        JsonNode header = headers.get(headerName);
+        assertThat(header)
+                .withFailMessage("Expected retained %s header in %s", headerName, headers)
+                .isNotNull();
+        assertThat(text(header, "state")).isEqualTo("captured");
+        assertThat(text(header, "value")).isEqualTo(expectedValue);
+        assertThat(header.get("reason")).isNull();
     }
 
     private static ConfigurableApplicationContext startService(

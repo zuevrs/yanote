@@ -1,0 +1,53 @@
+Summary
+- status: partial
+- channels: 2/3 (66.67%)
+- operations: 2/3 (66.67%)
+- messages: 2/4 (50.00%)
+- spec source: local-file (yanote-js/test/fixtures/asyncapi/kafka-bindings-matrix-v3.yaml)
+
+Coverage Dimensions
+- channels: 66.67% (PARTIAL)
+- operations: 66.67% (PARTIAL)
+- messages: 50.00% (PARTIAL)
+
+Kafka Binding Support
+- operations with bindings: 3
+- total bindings: 18
+- supported bindings: 1
+- declared-only bindings: 6
+- deferred bindings: 11
+- invalid bindings: 0
+- kafka receive orders.consumer: supported=none; declared-only=operation.groupId [source=operation.bindings.kafka.groupId], operation.clientId [source=operation.bindings.kafka.clientId], message.OrderConsumerEvent.key [source=message.bindings.kafka.key]; deferred=none; invalid=none
+- kafka send orders.command: supported=channel.topic=orders.actual [source=channel.bindings.kafka.topic]; declared-only=operation.groupId [source=operation.bindings.kafka.groupId], operation.clientId [source=operation.bindings.kafka.clientId], message.OrderCommand.key [source=message.bindings.kafka.key]; deferred=channel.partitions [source=channel.bindings.kafka.partitions], channel.replicas [source=channel.bindings.kafka.replicas], channel.topicConfiguration [source=channel.bindings.kafka.topicConfiguration], message.OrderCommand.schemaIdLocation [source=message.bindings.kafka.schemaIdLocation], message.OrderCommand.schemaLookupStrategy [source=message.bindings.kafka.schemaLookupStrategy]; invalid=none
+- kafka send users.lifecycle: supported=none; declared-only=none; deferred=message.UserLifecycleEvent.schemaIdLocation [source=message.bindings.kafka.schemaIdLocation], message.UserLifecycleEvent.schemaIdLocation [source=message.bindings.kafka.schemaIdLocation], message.UserLifecycleEvent.schemaIdPayloadEncoding [source=message.bindings.kafka.schemaIdPayloadEncoding], message.UserLifecycleEvent.schemaIdPayloadEncoding [source=message.bindings.kafka.schemaIdPayloadEncoding], message.UserLifecycleEvent.schemaLookupStrategy [source=message.bindings.kafka.schemaLookupStrategy], message.UserLifecycleEvent.schemaLookupStrategy [source=message.bindings.kafka.schemaLookupStrategy]; invalid=none
+
+Declared Semantics
+- operations with declarations: 0
+- operations with correlationId: 0
+- message correlationIds: 0
+- operations with reply: 0
+- details: none
+
+Runtime Semantics
+- operations with runtime semantics: 0
+- satisfied operations: 0
+- unsatisfied operations: 0
+- declared semantics: 0
+- satisfied semantics: 0
+- unsatisfied semantics: 0
+- runtime proof coverage: N/A
+- diagnostics: missing=0 unavailable=0 unsupported=0 mismatched=0
+- details: none
+- diagnostics: none
+
+Top Issues
+- medium: ASYNC_GATE_MIN_COVERAGE - Async operation coverage 66.6667% is below required 95.0000%.
+- low: users.lifecycle - channel is uncovered
+- low: kafka send users.lifecycle - async message UserLifecycleEvent [selectors: yanote.event.kind=deleted; payload: <anonymous-schema-8>; headers: <anonymous-schema-6>] is uncovered
+- low: kafka send users.lifecycle - async message UserLifecycleEvent [selectors: yanote.event.kind=signed-up; payload: <anonymous-schema-5>; headers: <anonymous-schema-3>] is uncovered
+- low: kafka send users.lifecycle - async operation is uncovered
+
+Report Path
+.tmp/m014-s03-bindings/yanote-async-report.json
+
+YANOTE_ASYNC_SUMMARY status=partial channels=66.67 operations=66.67 messages=50.00 spec_source_kind=local-file spec_source_ref="yanote-js/test/fixtures/asyncapi/kafka-bindings-matrix-v3.yaml" covered_channels=2/3 covered_operations=2/3 covered_messages=2/4 declared_operations=0 declared_correlation_operations=0 declared_correlation_messages=0 declared_reply_operations=0 runtime_operations=0 runtime_satisfied_operations=0 runtime_unsatisfied_operations=0 runtime_total_semantics=0 runtime_satisfied_semantics=0 runtime_unsatisfied_semantics=0 runtime_semantic_coverage=NA runtime_diagnostics=missing:0,unavailable:0,unsupported:0,mismatched:0 diagnostics=0 report=.tmp/m014-s03-bindings/yanote-async-report.json binding_operations=3 binding_total=18 binding_supported=1 binding_declared_only=6 binding_deferred=11 binding_invalid=0 primary=none primary_reason="none" class_counts=input:0,semantic:0,gate:0,runtime:0

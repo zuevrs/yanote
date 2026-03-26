@@ -360,8 +360,10 @@ export function renderStatusPill(value: string): string {
         ? "warn"
         : lowered === "invalid" ||
             lowered === "uncovered" ||
+            lowered === "unsatisfied" ||
             lowered === "missing" ||
-            lowered === "unsupported"
+            lowered === "unsupported" ||
+            lowered === "mismatched"
           ? "bad"
           : "neutral";
 

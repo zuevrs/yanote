@@ -1,0 +1,41 @@
+asyncapi: 3.0.0
+info:
+  title: yanote header runtime malformed v3 sample
+  version: '1.0.0'
+servers:
+  kafkaLocal:
+    host: localhost:9092
+    protocol: kafka
+channels:
+  orderCommands:
+    address: orders.command
+    messages:
+      OrderCommand:
+        name: OrderCommand
+        correlationId:
+          location: $message.header#
+        contentType: application/json
+        payload:
+          type: object
+  orderReplies:
+    address: orders.reply
+    messages:
+      OrderReply:
+        name: OrderReply
+        contentType: application/json
+        payload:
+          type: object
+operations:
+  sendOrderCommand:
+    action: send
+    channel:
+      $ref: '#/channels/orderCommands'
+    reply:
+      channel:
+        $ref: '#/channels/orderReplies'
+      address:
+        location: $message.header#
+      messages:
+        - $ref: '#/channels/orderReplies/messages/OrderReply'
+    messages:
+      - $ref: '#/channels/orderCommands/messages/OrderCommand'

@@ -185,6 +185,12 @@ require_contains "${ASYNC_GUIDE}" "runtime-selected-async-report.stderr" "runtim
 require_contains "${ASYNC_GUIDE}" "runtime-selected-yanote-async-report.json" "runtime-selection retained artifact wording"
 require_contains "${ASYNC_GUIDE}" "selectionMode=runtime" "runtime-selection proof wording"
 require_contains "${ASYNC_GUIDE}" "selectedMessages" "runtime-selection proof wording"
+require_contains "${ASYNC_GUIDE}" "bindingSupport.summary" "widened live-bundle binding summary wording"
+require_contains "${ASYNC_GUIDE}" "declaredSemantics.summary" "widened live-bundle declared summary wording"
+require_contains "${ASYNC_GUIDE}" "runtimeSemantics.summary" "widened live-bundle runtime summary wording"
+require_contains "${ASYNC_GUIDE}" "build-and-test-artifacts/live-kafka-proof/async-summary.md" "async CI summary surface wording"
+require_contains "${ASYNC_GUIDE}" 'redaction-safe строки `binding support`, `declared semantics`, `runtime semantics`' "async CI summary line wording"
+require_contains "${ASYNC_GUIDE}" "без публикации raw retained Kafka headers" "no raw retained-header leakage wording"
 require_contains "${ASYNC_GUIDE}" "broker-agnostic promise нет" "first-wave boundary clause"
 require_contains "${ASYNC_GUIDE}" ".yanote-ci/live-kafka-proof/" "live proof bundle location"
 require_contains "${ASYNC_GUIDE}" "schema-failure-async-report.stderr" "retained schema-failure artifact wording"
@@ -201,10 +207,16 @@ require_contains "${ANALYZER_GUIDE}" "yanote-async-report.json" "async artifact 
 require_between_sections "${ROOT_README}" "## Проверенный цикл" "## Вторичные поверхности" "docs/guides/asyncapi-kafka.md" "root README async guide link"
 require_between_sections "${ROOT_README}" "## Проверенный цикл" "## Вторичные поверхности" "async-report" "root README separate async command wording"
 require_between_sections "${ROOT_README}" "## Проверенный цикл" "## Вторичные поверхности" "yanote-async-report.json" "root README separate async artifact wording"
+require_between_sections "${ROOT_README}" "## Проверенный цикл" "## Вторичные поверхности" "build-and-test-artifacts" "root README async CI summary surface wording"
+require_between_sections "${ROOT_README}" "## Проверенный цикл" "## Вторичные поверхности" "binding support" "root README widened async summary wording"
+require_between_sections "${ROOT_README}" "## Проверенный цикл" "## Вторичные поверхности" "runtime semantics" "root README widened async summary wording"
 
 require_between_sections "${DOCS_README}" "## Канонические гайды" "## Примеры и демо" "guides/asyncapi-kafka.md" "docs landing async guide link"
 require_between_sections "${DOCS_README}" "## Канонические гайды" "## Примеры и демо" "async-report" "docs landing separate async command wording"
 require_between_sections "${DOCS_README}" "## Канонические гайды" "## Примеры и демо" "yanote-async-report.json" "docs landing separate async artifact wording"
+require_between_sections "${DOCS_README}" "## Канонические гайды" "## Примеры и демо" "build-and-test-artifacts" "docs landing async CI summary surface wording"
+require_between_sections "${DOCS_README}" "## Канонические гайды" "## Примеры и демо" "binding support" "docs landing widened async summary wording"
+require_between_sections "${DOCS_README}" "## Канонические гайды" "## Примеры и демо" "runtime semantics" "docs landing widened async summary wording"
 
 if (( failures > 0 )); then
   if (( failures == landing_failures )); then

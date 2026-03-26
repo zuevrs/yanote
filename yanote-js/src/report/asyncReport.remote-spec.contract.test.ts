@@ -4,8 +4,8 @@ import os from "node:os";
 import path from "node:path";
 import stringify from "json-stable-stringify";
 import { describe, expect, it } from "vitest";
-import { readAsyncEventsJsonl } from "../events/readAsyncEventsJsonl.js";
 import { computeAsyncCoverage } from "../coverage/asyncCoverage.js";
+import { readAsyncEventsJsonl } from "../events/readAsyncEventsJsonl.js";
 import { resolveSpecSource } from "../spec/specSource.js";
 import { loadAsyncApiSemanticsBundle } from "../spec/asyncapi.js";
 import { buildAsyncReport, normalizeAsyncReport, validateAsyncReport } from "./asyncReport.js";
@@ -22,8 +22,8 @@ type SpecCase = {
 
 describe("async report remote spec provenance contract", () => {
   it("serializes deterministic schema-valid specSource provenance for local file, local directory, and remote URL inputs", async () => {
-    const specText = await readFile("test/fixtures/asyncapi/v3.yaml", "utf8");
-    const events = await readAsyncEventsJsonl("test/fixtures/async-events/partial.fixture.jsonl");
+    const specText = await readFile("test/fixtures/asyncapi/header-runtime-inline-v3.yaml", "utf8");
+    const events = await readAsyncEventsJsonl("test/fixtures/async-events/header-runtime-covered.fixture.jsonl");
     const fixture = await createFixtureWorkspace("asyncapi.yaml", specText);
     const server = await startFixtureServer({
       "/asyncapi.yaml": {
@@ -70,19 +70,98 @@ describe("async report remote spec provenance contract", () => {
             buildAsyncReport(coverage, {
               toolVersion: "test",
               specSource: resolved.provenance,
-              eventTimestamps: events.items
-                .map((event) => event.ts)
-                .filter((timestamp): timestamp is number => typeof timestamp === "number")
+              operationContractsByKey: bundle.operationContractsByKey
             })
           );
 
           expect(validateAsyncReport(report).ok).toBe(true);
           expect(report.specSource).toEqual(specCase.expected);
+          expect(report.declaredSemantics).toEqual({
+            summary: {
+              totalOperations: 1,
+              operationsWithCorrelationId: 1,
+              messageCorrelationIds: 1,
+              operationsWithReply: 1
+            },
+            operations: [
+              {
+                operationKey: "kafka send orders.command",
+                channel: "orders.command",
+                action: "send",
+                correlationIds: [
+                  {
+                    message: "OrderCommand",
+                    location: "$message.header#/correlation_id"
+                  }
+                ],
+                reply: {
+                  address: {
+                    location: "$message.header#/reply_to"
+                  }
+                }
+              }
+            ]
+          });
+          expect(report.runtimeSemantics).toEqual({
+            summary: {
+              totalOperations: 1,
+              satisfiedOperations: 1,
+              unsatisfiedOperations: 0,
+              totalSemantics: 2,
+              satisfiedSemantics: 2,
+              unsatisfiedSemantics: 0,
+              semanticCoveragePercent: 100
+            },
+            operations: [
+              {
+                operationKey: "kafka send orders.command",
+                channel: "orders.command",
+                action: "send",
+                state: "SATISFIED",
+                correlationIds: [
+                  {
+                    message: expect.stringContaining("OrderCommand"),
+                    location: "$message.header#/correlation_id",
+                    state: "SATISFIED",
+                    suites: ["suite-header-runtime-covered"],
+                    header: "correlation_id",
+                    messageName: "OrderCommand"
+                  }
+                ],
+                reply: {
+                  address: {
+                    location: "$message.header#/reply_to",
+                    state: "SATISFIED",
+                    suites: ["suite-header-runtime-covered"],
+                    header: "reply_to",
+                    replyChannelAddress: "orders.reply"
+                  }
+                }
+              }
+            ],
+            diagnostics: {
+              counts: {
+                missing: 0,
+                unavailable: 0,
+                unsupported: 0,
+                mismatched: 0
+              },
+              items: []
+            }
+          });
 
           const serialized = `${stringify(report, { space: 2 })}\n`;
           expect(serialized).toContain(
             `"specSource": {\n    "kind": "${specCase.expected.kind}",\n    "reference": "${specCase.expected.reference}"\n  }`
           );
+          expect(serialized).toContain('"declaredSemantics": {');
+          expect(serialized).toContain('"runtimeSemantics": {');
+          expect(serialized).toContain('"messageCorrelationIds": 1');
+          expect(serialized).toContain('"semanticCoveragePercent": 100');
+          expect(serialized).toContain('"location": "$message.header#/correlation_id"');
+          expect(serialized).toContain('"location": "$message.header#/reply_to"');
+          expect(serialized).not.toContain("corr-covered-1");
+          expect(serialized).not.toContain("trace-covered-1");
 
           const outDir = path.join(fixture.dir, `out-${specCase.label.replaceAll(/\s+/g, "-")}`);
           const jsonPath = await writeAsyncYanoteReport(outDir, report);
@@ -92,10 +171,22 @@ describe("async report remote spec provenance contract", () => {
           expect(jsonPath).toBe(path.join(outDir, "yanote-async-report.json"));
           expect(json).toContain(`"kind": "${specCase.expected.kind}"`);
           expect(json).toContain(`"reference": "${specCase.expected.reference}"`);
+          expect(json).toContain('"declaredSemantics"');
+          expect(json).toContain('"runtimeSemantics"');
+          expect(json).toContain('"messageCorrelationIds": 1');
+          expect(json).toContain('"semanticCoveragePercent": 100');
+          expect(json).not.toContain("corr-covered-1");
+          expect(json).not.toContain("trace-covered-1");
           expect(html).toContain("Provenance");
+          expect(html).toContain("Declared semantics");
+          expect(html).toContain("Runtime semantics");
+          expect(html).toContain("$message.header#/correlation_id");
+          expect(html).toContain("$message.header#/reply_to");
           expect(html).toContain(specCase.expected.kind);
           expect(html).toContain(specCase.expected.reference);
           expect(html).toContain("yanote-async-report.html");
+          expect(html).not.toContain("corr-covered-1");
+          expect(html).not.toContain("trace-covered-1");
           expect(html).not.toMatch(/\b(?:src|href)=['"]https?:\/\//i);
 
           reports.push({ label: specCase.label, report });
@@ -111,6 +202,8 @@ describe("async report remote spec provenance contract", () => {
         expect(report.coverage.channels).toEqual(baseline?.coverage.channels);
         expect(report.coverage.operations).toEqual(baseline?.coverage.operations);
         expect(report.coverage.messages).toEqual(baseline?.coverage.messages);
+        expect(report.declaredSemantics).toEqual(baseline?.declaredSemantics);
+        expect(report.runtimeSemantics).toEqual(baseline?.runtimeSemantics);
         expect(report.diagnostics).toEqual(baseline?.diagnostics);
         expect(label).toMatch(/local directory|remote url/);
       }

@@ -9,8 +9,14 @@ servers:
 channels:
   userCreated:
     address: users.created
+    bindings:
+      kafka:
+        topic: users.created
     messages:
       UserCreated:
+        name: UserCreated
+        correlationId:
+          location: $message.header#/correlation_id
         headers:
           $ref: '#/components/schemas/YanoteKafkaHeaders'
         payload:
@@ -20,12 +26,22 @@ operations:
     action: send
     channel:
       $ref: '#/channels/userCreated'
+    reply:
+      channel:
+        $ref: '#/channels/userCreated'
+      address:
+        location: $message.header#/reply_to
     messages:
       - $ref: '#/channels/userCreated/messages/UserCreated'
   receiveUserCreated:
     action: receive
     channel:
       $ref: '#/channels/userCreated'
+    reply:
+      channel:
+        $ref: '#/channels/userCreated'
+      address:
+        location: $message.header#/reply_to
     messages:
       - $ref: '#/channels/userCreated/messages/UserCreated'
 components:
@@ -36,12 +52,18 @@ components:
         - yanote.message
         - yanote.test.run_id
         - yanote.test.suite
+        - correlation_id
+        - reply_to
       properties:
         yanote.message:
           type: string
         yanote.test.run_id:
           type: string
         yanote.test.suite:
+          type: string
+        correlation_id:
+          type: string
+        reply_to:
           type: string
     UserCreatedPayload:
       type: object

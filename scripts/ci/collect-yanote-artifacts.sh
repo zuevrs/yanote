@@ -8,6 +8,9 @@ V1_E2E_BUNDLE_SOURCE_DIR=".yanote-ci/v1-e2e"
 V1_E2E_BUNDLE_TARGET_NAME="v1-e2e"
 SOURCE_PATHS_NOTE_NAME="artifact-source-paths.txt"
 SOURCE_PATHS_NOTE_PATH="${DEST_DIR}/${SOURCE_PATHS_NOTE_NAME}"
+
+mkdir -p "$(dirname "${DEST_DIR}")"
+rm -rf "${DEST_DIR}"
 mkdir -p "${DEST_DIR}"
 
 copy_if_exists() {
@@ -147,9 +150,118 @@ copy_if_exists ".yanote-ci/delivery-proof-changed-files.txt" "delivery-proof-cha
 
 async_bundle_found="false"
 async_bundle_source="none"
+async_bundle_manifest_source="none"
+async_bundle_source_paths_source="none"
+async_bundle_proof_status="none"
+async_bundle_report_found="false"
+async_bundle_report_html_found="false"
+async_bundle_runtime_selected_report_found="false"
+async_bundle_runtime_selected_report_html_found="false"
+async_bundle_schema_failure_report_found="false"
+async_bundle_schema_failure_report_html_found="false"
+async_bundle_report_status="unknown"
+async_bundle_report_channels="0/0"
+async_bundle_report_operations="0/0"
+async_bundle_report_messages="0/0"
+async_bundle_report_supported_bindings="0/0"
+async_bundle_report_declared_only_bindings="0"
+async_bundle_report_deferred_bindings="0"
+async_bundle_report_invalid_bindings="0"
+async_bundle_report_binding_total_operations="0"
+async_bundle_report_message_correlation_ids="0"
+async_bundle_report_operations_with_correlation_id="0/0"
+async_bundle_report_operations_with_reply="0/0"
+async_bundle_report_runtime_satisfied_operations="0/0"
+async_bundle_report_runtime_satisfied_semantics="0/0"
+async_bundle_report_runtime_unsatisfied_operations="0"
+async_bundle_report_runtime_unsatisfied_semantics="0"
+async_bundle_report_runtime_semantic_coverage_percent="0"
+
 if copy_directory_if_exists "${ASYNC_BUNDLE_SOURCE_DIR}" "${ASYNC_BUNDLE_TARGET_NAME}"; then
   async_bundle_found="true"
   async_bundle_source="${ASYNC_BUNDLE_SOURCE_DIR}"
+  async_bundle_manifest_source="${ASYNC_BUNDLE_SOURCE_DIR}/artifact-manifest.txt"
+  async_bundle_source_paths_source="${ASYNC_BUNDLE_SOURCE_DIR}/artifact-source-paths.txt"
+
+  copied_async_manifest="${DEST_DIR}/${ASYNC_BUNDLE_TARGET_NAME}/artifact-manifest.txt"
+  if [[ -f "${copied_async_manifest}" ]]; then
+    while IFS='=' read -r key value; do
+      case "${key}" in
+        proof_status)
+          async_bundle_proof_status="${value}"
+          ;;
+        report_found)
+          async_bundle_report_found="${value}"
+          ;;
+        report_html_found)
+          async_bundle_report_html_found="${value}"
+          ;;
+        runtime_selected_report_found)
+          async_bundle_runtime_selected_report_found="${value}"
+          ;;
+        runtime_selected_report_html_found)
+          async_bundle_runtime_selected_report_html_found="${value}"
+          ;;
+        schema_failure_report_found)
+          async_bundle_schema_failure_report_found="${value}"
+          ;;
+        schema_failure_report_html_found)
+          async_bundle_schema_failure_report_html_found="${value}"
+          ;;
+        report_status)
+          async_bundle_report_status="${value}"
+          ;;
+        report_channels)
+          async_bundle_report_channels="${value}"
+          ;;
+        report_operations)
+          async_bundle_report_operations="${value}"
+          ;;
+        report_messages)
+          async_bundle_report_messages="${value}"
+          ;;
+        report_supported_bindings)
+          async_bundle_report_supported_bindings="${value}"
+          ;;
+        report_declared_only_bindings)
+          async_bundle_report_declared_only_bindings="${value}"
+          ;;
+        report_deferred_bindings)
+          async_bundle_report_deferred_bindings="${value}"
+          ;;
+        report_invalid_bindings)
+          async_bundle_report_invalid_bindings="${value}"
+          ;;
+        report_binding_total_operations)
+          async_bundle_report_binding_total_operations="${value}"
+          ;;
+        report_message_correlation_ids)
+          async_bundle_report_message_correlation_ids="${value}"
+          ;;
+        report_operations_with_correlation_id)
+          async_bundle_report_operations_with_correlation_id="${value}"
+          ;;
+        report_operations_with_reply)
+          async_bundle_report_operations_with_reply="${value}"
+          ;;
+        report_runtime_satisfied_operations)
+          async_bundle_report_runtime_satisfied_operations="${value}"
+          ;;
+        report_runtime_satisfied_semantics)
+          async_bundle_report_runtime_satisfied_semantics="${value}"
+          ;;
+        report_runtime_unsatisfied_operations)
+          async_bundle_report_runtime_unsatisfied_operations="${value}"
+          ;;
+        report_runtime_unsatisfied_semantics)
+          async_bundle_report_runtime_unsatisfied_semantics="${value}"
+          ;;
+        report_runtime_semantic_coverage_percent)
+          async_bundle_report_runtime_semantic_coverage_percent="${value}"
+          ;;
+      esac
+    done < "${copied_async_manifest}"
+  fi
 fi
 
 v1_e2e_bundle_found="false"
@@ -169,6 +281,8 @@ fi
   printf 'report_deprecated_uncovered=%s\n' "${report_deprecated_uncovered}"
   printf 'report_deprecated_percent=%s\n' "${report_deprecated_percent}"
   printf 'live-kafka-proof=%s\n' "${async_bundle_source}"
+  printf 'live-kafka-proof-manifest=%s\n' "${async_bundle_manifest_source}"
+  printf 'live-kafka-proof-source-paths=%s\n' "${async_bundle_source_paths_source}"
   printf 'v1-e2e=%s\n' "${v1_e2e_bundle_source}"
 } > "${SOURCE_PATHS_NOTE_PATH}"
 
@@ -188,6 +302,32 @@ manifest_path="${DEST_DIR}/artifact-manifest.txt"
   printf 'report_deprecated_percent=%s\n' "${report_deprecated_percent}"
   printf 'async_bundle_found=%s\n' "${async_bundle_found}"
   printf 'async_bundle_source=%s\n' "${async_bundle_source}"
+  printf 'async_bundle_manifest_source=%s\n' "${async_bundle_manifest_source}"
+  printf 'async_bundle_source_paths_source=%s\n' "${async_bundle_source_paths_source}"
+  printf 'async_bundle_proof_status=%s\n' "${async_bundle_proof_status}"
+  printf 'async_bundle_report_found=%s\n' "${async_bundle_report_found}"
+  printf 'async_bundle_report_html_found=%s\n' "${async_bundle_report_html_found}"
+  printf 'async_bundle_runtime_selected_report_found=%s\n' "${async_bundle_runtime_selected_report_found}"
+  printf 'async_bundle_runtime_selected_report_html_found=%s\n' "${async_bundle_runtime_selected_report_html_found}"
+  printf 'async_bundle_schema_failure_report_found=%s\n' "${async_bundle_schema_failure_report_found}"
+  printf 'async_bundle_schema_failure_report_html_found=%s\n' "${async_bundle_schema_failure_report_html_found}"
+  printf 'async_bundle_report_status=%s\n' "${async_bundle_report_status}"
+  printf 'async_bundle_report_channels=%s\n' "${async_bundle_report_channels}"
+  printf 'async_bundle_report_operations=%s\n' "${async_bundle_report_operations}"
+  printf 'async_bundle_report_messages=%s\n' "${async_bundle_report_messages}"
+  printf 'async_bundle_report_supported_bindings=%s\n' "${async_bundle_report_supported_bindings}"
+  printf 'async_bundle_report_declared_only_bindings=%s\n' "${async_bundle_report_declared_only_bindings}"
+  printf 'async_bundle_report_deferred_bindings=%s\n' "${async_bundle_report_deferred_bindings}"
+  printf 'async_bundle_report_invalid_bindings=%s\n' "${async_bundle_report_invalid_bindings}"
+  printf 'async_bundle_report_binding_total_operations=%s\n' "${async_bundle_report_binding_total_operations}"
+  printf 'async_bundle_report_message_correlation_ids=%s\n' "${async_bundle_report_message_correlation_ids}"
+  printf 'async_bundle_report_operations_with_correlation_id=%s\n' "${async_bundle_report_operations_with_correlation_id}"
+  printf 'async_bundle_report_operations_with_reply=%s\n' "${async_bundle_report_operations_with_reply}"
+  printf 'async_bundle_report_runtime_satisfied_operations=%s\n' "${async_bundle_report_runtime_satisfied_operations}"
+  printf 'async_bundle_report_runtime_satisfied_semantics=%s\n' "${async_bundle_report_runtime_satisfied_semantics}"
+  printf 'async_bundle_report_runtime_unsatisfied_operations=%s\n' "${async_bundle_report_runtime_unsatisfied_operations}"
+  printf 'async_bundle_report_runtime_unsatisfied_semantics=%s\n' "${async_bundle_report_runtime_unsatisfied_semantics}"
+  printf 'async_bundle_report_runtime_semantic_coverage_percent=%s\n' "${async_bundle_report_runtime_semantic_coverage_percent}"
   printf 'v1_e2e_bundle_found=%s\n' "${v1_e2e_bundle_found}"
   printf 'v1_e2e_bundle_source=%s\n' "${v1_e2e_bundle_source}"
   printf 'source_paths_note=%s\n' "${SOURCE_PATHS_NOTE_NAME}"

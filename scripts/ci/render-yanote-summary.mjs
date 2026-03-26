@@ -661,6 +661,123 @@ function buildAsyncMetrics(report, machineSummary) {
   };
 }
 
+function validateAsyncNumericFields(report, reportPath) {
+  if (!report) {
+    return;
+  }
+
+  const requiredNumericFields = [
+    ["summary.coveredChannels", report?.summary?.coveredChannels],
+    ["summary.totalChannels", report?.summary?.totalChannels],
+    ["summary.coveredOperations", report?.summary?.coveredOperations],
+    ["summary.totalOperations", report?.summary?.totalOperations],
+    ["summary.coveredMessages", report?.summary?.coveredMessages],
+    ["summary.totalMessages", report?.summary?.totalMessages],
+    ["bindingSupport.summary.supportedBindings", report?.bindingSupport?.summary?.supportedBindings],
+    ["bindingSupport.summary.totalBindings", report?.bindingSupport?.summary?.totalBindings],
+    ["bindingSupport.summary.declaredOnlyBindings", report?.bindingSupport?.summary?.declaredOnlyBindings],
+    ["bindingSupport.summary.deferredBindings", report?.bindingSupport?.summary?.deferredBindings],
+    ["bindingSupport.summary.invalidBindings", report?.bindingSupport?.summary?.invalidBindings],
+    ["bindingSupport.summary.totalOperations", report?.bindingSupport?.summary?.totalOperations],
+    ["declaredSemantics.summary.messageCorrelationIds", report?.declaredSemantics?.summary?.messageCorrelationIds],
+    ["declaredSemantics.summary.operationsWithCorrelationId", report?.declaredSemantics?.summary?.operationsWithCorrelationId],
+    ["declaredSemantics.summary.operationsWithReply", report?.declaredSemantics?.summary?.operationsWithReply],
+    ["declaredSemantics.summary.totalOperations", report?.declaredSemantics?.summary?.totalOperations],
+    ["runtimeSemantics.summary.satisfiedOperations", report?.runtimeSemantics?.summary?.satisfiedOperations],
+    ["runtimeSemantics.summary.totalOperations", report?.runtimeSemantics?.summary?.totalOperations],
+    ["runtimeSemantics.summary.satisfiedSemantics", report?.runtimeSemantics?.summary?.satisfiedSemantics],
+    ["runtimeSemantics.summary.totalSemantics", report?.runtimeSemantics?.summary?.totalSemantics],
+    ["runtimeSemantics.summary.semanticCoveragePercent", report?.runtimeSemantics?.summary?.semanticCoveragePercent],
+    ["runtimeSemantics.summary.unsatisfiedOperations", report?.runtimeSemantics?.summary?.unsatisfiedOperations],
+    ["runtimeSemantics.summary.unsatisfiedSemantics", report?.runtimeSemantics?.summary?.unsatisfiedSemantics]
+  ];
+
+  const invalidFields = requiredNumericFields
+    .filter(([, value]) => !Number.isFinite(Number(value)))
+    .map(([field]) => field);
+
+  if (invalidFields.length > 0) {
+    throw new Error(
+      `Invalid async summary inputs at ${reportPath}: missing or non-numeric ${invalidFields.join(", ")}`
+    );
+  }
+}
+
+function validateAsyncArtifactFamily(report, reportPath, artifactNames, artifactsDirProvided) {
+  if (!report || !artifactsDirProvided) {
+    return;
+  }
+
+  const requiredArtifacts = [
+    "yanote-async-report.json",
+    "yanote-async-report.html",
+    "runtime-selected-yanote-async-report.json",
+    "runtime-selected-yanote-async-report.html",
+    "schema-failure-yanote-async-report.json",
+    "schema-failure-yanote-async-report.html"
+  ];
+  const presentArtifacts = new Set(artifactNames);
+  const missingArtifacts = requiredArtifacts.filter((name) => !presentArtifacts.has(name));
+
+  if (missingArtifacts.length > 0) {
+    throw new Error(
+      `Invalid async artifact bundle at ${reportPath}: missing ${missingArtifacts.join(", ")}`
+    );
+  }
+}
+
+function buildAsyncSemanticMetrics(report) {
+  return {
+    bindingSupport: {
+      supportedBindings: Number(report?.bindingSupport?.summary?.supportedBindings ?? 0),
+      totalBindings: Number(report?.bindingSupport?.summary?.totalBindings ?? 0),
+      declaredOnlyBindings: Number(report?.bindingSupport?.summary?.declaredOnlyBindings ?? 0),
+      deferredBindings: Number(report?.bindingSupport?.summary?.deferredBindings ?? 0),
+      invalidBindings: Number(report?.bindingSupport?.summary?.invalidBindings ?? 0),
+      totalOperations: Number(report?.bindingSupport?.summary?.totalOperations ?? 0)
+    },
+    declaredSemantics: {
+      messageCorrelationIds: Number(report?.declaredSemantics?.summary?.messageCorrelationIds ?? 0),
+      operationsWithCorrelationId: Number(report?.declaredSemantics?.summary?.operationsWithCorrelationId ?? 0),
+      operationsWithReply: Number(report?.declaredSemantics?.summary?.operationsWithReply ?? 0),
+      totalOperations: Number(report?.declaredSemantics?.summary?.totalOperations ?? 0)
+    },
+    runtimeSemantics: {
+      satisfiedOperations: Number(report?.runtimeSemantics?.summary?.satisfiedOperations ?? 0),
+      totalOperations: Number(report?.runtimeSemantics?.summary?.totalOperations ?? 0),
+      satisfiedSemantics: Number(report?.runtimeSemantics?.summary?.satisfiedSemantics ?? 0),
+      totalSemantics: Number(report?.runtimeSemantics?.summary?.totalSemantics ?? 0),
+      semanticCoveragePercent: Number(report?.runtimeSemantics?.summary?.semanticCoveragePercent ?? 0),
+      unsatisfiedOperations: Number(report?.runtimeSemantics?.summary?.unsatisfiedOperations ?? 0),
+      unsatisfiedSemantics: Number(report?.runtimeSemantics?.summary?.unsatisfiedSemantics ?? 0)
+    }
+  };
+}
+
+function formatAsyncBindingSupportSummary(metrics, report) {
+  if (!report) {
+    return "unavailable (report missing)";
+  }
+
+  return `supported=${metrics.supportedBindings}/${metrics.totalBindings} declared_only=${metrics.declaredOnlyBindings} deferred=${metrics.deferredBindings} invalid=${metrics.invalidBindings} operations=${metrics.totalOperations}`;
+}
+
+function formatAsyncDeclaredSemanticsSummary(metrics, report) {
+  if (!report) {
+    return "unavailable (report missing)";
+  }
+
+  return `correlation_operations=${metrics.operationsWithCorrelationId}/${metrics.totalOperations} reply_operations=${metrics.operationsWithReply}/${metrics.totalOperations} message_correlation_ids=${metrics.messageCorrelationIds}`;
+}
+
+function formatAsyncRuntimeSemanticsSummary(metrics, report) {
+  if (!report) {
+    return "unavailable (report missing)";
+  }
+
+  return `satisfied_operations=${metrics.satisfiedOperations}/${metrics.totalOperations} satisfied_semantics=${metrics.satisfiedSemantics}/${metrics.totalSemantics} unsatisfied_operations=${metrics.unsatisfiedOperations} unsatisfied_semantics=${metrics.unsatisfiedSemantics} (${formatPercent(metrics.semanticCoveragePercent)})`;
+}
+
 function renderHttpSummary({ report, reportPath, stderrText, artifactNames, maxIssues, exitCode }) {
   const issues = collectHttpIssues(report);
   const shownIssues = issues.slice(0, maxIssues);
@@ -704,7 +821,10 @@ function renderHttpSummary({ report, reportPath, stderrText, artifactNames, maxI
   return `${lines.join("\n")}\n`;
 }
 
-function renderAsyncSummary({ report, reportPath, stdoutText, stderrText, artifactNames, maxIssues, exitCode }) {
+function renderAsyncSummary({ report, reportPath, stdoutText, stderrText, artifactNames, artifactsDirProvided, maxIssues, exitCode }) {
+  validateAsyncNumericFields(report, reportPath);
+  validateAsyncArtifactFamily(report, reportPath, artifactNames, artifactsDirProvided);
+
   const parsedFailures = [
     ...parseTypedFailures(stderrText, "YANOTE_ASYNC_ERROR", "YANOTE_ASYNC_ERROR_SECONDARY"),
     ...parseTypedFailures(stdoutText, "YANOTE_ASYNC_ERROR", "YANOTE_ASYNC_ERROR_SECONDARY")
@@ -720,6 +840,7 @@ function renderAsyncSummary({ report, reportPath, stdoutText, stderrText, artifa
   const hiddenCount = Math.max(0, issues.length - shownIssues.length);
   const primaryFailure = resolveAsyncPrimaryFailure(issues, machineSummary, failures, exitCode);
   const metrics = buildAsyncMetrics(report, machineSummary);
+  const semanticMetrics = buildAsyncSemanticMetrics(report);
   const classCounts = formatAsyncClassCounts(failures, machineSummary, report, exitCode);
   const reportName = resolveAsyncReportName(report, reportPath, machineSummary);
   const summarySource = resolveAsyncSummarySource(report, machineSummary, failures);
@@ -743,6 +864,9 @@ function renderAsyncSummary({ report, reportPath, stdoutText, stderrText, artifa
       "schema-failure-yanote-async-report.html"
     ], artifactNames)}`
   );
+  lines.push(`- binding support: ${formatAsyncBindingSupportSummary(semanticMetrics.bindingSupport, report)}`);
+  lines.push(`- declared semantics: ${formatAsyncDeclaredSemanticsSummary(semanticMetrics.declaredSemantics, report)}`);
+  lines.push(`- runtime semantics: ${formatAsyncRuntimeSemanticsSummary(semanticMetrics.runtimeSemantics, report)}`);
   lines.push(`- primary failure: ${primaryFailure}`);
   lines.push(`- class counts: ${classCounts}`);
   lines.push(`- proof exit code: ${exitCode}`);
@@ -848,6 +972,7 @@ export async function renderSummary(input) {
         stdoutText,
         stderrText,
         artifactNames,
+        artifactsDirProvided: Boolean(input?.artifactsDir),
         maxIssues,
         exitCode
       })

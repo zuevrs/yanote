@@ -110,6 +110,7 @@ test("workflow keeps always-on async triage in build-and-test before combined en
   assert.match(buildJob, /- name:\s*Collect build-and-test artifacts[\s\S]*?if:\s*\$\{\{\s*always\(\)\s*\}\}/);
   assert.match(buildJob, /- name:\s*Render async GitHub summary[\s\S]*?if:\s*\$\{\{\s*always\(\)\s*\}\}/);
   assert.match(buildJob, /- name:\s*Render async GitHub summary[\s\S]*?yanote-async-report\.json/);
+  assert.match(buildJob, /- name:\s*Render async GitHub summary[\s\S]*?--artifacts-dir "\$\{YANOTE_ARTIFACT_DIR\}\/live-kafka-proof"/);
   assert.match(buildJob, /- name:\s*Upload build-and-test artifacts[\s\S]*?name:\s*build-and-test-artifacts/);
   assert.match(
     buildJob,

@@ -2,6 +2,12 @@ import { Parser, fromFile } from "@asyncapi/parser";
 import {
   serializeOperationKey,
   type AsyncAction,
+  type KafkaBindingSupport,
+  type KafkaBindingSupportField,
+  type KafkaBindingSupportScope,
+  type KafkaBindingSupportStatus,
+  type KafkaDeclaredCorrelationId,
+  type KafkaDeclaredReply,
   type KafkaMessageContract,
   type KafkaMessageSelectionHint,
   type KafkaMessageSelectionRule,
@@ -19,7 +25,9 @@ export type AsyncApiSemanticsBundle = SemanticDiagnosticsBundle & {
   operationContractsByKey: Map<string, KafkaOperationContract>;
 };
 
-type ResolvedKafkaMessageContracts = Pick<KafkaOperationContract, "message" | "messages" | "messageSelection">;
+type ResolvedKafkaMessageContracts = Pick<KafkaOperationContract, "message" | "messages" | "messageSelection"> & {
+  bindingSupport?: KafkaBindingSupport[];
+};
 type AsyncApiSpecInput = string | Pick<ResolvedSpecSource, "materializedPath">;
 
 export async function loadAsyncApiSemanticsBundle(specInput: AsyncApiSpecInput): Promise<AsyncApiSemanticsBundle> {
@@ -43,7 +51,7 @@ export async function loadAsyncApiOperations(specInput: AsyncApiSpecInput): Prom
   return bundle.operations;
 }
 
-function buildAsyncApiSemantics(spec: unknown): AsyncApiSemanticsBundle {
+export function buildAsyncApiSemantics(spec: unknown): AsyncApiSemanticsBundle {
   const operations: OperationKey[] = [];
   const operationContractsByKey = new Map<string, KafkaOperationContract>();
   const diagnostics: SemanticDiagnostic[] = [];
@@ -139,8 +147,20 @@ function extractV2(
       continue;
     }
 
-    appendV2Operation(channelValue.publish, "send", channel, version, protocol, seen, operations, operationContractsByKey, diagnostics);
     appendV2Operation(
+      channelValue,
+      channelValue.publish,
+      "send",
+      channel,
+      version,
+      protocol,
+      seen,
+      operations,
+      operationContractsByKey,
+      diagnostics
+    );
+    appendV2Operation(
+      channelValue,
       channelValue.subscribe,
       "receive",
       channel,
@@ -155,6 +175,7 @@ function extractV2(
 }
 
 function appendV2Operation(
+  channelValue: Record<string, unknown>,
   operationValue: unknown,
   action: AsyncAction,
   channel: string,
@@ -183,7 +204,24 @@ function appendV2Operation(
     return;
   }
 
-  appendKafkaContract({ operation: { kind: KAFKA_RUNTIME, action, channel }, ...messageContract }, seen, operations, operationContractsByKey);
+  const declaredReply = extractDeclaredReply(operationValue.reply, diagnostics, buildAsyncContext(version, protocol, { action, channel }));
+  const bindingSupport = collectKafkaBindingSupport(
+    extractKafkaChannelBindingSupport(channelValue.bindings, diagnostics, buildAsyncContext(version, protocol, { action, channel })),
+    extractKafkaOperationBindingSupport(operationValue.bindings, diagnostics, buildAsyncContext(version, protocol, { action, channel })),
+    messageContract.bindingSupport
+  );
+  const { bindingSupport: _ignoredBindingSupport, ...resolvedMessageContract } = messageContract;
+  appendKafkaContract(
+    {
+      operation: { kind: KAFKA_RUNTIME, action, channel },
+      ...(bindingSupport.length > 0 ? { bindingSupport } : {}),
+      ...(declaredReply ? { declaredReply } : {}),
+      ...resolvedMessageContract
+    },
+    seen,
+    operations,
+    operationContractsByKey
+  );
 }
 
 function extractV3(
@@ -236,8 +274,8 @@ function extractV3(
       continue;
     }
 
-    const channel = resolveV3ChannelNameOrAddress(operationValue.channel, channels);
-    if (!channel) {
+    const channelDescriptor = resolveV3ChannelDescriptor(operationValue.channel, channels);
+    if (!channelDescriptor) {
       diagnostics.push({
         kind: "invalid",
         message: "AsyncAPI v3 operation channel must resolve to a non-empty address",
@@ -246,12 +284,31 @@ function extractV3(
       continue;
     }
 
+    const { address: channel, source: channelValue } = channelDescriptor;
+
     const messageContract = extractV3MessageContract(operationValue.messages, version, protocol, action, channel, diagnostics);
     if (messageContract === null) {
       continue;
     }
 
-    appendKafkaContract({ operation: { kind: KAFKA_RUNTIME, action, channel }, ...messageContract }, seen, operations, operationContractsByKey);
+    const declaredReply = extractDeclaredReply(operationValue.reply, diagnostics, buildAsyncContext(version, protocol, { action, channel }));
+    const bindingSupport = collectKafkaBindingSupport(
+      extractKafkaChannelBindingSupport(channelValue?.bindings, diagnostics, buildAsyncContext(version, protocol, { action, channel })),
+      extractKafkaOperationBindingSupport(operationValue.bindings, diagnostics, buildAsyncContext(version, protocol, { action, channel })),
+      messageContract.bindingSupport
+    );
+    const { bindingSupport: _ignoredBindingSupport, ...resolvedMessageContract } = messageContract;
+    appendKafkaContract(
+      {
+        operation: { kind: KAFKA_RUNTIME, action, channel },
+        ...(bindingSupport.length > 0 ? { bindingSupport } : {}),
+        ...(declaredReply ? { declaredReply } : {}),
+        ...resolvedMessageContract
+      },
+      seen,
+      operations,
+      operationContractsByKey
+    );
   }
 }
 
@@ -340,7 +397,7 @@ function extractV2MessageContract(
     return {};
   }
 
-  const message = buildMessageContract(messageValue);
+  const message = buildMessageContract(messageValue, diagnostics, buildAsyncContext(version, protocol, { action, channel }));
   if (!message) {
     diagnostics.push({
       kind: "invalid",
@@ -352,6 +409,7 @@ function extractV2MessageContract(
 
   return {
     message,
+    bindingSupport: extractKafkaMessageBindingSupport(messageValue, diagnostics, buildAsyncContext(version, protocol, { action, channel, message: message.name })),
     messageSelection: {
       mode: "single",
       precedence: [{ kind: "message" }]
@@ -380,7 +438,7 @@ function extractV3MessageContract(
     return null;
   }
 
-  const builtMessages = messagesValue.map((value) => buildMessageContract(value));
+  const builtMessages = messagesValue.map((value) => buildMessageContract(value, diagnostics, buildAsyncContext(version, protocol, { action, channel })));
   if (builtMessages.some((message) => !message)) {
     diagnostics.push({
       kind: "invalid",
@@ -403,6 +461,11 @@ function extractV3MessageContract(
   if (uniqueMessages.length === 1) {
     return {
       message: uniqueMessages[0],
+      bindingSupport: extractKafkaMessageBindingSupport(
+        messagesValue[0],
+        diagnostics,
+        buildAsyncContext(version, protocol, { action, channel, message: uniqueMessages[0].name })
+      ),
       messageSelection: {
         mode: "single",
         precedence: [{ kind: "message" }]
@@ -424,6 +487,15 @@ function extractV3MessageContract(
 
   return {
     messages: sortMessageContracts(uniqueMessages),
+    bindingSupport: collectKafkaBindingSupport(
+      ...messagesValue.map((value, index) =>
+        extractKafkaMessageBindingSupport(
+          value,
+          diagnostics,
+          buildAsyncContext(version, protocol, { action, channel, message: builtMessages[index]?.name })
+        )
+      )
+    ),
     messageSelection: {
       mode: "runtime",
       precedence: messageSelection
@@ -520,6 +592,12 @@ function compareMessageContracts(left: KafkaMessageContract, right: KafkaMessage
     return leftHeaders.localeCompare(rightHeaders);
   }
 
+  const leftCorrelationId = left.declaredCorrelationId?.location ?? "";
+  const rightCorrelationId = right.declaredCorrelationId?.location ?? "";
+  if (leftCorrelationId !== rightCorrelationId) {
+    return leftCorrelationId.localeCompare(rightCorrelationId);
+  }
+
   return JSON.stringify(left.selectionHints ?? []).localeCompare(JSON.stringify(right.selectionHints ?? []));
 }
 
@@ -542,7 +620,11 @@ function formatMessageCandidate(message: KafkaMessageContract): string {
   return `${message.name} [${details.join("; ")}]`;
 }
 
-function buildMessageContract(value: unknown): KafkaMessageContract | null {
+function buildMessageContract(
+  value: unknown,
+  diagnostics: SemanticDiagnostic[],
+  context: NonNullable<SemanticDiagnostic["async"]>
+): KafkaMessageContract | null {
   if (!isRecord(value)) {
     return null;
   }
@@ -562,17 +644,411 @@ function buildMessageContract(value: unknown): KafkaMessageContract | null {
   const headersSchemaId = extractSchemaId(value.headers);
   const headerValidationCapability = headersSchemaId || headersSchema !== undefined ? (headersSchema !== undefined ? "supported" : "unverifiable") : "none";
   const selectionHints = extractMessageSelectionHints(name, value.headers);
+  const declaredCorrelationId = extractDeclaredCorrelationId(value.correlationId, diagnostics, {
+    ...context,
+    message: name
+  });
 
   return {
     name,
     headerValidationCapability,
     ...(selectionHints.length > 0 ? { selectionHints } : {}),
+    ...(declaredCorrelationId ? { declaredCorrelationId } : {}),
     ...(payloadSchema !== undefined ? { payloadSchema } : {}),
     ...(payloadSchemaId ? { payloadSchemaId } : {}),
     ...(contentType ? { contentType } : {}),
     ...(schemaFormat ? { schemaFormat } : {}),
     ...(headersSchema !== undefined ? { headersSchema } : {}),
     ...(headersSchemaId ? { headersSchemaId } : {})
+  };
+}
+
+function collectKafkaBindingSupport(...groups: Array<KafkaBindingSupport[] | undefined>): KafkaBindingSupport[] {
+  return groups
+    .flatMap((group) => group ?? [])
+    .sort(compareKafkaBindingSupport);
+}
+
+function compareKafkaBindingSupport(left: KafkaBindingSupport, right: KafkaBindingSupport): number {
+  const scope = kafkaBindingScopeRank(left.scope) - kafkaBindingScopeRank(right.scope);
+  if (scope !== 0) {
+    return scope;
+  }
+
+  const field = kafkaBindingFieldRank(left.field) - kafkaBindingFieldRank(right.field);
+  if (field !== 0) {
+    return field;
+  }
+
+  const messageName = (left.messageName ?? "").localeCompare(right.messageName ?? "");
+  if (messageName !== 0) {
+    return messageName;
+  }
+
+  const status = kafkaBindingStatusRank(left.status) - kafkaBindingStatusRank(right.status);
+  if (status !== 0) {
+    return status;
+  }
+
+  const source = left.source.localeCompare(right.source);
+  if (source !== 0) {
+    return source;
+  }
+
+  const value = (left.value ?? "").localeCompare(right.value ?? "");
+  if (value !== 0) {
+    return value;
+  }
+
+  return (left.reason ?? "").localeCompare(right.reason ?? "");
+}
+
+function kafkaBindingScopeRank(scope: KafkaBindingSupportScope): number {
+  switch (scope) {
+    case "channel":
+      return 0;
+    case "operation":
+      return 1;
+    case "message":
+      return 2;
+  }
+}
+
+function kafkaBindingFieldRank(field: KafkaBindingSupportField): number {
+  switch (field) {
+    case "topic":
+      return 0;
+    case "partitions":
+      return 1;
+    case "replicas":
+      return 2;
+    case "topicConfiguration":
+      return 3;
+    case "groupId":
+      return 4;
+    case "clientId":
+      return 5;
+    case "key":
+      return 6;
+    case "schemaIdLocation":
+      return 7;
+    case "schemaIdPayloadEncoding":
+      return 8;
+    case "schemaLookupStrategy":
+      return 9;
+  }
+}
+
+function kafkaBindingStatusRank(status: KafkaBindingSupportStatus): number {
+  switch (status) {
+    case "supported":
+      return 0;
+    case "declared-only":
+      return 1;
+    case "deferred":
+      return 2;
+    case "invalid":
+      return 3;
+  }
+}
+
+function extractKafkaChannelBindingSupport(
+  bindingsValue: unknown,
+  diagnostics: SemanticDiagnostic[],
+  context: NonNullable<SemanticDiagnostic["async"]>
+): KafkaBindingSupport[] {
+  const kafkaBinding = extractKafkaBindingRecord(bindingsValue);
+  if (!kafkaBinding) {
+    return [];
+  }
+
+  const bindingSupport: KafkaBindingSupport[] = [];
+
+  appendKafkaBindingSupport(bindingSupport, diagnostics, context, {
+    scope: "channel",
+    field: "topic",
+    status: normalizeNonEmptyString(kafkaBinding.topic) ? "supported" : kafkaBinding.topic !== undefined ? "invalid" : undefined,
+    source: "channel.bindings.kafka.topic",
+    value: normalizeNonEmptyString(kafkaBinding.topic) ?? undefined,
+    reason: kafkaBinding.topic !== undefined && !normalizeNonEmptyString(kafkaBinding.topic)
+      ? "Kafka topic bindings must be declared as a non-empty string."
+      : undefined,
+    diagnosticMessage: "AsyncAPI kafka channel binding topic must be a non-empty string when declared"
+  });
+
+  appendPassiveKafkaBindingSupport(bindingSupport, kafkaBinding.partitions, {
+    scope: "channel",
+    field: "partitions",
+    status: "deferred",
+    source: "channel.bindings.kafka.partitions"
+  });
+  appendPassiveKafkaBindingSupport(bindingSupport, kafkaBinding.replicas, {
+    scope: "channel",
+    field: "replicas",
+    status: "deferred",
+    source: "channel.bindings.kafka.replicas"
+  });
+  appendPassiveKafkaBindingSupport(bindingSupport, kafkaBinding.topicConfiguration, {
+    scope: "channel",
+    field: "topicConfiguration",
+    status: "deferred",
+    source: "channel.bindings.kafka.topicConfiguration"
+  });
+
+  return bindingSupport;
+}
+
+function extractKafkaOperationBindingSupport(
+  bindingsValue: unknown,
+  diagnostics: SemanticDiagnostic[],
+  context: NonNullable<SemanticDiagnostic["async"]>
+): KafkaBindingSupport[] {
+  const kafkaBinding = extractKafkaBindingRecord(bindingsValue);
+  if (!kafkaBinding) {
+    return [];
+  }
+
+  const bindingSupport: KafkaBindingSupport[] = [];
+  appendPassiveKafkaBindingSupport(bindingSupport, kafkaBinding.groupId, {
+    scope: "operation",
+    field: "groupId",
+    status: "declared-only",
+    source: "operation.bindings.kafka.groupId"
+  });
+  appendPassiveKafkaBindingSupport(bindingSupport, kafkaBinding.clientId, {
+    scope: "operation",
+    field: "clientId",
+    status: "declared-only",
+    source: "operation.bindings.kafka.clientId"
+  });
+
+  return bindingSupport;
+}
+
+function extractKafkaMessageBindingSupport(
+  messageValue: unknown,
+  diagnostics: SemanticDiagnostic[],
+  context: NonNullable<SemanticDiagnostic["async"]>
+): KafkaBindingSupport[] {
+  if (!isRecord(messageValue)) {
+    return [];
+  }
+
+  const kafkaBinding = extractKafkaBindingRecord(messageValue.bindings);
+  if (!kafkaBinding) {
+    return [];
+  }
+
+  const bindingSupport: KafkaBindingSupport[] = [];
+  const messageName = context.message;
+  appendPassiveKafkaBindingSupport(bindingSupport, kafkaBinding.key, {
+    scope: "message",
+    field: "key",
+    status: "declared-only",
+    source: "message.bindings.kafka.key",
+    messageName
+  });
+
+  const schemaIdLocation = normalizeNonEmptyString(kafkaBinding.schemaIdLocation);
+  const schemaIdPayloadEncoding = normalizeNonEmptyString(kafkaBinding.schemaIdPayloadEncoding);
+  const schemaLookupStrategy = normalizeNonEmptyString(kafkaBinding.schemaLookupStrategy);
+
+  appendKafkaBindingSupport(bindingSupport, diagnostics, context, {
+    scope: "message",
+    field: "schemaIdLocation",
+    status:
+      kafkaBinding.schemaIdLocation === undefined
+        ? undefined
+        : schemaIdLocation && (schemaIdLocation !== "payload" || schemaIdPayloadEncoding)
+          ? "deferred"
+          : "invalid",
+    source: "message.bindings.kafka.schemaIdLocation",
+    messageName,
+    reason:
+      kafkaBinding.schemaIdLocation !== undefined && (!schemaIdLocation || (schemaIdLocation === "payload" && !schemaIdPayloadEncoding))
+        ? schemaIdLocation === "payload"
+          ? "schemaIdLocation='payload' requires schemaIdPayloadEncoding to describe payload encoding."
+          : "schemaIdLocation must be declared as a non-empty string."
+        : undefined,
+    diagnosticMessage:
+      schemaIdLocation === "payload" && !schemaIdPayloadEncoding
+        ? "AsyncAPI kafka message binding schemaIdLocation='payload' requires schemaIdPayloadEncoding to classify schema-registry metadata"
+        : "AsyncAPI kafka message binding schemaIdLocation must be a non-empty string when declared"
+  });
+
+  appendKafkaBindingSupport(bindingSupport, diagnostics, context, {
+    scope: "message",
+    field: "schemaIdPayloadEncoding",
+    status:
+      kafkaBinding.schemaIdPayloadEncoding === undefined
+        ? undefined
+        : schemaIdPayloadEncoding && schemaIdLocation === "payload"
+          ? "deferred"
+          : "invalid",
+    source: "message.bindings.kafka.schemaIdPayloadEncoding",
+    messageName,
+    reason:
+      kafkaBinding.schemaIdPayloadEncoding !== undefined && (!schemaIdPayloadEncoding || schemaIdLocation !== "payload")
+        ? "schemaIdPayloadEncoding is only valid when schemaIdLocation is 'payload'."
+        : undefined,
+    diagnosticMessage:
+      "AsyncAPI kafka message binding schemaIdPayloadEncoding requires schemaIdLocation='payload' to classify schema-registry metadata"
+  });
+
+  appendKafkaBindingSupport(bindingSupport, diagnostics, context, {
+    scope: "message",
+    field: "schemaLookupStrategy",
+    status:
+      kafkaBinding.schemaLookupStrategy === undefined
+        ? undefined
+        : schemaLookupStrategy
+          ? "deferred"
+          : "invalid",
+    source: "message.bindings.kafka.schemaLookupStrategy",
+    messageName,
+    reason:
+      kafkaBinding.schemaLookupStrategy !== undefined && !schemaLookupStrategy
+        ? "schemaLookupStrategy must be declared as a non-empty string when present."
+        : undefined,
+    diagnosticMessage: "AsyncAPI kafka message binding schemaLookupStrategy must be a non-empty string when declared"
+  });
+
+  return bindingSupport;
+}
+
+function extractKafkaBindingRecord(value: unknown): Record<string, unknown> | null {
+  if (!isRecord(value)) {
+    return null;
+  }
+
+  return isRecord(value.kafka) ? value.kafka : null;
+}
+
+function appendPassiveKafkaBindingSupport(
+  target: KafkaBindingSupport[],
+  value: unknown,
+  descriptor: Omit<KafkaBindingSupport, "status"> & { status: Exclude<KafkaBindingSupportStatus, "invalid" | "supported"> | "supported" }
+): void {
+  if (value === undefined) {
+    return;
+  }
+
+  target.push(compactKafkaBindingSupport(descriptor));
+}
+
+function appendKafkaBindingSupport(
+  target: KafkaBindingSupport[],
+  diagnostics: SemanticDiagnostic[],
+  context: NonNullable<SemanticDiagnostic["async"]>,
+  descriptor: KafkaBindingSupport & { diagnosticMessage: string; status: KafkaBindingSupportStatus | undefined }
+): void {
+  const { diagnosticMessage, ...bindingSupport } = descriptor;
+  if (bindingSupport.status === undefined) {
+    return;
+  }
+
+  target.push(compactKafkaBindingSupport(bindingSupport));
+  if (bindingSupport.status === "invalid") {
+    diagnostics.push({
+      kind: "invalid",
+      message: diagnosticMessage,
+      async: context
+    });
+  }
+}
+
+function compactKafkaBindingSupport(bindingSupport: KafkaBindingSupport): KafkaBindingSupport {
+  return {
+    scope: bindingSupport.scope,
+    field: bindingSupport.field,
+    status: bindingSupport.status,
+    source: bindingSupport.source,
+    ...(bindingSupport.messageName ? { messageName: bindingSupport.messageName } : {}),
+    ...(bindingSupport.value ? { value: bindingSupport.value } : {}),
+    ...(bindingSupport.reason ? { reason: bindingSupport.reason } : {})
+  };
+}
+
+function extractDeclaredCorrelationId(
+  value: unknown,
+  diagnostics: SemanticDiagnostic[],
+  context: NonNullable<SemanticDiagnostic["async"]>
+): KafkaDeclaredCorrelationId | undefined {
+  if (value === undefined) {
+    return undefined;
+  }
+
+  if (!isRecord(value)) {
+    diagnostics.push({
+      kind: "invalid",
+      message: "AsyncAPI correlationId declaration must be an object with a non-empty runtime-expression path",
+      async: context
+    });
+    return undefined;
+  }
+
+  const location = extractRuntimeExpressionLocation(value.location);
+  if (!location) {
+    diagnostics.push({
+      kind: "invalid",
+      message: "AsyncAPI correlationId location must resolve to a non-empty $message.header#/... or $message.payload#/... path",
+      async: context
+    });
+    return undefined;
+  }
+
+  return { location };
+}
+
+function extractDeclaredReply(
+  value: unknown,
+  diagnostics: SemanticDiagnostic[],
+  context: NonNullable<SemanticDiagnostic["async"]>
+): KafkaDeclaredReply | undefined {
+  if (value === undefined) {
+    return undefined;
+  }
+
+  if (!isRecord(value)) {
+    diagnostics.push({
+      kind: "invalid",
+      message: "AsyncAPI reply declaration must be an object with reply.address.location metadata",
+      async: context
+    });
+    return undefined;
+  }
+
+  if (!isRecord(value.address)) {
+    diagnostics.push({
+      kind: "invalid",
+      message: "AsyncAPI reply declaration must include reply.address.location",
+      async: context
+    });
+    return undefined;
+  }
+
+  const location = extractRuntimeExpressionLocation(value.address.location);
+  if (!location) {
+    diagnostics.push({
+      kind: "invalid",
+      message: "AsyncAPI reply.address location must resolve to a non-empty $message.header#/... or $message.payload#/... path",
+      async: context
+    });
+    return undefined;
+  }
+
+  const replyChannelAddress = normalizeChannelAddress(value.channel);
+  return {
+    address: {
+      location
+    },
+    ...(replyChannelAddress
+      ? {
+          channel: {
+            address: replyChannelAddress
+          }
+        }
+      : {})
   };
 }
 
@@ -634,10 +1110,16 @@ function extractSchemaId(value: unknown): string | undefined {
   return normalizeNonEmptyString(value["x-parser-schema-id"]) ?? undefined;
 }
 
-function resolveV3ChannelNameOrAddress(channelRefOrObj: unknown, channels: Record<string, unknown>): string | null {
+function resolveV3ChannelDescriptor(
+  channelRefOrObj: unknown,
+  channels: Record<string, unknown>
+): { address: string; source?: Record<string, unknown> } | null {
   const direct = normalizeChannelAddress(channelRefOrObj);
   if (direct) {
-    return direct;
+    return {
+      address: direct,
+      source: isRecord(channelRefOrObj) ? channelRefOrObj : undefined
+    };
   }
 
   if (!isRecord(channelRefOrObj)) {
@@ -662,7 +1144,17 @@ function resolveV3ChannelNameOrAddress(channelRefOrObj: unknown, channels: Recor
 
   const channelValue = channels[channelName];
   const address = normalizeChannelAddress(channelValue);
-  return address ?? channelName;
+  if (address) {
+    return {
+      address,
+      source: isRecord(channelValue) ? channelValue : undefined
+    };
+  }
+
+  return {
+    address: channelName,
+    source: isRecord(channelValue) ? channelValue : undefined
+  };
 }
 
 function normalizeChannelAddress(value: unknown): string | null {
@@ -710,6 +1202,15 @@ function normalizeNonEmptyString(value: unknown): string | null {
 
   const normalized = value.trim();
   return normalized.length > 0 ? normalized : null;
+}
+
+function extractRuntimeExpressionLocation(value: unknown): string | undefined {
+  const location = normalizeNonEmptyString(value);
+  if (!location) {
+    return undefined;
+  }
+
+  return /^\$message\.(header|payload)#\/.+/.test(location) ? location : undefined;
 }
 
 function toAsyncApiSpecPath(specInput: AsyncApiSpecInput): string {

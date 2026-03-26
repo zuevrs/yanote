@@ -40,6 +40,10 @@ EXPECTED_CONSUMER_SERVICE="${YANOTE_EXPECTED_CONSUMER_SERVICE:-consumer-role-ser
 EXPECTED_CHANNEL="users.created"
 EXPECTED_MESSAGE="UserCreated"
 EXPECTED_HTTP_ROUTE="/users"
+EXPECTED_CORRELATION_HEADER="correlation_id"
+EXPECTED_REPLY_HEADER="reply_to"
+EXPECTED_CORRELATION_VALUE="${EXPECTED_MESSAGE}-proof-correlation"
+EXPECTED_REPLY_VALUE="${EXPECTED_CHANNEL}"
 ASYNC_SPEC_PATH="yanote-js/test/fixtures/asyncapi/spring-kafka-two-service.yaml"
 SCHEMA_FAILURE_ASYNC_SPEC_PATH="yanote-js/test/fixtures/asyncapi/spring-kafka-two-service-invalid-payload.yaml"
 
@@ -208,7 +212,7 @@ for file in "${PRODUCER_EVENTS_PATH}" "${CONSUMER_EVENTS_PATH}"; do
   fi
 done
 
-RAW_SUMMARY="$(python3 - "${PRODUCER_EVENTS_PATH}" "${CONSUMER_EVENTS_PATH}" "${TWO_SERVICE_RUN_ID}" "${TWO_SERVICE_SUITE}" "${EXPECTED_PRODUCER_SERVICE}" "${EXPECTED_CONSUMER_SERVICE}" "${EXPECTED_CHANNEL}" "${EXPECTED_MESSAGE}" "${EXPECTED_HTTP_ROUTE}" <<'PY'
+RAW_SUMMARY="$(python3 - "${PRODUCER_EVENTS_PATH}" "${CONSUMER_EVENTS_PATH}" "${TWO_SERVICE_RUN_ID}" "${TWO_SERVICE_SUITE}" "${EXPECTED_PRODUCER_SERVICE}" "${EXPECTED_CONSUMER_SERVICE}" "${EXPECTED_CHANNEL}" "${EXPECTED_MESSAGE}" "${EXPECTED_HTTP_ROUTE}" "${EXPECTED_CORRELATION_HEADER}" "${EXPECTED_REPLY_HEADER}" "${EXPECTED_CORRELATION_VALUE}" "${EXPECTED_REPLY_VALUE}" <<'PY'
 import json
 import pathlib
 import sys
@@ -222,6 +226,10 @@ expected_consumer_service = sys.argv[6]
 expected_channel = sys.argv[7]
 expected_message = sys.argv[8]
 expected_http_route = sys.argv[9]
+expected_correlation_header = sys.argv[10]
+expected_reply_header = sys.argv[11]
+expected_correlation_value = sys.argv[12]
+expected_reply_value = sys.argv[13]
 
 def load(path):
     return [json.loads(line) for line in path.read_text(encoding='utf-8').splitlines() if line.strip()]
@@ -299,6 +307,14 @@ for label, record, expected_service, expected_action in [
         raise SystemExit(f"Expected {label} retained yanote.test.run_id header {expected_run!r}, got {headers.get('yanote.test.run_id')!r}")
     if headers.get('yanote.test.suite') != {'state': 'captured', 'value': expected_suite}:
         raise SystemExit(f"Expected {label} retained yanote.test.suite header {expected_suite!r}, got {headers.get('yanote.test.suite')!r}")
+    if headers.get(expected_correlation_header) != {'state': 'captured', 'value': expected_correlation_value}:
+        raise SystemExit(
+            f"Expected {label} retained {expected_correlation_header} header {expected_correlation_value!r}, got {headers.get(expected_correlation_header)!r}"
+        )
+    if headers.get(expected_reply_header) != {'state': 'captured', 'value': expected_reply_value}:
+        raise SystemExit(
+            f"Expected {label} retained {expected_reply_header} header {expected_reply_value!r}, got {headers.get(expected_reply_header)!r}"
+        )
 
 producer_services = {record.get('service') for record in producer_records}
 consumer_services = {record.get('service') for record in consumer_records}
@@ -618,7 +634,7 @@ if ! grep -q '^YANOTE_ASYNC_SUMMARY ' "${ASYNC_STDOUT_PATH}"; then
   fail "async-report stdout is missing the final YANOTE_ASYNC_SUMMARY line."
 fi
 
-REPORT_SUMMARY="$(python3 - "${ASYNC_REPORT_PATH}" "${TWO_SERVICE_SUITE}" <<'PY'
+REPORT_SUMMARY="$(python3 - "${ASYNC_REPORT_PATH}" "${TWO_SERVICE_SUITE}" "${EXPECTED_CHANNEL}" "${EXPECTED_MESSAGE}" "${EXPECTED_CORRELATION_HEADER}" "${EXPECTED_REPLY_HEADER}" <<'PY'
 import json
 import math
 import pathlib
@@ -626,6 +642,10 @@ import sys
 
 path = pathlib.Path(sys.argv[1])
 expected_suite = sys.argv[2]
+expected_channel = sys.argv[3]
+expected_message = sys.argv[4]
+expected_correlation_header = sys.argv[5]
+expected_reply_header = sys.argv[6]
 if not path.exists():
     raise SystemExit(f"Missing async report file: {path}")
 
@@ -633,9 +653,11 @@ report = json.loads(path.read_text(encoding='utf-8'))
 summary = report.get('summary', {})
 coverage = report.get('coverage', {})
 
+
 def expect_close(actual, expected, label):
     if not math.isclose(float(actual), float(expected), abs_tol=1e-6):
         raise SystemExit(f"Unexpected {label}={actual!r}; expected {expected!r}")
+
 
 if report.get('status') != 'ok':
     raise SystemExit(f"Expected report status 'ok', got {report.get('status')!r}")
@@ -649,7 +671,7 @@ expect_close(summary.get('channelCoveragePercent'), 100, 'channelCoveragePercent
 expect_close(summary.get('operationCoveragePercent'), 100, 'operationCoveragePercent')
 expect_close(summary.get('messageCoveragePercent'), 100, 'messageCoveragePercent')
 
-if report.get('diagnostics', {}).get('counts') != {
+expected_async_diagnostics = {
     'unsupported-content-type': 0,
     'unsupported-schema-format': 0,
     'missing-payload': 0,
@@ -661,31 +683,175 @@ if report.get('diagnostics', {}).get('counts') != {
     'ambiguous': 0,
     'unmatched': 0,
     'mismatched': 0,
-}:
+}
+if report.get('diagnostics', {}).get('counts') != expected_async_diagnostics:
     raise SystemExit(f"Expected widened zero async diagnostics contract, got {report.get('diagnostics')!r}")
 
-operations = {entry['operationKey']: entry for entry in coverage.get('operations', {}).get('items', [])}
 expected_keys = {'kafka send users.created', 'kafka receive users.created'}
+operations = {entry['operationKey']: entry for entry in coverage.get('operations', {}).get('items', [])}
 if set(operations) != expected_keys:
     raise SystemExit(f"Unexpected async operation keys: {sorted(operations)!r}")
 for key, entry in operations.items():
     if entry.get('operation', {}).get('state') != 'COVERED':
         raise SystemExit(f"Expected covered operation for {key}, got {entry!r}")
-    if entry.get('messageContract', {}).get('name') != 'UserCreated':
-        raise SystemExit(f"Expected UserCreated message contract for {key}, got {entry!r}")
+    if entry.get('messageContract', {}).get('name') != expected_message:
+        raise SystemExit(f"Expected {expected_message} message contract for {key}, got {entry!r}")
     if entry.get('messageContract', {}).get('state') != 'COVERED':
         raise SystemExit(f"Expected covered message contract for {key}, got {entry!r}")
     if entry.get('suites') != [expected_suite]:
         raise SystemExit(f"Expected suites [{expected_suite!r}] for {key}, got {entry.get('suites')!r}")
 
+binding_support = report.get('bindingSupport')
+if not isinstance(binding_support, dict):
+    raise SystemExit(f"Expected additive bindingSupport section, got {binding_support!r}")
+if binding_support.get('summary') != {
+    'totalOperations': 2,
+    'totalBindings': 2,
+    'supportedBindings': 2,
+    'declaredOnlyBindings': 0,
+    'deferredBindings': 0,
+    'invalidBindings': 0,
+}:
+    raise SystemExit(f"Unexpected bindingSupport summary: {binding_support.get('summary')!r}")
+
+binding_operations = {entry['operationKey']: entry for entry in binding_support.get('operations', [])}
+if set(binding_operations) != expected_keys:
+    raise SystemExit(f"Unexpected bindingSupport operation keys: {sorted(binding_operations)!r}")
+for key, entry in binding_operations.items():
+    if entry.get('channel') != expected_channel:
+        raise SystemExit(f"Expected bindingSupport channel {expected_channel!r} for {key}, got {entry!r}")
+    if entry.get('bindings') != [
+        {
+            'scope': 'channel',
+            'field': 'topic',
+            'status': 'supported',
+            'source': 'channel.bindings.kafka.topic',
+            'value': expected_channel,
+        }
+    ]:
+        raise SystemExit(f"Unexpected bindingSupport bindings for {key}: {entry.get('bindings')!r}")
+
+declared_semantics = report.get('declaredSemantics')
+if not isinstance(declared_semantics, dict):
+    raise SystemExit(f"Expected additive declaredSemantics section, got {declared_semantics!r}")
+if declared_semantics.get('summary') != {
+    'totalOperations': 2,
+    'operationsWithCorrelationId': 2,
+    'messageCorrelationIds': 2,
+    'operationsWithReply': 2,
+}:
+    raise SystemExit(f"Unexpected declaredSemantics summary: {declared_semantics.get('summary')!r}")
+
+declared_operations = {entry['operationKey']: entry for entry in declared_semantics.get('operations', [])}
+if set(declared_operations) != expected_keys:
+    raise SystemExit(f"Unexpected declaredSemantics operation keys: {sorted(declared_operations)!r}")
+for key, entry in declared_operations.items():
+    if entry.get('channel') != expected_channel:
+        raise SystemExit(f"Expected declaredSemantics channel {expected_channel!r} for {key}, got {entry!r}")
+    if entry.get('correlationIds') != [
+        {
+            'message': expected_message,
+            'location': f'$message.header#/{expected_correlation_header}',
+        }
+    ]:
+        raise SystemExit(f"Unexpected declared correlationIds for {key}: {entry.get('correlationIds')!r}")
+    if entry.get('reply') != {
+        'address': {
+            'location': f'$message.header#/{expected_reply_header}',
+        }
+    }:
+        raise SystemExit(f"Unexpected declared reply for {key}: {entry.get('reply')!r}")
+
+runtime_semantics = report.get('runtimeSemantics')
+if not isinstance(runtime_semantics, dict):
+    raise SystemExit(f"Expected additive runtimeSemantics section, got {runtime_semantics!r}")
+if runtime_semantics.get('summary') != {
+    'totalOperations': 2,
+    'satisfiedOperations': 2,
+    'unsatisfiedOperations': 0,
+    'totalSemantics': 4,
+    'satisfiedSemantics': 4,
+    'unsatisfiedSemantics': 0,
+    'semanticCoveragePercent': 100,
+}:
+    raise SystemExit(f"Unexpected runtimeSemantics summary: {runtime_semantics.get('summary')!r}")
+if runtime_semantics.get('diagnostics', {}).get('counts') != {
+    'missing': 0,
+    'unavailable': 0,
+    'unsupported': 0,
+    'mismatched': 0,
+}:
+    raise SystemExit(f"Unexpected runtimeSemantics diagnostics: {runtime_semantics.get('diagnostics')!r}")
+
+runtime_operations = {entry['operationKey']: entry for entry in runtime_semantics.get('operations', [])}
+if set(runtime_operations) != expected_keys:
+    raise SystemExit(f"Unexpected runtimeSemantics operation keys: {sorted(runtime_operations)!r}")
+for key, entry in runtime_operations.items():
+    if entry.get('channel') != expected_channel:
+        raise SystemExit(f"Expected runtimeSemantics channel {expected_channel!r} for {key}, got {entry!r}")
+    if entry.get('state') != 'SATISFIED':
+        raise SystemExit(f"Expected SATISFIED runtimeSemantics state for {key}, got {entry!r}")
+    correlation_ids = entry.get('correlationIds') or []
+    if len(correlation_ids) != 1:
+        raise SystemExit(f"Expected one runtime correlationId for {key}, got {correlation_ids!r}")
+    correlation = correlation_ids[0]
+    if expected_message not in (correlation.get('message') or ''):
+        raise SystemExit(f"Expected runtime correlation message to mention {expected_message!r} for {key}, got {correlation!r}")
+    if correlation.get('location') != f'$message.header#/{expected_correlation_header}':
+        raise SystemExit(f"Unexpected runtime correlation location for {key}: {correlation!r}")
+    if correlation.get('state') != 'SATISFIED':
+        raise SystemExit(f"Expected runtime correlation SATISFIED for {key}, got {correlation!r}")
+    if correlation.get('header') != expected_correlation_header:
+        raise SystemExit(f"Expected runtime correlation header {expected_correlation_header!r} for {key}, got {correlation!r}")
+    if correlation.get('messageName') != expected_message:
+        raise SystemExit(f"Expected runtime correlation messageName {expected_message!r} for {key}, got {correlation!r}")
+    if correlation.get('suites') != [expected_suite]:
+        raise SystemExit(f"Expected runtime correlation suites [{expected_suite!r}] for {key}, got {correlation!r}")
+    reply = (entry.get('reply') or {}).get('address') or {}
+    if reply.get('location') != f'$message.header#/{expected_reply_header}':
+        raise SystemExit(f"Unexpected runtime reply location for {key}: {reply!r}")
+    if reply.get('state') != 'SATISFIED':
+        raise SystemExit(f"Expected runtime reply SATISFIED for {key}, got {reply!r}")
+    if reply.get('header') != expected_reply_header:
+        raise SystemExit(f"Expected runtime reply header {expected_reply_header!r} for {key}, got {reply!r}")
+    if reply.get('replyChannelAddress') != expected_channel:
+        raise SystemExit(f"Expected runtime reply channel {expected_channel!r} for {key}, got {reply!r}")
+    if reply.get('suites') != [expected_suite]:
+        raise SystemExit(f"Expected runtime reply suites [{expected_suite!r}] for {key}, got {reply!r}")
+
 print(
-    'channels=1/1 operations=2/2 messages=2/2 suite={suite} report={report}'.format(
+    'channels=1/1 operations=2/2 messages=2/2 bindings=2 declared=4 runtime=4 suite={suite} report={report}'.format(
         suite=expected_suite,
         report=path,
     )
 )
 PY
 )" || fail "async-report artifact drifted from the expected two-service Kafka acceptance surface."
+
+if ! grep -q 'Kafka Binding Support' "${ASYNC_REPORT_HTML_PATH}"; then
+  fail "Happy-path async HTML is missing the Kafka Binding Support section."
+fi
+if ! grep -q 'Declared semantics' "${ASYNC_REPORT_HTML_PATH}"; then
+  fail "Happy-path async HTML is missing the Declared semantics section."
+fi
+if ! grep -q 'Runtime semantics' "${ASYNC_REPORT_HTML_PATH}"; then
+  fail "Happy-path async HTML is missing the Runtime semantics section."
+fi
+if ! grep -q '\$message.header#/correlation_id' "${ASYNC_REPORT_HTML_PATH}"; then
+  fail "Happy-path async HTML is missing the declared correlationId location."
+fi
+if ! grep -q '\$message.header#/reply_to' "${ASYNC_REPORT_HTML_PATH}"; then
+  fail "Happy-path async HTML is missing the declared reply.address location."
+fi
+for file in \
+  "${ASYNC_STDOUT_PATH}" \
+  "${ASYNC_STDERR_PATH}" \
+  "${ASYNC_REPORT_PATH}" \
+  "${ASYNC_REPORT_HTML_PATH}"; do
+  if grep -F -q "${EXPECTED_CORRELATION_VALUE}" "${file}"; then
+    fail "Happy-path async surfaces leaked the raw correlation proof header value into $(basename "${file}")."
+  fi
+done
 
 echo "Running runtime-selection async-report against the same merged evidence to prove retained-header discriminators..."
 if ! (
@@ -903,9 +1069,43 @@ print(
 PY
 )" || fail "Intentional schema-failure async-report drifted from the expected invalid-payload diagnostics surface."
 
+for file in \
+  "${RUNTIME_SELECTED_ASYNC_STDOUT_PATH}" \
+  "${RUNTIME_SELECTED_ASYNC_STDERR_PATH}" \
+  "${RUNTIME_SELECTED_ASYNC_REPORT_PATH}" \
+  "${RUNTIME_SELECTED_ASYNC_REPORT_HTML_PATH}" \
+  "${SCHEMA_FAILURE_ASYNC_STDOUT_PATH}" \
+  "${SCHEMA_FAILURE_ASYNC_STDERR_PATH}" \
+  "${SCHEMA_FAILURE_ASYNC_REPORT_PATH}" \
+  "${SCHEMA_FAILURE_ASYNC_REPORT_HTML_PATH}"; do
+  if grep -F -q "${EXPECTED_CORRELATION_VALUE}" "${file}"; then
+    fail "Focused async companion surfaces leaked the raw correlation proof header value into $(basename "${file}")."
+  fi
+done
+
 if ! export_async_artifacts "success"; then
   fail "Async proof artifacts exporter failed after the live Kafka proof passed."
 fi
+
+for file in \
+  "${ASYNC_EXPORT_DIR}/artifact-manifest.txt" \
+  "${ASYNC_EXPORT_DIR}/artifact-source-paths.txt" \
+  "${ASYNC_EXPORT_DIR}/async-report.stdout" \
+  "${ASYNC_EXPORT_DIR}/async-report.stderr" \
+  "${ASYNC_EXPORT_DIR}/yanote-async-report.json" \
+  "${ASYNC_EXPORT_DIR}/yanote-async-report.html" \
+  "${ASYNC_EXPORT_DIR}/runtime-selected-async-report.stdout" \
+  "${ASYNC_EXPORT_DIR}/runtime-selected-async-report.stderr" \
+  "${ASYNC_EXPORT_DIR}/runtime-selected-yanote-async-report.json" \
+  "${ASYNC_EXPORT_DIR}/runtime-selected-yanote-async-report.html" \
+  "${ASYNC_EXPORT_DIR}/schema-failure-async-report.stdout" \
+  "${ASYNC_EXPORT_DIR}/schema-failure-async-report.stderr" \
+  "${ASYNC_EXPORT_DIR}/schema-failure-yanote-async-report.json" \
+  "${ASYNC_EXPORT_DIR}/schema-failure-yanote-async-report.html"; do
+  if [[ -f "${file}" ]] && grep -F -q "${EXPECTED_CORRELATION_VALUE}" "${file}"; then
+    fail "Exported async proof bundle leaked the raw correlation proof header value into $(basename "${file}")."
+  fi
+done
 
 echo "Single-service proof passed."
 echo "Two-service raw proof passed: ${RAW_SUMMARY}"

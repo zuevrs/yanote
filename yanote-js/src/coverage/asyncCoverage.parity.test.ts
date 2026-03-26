@@ -35,6 +35,22 @@ describe("asyncCoverage parity", () => {
       snapshotCoverage(computeAsyncCoverage(v3, [...invalid.items, ...missing.items]))
     );
   });
+
+  it("keeps inline and trait-applied header runtime semantics identical across equivalent v3 contracts", async () => {
+    const [inlineBundle, traitBundle, coveredEvents, failureEvents] = await Promise.all([
+      loadAsyncApiSemanticsBundle("test/fixtures/asyncapi/header-runtime-inline-v3.yaml"),
+      loadAsyncApiSemanticsBundle("test/fixtures/asyncapi/header-runtime-trait-v3.yaml"),
+      readAsyncEventsJsonl("test/fixtures/async-events/header-runtime-covered.fixture.jsonl"),
+      readAsyncEventsJsonl("test/fixtures/async-events/header-runtime-failures.fixture.jsonl")
+    ]);
+
+    expect(snapshotCoverage(computeAsyncCoverage(inlineBundle, coveredEvents.items))).toEqual(
+      snapshotCoverage(computeAsyncCoverage(traitBundle, coveredEvents.items))
+    );
+    expect(snapshotCoverage(computeAsyncCoverage(inlineBundle, failureEvents.items))).toEqual(
+      snapshotCoverage(computeAsyncCoverage(traitBundle, failureEvents.items))
+    );
+  });
 });
 
 function snapshotCoverage(coverage: ReturnType<typeof computeAsyncCoverage>) {
@@ -42,6 +58,7 @@ function snapshotCoverage(coverage: ReturnType<typeof computeAsyncCoverage>) {
     channels: coverage.channels,
     operations: coverage.operations,
     messages: coverage.messages,
+    runtimeSemantics: coverage.runtimeSemantics,
     diagnostics: coverage.diagnostics
   };
 }

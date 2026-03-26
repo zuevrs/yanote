@@ -8,6 +8,11 @@ import type {
   AsyncMessageCoverage,
   AsyncOperationCoverage
 } from "../coverage/asyncCoverage.js";
+import type {
+  AsyncRuntimeSemanticDiagnostic,
+  AsyncRuntimeSemanticFailureState
+} from "../coverage/asyncSemanticConformance.js";
+import type { KafkaOperationContract } from "../model/operationKey.js";
 import { normalizeAsyncReport, roundCoverage } from "./asyncNormalize.js";
 import { ASYNC_REPORT_PHASE, ASYNC_REPORT_SCHEMA_VERSION, validateAsyncReport } from "./asyncSchema.js";
 
@@ -16,6 +21,87 @@ export { normalizeAsyncReport, roundCoverage, ASYNC_REPORT_PHASE, ASYNC_REPORT_S
 export type AsyncReportStatus = "ok" | "partial" | "invalid";
 
 export type AsyncDiagnosticCounts = Record<AsyncCoverageDiagnosticKind, number>;
+
+export type AsyncDeclaredSemanticsReport = {
+  summary: {
+    totalOperations: number;
+    operationsWithCorrelationId: number;
+    messageCorrelationIds: number;
+    operationsWithReply: number;
+  };
+  operations: Array<{
+    operationKey: string;
+    channel: string;
+    action: "send" | "receive";
+    correlationIds: Array<{
+      message: string;
+      location: string;
+    }>;
+    reply?: {
+      address: {
+        location: string;
+      };
+    };
+  }>;
+};
+
+export type AsyncRuntimeSemanticDiagnosticCounts = Record<AsyncRuntimeSemanticFailureState, number>;
+
+export type AsyncRuntimeSemanticsReport = {
+  summary: {
+    totalOperations: number;
+    satisfiedOperations: number;
+    unsatisfiedOperations: number;
+    totalSemantics: number;
+    satisfiedSemantics: number;
+    unsatisfiedSemantics: number;
+    semanticCoveragePercent: number | null;
+  };
+  operations: Array<{
+    operationKey: string;
+    channel: string;
+    action: "send" | "receive";
+    state: "SATISFIED" | "PARTIAL" | "UNSATISFIED";
+    correlationIds: Array<{
+      message: string;
+      location: string;
+      state: "SATISFIED" | "UNSATISFIED";
+      suites: string[];
+      header?: string;
+      messageName?: string;
+    }>;
+    reply?: {
+      address: {
+        location: string;
+        state: "SATISFIED" | "UNSATISFIED";
+        suites: string[];
+        header?: string;
+        replyChannelAddress?: string;
+      };
+    };
+  }>;
+  diagnostics: {
+    counts: AsyncRuntimeSemanticDiagnosticCounts;
+    items: AsyncRuntimeSemanticDiagnostic[];
+  };
+};
+
+export type AsyncBindingSupportReport = {
+  summary: {
+    totalOperations: number;
+    totalBindings: number;
+    supportedBindings: number;
+    declaredOnlyBindings: number;
+    deferredBindings: number;
+    invalidBindings: number;
+  };
+  operations: Array<{
+    operationKey: string;
+    channel: string;
+    action: "send" | "receive";
+    bindings: KafkaOperationContract["bindingSupport"] extends Array<infer T> ? T[] : never;
+  }>;
+};
 
 export type AsyncYanoteReport = {
   schemaVersion: string;
@@ -82,6 +168,9 @@ export type AsyncYanoteReport = {
       }>;
     };
   };
+  bindingSupport: AsyncBindingSupportReport;
+  declaredSemantics: AsyncDeclaredSemanticsReport;
+  runtimeSemantics: AsyncRuntimeSemanticsReport;
   diagnostics: {
     counts: AsyncDiagnosticCounts;
     items: AsyncCoverageDiagnostic[];
@@ -94,6 +183,7 @@ export function buildAsyncReport(
     toolVersion: string;
     specSource: SpecSourceProvenance;
     eventTimestamps?: number[];
+    operationContractsByKey?: ReadonlyMap<string, KafkaOperationContract>;
   }
 ): AsyncYanoteReport {
   const diagnostics = [...coverage.diagnostics];
@@ -158,6 +248,9 @@ export function buildAsyncReport(
         }))
       }
     },
+    bindingSupport: buildBindingSupportReport(opts.operationContractsByKey),
+    declaredSemantics: buildDeclaredSemanticsReport(opts.operationContractsByKey),
+    runtimeSemantics: buildRuntimeSemanticsReport(coverage),
     diagnostics: {
       counts,
       items: diagnostics.map((entry) => ({ ...entry }))
@@ -213,8 +306,113 @@ export function resolveGeneratedAt(eventTimestamps: number[] | undefined): strin
   return new Date(min).toISOString();
 }
 
+function buildBindingSupportReport(
+  operationContractsByKey: ReadonlyMap<string, KafkaOperationContract> | undefined
+): AsyncBindingSupportReport {
+  const operations = Array.from(operationContractsByKey?.entries() ?? [])
+    .map(([operationKey, contract]) => buildBindingSupportOperation(operationKey, contract))
+    .filter((entry): entry is AsyncBindingSupportReport["operations"][number] => entry !== null)
+    .sort((left, right) => left.operationKey.localeCompare(right.operationKey));
+  const bindings = operations.flatMap((entry) => entry.bindings);
+
+  return {
+    summary: {
+      totalOperations: operations.length,
+      totalBindings: bindings.length,
+      supportedBindings: bindings.filter((entry) => entry.status === "supported").length,
+      declaredOnlyBindings: bindings.filter((entry) => entry.status === "declared-only").length,
+      deferredBindings: bindings.filter((entry) => entry.status === "deferred").length,
+      invalidBindings: bindings.filter((entry) => entry.status === "invalid").length
+    },
+    operations
+  };
+}
+
+function buildBindingSupportOperation(
+  operationKey: string,
+  contract: KafkaOperationContract
+): AsyncBindingSupportReport["operations"][number] | null {
+  const bindings = [...(contract.bindingSupport ?? [])];
+  if (bindings.length === 0) {
+    return null;
+  }
+
+  return {
+    operationKey,
+    channel: contract.operation.channel,
+    action: contract.operation.action,
+    bindings
+  };
+}
+
+function buildDeclaredSemanticsReport(
+  operationContractsByKey: ReadonlyMap<string, KafkaOperationContract> | undefined
+): AsyncDeclaredSemanticsReport {
+  const operations = Array.from(operationContractsByKey?.entries() ?? [])
+    .map(([operationKey, contract]) => buildDeclaredSemanticsOperation(operationKey, contract))
+    .filter((entry): entry is AsyncDeclaredSemanticsReport["operations"][number] => entry !== null)
+    .sort(compareDeclaredSemanticsOperation);
+
+  return {
+    summary: {
+      totalOperations: operations.length,
+      operationsWithCorrelationId: operations.filter((entry) => entry.correlationIds.length > 0).length,
+      messageCorrelationIds: operations.reduce((total, entry) => total + entry.correlationIds.length, 0),
+      operationsWithReply: operations.filter((entry) => entry.reply !== undefined).length
+    },
+    operations
+  };
+}
+
+function buildDeclaredSemanticsOperation(
+  operationKey: string,
+  contract: KafkaOperationContract
+): AsyncDeclaredSemanticsReport["operations"][number] | null {
+  const correlationIds = collectDeclaredCorrelationIds(contract);
+  const reply = contract.declaredReply
+    ? {
+        address: {
+          location: contract.declaredReply.address.location
+        }
+      }
+    : undefined;
+
+  if (correlationIds.length === 0 && !reply) {
+    return null;
+  }
+
+  return {
+    operationKey,
+    channel: contract.operation.channel,
+    action: contract.operation.action,
+    correlationIds,
+    ...(reply ? { reply } : {})
+  };
+}
+
+function collectDeclaredCorrelationIds(
+  contract: KafkaOperationContract
+): AsyncDeclaredSemanticsReport["operations"][number]["correlationIds"] {
+  const messages = contract.message ? [contract.message] : contract.messages ?? [];
+  const unique = new Map<string, AsyncDeclaredSemanticsReport["operations"][number]["correlationIds"][number]>();
+
+  for (const message of messages) {
+    const location = message.declaredCorrelationId?.location;
+    if (!location) {
+      continue;
+    }
+
+    unique.set(`${message.name}\u0000${location}`, {
+      message: message.name,
+      location
+    });
+  }
+
+  return Array.from(unique.values()).sort(compareDeclaredCorrelationId);
+}
+
 function resolveAsyncReportStatus(coverage: AsyncCoverageResult, counts: AsyncDiagnosticCounts): AsyncReportStatus {
-  if (hasAsyncDiagnostics(counts)) {
+  if (hasAsyncDiagnostics(counts) || coverage.runtimeSemantics.diagnostics.length > 0) {
     return "partial";
   }
 
@@ -237,6 +435,101 @@ function hasAsyncDiagnostics(counts: AsyncDiagnosticCounts): boolean {
   return Object.values(counts).some((count) => count > 0);
 }
 
+function buildRuntimeSemanticsReport(coverage: AsyncCoverageResult): AsyncRuntimeSemanticsReport {
+  const operationsByKey = new Map<string, AsyncRuntimeSemanticsReport["operations"][number]>();
+
+  for (const item of coverage.runtimeSemantics.items) {
+    const operation = operationsByKey.get(item.operationKey) ?? {
+      operationKey: item.operationKey,
+      channel: item.channel,
+      action: item.action,
+      state: "UNSATISFIED",
+      correlationIds: []
+    };
+
+    if (item.semantic === "correlationId") {
+      operation.correlationIds.push({
+        message: item.message ?? item.messageName ?? "(unknown-message)",
+        location: item.location,
+        state: item.state,
+        suites: [...item.suites],
+        ...(item.header ? { header: item.header } : {}),
+        ...(item.messageName ? { messageName: item.messageName } : {})
+      });
+    } else {
+      operation.reply = {
+        address: {
+          location: item.location,
+          state: item.state,
+          suites: [...item.suites],
+          ...(item.header ? { header: item.header } : {}),
+          ...(item.replyChannelAddress ? { replyChannelAddress: item.replyChannelAddress } : {})
+        }
+      };
+    }
+
+    operationsByKey.set(item.operationKey, operation);
+  }
+
+  const operations = [...operationsByKey.values()].map((operation) => ({
+    ...operation,
+    state: resolveRuntimeSemanticsOperationState(operation)
+  }));
+  const satisfiedOperations = operations.filter((operation) => operation.state === "SATISFIED").length;
+  const totalOperations = operations.length;
+  const totalSemantics = coverage.runtimeSemantics.summary.total;
+  const satisfiedSemantics = coverage.runtimeSemantics.summary.satisfied;
+  const diagnosticCounts = countRuntimeSemanticDiagnostics(coverage.runtimeSemantics.diagnostics);
+
+  return {
+    summary: {
+      totalOperations,
+      satisfiedOperations,
+      unsatisfiedOperations: totalOperations - satisfiedOperations,
+      totalSemantics,
+      satisfiedSemantics,
+      unsatisfiedSemantics: totalSemantics - satisfiedSemantics,
+      semanticCoveragePercent: coverage.runtimeSemantics.summary.percent
+    },
+    operations,
+    diagnostics: {
+      counts: diagnosticCounts,
+      items: coverage.runtimeSemantics.diagnostics.map((entry) => ({ ...entry }))
+    }
+  };
+}
+
+function resolveRuntimeSemanticsOperationState(
+  operation: Omit<AsyncRuntimeSemanticsReport["operations"][number], "state">
+): AsyncRuntimeSemanticsReport["operations"][number]["state"] {
+  const semantics = [
+    ...operation.correlationIds.map((entry) => entry.state),
+    ...(operation.reply ? [operation.reply.address.state] : [])
+  ];
+
+  if (semantics.every((state) => state === "SATISFIED")) {
+    return "SATISFIED";
+  }
+
+  if (semantics.every((state) => state === "UNSATISFIED")) {
+    return "UNSATISFIED";
+  }
+
+  return "PARTIAL";
+}
+
+function countRuntimeSemanticDiagnostics(
+  diagnostics: AsyncRuntimeSemanticDiagnostic[]
+): AsyncRuntimeSemanticDiagnosticCounts {
+  const counts = createEmptyRuntimeSemanticDiagnosticCounts();
+
+  for (const diagnostic of diagnostics) {
+    counts[diagnostic.state] += 1;
+  }
+
+  return counts;
+}
+
 function createEmptyAsyncDiagnosticCounts(): AsyncDiagnosticCounts {
   return {
     "unsupported-content-type": 0,
@@ -251,6 +544,33 @@ function createEmptyAsyncDiagnosticCounts(): AsyncDiagnosticCounts {
     mismatched: 0,
     unmatched: 0
   };
+}
+
+function createEmptyRuntimeSemanticDiagnosticCounts(): AsyncRuntimeSemanticDiagnosticCounts {
+  return {
+    missing: 0,
+    unavailable: 0,
+    unsupported: 0,
+    mismatched: 0
+  };
+}
+
+function compareDeclaredSemanticsOperation(
+  left: AsyncDeclaredSemanticsReport["operations"][number],
+  right: AsyncDeclaredSemanticsReport["operations"][number]
+): number {
+  return left.operationKey.localeCompare(right.operationKey);
+}
+
+function compareDeclaredCorrelationId(
+  left: AsyncDeclaredSemanticsReport["operations"][number]["correlationIds"][number],
+  right: AsyncDeclaredSemanticsReport["operations"][number]["correlationIds"][number]
+): number {
+  if (left.message !== right.message) {
+    return left.message.localeCompare(right.message);
+  }
+
+  return left.location.localeCompare(right.location);
 }
 
 export type AsyncReportOperationItem = AsyncOperationCoverage;

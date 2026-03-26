@@ -392,7 +392,8 @@ async function executeAsyncReportCommand(
         specSource: specSource.provenance,
         eventTimestamps: events.items
           .map((event) => event.ts)
-          .filter((timestamp): timestamp is number => typeof timestamp === "number")
+          .filter((timestamp): timestamp is number => typeof timestamp === "number"),
+        operationContractsByKey: bundle.operationContractsByKey
       });
 
       try {
@@ -917,6 +918,9 @@ function formatAsyncSummaryOutput(input: {
   const status = input.report?.status ?? (primaryFailure ? "invalid" : "ok");
   const summary = input.report?.summary;
   const dimensions = input.report?.coverage;
+  const bindingSupport = input.report?.bindingSupport;
+  const declaredSemantics = input.report?.declaredSemantics;
+  const runtimeSemantics = input.report?.runtimeSemantics;
 
   const totalChannels = summary?.totalChannels ?? 0;
   const coveredChannels = summary?.coveredChannels ?? 0;
@@ -948,6 +952,45 @@ function formatAsyncSummaryOutput(input: {
   lines.push(`- messages: ${formatPercent(dimensions?.messages.percent ?? null)} (${dimensions?.messages.state ?? "N/A"})`);
 
   lines.push("");
+  lines.push("Kafka Binding Support");
+  lines.push(`- operations with bindings: ${bindingSupport?.summary.totalOperations ?? 0}`);
+  lines.push(`- total bindings: ${bindingSupport?.summary.totalBindings ?? 0}`);
+  lines.push(`- supported bindings: ${bindingSupport?.summary.supportedBindings ?? 0}`);
+  lines.push(`- declared-only bindings: ${bindingSupport?.summary.declaredOnlyBindings ?? 0}`);
+  lines.push(`- deferred bindings: ${bindingSupport?.summary.deferredBindings ?? 0}`);
+  lines.push(`- invalid bindings: ${bindingSupport?.summary.invalidBindings ?? 0}`);
+  for (const detail of formatAsyncBindingSupportDetails(bindingSupport?.operations, input.verbose)) {
+    lines.push(`- ${detail}`);
+  }
+
+  lines.push("");
+  lines.push("Declared Semantics");
+  lines.push(`- operations with declarations: ${declaredSemantics?.summary.totalOperations ?? 0}`);
+  lines.push(`- operations with correlationId: ${declaredSemantics?.summary.operationsWithCorrelationId ?? 0}`);
+  lines.push(`- message correlationIds: ${declaredSemantics?.summary.messageCorrelationIds ?? 0}`);
+  lines.push(`- operations with reply: ${declaredSemantics?.summary.operationsWithReply ?? 0}`);
+  for (const detail of formatAsyncDeclaredSemanticsDetails(declaredSemantics?.operations)) {
+    lines.push(`- ${detail}`);
+  }
+
+  lines.push("");
+  lines.push("Runtime Semantics");
+  lines.push(`- operations with runtime semantics: ${runtimeSemantics?.summary.totalOperations ?? 0}`);
+  lines.push(`- satisfied operations: ${runtimeSemantics?.summary.satisfiedOperations ?? 0}`);
+  lines.push(`- unsatisfied operations: ${runtimeSemantics?.summary.unsatisfiedOperations ?? 0}`);
+  lines.push(`- declared semantics: ${runtimeSemantics?.summary.totalSemantics ?? 0}`);
+  lines.push(`- satisfied semantics: ${runtimeSemantics?.summary.satisfiedSemantics ?? 0}`);
+  lines.push(`- unsatisfied semantics: ${runtimeSemantics?.summary.unsatisfiedSemantics ?? 0}`);
+  lines.push(`- runtime proof coverage: ${formatPercent(runtimeSemantics?.summary.semanticCoveragePercent ?? null)}`);
+  lines.push(`- diagnostics: ${formatAsyncRuntimeDiagnosticCounts(runtimeSemantics?.diagnostics.counts)}`);
+  for (const detail of formatAsyncRuntimeSemanticsDetails(runtimeSemantics?.operations, input.verbose)) {
+    lines.push(`- ${detail}`);
+  }
+  for (const detail of formatAsyncRuntimeDiagnosticDetails(runtimeSemantics?.diagnostics.items, input.verbose)) {
+    lines.push(`- ${detail}`);
+  }
+
+  lines.push("");
   lines.push("Top Issues");
   if (shownIssues.length === 0) {
     lines.push("- none");
@@ -977,8 +1020,26 @@ function formatAsyncSummaryOutput(input: {
       `covered_channels=${coveredChannels}/${totalChannels}`,
       `covered_operations=${coveredOperations}/${totalOperations}`,
       `covered_messages=${coveredMessages}/${totalMessages}`,
+      `declared_operations=${declaredSemantics?.summary.totalOperations ?? 0}`,
+      `declared_correlation_operations=${declaredSemantics?.summary.operationsWithCorrelationId ?? 0}`,
+      `declared_correlation_messages=${declaredSemantics?.summary.messageCorrelationIds ?? 0}`,
+      `declared_reply_operations=${declaredSemantics?.summary.operationsWithReply ?? 0}`,
+      `runtime_operations=${runtimeSemantics?.summary.totalOperations ?? 0}`,
+      `runtime_satisfied_operations=${runtimeSemantics?.summary.satisfiedOperations ?? 0}`,
+      `runtime_unsatisfied_operations=${runtimeSemantics?.summary.unsatisfiedOperations ?? 0}`,
+      `runtime_total_semantics=${runtimeSemantics?.summary.totalSemantics ?? 0}`,
+      `runtime_satisfied_semantics=${runtimeSemantics?.summary.satisfiedSemantics ?? 0}`,
+      `runtime_unsatisfied_semantics=${runtimeSemantics?.summary.unsatisfiedSemantics ?? 0}`,
+      `runtime_semantic_coverage=${formatMachinePercent(runtimeSemantics?.summary.semanticCoveragePercent ?? null)}`,
+      `runtime_diagnostics=${formatAsyncRuntimeDiagnosticCountsMachine(runtimeSemantics?.diagnostics.counts)}`,
       `diagnostics=${input.report?.diagnostics.items.length ?? 0}`,
       `report=${input.reportPath ?? "none"}`,
+      `binding_operations=${bindingSupport?.summary.totalOperations ?? 0}`,
+      `binding_total=${bindingSupport?.summary.totalBindings ?? 0}`,
+      `binding_supported=${bindingSupport?.summary.supportedBindings ?? 0}`,
+      `binding_declared_only=${bindingSupport?.summary.declaredOnlyBindings ?? 0}`,
+      `binding_deferred=${bindingSupport?.summary.deferredBindings ?? 0}`,
+      `binding_invalid=${bindingSupport?.summary.invalidBindings ?? 0}`,
       `primary=${primaryFailure?.code ?? "none"}`,
       `primary_reason=${quote(primaryFailure?.reason ?? "none")}`,
       `class_counts=${formatClassCounts(input.failures)}`
@@ -986,6 +1047,203 @@ function formatAsyncSummaryOutput(input: {
   );
 
   return `${lines.join("\n")}\n`;
+}
+
+function formatAsyncDeclaredSemanticsDetails(
+  operations: AsyncYanoteReport["declaredSemantics"]["operations"] | undefined
+): string[] {
+  if (!operations || operations.length === 0) {
+    return ["details: none"];
+  }
+
+  return operations.map((entry) => {
+    const correlationIds =
+      entry.correlationIds.length > 0
+        ? entry.correlationIds.map((item) => `${item.message}@${item.location}`).join(", ")
+        : "none";
+    const reply = entry.reply?.address.location ?? "none";
+
+    return `${entry.operationKey}: correlationId=${correlationIds}; reply=${reply}`;
+  });
+}
+
+function formatAsyncBindingSupportDetails(
+  operations: AsyncYanoteReport["bindingSupport"]["operations"] | undefined,
+  verbose: boolean
+): string[] {
+  if (!operations || operations.length === 0) {
+    return ["details: none"];
+  }
+
+  const maxDetails = verbose ? operations.length : 5;
+  const details = operations.slice(0, maxDetails).map((entry) => {
+    const supported = formatAsyncBindingSupportStatusDetails(entry.bindings, "supported");
+    const declaredOnly = formatAsyncBindingSupportStatusDetails(entry.bindings, "declared-only");
+    const deferred = formatAsyncBindingSupportStatusDetails(entry.bindings, "deferred");
+    const invalid = formatAsyncBindingSupportStatusDetails(entry.bindings, "invalid");
+
+    return `${entry.operationKey}: supported=${supported}; declared-only=${declaredOnly}; deferred=${deferred}; invalid=${invalid}`;
+  });
+
+  const hiddenCount = Math.max(0, operations.length - maxDetails);
+  if (hiddenCount > 0) {
+    details.push(`... +${hiddenCount} more binding-support operation(s); see report`);
+  }
+
+  return details;
+}
+
+function formatAsyncBindingSupportStatusDetails(
+  bindings: AsyncYanoteReport["bindingSupport"]["operations"][number]["bindings"],
+  status: AsyncYanoteReport["bindingSupport"]["operations"][number]["bindings"][number]["status"]
+): string {
+  const items = bindings.filter((binding) => {
+    assertKnownAsyncBindingSupportStatus(binding.status);
+    return binding.status === status;
+  });
+
+  if (items.length === 0) {
+    return "none";
+  }
+
+  return items.map((binding) => formatAsyncBindingSupportEntry(binding)).join(", ");
+}
+
+function formatAsyncBindingSupportEntry(
+  binding: AsyncYanoteReport["bindingSupport"]["operations"][number]["bindings"][number]
+): string {
+  assertKnownAsyncBindingSupportStatus(binding.status);
+
+  const identity = [binding.scope, binding.messageName, binding.field]
+    .filter((value): value is string => Boolean(value))
+    .join(".");
+  const value = binding.value ? `=${binding.value}` : "";
+  const metadata = [
+    `source=${binding.source}`,
+    binding.reason ? `reason=${binding.reason}` : undefined
+  ].filter((value): value is string => Boolean(value));
+
+  return `${identity}${value} [${metadata.join("; ")}]`;
+}
+
+function assertKnownAsyncBindingSupportStatus(
+  value: AsyncYanoteReport["bindingSupport"]["operations"][number]["bindings"][number]["status"]
+): void {
+  switch (value) {
+    case "supported":
+    case "declared-only":
+    case "deferred":
+    case "invalid":
+      return;
+  }
+
+  throw new Error(`Unknown kafka binding support status: ${String(value)}`);
+}
+
+function formatAsyncRuntimeSemanticsDetails(
+  operations: AsyncYanoteReport["runtimeSemantics"]["operations"] | undefined,
+  verbose: boolean
+): string[] {
+  if (!operations || operations.length === 0) {
+    return ["details: none"];
+  }
+
+  const maxDetails = verbose ? operations.length : 5;
+  const details = operations.slice(0, maxDetails).map((entry) => {
+    const correlationIds =
+      entry.correlationIds.length > 0
+        ? entry.correlationIds
+            .map((item) => {
+              const message = item.messageName ?? item.message;
+              const header = item.header ? `; header=${item.header}` : "";
+              const suites = `; suites=${formatAsyncRuntimeSuites(item.suites)}`;
+              return `${message}@${item.location} [${item.state}${header}${suites}]`;
+            })
+            .join(", ")
+        : "none";
+    const reply = formatAsyncRuntimeReplyDetail(entry.reply);
+
+    return `${entry.operationKey}: state=${entry.state}; correlationId=${correlationIds}; reply=${reply}`;
+  });
+
+  const hiddenCount = Math.max(0, operations.length - maxDetails);
+  if (hiddenCount > 0) {
+    details.push(`... +${hiddenCount} more runtime operation(s); see report`);
+  }
+
+  return details;
+}
+
+function formatAsyncRuntimeReplyDetail(
+  reply: AsyncYanoteReport["runtimeSemantics"]["operations"][number]["reply"] | undefined
+): string {
+  if (!reply) {
+    return "none";
+  }
+
+  const address = reply.address;
+  const header = address.header ? `; header=${address.header}` : "";
+  const declaredChannel = address.replyChannelAddress ? `; declaredChannel=${address.replyChannelAddress}` : "";
+  const suites = `; suites=${formatAsyncRuntimeSuites(address.suites)}`;
+  return `${address.location} [${address.state}${header}${declaredChannel}${suites}]`;
+}
+
+function formatAsyncRuntimeSuites(suites: string[]): string {
+  return suites.length > 0 ? suites.join(",") : "none";
+}
+
+function formatAsyncRuntimeDiagnosticCounts(
+  counts: AsyncYanoteReport["runtimeSemantics"]["diagnostics"]["counts"] | undefined
+): string {
+  if (!counts) {
+    return "missing=0 unavailable=0 unsupported=0 mismatched=0";
+  }
+
+  return [
+    `missing=${counts.missing}`,
+    `unavailable=${counts.unavailable}`,
+    `unsupported=${counts.unsupported}`,
+    `mismatched=${counts.mismatched}`
+  ].join(" ");
+}
+
+function formatAsyncRuntimeDiagnosticCountsMachine(
+  counts: AsyncYanoteReport["runtimeSemantics"]["diagnostics"]["counts"] | undefined
+): string {
+  if (!counts) {
+    return "missing:0,unavailable:0,unsupported:0,mismatched:0";
+  }
+
+  return [
+    `missing:${counts.missing}`,
+    `unavailable:${counts.unavailable}`,
+    `unsupported:${counts.unsupported}`,
+    `mismatched:${counts.mismatched}`
+  ].join(",");
+}
+
+function formatAsyncRuntimeDiagnosticDetails(
+  diagnostics: AsyncYanoteReport["runtimeSemantics"]["diagnostics"]["items"] | undefined,
+  verbose: boolean
+): string[] {
+  if (!diagnostics || diagnostics.length === 0) {
+    return ["diagnostics: none"];
+  }
+
+  const maxDetails = verbose ? diagnostics.length : 5;
+  const details = diagnostics.slice(0, maxDetails).map((item) => {
+    const subject = item.semantic === "correlationId" ? item.messageName ?? item.semantic : item.semantic;
+    const header = item.header ? ` header=${item.header}` : "";
+    const declaredChannel = item.replyChannelAddress ? ` declaredChannel=${item.replyChannelAddress}` : "";
+    return `diagnostic: ${item.operationKey} ${subject} ${item.state} at ${item.location}${header}${declaredChannel} reason=${item.reason}`;
+  });
+
+  const hiddenCount = Math.max(0, diagnostics.length - maxDetails);
+  if (hiddenCount > 0) {
+    details.push(`... +${hiddenCount} more runtime diagnostic(s); see report`);
+  }
+
+  return details;
 }
 
 function collectIssues(

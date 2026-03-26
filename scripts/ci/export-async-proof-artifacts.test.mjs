@@ -98,6 +98,35 @@ async function seedAsyncProofSources(workDir, options = {}) {
           coveredOperations: 2,
           totalMessages: 2,
           coveredMessages: 2
+        },
+        bindingSupport: {
+          summary: {
+            supportedBindings: 2,
+            totalBindings: 2,
+            declaredOnlyBindings: 0,
+            deferredBindings: 0,
+            invalidBindings: 0,
+            totalOperations: 2
+          }
+        },
+        declaredSemantics: {
+          summary: {
+            messageCorrelationIds: 2,
+            operationsWithCorrelationId: 2,
+            operationsWithReply: 2,
+            totalOperations: 2
+          }
+        },
+        runtimeSemantics: {
+          summary: {
+            satisfiedOperations: 2,
+            totalOperations: 2,
+            satisfiedSemantics: 4,
+            totalSemantics: 4,
+            semanticCoveragePercent: 100,
+            unsatisfiedOperations: 0,
+            unsatisfiedSemantics: 0
+          }
         }
       }) + "\n",
       "utf8"
@@ -210,7 +239,11 @@ test("exports a deterministic widened async bundle when happy-path, runtime-sele
     assert.match(manifest, /proof_status=success/);
     assert.match(manifest, /report_found=true/);
     assert.match(manifest, /report_html_found=true/);
+    assert.match(manifest, /runtime_selected_report_found=true/);
+    assert.match(manifest, /runtime_selected_report_source=.*runtime-selected-async-report\/yanote-async-report\.json/);
     assert.match(manifest, /runtime_selected_report_html_found=true/);
+    assert.match(manifest, /schema_failure_report_found=true/);
+    assert.match(manifest, /schema_failure_report_source=.*schema-failure-async-report\/yanote-async-report\.json/);
     assert.match(manifest, /schema_failure_report_html_found=true/);
     assert.match(manifest, /report_spec_source_kind=local-file/);
     assert.match(manifest, /report_spec_source_ref=test\/fixtures\/asyncapi\/v3\.yaml/);
@@ -218,6 +251,19 @@ test("exports a deterministic widened async bundle when happy-path, runtime-sele
     assert.match(manifest, /report_channels=2\/2/);
     assert.match(manifest, /report_operations=2\/2/);
     assert.match(manifest, /report_messages=2\/2/);
+    assert.match(manifest, /report_supported_bindings=2\/2/);
+    assert.match(manifest, /report_declared_only_bindings=0/);
+    assert.match(manifest, /report_deferred_bindings=0/);
+    assert.match(manifest, /report_invalid_bindings=0/);
+    assert.match(manifest, /report_binding_total_operations=2/);
+    assert.match(manifest, /report_message_correlation_ids=2/);
+    assert.match(manifest, /report_operations_with_correlation_id=2\/2/);
+    assert.match(manifest, /report_operations_with_reply=2\/2/);
+    assert.match(manifest, /report_runtime_satisfied_operations=2\/2/);
+    assert.match(manifest, /report_runtime_satisfied_semantics=4\/4/);
+    assert.match(manifest, /report_runtime_unsatisfied_operations=0/);
+    assert.match(manifest, /report_runtime_unsatisfied_semantics=0/);
+    assert.match(manifest, /report_runtime_semantic_coverage_percent=100/);
     assert.match(manifest, /artifact_count=18/);
     assert.match(manifest, /missing_artifacts=none/);
     assert.match(manifest, /artifacts=.*yanote-async-report\.html/);
@@ -254,6 +300,19 @@ test("exports a deterministic widened async bundle when happy-path, runtime-sele
     assert.match(sourcePaths, /report_channels=2\/2/);
     assert.match(sourcePaths, /report_operations=2\/2/);
     assert.match(sourcePaths, /report_messages=2\/2/);
+    assert.match(sourcePaths, /report_supported_bindings=2\/2/);
+    assert.match(sourcePaths, /report_declared_only_bindings=0/);
+    assert.match(sourcePaths, /report_deferred_bindings=0/);
+    assert.match(sourcePaths, /report_invalid_bindings=0/);
+    assert.match(sourcePaths, /report_binding_total_operations=2/);
+    assert.match(sourcePaths, /report_message_correlation_ids=2/);
+    assert.match(sourcePaths, /report_operations_with_correlation_id=2\/2/);
+    assert.match(sourcePaths, /report_operations_with_reply=2\/2/);
+    assert.match(sourcePaths, /report_runtime_satisfied_operations=2\/2/);
+    assert.match(sourcePaths, /report_runtime_satisfied_semantics=4\/4/);
+    assert.match(sourcePaths, /report_runtime_unsatisfied_operations=0/);
+    assert.match(sourcePaths, /report_runtime_unsatisfied_semantics=0/);
+    assert.match(sourcePaths, /report_runtime_semantic_coverage_percent=100/);
   } finally {
     await rm(workDir, { recursive: true, force: true });
   }
@@ -335,10 +394,18 @@ test("retains a deterministic failure bundle without inventing HTML artifacts wh
     assert.match(manifest, /report_source=none/);
     assert.match(manifest, /report_html_found=false/);
     assert.match(manifest, /report_html_source=none/);
+    assert.match(manifest, /runtime_selected_report_found=false/);
     assert.match(manifest, /runtime_selected_report_html_found=false/);
+    assert.match(manifest, /schema_failure_report_found=false/);
     assert.match(manifest, /schema_failure_report_html_found=false/);
     assert.match(manifest, /report_spec_source_kind=none/);
     assert.match(manifest, /report_spec_source_ref=none/);
+    assert.match(manifest, /report_supported_bindings=0\/0/);
+    assert.match(manifest, /report_message_correlation_ids=0/);
+    assert.match(manifest, /report_operations_with_correlation_id=0\/0/);
+    assert.match(manifest, /report_operations_with_reply=0\/0/);
+    assert.match(manifest, /report_runtime_satisfied_semantics=0\/0/);
+    assert.match(manifest, /report_runtime_semantic_coverage_percent=0/);
     assert.match(manifest, /artifact_count=4/);
     assert.match(manifest, /missing_artifacts=.*merge\.log/);
     assert.match(manifest, /missing_artifacts=.*merged-two-service\.events\.jsonl/);
@@ -376,6 +443,19 @@ test("retains a deterministic failure bundle without inventing HTML artifacts wh
     assert.match(sourcePaths, /report_channels=0\/0/);
     assert.match(sourcePaths, /report_operations=0\/0/);
     assert.match(sourcePaths, /report_messages=0\/0/);
+    assert.match(sourcePaths, /report_supported_bindings=0\/0/);
+    assert.match(sourcePaths, /report_declared_only_bindings=0/);
+    assert.match(sourcePaths, /report_deferred_bindings=0/);
+    assert.match(sourcePaths, /report_invalid_bindings=0/);
+    assert.match(sourcePaths, /report_binding_total_operations=0/);
+    assert.match(sourcePaths, /report_message_correlation_ids=0/);
+    assert.match(sourcePaths, /report_operations_with_correlation_id=0\/0/);
+    assert.match(sourcePaths, /report_operations_with_reply=0\/0/);
+    assert.match(sourcePaths, /report_runtime_satisfied_operations=0\/0/);
+    assert.match(sourcePaths, /report_runtime_satisfied_semantics=0\/0/);
+    assert.match(sourcePaths, /report_runtime_unsatisfied_operations=0/);
+    assert.match(sourcePaths, /report_runtime_unsatisfied_semantics=0/);
+    assert.match(sourcePaths, /report_runtime_semantic_coverage_percent=0/);
   } finally {
     await rm(workDir, { recursive: true, force: true });
   }

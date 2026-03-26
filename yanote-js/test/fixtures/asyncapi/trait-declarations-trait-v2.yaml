@@ -1,0 +1,24 @@
+asyncapi: 2.6.0
+info:
+  title: yanote trait declarations trait v2 sample
+  version: '1.0.0'
+servers:
+  kafkaLocal:
+    url: localhost:9092
+    protocol: kafka
+channels:
+  orders.command:
+    publish:
+      operationId: sendOrderCommand
+      message:
+        messageId: OrderCommand
+        traits:
+          - $ref: '#/components/messageTraits/CorrelationTrait'
+        contentType: application/json
+        payload:
+          type: object
+components:
+  messageTraits:
+    CorrelationTrait:
+      correlationId:
+        location: $message.header#/correlation_id

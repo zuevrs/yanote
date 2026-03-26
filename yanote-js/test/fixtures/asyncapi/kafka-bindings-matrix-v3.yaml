@@ -1,0 +1,118 @@
+asyncapi: 3.0.0
+info:
+  title: kafka bindings matrix sample
+  version: '1.0.0'
+servers:
+  kafkaLocal:
+    host: localhost:9092
+    protocol: kafka
+channels:
+  orderCommands:
+    address: orders.command
+    bindings:
+      kafka:
+        topic: orders.actual
+        partitions: 3
+        replicas: 2
+        topicConfiguration:
+          cleanup.policy:
+            - delete
+    messages:
+      OrderCommand:
+        name: OrderCommand
+        bindings:
+          kafka:
+            key:
+              type: string
+              enum:
+                - order-key
+            schemaIdLocation: header
+            schemaLookupStrategy: TopicIdStrategy
+        payload:
+          type: object
+  orderConsumers:
+    address: orders.consumer
+    messages:
+      OrderConsumerEvent:
+        name: OrderConsumerEvent
+        bindings:
+          kafka:
+            key:
+              type: string
+              enum:
+                - consumer-key
+        payload:
+          type: object
+  userLifecycle:
+    address: users.lifecycle
+    messages:
+      UserSignedUp:
+        name: UserLifecycleEvent
+        bindings:
+          kafka:
+            schemaIdLocation: payload
+            schemaIdPayloadEncoding: '4'
+            schemaLookupStrategy: TopicIdStrategy
+        headers:
+          type: object
+          properties:
+            yanote.event.kind:
+              type: string
+              const: signed-up
+        payload:
+          type: object
+      UserDeleted:
+        name: UserLifecycleEvent
+        bindings:
+          kafka:
+            schemaIdLocation: payload
+            schemaIdPayloadEncoding: '4'
+            schemaLookupStrategy: RecordNameStrategy
+        headers:
+          type: object
+          properties:
+            yanote.event.kind:
+              type: string
+              const: deleted
+        payload:
+          type: object
+operations:
+  sendOrderCommand:
+    action: send
+    channel:
+      $ref: '#/channels/orderCommands'
+    bindings:
+      kafka:
+        groupId:
+          type: string
+          enum:
+            - order-workers
+        clientId:
+          type: string
+          enum:
+            - order-api
+    messages:
+      - $ref: '#/channels/orderCommands/messages/OrderCommand'
+  receiveOrderConsumer:
+    action: receive
+    channel:
+      $ref: '#/channels/orderConsumers'
+    bindings:
+      kafka:
+        groupId:
+          type: string
+          enum:
+            - order-consumers
+        clientId:
+          type: string
+          enum:
+            - order-consumer-client
+    messages:
+      - $ref: '#/channels/orderConsumers/messages/OrderConsumerEvent'
+  sendUserLifecycle:
+    action: send
+    channel:
+      $ref: '#/channels/userLifecycle'
+    messages:
+      - $ref: '#/channels/userLifecycle/messages/UserSignedUp'
+      - $ref: '#/channels/userLifecycle/messages/UserDeleted'

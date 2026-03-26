@@ -115,6 +115,196 @@ function makeReport(): AsyncYanoteReport {
         ]
       }
     },
+    bindingSupport: {
+      summary: {
+        totalOperations: 2,
+        totalBindings: 4,
+        supportedBindings: 1,
+        declaredOnlyBindings: 1,
+        deferredBindings: 2,
+        invalidBindings: 0
+      },
+      operations: [
+        {
+          operationKey: "kafka send users.signedup",
+          channel: "users.signedup",
+          action: "send",
+          bindings: [
+            {
+              scope: "channel",
+              field: "topic",
+              status: "supported",
+              source: "channel.bindings.kafka.topic",
+              value: "users.signups"
+            },
+            {
+              scope: "operation",
+              field: "groupId",
+              status: "declared-only",
+              source: "operation.bindings.kafka.groupId"
+            }
+          ]
+        },
+        {
+          operationKey: "kafka receive users.deleted",
+          channel: "users.deleted",
+          action: "receive",
+          bindings: [
+            {
+              scope: "channel",
+              field: "replicas",
+              status: "deferred",
+              source: "channel.bindings.kafka.replicas"
+            },
+            {
+              scope: "message",
+              messageName: "UserDeleted",
+              field: "schemaLookupStrategy",
+              status: "deferred",
+              source: "message.bindings.kafka.schemaLookupStrategy"
+            }
+          ]
+        }
+      ]
+    },
+    declaredSemantics: {
+      summary: {
+        totalOperations: 2,
+        operationsWithCorrelationId: 2,
+        messageCorrelationIds: 3,
+        operationsWithReply: 1
+      },
+      operations: [
+        {
+          operationKey: "kafka send users.signedup",
+          channel: "users.signedup",
+          action: "send",
+          correlationIds: [
+            {
+              message: "UserSignedUp",
+              location: "$message.header#/correlation_id"
+            }
+          ]
+        },
+        {
+          operationKey: "kafka receive users.deleted",
+          channel: "users.deleted",
+          action: "receive",
+          correlationIds: [
+            {
+              message: "UserDeleted",
+              location: "$message.header#/correlation_id"
+            },
+            {
+              message: "LegacyUserDeleted",
+              location: "$message.header#/legacy_correlation_id"
+            }
+          ],
+          reply: {
+            address: {
+              location: "$message.header#/reply_to"
+            }
+          }
+        }
+      ]
+    },
+    runtimeSemantics: {
+      summary: {
+        totalOperations: 2,
+        satisfiedOperations: 1,
+        unsatisfiedOperations: 1,
+        totalSemantics: 3,
+        satisfiedSemantics: 2,
+        unsatisfiedSemantics: 1,
+        semanticCoveragePercent: 66.67
+      },
+      operations: [
+        {
+          operationKey: "kafka send users.signedup",
+          channel: "users.signedup",
+          action: "send",
+          state: "SATISFIED",
+          correlationIds: [
+            {
+              message: "UserSignedUp",
+              location: "$message.header#/correlation_id",
+              state: "SATISFIED",
+              suites: ["suite-b", "suite-a"],
+              header: "correlation_id",
+              messageName: "UserSignedUp"
+            }
+          ]
+        },
+        {
+          operationKey: "kafka receive users.deleted",
+          channel: "users.deleted",
+          action: "receive",
+          state: "UNSATISFIED",
+          correlationIds: [
+            {
+              message: "LegacyUserDeleted",
+              location: "$message.header#/legacy_correlation_id",
+              state: "UNSATISFIED",
+              suites: [],
+              header: "legacy_correlation_id",
+              messageName: "LegacyUserDeleted"
+            },
+            {
+              message: "UserDeleted",
+              location: "$message.header#/correlation_id",
+              state: "SATISFIED",
+              suites: ["suite-c"],
+              header: "correlation_id",
+              messageName: "UserDeleted"
+            }
+          ],
+          reply: {
+            address: {
+              location: "$message.header#/reply_to",
+              state: "UNSATISFIED",
+              suites: [],
+              header: "reply_to",
+              replyChannelAddress: "users.reply"
+            }
+          }
+        }
+      ],
+      diagnostics: {
+        counts: {
+          missing: 1,
+          unavailable: 0,
+          unsupported: 0,
+          mismatched: 1
+        },
+        items: [
+          {
+            semantic: "reply.address",
+            state: "mismatched",
+            operationKey: "kafka receive users.deleted",
+            channel: "users.deleted",
+            action: "receive",
+            location: "$message.header#/reply_to",
+            header: "reply_to",
+            replyChannelAddress: "users.reply",
+            reason: "Observed kafka header 'reply_to' did not match declared AsyncAPI reply channel address 'users.reply'.",
+            message: "Observed kafka reply.address header did not match the declared AsyncAPI reply channel address"
+          },
+          {
+            semantic: "correlationId",
+            state: "missing",
+            operationKey: "kafka send users.signedup",
+            channel: "users.signedup",
+            action: "send",
+            location: "$message.header#/correlation_id",
+            header: "correlation_id",
+            messageName: "UserSignedUp",
+            reason:
+              "Observed kafka evidence did not retain header 'correlation_id' required by declared correlationId location '$message.header#/correlation_id'.",
+            message: "Observed kafka evidence is missing retained header evidence required to prove AsyncAPI correlationId"
+          }
+        ]
+      }
+    },
     diagnostics: {
       counts: {
         "unsupported-content-type": 0,
@@ -214,6 +404,50 @@ describe("writeAsyncYanoteReport determinism", () => {
               .reverse()
           }
         },
+        bindingSupport: {
+          ...report.bindingSupport,
+          operations: [...report.bindingSupport.operations]
+            .map((entry) => ({
+              ...entry,
+              bindings: [...entry.bindings].reverse()
+            }))
+            .reverse()
+        },
+        declaredSemantics: {
+          ...report.declaredSemantics,
+          operations: [...report.declaredSemantics.operations]
+            .map((entry) => ({
+              ...entry,
+              correlationIds: [...entry.correlationIds].reverse()
+            }))
+            .reverse()
+        },
+        runtimeSemantics: {
+          ...report.runtimeSemantics,
+          operations: [...report.runtimeSemantics.operations]
+            .map((entry) => ({
+              ...entry,
+              correlationIds: [...entry.correlationIds]
+                .map((correlationId) => ({
+                  ...correlationId,
+                  suites: [...correlationId.suites].reverse()
+                }))
+                .reverse(),
+              reply: entry.reply
+                ? {
+                    address: {
+                      ...entry.reply.address,
+                      suites: [...entry.reply.address.suites].reverse()
+                    }
+                  }
+                : undefined
+            }))
+            .reverse(),
+          diagnostics: {
+            ...report.runtimeSemantics.diagnostics,
+            items: [...report.runtimeSemantics.diagnostics.items].reverse()
+          }
+        },
         diagnostics: {
           ...report.diagnostics,
           items: [...report.diagnostics.items].reverse()
@@ -247,12 +481,19 @@ describe("writeAsyncYanoteReport determinism", () => {
       expect(html).toContain("<!doctype html>");
       expect(html).toContain("Skip to main content");
       expect(html).toContain("Provenance");
+      expect(html).toContain("Declared semantics");
+      expect(html).toContain("Runtime semantics");
+      expect(html).toContain("Runtime semantic diagnostics");
+      expect(html).toContain("$message.header#/correlation_id");
+      expect(html).toContain("$message.header#/reply_to");
       expect(html).toContain("Async coverage summary");
       expect(html).toContain("Channel coverage");
       expect(html).toContain("Message coverage");
       expect(html).toContain("OrderEventHeaders");
       expect(html).toContain("&lt;unsafe&gt;&amp;&quot;async&quot;.yaml");
       expect(html).toContain("Observed &lt;unsafe&gt; async message &amp; contract drift.");
+      expect(html).not.toContain("corr-runtime-mismatch");
+      expect(html).not.toContain("users.deadletter");
       expect(html).not.toContain("HTTP security conformance");
       expect(html).not.toContain("HTTP request conformance");
       expect(html).not.toContain("Deprecated operations");
@@ -277,7 +518,7 @@ describe("writeAsyncYanoteReport determinism", () => {
       expect(bytes.endsWith("\n")).toBe(true);
 
       const parsed = JSON.parse(bytes);
-      expect(Object.keys(parsed).slice(0, 4)).toEqual(["coverage", "diagnostics", "generatedAt", "phase"]);
+      expect(Object.keys(parsed).slice(0, 4)).toEqual(["bindingSupport", "coverage", "declaredSemantics", "diagnostics"]);
     } finally {
       await rm(dir, { recursive: true, force: true });
     }
