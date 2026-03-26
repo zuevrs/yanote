@@ -7,6 +7,13 @@ import { normalizeReport } from "./normalize.js";
 import { buildReport } from "./report.js";
 import { REPORT_SCHEMA_VERSION, validateReport } from "./schema.js";
 
+function localFileSpecSource(reference: string) {
+  return {
+    kind: "local-file" as const,
+    reference
+  };
+}
+
 async function buildSecurityFixtureReport() {
   const model = await loadOpenApiCoverageModel("test/fixtures/openapi/http-security-api-key.yaml");
   const events = await readHttpEventsJsonl("test/fixtures/events/http-security-api-key.fixture.jsonl");
@@ -20,6 +27,7 @@ async function buildSecurityFixtureReport() {
   return normalizeReport(
     buildReport(coverage, {
       toolVersion: "test",
+      specSource: localFileSpecSource("test/fixtures/openapi/http-security-api-key.yaml"),
       eventTimestamps: events.items
         .map((event) => event.ts)
         .filter((timestamp): timestamp is number => typeof timestamp === "number"),
@@ -38,6 +46,12 @@ describe("report security contract", () => {
     expect(report.summary.totalOperations).toBe(12);
     expect(report.summary.coveredOperations).toBe(12);
     expect(report.summary.operationCoveragePercent).toBe(100);
+    expect(report.summary.deprecatedOperations).toEqual({
+      totalOperations: 0,
+      coveredOperations: 0,
+      uncoveredOperations: 0,
+      operationCoveragePercent: 0
+    });
     expect(report.summary.aggregateCoveragePercent).toBeNull();
     expect(report.coverage.operations).toEqual({ state: "COVERED", percent: 100 });
     expect(report.coverage.status).toEqual({ state: "COVERED", percent: 100 });
@@ -47,6 +61,7 @@ describe("report security contract", () => {
       percent: null,
       explanation: "aggregate is N/A because weighted dimensions include N/A"
     });
+    expect(report.coverage.perOperation.every((entry) => entry.deprecated === false)).toBe(true);
     expect(report.coverage).not.toHaveProperty("security");
     expect(report.httpSecurityConformance.summary).toEqual({
       declaredOperations: 12,

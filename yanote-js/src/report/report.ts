@@ -24,6 +24,7 @@ import { sortFailuresByPrecedence } from "../gates/failureOrder.js";
 import { classifyHttpSecurityDiagnostic, evaluateHttpSecuritySemanticFailures } from "../gates/httpSecuritySemantics.js";
 import { evaluateHttpPayloadSemanticFailures } from "../gates/httpPayloadSemantics.js";
 import type { SemanticDiagnostic } from "../spec/diagnostics.js";
+import type { SpecSourceProvenance } from "../spec/specSource.js";
 import { REPORT_SCHEMA_VERSION } from "./schema.js";
 
 export type ReportStatus = "ok" | "partial" | "invalid";
@@ -61,6 +62,7 @@ export type YanoteReport = {
   schemaVersion: string;
   generatedAt: string;
   toolVersion: string;
+  specSource: SpecSourceProvenance;
   phase: {
     id: string;
     slug: string;
@@ -70,6 +72,12 @@ export type YanoteReport = {
     totalOperations: number;
     coveredOperations: number;
     operationCoveragePercent: number;
+    deprecatedOperations: {
+      totalOperations: number;
+      coveredOperations: number;
+      uncoveredOperations: number;
+      operationCoveragePercent: number;
+    };
     aggregateCoveragePercent: number | null;
     aggregateExplanation?: string;
   };
@@ -95,6 +103,7 @@ export type YanoteReport = {
       operationKey: string;
       method: string;
       route: string;
+      deprecated: boolean;
       operation: {
         state: "COVERED" | "UNCOVERED";
       };
@@ -325,6 +334,7 @@ export function buildReport(
   coverage: CoverageResult,
   opts: {
     toolVersion: string;
+    specSource: SpecSourceProvenance;
     eventTimestamps?: number[];
     payloadConformance?: HttpPayloadConformanceResult;
     requestConformance?: HttpRequestConformanceResult;
@@ -352,6 +362,10 @@ export function buildReport(
     schemaVersion: REPORT_SCHEMA_VERSION,
     generatedAt: resolveGeneratedAt(opts.eventTimestamps),
     toolVersion: opts.toolVersion,
+    specSource: {
+      kind: opts.specSource.kind,
+      reference: opts.specSource.reference
+    },
     phase: {
       id: "02",
       slug: "coverage-metrics-and-cli-reporting"
@@ -361,6 +375,7 @@ export function buildReport(
       totalOperations: coverage.allOperations.length,
       coveredOperations: coverage.coveredOperations.length,
       operationCoveragePercent: coverage.dimensions.operations.percent ?? 0,
+      deprecatedOperations: summarizeDeprecatedOperations(coverage),
       aggregateCoveragePercent: coverage.dimensions.aggregate.percent,
       aggregateExplanation: coverage.dimensions.aggregate.explanation
     },
@@ -386,6 +401,7 @@ export function buildReport(
         operationKey: entry.operationKey,
         method: entry.method,
         route: entry.route,
+        deprecated: entry.deprecated,
         operation: {
           state: entry.operation.state
         },
@@ -436,6 +452,20 @@ function resolveGeneratedAt(eventTimestamps: number[] | undefined): string {
 
   const min = Math.min(...timestamps);
   return new Date(min).toISOString();
+}
+
+function summarizeDeprecatedOperations(coverage: CoverageResult): YanoteReport["summary"]["deprecatedOperations"] {
+  const deprecatedOperations = coverage.perOperation.filter((entry) => entry.deprecated);
+  const totalOperations = deprecatedOperations.length;
+  const coveredOperations = deprecatedOperations.filter((entry) => entry.operation.state === "COVERED").length;
+  const uncoveredOperations = totalOperations - coveredOperations;
+
+  return {
+    totalOperations,
+    coveredOperations,
+    uncoveredOperations,
+    operationCoveragePercent: totalOperations === 0 ? 0 : roundCoveragePercent((coveredOperations / totalOperations) * 100)
+  };
 }
 
 function buildHttpPayloadConformanceSection(
@@ -993,6 +1023,10 @@ function compareDeclaredStatuses(left: DeclaredStatusToken, right: DeclaredStatu
   return left.localeCompare(right, undefined, { numeric: true });
 }
 
+function roundCoveragePercent(value: number): number {
+  return Math.round(value * 100) / 100;
+}
+
 function countDiagnostics(diagnostics: SemanticDiagnostic[]): YanoteReport["diagnostics"]["counts"] {
   let invalid = 0;
   let ambiguous = 0;
@@ -1036,10 +1070,12 @@ function mergeGovernanceDiagnostics(
 function resolveReportStatus(
   coverage: CoverageResult,
   counts: YanoteReport["diagnostics"]["counts"],
-  governanceDiagnostics: YanoteReport["governance"]["diagnostics"]
+  governanceDiagnostics: GovernanceFailure[]
 ): ReportStatus {
   if (counts.invalid > 0 || counts.ambiguous > 0) return "invalid";
-  if (governanceDiagnostics.some((diagnostic) => diagnostic.class === "semantic" && diagnostic.severity === "error")) return "partial";
+  if (governanceDiagnostics.some((diagnostic) => diagnostic.failureClass === "semantic" && diagnostic.severity === "error")) {
+    return "partial";
+  }
   if (coverage.uncoveredOperations.length > 0) return "partial";
   if (coverage.dimensions.aggregate.state !== "COVERED") return "partial";
   if (counts.unmatched > 0) return "partial";

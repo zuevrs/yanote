@@ -1,4 +1,5 @@
 import type { CoverageDimensionState } from "../coverage/dimensions.js";
+import type { SpecSourceProvenance } from "../spec/specSource.js";
 import type {
   AsyncCoverageDiagnostic,
   AsyncCoverageDiagnosticKind,
@@ -20,6 +21,7 @@ export type AsyncYanoteReport = {
   schemaVersion: string;
   generatedAt: string;
   toolVersion: string;
+  specSource: SpecSourceProvenance;
   phase: {
     id: string;
     slug: string;
@@ -90,6 +92,7 @@ export function buildAsyncReport(
   coverage: AsyncCoverageResult,
   opts: {
     toolVersion: string;
+    specSource: SpecSourceProvenance;
     eventTimestamps?: number[];
   }
 ): AsyncYanoteReport {
@@ -100,6 +103,10 @@ export function buildAsyncReport(
     schemaVersion: ASYNC_REPORT_SCHEMA_VERSION,
     generatedAt: resolveGeneratedAt(opts.eventTimestamps),
     toolVersion: opts.toolVersion,
+    specSource: {
+      kind: opts.specSource.kind,
+      reference: opts.specSource.reference
+    },
     phase: ASYNC_REPORT_PHASE,
     status: resolveAsyncReportStatus(coverage, counts),
     summary: buildAsyncReportSummary(coverage),

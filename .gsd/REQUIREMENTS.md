@@ -81,6 +81,17 @@ This file is the explicit capability and coverage contract for the project.
 - Validation: Validated by M012 closeout: `bash scripts/ci/verify-m012-s02-security-semantics.sh`, `node --test scripts/ci/render-yanote-summary.test.mjs scripts/ci/run-v1-e2e.contract.test.mjs scripts/ci/collect-yanote-artifacts.test.mjs`, `bash scripts/docs/verify-s02-doc-links.sh`, `bash scripts/docs/verify-s03-landing.sh`, `bash scripts/docs/verify-s04-boundaries.sh`, and `bash scripts/ci/run-v1-e2e.sh` proved truthful OpenAPI security semantics on additive report/CLI/CI/doc surfaces while other broader OpenAPI objects remain explicitly deferred.
 - Notes: Validated by M012 through truthful support for selected OpenAPI security schemes (`apiKey` in query/header/cookie locations) with additive `httpSecurityConformance` reporting and explicit public defers for examples, links, callbacks, webhooks, and unsupported security types/locations.
 
+### R024 — Improve analyzer consumption through supported remote spec loading, explicit deprecated-operation handling, and human-friendly report artifacts that reflect the same canonical truth as machine-readable outputs.
+- Class: launchability
+- Status: validated
+- Description: Improve analyzer consumption through supported remote spec loading, explicit deprecated-operation handling, and human-friendly report artifacts that reflect the same canonical truth as machine-readable outputs.
+- Why it matters: Coverage tooling needs operator-friendly delivery surfaces once the semantic core is stable.
+- Source: planning
+- Primary owning slice: none
+- Supporting slices: none
+- Validation: Validated by M013 milestone closeout on current HEAD: `bash ./scripts/ci/verify-m013-s01-remote-spec.sh`, `bash ./scripts/ci/verify-m013-s02-deprecated-operations.sh`, `bash ./scripts/ci/verify-m013-s03-static-html-reports.sh`, `node --test scripts/ci/collect-yanote-artifacts.test.mjs scripts/ci/export-async-proof-artifacts.test.mjs scripts/ci/run-v1-e2e.contract.test.mjs scripts/ci/render-yanote-summary.test.mjs scripts/ci/yanote-ci-workflow.contract.test.mjs`, `bash scripts/docs/verify-s03-landing.sh`, and `bash scripts/docs/verify-s04-boundaries.sh` proved the widened delivery contract end to end: supported sanitized remote spec provenance, additive deprecated-operation truth without denominator drift, separate HTTP/async JSON+HTML artifacts, and aligned CI/docs/support wording without combined-report or dashboard claims.
+- Notes: Validated by M013 after S01 delivered supported local/remote spec inputs with sanitized provenance, S02 added additive deprecated-operation truth without denominator drift, S03 emitted separate static HTTP/async HTML artifacts from canonical report data, and S04 aligned retained CI bundles, GitHub summaries, workflow contracts, and public docs/support wording to the same local-first / remote-opt-in / no-dashboard delivery boundary.
+
 ### R031 — When live HTTP traffic returns a status not declared by the OpenAPI contract, Yanote must surface it explicitly instead of silently preserving a green declared-status numerator.
 - Class: contract-depth
 - Status: validated
@@ -149,17 +160,6 @@ This file is the explicit capability and coverage contract for the project.
 - Validation: unmapped
 - Notes: Explicitly deferred in `docs/requirements.md` as ASYNC-03.
 
-### R024 — Improve analyzer consumption through supported remote spec loading, explicit deprecated-operation handling, and human-friendly report artifacts that reflect the same canonical truth as machine-readable outputs.
-- Class: launchability
-- Status: deferred
-- Description: Improve analyzer consumption through supported remote spec loading, explicit deprecated-operation handling, and human-friendly report artifacts that reflect the same canonical truth as machine-readable outputs.
-- Why it matters: Coverage tooling needs operator-friendly delivery surfaces once the semantic core is stable.
-- Source: planning
-- Primary owning slice: none
-- Supporting slices: none
-- Validation: unmapped
-- Notes: Planned as the queued M013 follow-on after the HTTP/OpenAPI contract surfaces stabilize.
-
 ### R025 — Extend the proven Kafka-first async path to selected richer AsyncAPI constructs such as bindings, traits, correlation, or reply semantics where they can be verified truthfully from runtime evidence.
 - Class: contract-depth
 - Status: deferred
@@ -197,7 +197,7 @@ This file is the explicit capability and coverage contract for the project.
 | R021 | differentiator | deferred | none | none | unmapped |
 | R022 | contract-depth | validated | S02 | S01,S03,S04 | M011 closeout reran and passed the public proof stack on current HEAD: `node --test scripts/ci/run-v1-e2e.contract.test.mjs scripts/ci/collect-yanote-artifacts.test.mjs`, `bash scripts/docs/verify-s03-landing.sh`, `bash scripts/docs/verify-s02-doc-links.sh`, `bash scripts/docs/verify-s04-boundaries.sh`, `bash scripts/ci/run-v1-e2e.sh`, `bash scripts/ci/verify-m011-s02-request-semantics.sh`, and `bash scripts/ci/verify-m011-s03-format-media.sh`. |
 | R023 | contract-depth | validated | S01 | S02 | Validated by M012 closeout: `bash scripts/ci/verify-m012-s02-security-semantics.sh`, `node --test scripts/ci/render-yanote-summary.test.mjs scripts/ci/run-v1-e2e.contract.test.mjs scripts/ci/collect-yanote-artifacts.test.mjs`, `bash scripts/docs/verify-s02-doc-links.sh`, `bash scripts/docs/verify-s03-landing.sh`, `bash scripts/docs/verify-s04-boundaries.sh`, and `bash scripts/ci/run-v1-e2e.sh` proved truthful OpenAPI security semantics on additive report/CLI/CI/doc surfaces while other broader OpenAPI objects remain explicitly deferred. |
-| R024 | launchability | deferred | none | none | unmapped |
+| R024 | launchability | validated | none | none | Validated by M013 milestone closeout on current HEAD: `bash ./scripts/ci/verify-m013-s01-remote-spec.sh`, `bash ./scripts/ci/verify-m013-s02-deprecated-operations.sh`, `bash ./scripts/ci/verify-m013-s03-static-html-reports.sh`, `node --test scripts/ci/collect-yanote-artifacts.test.mjs scripts/ci/export-async-proof-artifacts.test.mjs scripts/ci/run-v1-e2e.contract.test.mjs scripts/ci/render-yanote-summary.test.mjs scripts/ci/yanote-ci-workflow.contract.test.mjs`, `bash scripts/docs/verify-s03-landing.sh`, and `bash scripts/docs/verify-s04-boundaries.sh` proved the widened delivery contract end to end: supported sanitized remote spec provenance, additive deprecated-operation truth without denominator drift, separate HTTP/async JSON+HTML artifacts, and aligned CI/docs/support wording without combined-report or dashboard claims. |
 | R025 | contract-depth | deferred | none | none | unmapped |
 | R030 | anti-feature | out-of-scope | none | none | n/a |
 | R031 | contract-depth | validated | M010 | none | Validated by the M010 closeout stack: `bash scripts/docs/verify-m010-s04-final-boundary.sh` and the focused HTTP core gate/CLI suite proved undeclared HTTP statuses surface as explicit drift on the live Spring MVC path. |
@@ -209,5 +209,5 @@ This file is the explicit capability and coverage contract for the project.
 
 - Active requirements: 0
 - Mapped to slices: 0
-- Validated: 11 (R001, R002, R003, R004, R005, R022, R023, R031, R032, R033, R034)
+- Validated: 12 (R001, R002, R003, R004, R005, R022, R023, R024, R031, R032, R033, R034)
 - Unmapped active requirements: 0

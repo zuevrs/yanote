@@ -110,9 +110,17 @@ export function normalizeReport(report: YanoteReport): YanoteReport {
 
   return {
     ...report,
+    specSource: {
+      kind: report.specSource.kind,
+      reference: report.specSource.reference
+    },
     summary: {
       ...report.summary,
       operationCoveragePercent: roundCoverage(report.summary.operationCoveragePercent),
+      deprecatedOperations: {
+        ...report.summary.deprecatedOperations,
+        operationCoveragePercent: roundCoverage(report.summary.deprecatedOperations.operationCoveragePercent)
+      },
       aggregateCoveragePercent:
         typeof report.summary.aggregateCoveragePercent === "number"
           ? roundCoverage(report.summary.aggregateCoveragePercent)

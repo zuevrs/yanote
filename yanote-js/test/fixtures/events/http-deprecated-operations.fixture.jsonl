@@ -1,0 +1,2 @@
+{"kind":"http","ts":1772449195657,"method":"GET","route":"/users","status":200,"queryKeys":[],"headerKeys":[],"test.run_id":"run-1","test.suite":"suite-users-read"}
+{"kind":"http","ts":1772449196657,"method":"POST","route":"/users","status":201,"queryKeys":[],"headerKeys":[],"test.run_id":"run-1","test.suite":"suite-users-create"}

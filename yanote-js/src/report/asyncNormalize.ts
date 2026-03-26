@@ -12,6 +12,10 @@ export function roundCoverage(value: number): number {
 export function normalizeAsyncReport(report: AsyncYanoteReport): AsyncYanoteReport {
   return {
     ...report,
+    specSource: {
+      kind: report.specSource.kind,
+      reference: report.specSource.reference
+    },
     summary: {
       ...report.summary,
       channelCoveragePercent: normalizeNullablePercent(report.summary.channelCoveragePercent),

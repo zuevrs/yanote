@@ -10,6 +10,7 @@ import {
 } from "../model/operationKey.js";
 import { normalizeJsonValue } from "../model/asyncEvent.js";
 import type { SemanticDiagnostic, SemanticDiagnosticsBundle } from "./diagnostics.js";
+import type { ResolvedSpecSource } from "./specSource.js";
 
 const KAFKA_RUNTIME = "kafka";
 
@@ -19,10 +20,11 @@ export type AsyncApiSemanticsBundle = SemanticDiagnosticsBundle & {
 };
 
 type ResolvedKafkaMessageContracts = Pick<KafkaOperationContract, "message" | "messages" | "messageSelection">;
+type AsyncApiSpecInput = string | Pick<ResolvedSpecSource, "materializedPath">;
 
-export async function loadAsyncApiSemanticsBundle(specPath: string): Promise<AsyncApiSemanticsBundle> {
+export async function loadAsyncApiSemanticsBundle(specInput: AsyncApiSpecInput): Promise<AsyncApiSemanticsBundle> {
   const parser = new Parser();
-  const { document, diagnostics } = await fromFile(parser, specPath).parse();
+  const { document, diagnostics } = await fromFile(parser, toAsyncApiSpecPath(specInput)).parse();
 
   if (!document) {
     throw new Error(formatParserDiagnostics(diagnostics));
@@ -31,8 +33,8 @@ export async function loadAsyncApiSemanticsBundle(specPath: string): Promise<Asy
   return buildAsyncApiSemantics(document.json());
 }
 
-export async function loadAsyncApiOperations(specPath: string): Promise<OperationKey[]> {
-  const bundle = await loadAsyncApiSemanticsBundle(specPath);
+export async function loadAsyncApiOperations(specInput: AsyncApiSpecInput): Promise<OperationKey[]> {
+  const bundle = await loadAsyncApiSemanticsBundle(specInput);
 
   if (hasBlockingAsyncDiagnostics(bundle.diagnostics)) {
     throw new Error(formatSemanticDiagnostics(bundle.diagnostics.filter(isBlockingAsyncDiagnostic)));
@@ -708,6 +710,10 @@ function normalizeNonEmptyString(value: unknown): string | null {
 
   const normalized = value.trim();
   return normalized.length > 0 ? normalized : null;
+}
+
+function toAsyncApiSpecPath(specInput: AsyncApiSpecInput): string {
+  return typeof specInput === "string" ? specInput : specInput.materializedPath;
 }
 
 function buildAsyncContext(

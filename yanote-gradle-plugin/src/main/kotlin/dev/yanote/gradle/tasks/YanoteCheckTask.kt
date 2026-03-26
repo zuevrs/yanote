@@ -60,18 +60,19 @@ abstract class YanoteCheckTask : DefaultTask() {
         exclude.convention(emptyList())
     }
 
-    fun buildAnalyzerArguments(): List<String> {
+    fun buildAnalyzerArguments(specOverride: String? = null): List<String> {
         val policy = parsePolicyOverrides(policyPath.orNull)
         val effectiveProfile = profile.orNull?.takeUnless { it.isBlank() }
             ?: policy.profile
             ?: defaultProfile.get()
         val effectiveMinCoverage = minCoverage.orNull ?: policy.minCoverage
         val effectiveMinAggregate = minAggregate.orNull ?: policy.minAggregate
+        val effectiveSpecPath = specOverride ?: specPath.orNull?.trim()?.takeIf { it.isNotEmpty() }
 
         val args = mutableListOf<String>()
         args += "report"
 
-        specPath.orNull?.trim()?.takeIf { it.isNotEmpty() }?.let {
+        effectiveSpecPath?.let {
             args += "--spec"
             args += it
         }
@@ -130,12 +131,13 @@ abstract class YanoteCheckTask : DefaultTask() {
             )
         }
 
-        val specFile = project.file(spec)
+        val resolvedSpec = resolveGradleSpecInput("yanoteCheck", spec) { project.file(it) }
+        val specExists = resolvedSpec.isRemote || project.file(spec).exists()
         val eventsFile = project.file(events)
-        if (!specFile.exists() || !eventsFile.exists()) {
+        if (!specExists || !eventsFile.exists()) {
             throw GradleException(
-                "yanoteCheck requires existing specPath/eventsPath files. " +
-                    "spec exists=${specFile.exists()} events exists=${eventsFile.exists()}."
+                "yanoteCheck requires existing specPath/eventsPath files unless specPath is a supported remote URL. " +
+                    "spec exists=${specExists} events exists=${eventsFile.exists()}."
             )
         }
 
@@ -154,8 +156,8 @@ abstract class YanoteCheckTask : DefaultTask() {
         val outputDirectory = outputDir.get().asFile
         outputDirectory.mkdirs()
 
-        val args = buildAnalyzerArguments()
-        writeText(outputDirectory.resolve("yanote-check-command.args"), args.joinToString(" "))
+        val args = buildAnalyzerArguments(resolvedSpec.executionValue)
+        writeText(outputDirectory.resolve("yanote-check-command.args"), renderAnalyzerArgsSurface(args, resolvedSpec))
 
         val result = project.exec {
             commandLine(listOf("node", analyzer.absolutePath) + args)

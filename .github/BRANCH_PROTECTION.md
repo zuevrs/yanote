@@ -40,7 +40,7 @@ Delivery-sensitive changes currently mean edits under:
 ## Failure Handling Expectations
 
 - Any failure in `build-and-test` or `yanote-validation` blocks merge.
-- `build-and-test` runs the authoritative live Kafka proof, always uploads deterministic diagnostics as `build-and-test-artifacts`, writes concise async `GITHUB_STEP_SUMMARY` output from the collected `live-kafka-proof/` bundle, and now also retains `v1-e2e/` plus delivery-proof scope files when the earlier demo proof runs.
+- `build-and-test` runs the authoritative live Kafka proof, always uploads deterministic diagnostics as `build-and-test-artifacts`, writes concise async `GITHUB_STEP_SUMMARY` output from the collected `live-kafka-proof/` bundle, now names sanitized `specSource` plus explicit `yanote-async-report.json`/`yanote-async-report.html` report artifacts together with retained runtime-selected and schema-failure JSON+HTML companions when they exist, and still retains `v1-e2e/` plus delivery-proof scope files when the earlier demo proof runs.
 - Delivery-sensitive `run-v1-e2e.sh` failures are enforced through `build-and-test`, not through a renamed required job.
-- `yanote-validation` remains the HTTP validation job, retains deterministic HTTP artifacts as `yanote-validation-artifacts`, and writes concise HTTP diagnostics to `GITHUB_STEP_SUMMARY`.
+- `yanote-validation` remains the HTTP validation job, retains deterministic HTTP artifacts as `yanote-validation-artifacts`, and writes concise HTTP diagnostics to `GITHUB_STEP_SUMMARY` that expose sanitized `specSource`, additive deprecated-operation counts, and explicit `yanote-report.json`/`yanote-report.html` artifact names.
 - Java runtime mismatches fail early via `scripts/ci/assert-java21.sh` with actionable `actions/setup-java` remediation guidance.

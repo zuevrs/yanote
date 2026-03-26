@@ -12,6 +12,18 @@ import {
 } from "./asyncReport.js";
 
 const OPERATION_KEY = "kafka send orders.created";
+const V3_ASYNC_SPEC_SOURCE = {
+  kind: "local-file" as const,
+  reference: "test/fixtures/asyncapi/v3.yaml"
+};
+const SCHEMA_DEPTH_ASYNC_SPEC_SOURCE = {
+  kind: "local-file" as const,
+  reference: "test/fixtures/asyncapi/schema-depth-v3.yaml"
+};
+const MULTI_MESSAGE_ASYNC_SPEC_SOURCE = {
+  kind: "local-file" as const,
+  reference: "test/fixtures/asyncapi/multi-message-resolvable.yaml"
+};
 
 describe("async report", () => {
   it("builds a deterministic async report artifact without reusing the HTTP coverage surface", async () => {
@@ -21,6 +33,7 @@ describe("async report", () => {
 
     const report = buildAsyncReport(coverage, {
       toolVersion: "test",
+      specSource: V3_ASYNC_SPEC_SOURCE,
       eventTimestamps: events.items
         .map((event) => event.ts)
         .filter((timestamp): timestamp is number => typeof timestamp === "number")
@@ -30,6 +43,7 @@ describe("async report", () => {
       schemaVersion: ASYNC_REPORT_SCHEMA_VERSION,
       generatedAt: "1970-01-01T00:00:00.000Z",
       toolVersion: "test",
+      specSource: V3_ASYNC_SPEC_SOURCE,
       phase: ASYNC_REPORT_PHASE,
       status: "partial",
       summary: {
@@ -139,6 +153,7 @@ describe("async report", () => {
 
     const report = buildAsyncReport(coverage, {
       toolVersion: "test",
+      specSource: SCHEMA_DEPTH_ASYNC_SPEC_SOURCE,
       eventTimestamps: [...invalidEvents.items, ...missingEvents.items]
         .map((event) => event.ts)
         .filter((timestamp): timestamp is number => typeof timestamp === "number")
@@ -216,7 +231,7 @@ describe("async report", () => {
     const unavailableCoverage = computeAsyncCoverage(unavailableBundle, unavailableEvents.items);
     const invalidCoverage = computeAsyncCoverage(invalidBundle, invalidEvents.items);
 
-    expect(buildAsyncReport(coverage, { toolVersion: "test" }).diagnostics).toEqual({
+    expect(buildAsyncReport(coverage, { toolVersion: "test", specSource: SCHEMA_DEPTH_ASYNC_SPEC_SOURCE }).diagnostics).toEqual({
       counts: {
         "unsupported-content-type": 0,
         "unsupported-schema-format": 0,
@@ -246,7 +261,7 @@ describe("async report", () => {
       ]
     });
 
-    expect(buildAsyncReport(unavailableCoverage, { toolVersion: "test" }).diagnostics).toEqual({
+    expect(buildAsyncReport(unavailableCoverage, { toolVersion: "test", specSource: SCHEMA_DEPTH_ASYNC_SPEC_SOURCE }).diagnostics).toEqual({
       counts: {
         "unsupported-content-type": 0,
         "unsupported-schema-format": 0,
@@ -276,7 +291,7 @@ describe("async report", () => {
       ]
     });
 
-    expect(buildAsyncReport(invalidCoverage, { toolVersion: "test" }).diagnostics).toEqual({
+    expect(buildAsyncReport(invalidCoverage, { toolVersion: "test", specSource: SCHEMA_DEPTH_ASYNC_SPEC_SOURCE }).diagnostics).toEqual({
       counts: {
         "unsupported-content-type": 0,
         "unsupported-schema-format": 0,
@@ -320,6 +335,7 @@ describe("async report", () => {
 
     const report = buildAsyncReport(coverage, {
       toolVersion: "test",
+      specSource: SCHEMA_DEPTH_ASYNC_SPEC_SOURCE,
       eventTimestamps: events.items
         .map((event) => event.ts)
         .filter((timestamp): timestamp is number => typeof timestamp === "number")
@@ -366,6 +382,7 @@ describe("async report", () => {
 
     const report = buildAsyncReport(coverage, {
       toolVersion: "test",
+      specSource: V3_ASYNC_SPEC_SOURCE,
       eventTimestamps: events.items
         .map((event) => event.ts)
         .filter((timestamp): timestamp is number => typeof timestamp === "number")
@@ -432,7 +449,7 @@ describe("async report", () => {
       }
     ]);
 
-    const report = buildAsyncReport(coverage, { toolVersion: "test" });
+    const report = buildAsyncReport(coverage, { toolVersion: "test", specSource: MULTI_MESSAGE_ASYNC_SPEC_SOURCE });
 
     expect(report.status).toBe("partial");
     expect(report.coverage.operations.items).toEqual([

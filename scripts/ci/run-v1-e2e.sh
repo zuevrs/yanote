@@ -6,6 +6,8 @@ ARTIFACT_DIR="${ROOT_DIR}/.yanote-ci/v1-e2e"
 COMPOSE_FILE="examples/docker-compose.yml"
 REQUEST_SEMANTICS_SPEC="examples/openapi/request-evidence-openapi.yaml"
 REQUEST_SEMANTICS_ROUTE="/request-evidence/users/{userId}"
+HAPPY_PATH_REPORT_JSON_PATH="${ARTIFACT_DIR}/out/yanote-report.json"
+HAPPY_PATH_REPORT_HTML_PATH="${ARTIFACT_DIR}/out/yanote-report.html"
 REQUEST_SEMANTICS_EVENTS_PATH="${ARTIFACT_DIR}/request-semantics.events.jsonl"
 REQUEST_SEMANTICS_STDOUT_PATH="${ARTIFACT_DIR}/request-semantics.stdout"
 REQUEST_SEMANTICS_STDERR_PATH="${ARTIFACT_DIR}/request-semantics.stderr"
@@ -62,6 +64,34 @@ join_by_comma() {
     joined+="${joined:+,}${item}"
   done
   printf '%s' "${joined}"
+}
+
+extract_http_report_metadata() {
+  local report_path="$1"
+  python3 - "${report_path}" <<'PY'
+import json
+import pathlib
+import sys
+
+report_path = pathlib.Path(sys.argv[1])
+report = json.loads(report_path.read_text(encoding="utf-8"))
+spec_source = report.get("specSource") or {}
+deprecated = (report.get("summary") or {}).get("deprecatedOperations") or {}
+
+
+def emit(key, value):
+    normalized = "none" if value is None else str(value)
+    normalized = normalized.replace("\t", " ").replace("\n", " ")
+    print(f"{key}\t{normalized}")
+
+emit("spec_source_kind", spec_source.get("kind", "none"))
+emit("spec_source_ref", spec_source.get("reference", "none"))
+emit("status", report.get("status", "unknown"))
+emit("deprecated_total", deprecated.get("totalOperations", 0))
+emit("deprecated_covered", deprecated.get("coveredOperations", 0))
+emit("deprecated_uncovered", deprecated.get("uncoveredOperations", 0))
+emit("deprecated_percent", deprecated.get("operationCoveragePercent", 0))
+PY
 }
 
 prepare_demo_assets() {
@@ -271,6 +301,48 @@ write_bundle_metadata() {
   local artifact_count
   local artifacts_csv
   local missing_artifacts_csv
+  local happy_path_report_found="false"
+  local happy_path_report_html_found="false"
+  local happy_path_spec_source_kind="none"
+  local happy_path_spec_source_ref="none"
+  local happy_path_status="unknown"
+  local happy_path_deprecated_total="0"
+  local happy_path_deprecated_covered="0"
+  local happy_path_deprecated_uncovered="0"
+  local happy_path_deprecated_percent="0"
+
+  if [[ -f "${HAPPY_PATH_REPORT_JSON_PATH}" ]]; then
+    happy_path_report_found="true"
+    while IFS=$'\t' read -r key value; do
+      case "${key}" in
+        spec_source_kind)
+          happy_path_spec_source_kind="${value}"
+          ;;
+        spec_source_ref)
+          happy_path_spec_source_ref="${value}"
+          ;;
+        status)
+          happy_path_status="${value}"
+          ;;
+        deprecated_total)
+          happy_path_deprecated_total="${value}"
+          ;;
+        deprecated_covered)
+          happy_path_deprecated_covered="${value}"
+          ;;
+        deprecated_uncovered)
+          happy_path_deprecated_uncovered="${value}"
+          ;;
+        deprecated_percent)
+          happy_path_deprecated_percent="${value}"
+          ;;
+      esac
+    done < <(extract_http_report_metadata "${HAPPY_PATH_REPORT_JSON_PATH}")
+  fi
+
+  if [[ -f "${HAPPY_PATH_REPORT_HTML_PATH}" ]]; then
+    happy_path_report_html_found="true"
+  fi
 
   : > "${SOURCE_PATHS_NOTE_PATH}"
 
@@ -282,12 +354,20 @@ write_bundle_metadata() {
     printf 'events.jsonl=%s\n' 'none' >> "${SOURCE_PATHS_NOTE_PATH}"
   fi
 
-  if [[ -f "${ARTIFACT_DIR}/out/yanote-report.json" ]]; then
+  if [[ -f "${HAPPY_PATH_REPORT_JSON_PATH}" ]]; then
     exported_artifacts+=("out/yanote-report.json")
     printf 'out/yanote-report.json=%s\n' 'report:/data/yanote/out/yanote-report.json' >> "${SOURCE_PATHS_NOTE_PATH}"
   else
     missing_artifacts+=("out/yanote-report.json")
     printf 'out/yanote-report.json=%s\n' 'none' >> "${SOURCE_PATHS_NOTE_PATH}"
+  fi
+
+  if [[ -f "${HAPPY_PATH_REPORT_HTML_PATH}" ]]; then
+    exported_artifacts+=("out/yanote-report.html")
+    printf 'out/yanote-report.html=%s\n' 'report:/data/yanote/out/yanote-report.html' >> "${SOURCE_PATHS_NOTE_PATH}"
+  else
+    missing_artifacts+=("out/yanote-report.html")
+    printf 'out/yanote-report.html=%s\n' 'none' >> "${SOURCE_PATHS_NOTE_PATH}"
   fi
 
   if [[ -f "${ARTIFACT_DIR}/compose.log" ]]; then
@@ -381,6 +461,14 @@ write_bundle_metadata() {
     printf 'semantic-red-yanote-report.json=%s\n' 'none' >> "${SOURCE_PATHS_NOTE_PATH}"
   fi
 
+  printf 'happy_path_spec_source_kind=%s\n' "${happy_path_spec_source_kind}" >> "${SOURCE_PATHS_NOTE_PATH}"
+  printf 'happy_path_spec_source_ref=%s\n' "${happy_path_spec_source_ref}" >> "${SOURCE_PATHS_NOTE_PATH}"
+  printf 'happy_path_status=%s\n' "${happy_path_status}" >> "${SOURCE_PATHS_NOTE_PATH}"
+  printf 'happy_path_deprecated_total=%s\n' "${happy_path_deprecated_total}" >> "${SOURCE_PATHS_NOTE_PATH}"
+  printf 'happy_path_deprecated_covered=%s\n' "${happy_path_deprecated_covered}" >> "${SOURCE_PATHS_NOTE_PATH}"
+  printf 'happy_path_deprecated_uncovered=%s\n' "${happy_path_deprecated_uncovered}" >> "${SOURCE_PATHS_NOTE_PATH}"
+  printf 'happy_path_deprecated_percent=%s\n' "${happy_path_deprecated_percent}" >> "${SOURCE_PATHS_NOTE_PATH}"
+
   artifact_count="${#exported_artifacts[@]}"
   artifacts_csv="none"
   if [[ "${#exported_artifacts[@]}" -gt 0 ]]; then
@@ -394,7 +482,15 @@ write_bundle_metadata() {
 
   {
     printf 'created_at=%s\n' "$(date -u +"%Y-%m-%dT%H:%M:%SZ")"
-    printf 'happy_path_report_found=%s\n' "$( [[ -f "${ARTIFACT_DIR}/out/yanote-report.json" ]] && printf 'true' || printf 'false' )"
+    printf 'happy_path_report_found=%s\n' "${happy_path_report_found}"
+    printf 'happy_path_report_html_found=%s\n' "${happy_path_report_html_found}"
+    printf 'happy_path_status=%s\n' "${happy_path_status}"
+    printf 'happy_path_spec_source_kind=%s\n' "${happy_path_spec_source_kind}"
+    printf 'happy_path_spec_source_ref=%s\n' "${happy_path_spec_source_ref}"
+    printf 'happy_path_deprecated_total=%s\n' "${happy_path_deprecated_total}"
+    printf 'happy_path_deprecated_covered=%s\n' "${happy_path_deprecated_covered}"
+    printf 'happy_path_deprecated_uncovered=%s\n' "${happy_path_deprecated_uncovered}"
+    printf 'happy_path_deprecated_percent=%s\n' "${happy_path_deprecated_percent}"
     printf 'request_semantics_expected_exit=%s\n' '5'
     printf 'request_semantics_primary=%s\n' 'SEMANTIC_HTTP_UNSUPPORTED_REQUEST_PARAMETER'
     printf 'security_semantics_expected_exit=%s\n' '5'

@@ -105,7 +105,11 @@ describe("cli async-report", () => {
       expect(result.stdout).toContain("YANOTE_ASYNC_SUMMARY");
 
       const reportPath = path.join(fixture.outDir, "yanote-async-report.json");
-      const report = JSON.parse(await readFile(reportPath, "utf8"));
+      const htmlPath = path.join(fixture.outDir, "yanote-async-report.html");
+      const [report, html] = await Promise.all([
+        readFile(reportPath, "utf8").then((content) => JSON.parse(content)),
+        readFile(htmlPath, "utf8")
+      ]);
 
       expect(report.schemaVersion).toBe("1.0.0");
       expect(report.phase).toEqual({ id: "03", slug: "async-report-and-gate-surface" });
@@ -122,6 +126,12 @@ describe("cli async-report", () => {
         messageCoveragePercent: 50
       });
       expect(report.governance).toBeUndefined();
+      expect(result.stdout).toContain(`report=${reportPath}`);
+      expect(result.stdout).not.toContain(`report=${htmlPath}`);
+      expect(html).toContain("yanote-async-report.html");
+      expect(html).toContain("Channel coverage");
+      expect(html).not.toContain("HTTP Payload Conformance");
+      expect(html).not.toContain("Deprecated operations");
     } finally {
       await rm(fixture.dir, { recursive: true, force: true });
     }

@@ -1,7 +1,7 @@
 package dev.yanote.gradle.tasks
 
-import org.gradle.api.GradleException
 import org.gradle.api.DefaultTask
+import org.gradle.api.GradleException
 import org.gradle.api.file.DirectoryProperty
 import org.gradle.api.provider.ListProperty
 import org.gradle.api.provider.Property
@@ -60,18 +60,19 @@ abstract class YanoteReportTask : DefaultTask() {
         exclude.convention(emptyList())
     }
 
-    fun buildAnalyzerArguments(): List<String> {
+    fun buildAnalyzerArguments(specOverride: String? = null): List<String> {
         val policy = parsePolicyOverrides(policyPath.orNull)
         val effectiveProfile = profile.orNull?.takeUnless { it.isBlank() }
             ?: policy.profile
             ?: defaultProfile.get()
         val effectiveMinCoverage = minCoverage.orNull ?: policy.minCoverage
         val effectiveMinAggregate = minAggregate.orNull ?: policy.minAggregate
+        val effectiveSpecPath = specOverride ?: specPath.orNull?.trim()?.takeIf { it.isNotEmpty() }
 
         val args = mutableListOf<String>()
         args += "report"
 
-        specPath.orNull?.trim()?.takeIf { it.isNotEmpty() }?.let {
+        effectiveSpecPath?.let {
             args += "--spec"
             args += it
         }
@@ -124,9 +125,6 @@ abstract class YanoteReportTask : DefaultTask() {
         val outputDirectory = outputDir.get().asFile
         outputDirectory.mkdirs()
 
-        val args = buildAnalyzerArguments()
-        writeText(outputDirectory.resolve("yanote-report-command.args"), args.joinToString(" "))
-
         val missingInputs = mutableListOf<String>()
         if (specPath.orNull.isNullOrBlank()) missingInputs += "specPath"
         if (eventsPath.orNull.isNullOrBlank()) missingInputs += "eventsPath"
@@ -139,6 +137,31 @@ abstract class YanoteReportTask : DefaultTask() {
             writeReportStub(outputDirectory, "missing optional inputs: ${missingInputs.joinToString(", ")}")
             return
         }
+
+        val spec = specPath.orNull!!.trim()
+        val events = eventsPath.orNull!!.trim()
+        val resolvedSpec = try {
+            resolveGradleSpecInput("yanoteReport", spec) { project.file(it) }
+        } catch (error: GradleException) {
+            writeDiagnostics(outputDirectory, error.message ?: "yanoteReport rejected the provided specPath.")
+            writeReportStub(outputDirectory, "unsupported specPath")
+            return
+        }
+
+        val specExists = resolvedSpec.isRemote || project.file(spec).exists()
+        val eventsFile = project.file(events)
+        if (!specExists || !eventsFile.exists()) {
+            writeDiagnostics(
+                outputDirectory,
+                "yanoteReport skipped analyzer execution because local inputs were unavailable. " +
+                    "spec exists=${specExists} events exists=${eventsFile.exists()}."
+            )
+            writeReportStub(outputDirectory, "local inputs unavailable")
+            return
+        }
+
+        val args = buildAnalyzerArguments(resolvedSpec.executionValue)
+        writeText(outputDirectory.resolve("yanote-report-command.args"), renderAnalyzerArgsSurface(args, resolvedSpec))
 
         val analyzer = analyzerFileOrNull()
         if (analyzer == null || !analyzer.exists()) {

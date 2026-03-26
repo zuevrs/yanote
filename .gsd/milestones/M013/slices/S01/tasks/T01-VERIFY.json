@@ -1,0 +1,16 @@
+{
+  "schemaVersion": 1,
+  "taskId": "T01",
+  "unitId": "M013/S01/T01",
+  "timestamp": 1774482196234,
+  "passed": true,
+  "discoverySource": "task-plan",
+  "checks": [
+    {
+      "command": "npm -C yanote-js test -- src/spec/specSource.test.ts src/cli.remote-spec.contract.test.ts",
+      "exitCode": 0,
+      "durationMs": 1544,
+      "verdict": "pass"
+    }
+  ]
+}

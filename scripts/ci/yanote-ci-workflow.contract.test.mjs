@@ -162,15 +162,20 @@ test("workflow no longer runs direct CLI report command as primary validation pa
   assert.doesNotMatch(source, /node\s+yanote-js\/dist\/yanote\.cjs\s+report/);
 });
 
-test("branch protection documents the split between async proof, delivery proof, and HTTP validation", async () => {
+test("branch protection documents the split between async proof, delivery proof, HTTP validation, and widened summary surfaces", async () => {
   const source = await loadBranchProtectionSource();
   assert.match(source, /`build-and-test`.*runs `run-v1-e2e\.sh` when delivery-sensitive files changed/);
   assert.match(source, /`build-and-test`.*always runs earlier delivery proof on the merge group/);
   assert.match(source, /`build-and-test` runs the authoritative live Kafka proof/);
   assert.match(source, /`build-and-test-artifacts`/);
+  assert.match(source, /sanitized `specSource`/);
+  assert.match(source, /`yanote-async-report\.json`\/`yanote-async-report\.html`/);
+  assert.match(source, /runtime-selected and schema-failure JSON\+HTML companions/);
   assert.match(source, /retains `v1-e2e\/` plus delivery-proof scope files/);
   assert.match(source, /`yanote-validation` remains the HTTP validation job/);
   assert.match(source, /`yanote-validation-artifacts`/);
+  assert.match(source, /additive deprecated-operation counts/);
+  assert.match(source, /`yanote-report\.json`\/`yanote-report\.html`/);
 });
 
 test("workflow adds push path for main and release refs", async () => {

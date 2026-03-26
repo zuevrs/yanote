@@ -106,6 +106,7 @@ export type HttpOperationSecurityContract = {
 };
 
 export type HttpOperationContract = {
+  deprecated?: boolean;
   declaredStatuses: string[];
   parameters: ParameterDefinition[];
   requestParameters?: HttpRequestParameterContract[];
@@ -187,6 +188,7 @@ function extractHttpContracts(
       const declaredStatuses = extractDeclaredStatuses(operation.responses);
 
       out.set(operationKey, {
+        ...(operation.deprecated === true ? { deprecated: true } : {}),
         declaredStatuses,
         parameters: mergedRequestParameters
           .filter((parameter): parameter is HttpRequestParameterContract & { in: ParameterDefinition["in"] } => parameter.in !== "cookie")

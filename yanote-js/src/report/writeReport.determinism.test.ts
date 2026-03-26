@@ -11,6 +11,10 @@ function makeReport(): YanoteReport {
     schemaVersion: REPORT_SCHEMA_VERSION,
     generatedAt: "1970-01-01T00:00:00.000Z",
     toolVersion: "test",
+    specSource: {
+      kind: "local-file",
+      reference: "test/fixtures/openapi/determinism.yaml"
+    },
     phase: {
       id: "02",
       slug: "coverage-metrics-and-cli-reporting"
@@ -20,6 +24,12 @@ function makeReport(): YanoteReport {
       totalOperations: 2,
       coveredOperations: 1,
       operationCoveragePercent: 50,
+      deprecatedOperations: {
+        totalOperations: 1,
+        coveredOperations: 0,
+        uncoveredOperations: 1,
+        operationCoveragePercent: 0
+      },
       aggregateCoveragePercent: null,
       aggregateExplanation: "aggregate is N/A because weighted dimensions include N/A"
     },
@@ -33,6 +43,7 @@ function makeReport(): YanoteReport {
           operationKey: "http GET /b",
           method: "GET",
           route: "/b",
+          deprecated: true,
           operation: { state: "UNCOVERED" },
           status: { state: "N/A", declared: [], covered: [], missing: [] },
           parameters: {
@@ -46,6 +57,7 @@ function makeReport(): YanoteReport {
           operationKey: "http GET /a",
           method: "GET",
           route: "/a",
+          deprecated: false,
           operation: { state: "COVERED" },
           status: { state: "N/A", declared: [], covered: [], missing: [] },
           parameters: {
@@ -417,6 +429,7 @@ describe("writeYanoteReport determinism", () => {
       const report = makeReport();
       const firstPath = await writeYanoteReport(dir, report);
       const firstBytes = await readFile(firstPath, "utf8");
+      const firstHtmlBytes = await readFile(path.join(dir, "yanote-report.html"), "utf8");
 
       const secondPath = await writeYanoteReport(dir, {
         ...report,
@@ -440,8 +453,58 @@ describe("writeYanoteReport determinism", () => {
         }
       });
       const secondBytes = await readFile(secondPath, "utf8");
+      const secondHtmlBytes = await readFile(path.join(dir, "yanote-report.html"), "utf8");
 
       expect(firstBytes).toBe(secondBytes);
+      expect(firstHtmlBytes).toBe(secondHtmlBytes);
+    } finally {
+      await rm(dir, { recursive: true, force: true });
+    }
+  });
+
+  it("writes a self-contained sibling HTML artifact with explicit provenance and deprecated sections", async () => {
+    const dir = await mkdtemp(path.join(os.tmpdir(), "yanote-report-"));
+    try {
+      const report = makeReport();
+      report.specSource.reference = 'test/fixtures/<unsafe>&"report".yaml';
+      report.httpRequestConformance.summary.observedParameters = 1;
+      report.httpRequestConformance.summary.counts.redacted = 1;
+      report.httpRequestConformance.diagnostics.counts.redacted = 1;
+      report.httpRequestConformance.diagnostics.items = [
+        {
+          operationKey: "http GET /a",
+          method: "GET",
+          route: "/a",
+          suite: "suite-1",
+          location: "query",
+          name: "token",
+          required: false,
+          style: "form",
+          truth: "redacted",
+          message: "Observed query parameter token was redacted before rendering.",
+          reason: "sensitive",
+          observedValues: ["SECRET_HTTP_QUERY_VALUE_MUST_NOT_APPEAR"],
+          evidenceState: "redacted",
+          evidenceReason: "sensitive"
+        }
+      ];
+
+      const outPath = await writeYanoteReport(dir, report);
+      const htmlPath = path.join(dir, "yanote-report.html");
+      const html = await readFile(htmlPath, "utf8");
+
+      expect(outPath).toBe(path.join(dir, "yanote-report.json"));
+      expect(html).toContain("<!doctype html>");
+      expect(html).toContain("Skip to main content");
+      expect(html).toContain("Provenance");
+      expect(html).toContain("Deprecated operations");
+      expect(html).toContain("HTTP security conformance");
+      expect(html).toContain("&lt;unsafe&gt;&amp;&quot;report&quot;.yaml");
+      expect(html).not.toContain("SECRET_HTTP_QUERY_VALUE_MUST_NOT_APPEAR");
+      expect(html).not.toContain("<script");
+      expect(html).not.toMatch(/<(?:img|iframe)\b/i);
+      expect(html).not.toMatch(/\b(?:src|href)=['"]https?:\/\//i);
+      expect(html).not.toMatch(/url\(/i);
     } finally {
       await rm(dir, { recursive: true, force: true });
     }
@@ -452,6 +515,9 @@ describe("writeYanoteReport determinism", () => {
     try {
       const outPath = await writeYanoteReport(dir, makeReport());
       const bytes = await readFile(outPath, "utf8");
+      const htmlBytes = await readFile(path.join(dir, "yanote-report.html"), "utf8");
+      expect(outPath).toBe(path.join(dir, "yanote-report.json"));
+      expect(htmlBytes).toContain("Yanote HTTP report");
       expect(bytes.endsWith("\n")).toBe(true);
 
       const parsed = JSON.parse(bytes);

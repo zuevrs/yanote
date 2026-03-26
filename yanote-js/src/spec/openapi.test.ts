@@ -512,4 +512,25 @@ describe("openapi loader", () => {
       }
     ]);
   });
+
+  it("extracts deprecated operation metadata additively while keeping non-deprecated contracts false-compatible", async () => {
+    const model = await loadOpenApiCoverageModel("test/fixtures/openapi/http-deprecated-operations.yaml");
+    const getUsersKey = serializeOperationKey({ kind: "http", method: "GET", route: "/users" });
+    const postUsersKey = serializeOperationKey({ kind: "http", method: "POST", route: "/users" });
+    const legacyUsersKey = serializeOperationKey({ kind: "http", method: "GET", route: "/legacy-users" });
+
+    expect(model.operations).toEqual([
+      { kind: "http", method: "GET", route: "/users" },
+      { kind: "http", method: "POST", route: "/users" },
+      { kind: "http", method: "GET", route: "/legacy-users" }
+    ]);
+    expect(model.operationContractsByKey.get(getUsersKey)?.deprecated ?? false).toBe(false);
+    expect(model.operationContractsByKey.get(postUsersKey)?.deprecated ?? false).toBe(false);
+    expect(model.operationContractsByKey.get(legacyUsersKey)).toMatchObject({
+      deprecated: true,
+      declaredStatuses: ["200"],
+      parameters: [],
+      responseBodies: [{ declaredStatus: "200", content: [] }]
+    });
+  });
 });
