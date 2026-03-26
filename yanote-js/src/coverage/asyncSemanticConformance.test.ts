@@ -5,6 +5,19 @@ import { loadAsyncApiSemanticsBundle } from "../spec/asyncapi.js";
 import { computeAsyncSemanticConformance } from "./asyncSemanticConformance.js";
 
 describe("computeAsyncSemanticConformance", () => {
+  it("does not fabricate kafka-only runtime semantics for AMQP contracts", async () => {
+    const bundle = await loadAsyncApiSemanticsBundle("test/fixtures/asyncapi/rabbitmq-amqp-basic.yaml");
+    const events = await readAsyncEventsJsonl("test/fixtures/async-events/amqp-basic.fixture.jsonl");
+
+    const conformance = computeAsyncSemanticConformance(bundle, events.items);
+
+    expect(conformance).toEqual({
+      summary: { total: 0, satisfied: 0, percent: null },
+      items: [],
+      diagnostics: []
+    });
+  });
+
   it("proves declared correlationId and reply.address from retained kafka headers", async () => {
     const bundle = await loadAsyncApiSemanticsBundle("test/fixtures/asyncapi/header-runtime-inline-v3.yaml");
     const events = await readAsyncEventsJsonl("test/fixtures/async-events/header-runtime-covered.fixture.jsonl");

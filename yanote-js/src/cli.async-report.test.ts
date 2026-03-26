@@ -153,6 +153,8 @@ describe("cli async-report", () => {
         readFile(htmlPath, "utf8")
       ]);
 
+      expect(result.stdout).toContain("- protocols: kafka");
+      expect(result.stdout).toContain("protocols=kafka");
       expect(report.schemaVersion).toBe("1.0.0");
       expect(report.phase).toEqual({ id: "03", slug: "async-report-and-gate-surface" });
       expect(report.status).toBe("partial");
@@ -179,6 +181,64 @@ describe("cli async-report", () => {
     }
   });
 
+  it("writes protocol-aware AMQP async artifacts for the RabbitMQ fixture", async () => {
+    const fixture = await createOutDir();
+
+    try {
+      const result = await runCli([
+        "async-report",
+        "--spec",
+        "test/fixtures/asyncapi/rabbitmq-amqp-basic.yaml",
+        "--events",
+        "test/fixtures/async-events/amqp-basic.fixture.jsonl",
+        "--out",
+        fixture.outDir,
+        "--profile",
+        "local"
+      ]);
+
+      expect(result.code).toBe(0);
+      expect(result.stderr).toBe("");
+      expect(result.stdout).toContain("- protocols: amqp");
+      expect(result.stdout).toContain("protocols=amqp");
+
+      const reportPath = path.join(fixture.outDir, "yanote-async-report.json");
+      const htmlPath = path.join(fixture.outDir, "yanote-async-report.html");
+      const [report, html] = await Promise.all([
+        readFile(reportPath, "utf8").then((content) => JSON.parse(content)),
+        readFile(htmlPath, "utf8")
+      ]);
+
+      expect(report.protocols).toEqual(["amqp"]);
+      expect(report.summary).toEqual({
+        totalChannels: 1,
+        coveredChannels: 1,
+        channelCoveragePercent: 100,
+        totalOperations: 1,
+        coveredOperations: 1,
+        operationCoveragePercent: 100,
+        totalMessages: 1,
+        coveredMessages: 1,
+        messageCoveragePercent: 100
+      });
+      expect(report.bindingSupport.summary).toEqual({
+        totalOperations: 0,
+        totalBindings: 0,
+        supportedBindings: 0,
+        declaredOnlyBindings: 0,
+        deferredBindings: 0,
+        invalidBindings: 0
+      });
+      expect(result.stdout).toContain(`report=${reportPath}`);
+      expect(result.stdout).not.toContain(`report=${htmlPath}`);
+      expect(html).toContain("yanote-async-report.html");
+      expect(html).toContain("Protocols");
+      expect(html).toContain("amqp");
+    } finally {
+      await rm(fixture.dir, { recursive: true, force: true });
+    }
+  });
+
   it("surfaces declared async semantics additively while keeping JSON as the machine-facing report path", async () => {
     const fixture = await createAsyncFixture(
       DECLARED_SEMANTICS_ASYNCAPI,
@@ -200,6 +260,7 @@ describe("cli async-report", () => {
 
       expect(result.code).toBe(0);
       expect(result.stderr).toBe("");
+      expect(result.stdout).toContain("- protocols: kafka");
       expect(result.stdout).toContain("Declared Semantics");
       expect(result.stdout).toContain("- operations with declarations: 1");
       expect(result.stdout).toContain("- operations with correlationId: 1");
@@ -233,6 +294,7 @@ describe("cli async-report", () => {
       expect(result.stdout).toContain("runtime_unsatisfied_semantics=0");
       expect(result.stdout).toContain("runtime_semantic_coverage=100.00");
       expect(result.stdout).toContain("runtime_diagnostics=missing:0,unavailable:0,unsupported:0,mismatched:0");
+      expect(result.stdout).toContain("protocols=kafka");
       expect(result.stdout).not.toContain("corr-123");
       expect(result.stdout).not.toContain("reply-orders");
 
@@ -460,13 +522,13 @@ describe("cli async-report", () => {
       expect(result.stderr).toContain("YANOTE_ASYNC_ERROR_SECONDARY class=semantic code=ASYNC_SEMANTIC_INVALID_PAYLOAD");
       expect(result.stdout).toContain("primary=ASYNC_SEMANTIC_MISSING_PAYLOAD");
       expect(result.stdout).toContain(
-        'primary_reason="Async evidence kafka send orders.created is missing payload required by schema OrderCreatedPayload at /: Observed kafka evidence did not include a payload."'
+        'primary_reason="Async evidence kafka send orders.created is missing payload required by schema OrderCreatedPayload at /: Observed async evidence did not include a payload."'
       );
       expect(result.stdout).toContain(
-        "- high: ASYNC_SEMANTIC_MISSING_PAYLOAD - Async evidence kafka send orders.created is missing payload required by schema OrderCreatedPayload at /: Observed kafka evidence did not include a payload."
+        "- high: ASYNC_SEMANTIC_MISSING_PAYLOAD - Async evidence kafka send orders.created is missing payload required by schema OrderCreatedPayload at /: Observed async evidence did not include a payload."
       );
       expect(result.stdout).toContain(
-        "- medium: kafka send orders.created - missing-payload schema=OrderCreatedPayload pointer=/ reason=Observed kafka evidence did not include a payload."
+        "- medium: kafka send orders.created - missing-payload schema=OrderCreatedPayload pointer=/ reason=Observed async evidence did not include a payload."
       );
 
       const report = JSON.parse(await readFile(path.join(fixture.outDir, "yanote-async-report.json"), "utf8"));
@@ -510,10 +572,10 @@ describe("cli async-report", () => {
       expect(result.stderr).toContain("YANOTE_ASYNC_ERROR class=semantic code=ASYNC_SEMANTIC_MISSING_HEADER");
       expect(result.stdout).toContain("primary=ASYNC_SEMANTIC_MISSING_HEADER");
       expect(result.stdout).toContain(
-        'primary_reason="Async evidence kafka send orders.created is missing required header from schema OrderEventHeaders at /traceId: Observed kafka evidence did not include required header \'traceId\'."'
+        'primary_reason="Async evidence kafka send orders.created is missing required header from schema OrderEventHeaders at /traceId: Observed async evidence did not include required header \'traceId\'."'
       );
       expect(result.stdout).toContain(
-        "- medium: kafka send orders.created - missing-header schema=OrderEventHeaders pointer=/traceId reason=Observed kafka evidence did not include required header 'traceId'."
+        "- medium: kafka send orders.created - missing-header schema=OrderEventHeaders pointer=/traceId reason=Observed async evidence did not include required header 'traceId'."
       );
 
       const report = JSON.parse(await readFile(path.join(fixture.outDir, "yanote-async-report.json"), "utf8"));
@@ -701,7 +763,7 @@ describe("cli async-report", () => {
       );
       expect(result.stdout).toContain("primary=ASYNC_SEMANTIC_MESSAGE_MISMATCH");
       expect(result.stdout).toContain(
-        'primary_reason="Observed async evidence receive users.deleted reported message LegacyUserDeleted, expected UserDeleted."'
+        'primary_reason="Observed async evidence kafka receive users.deleted reported message LegacyUserDeleted, expected UserDeleted."'
       );
 
       const report = JSON.parse(await readFile(path.join(fixture.outDir, "yanote-async-report.json"), "utf8"));

@@ -11,8 +11,53 @@ function escapeRegExp(value) {
   return value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
 }
 
+function createDefaultReportDocument() {
+  return {
+    status: "ok",
+    specSource: { kind: "local-file", reference: "test/fixtures/asyncapi/v3.yaml" },
+    summary: {
+      totalChannels: 2,
+      coveredChannels: 2,
+      totalOperations: 2,
+      coveredOperations: 2,
+      totalMessages: 2,
+      coveredMessages: 2
+    },
+    bindingSupport: {
+      summary: {
+        supportedBindings: 2,
+        totalBindings: 2,
+        declaredOnlyBindings: 0,
+        deferredBindings: 0,
+        invalidBindings: 0,
+        totalOperations: 2
+      }
+    },
+    declaredSemantics: {
+      summary: {
+        messageCorrelationIds: 2,
+        operationsWithCorrelationId: 2,
+        operationsWithReply: 2,
+        totalOperations: 2
+      }
+    },
+    runtimeSemantics: {
+      summary: {
+        satisfiedOperations: 2,
+        totalOperations: 2,
+        satisfiedSemantics: 4,
+        totalSemantics: 4,
+        semanticCoveragePercent: 100,
+        unsatisfiedOperations: 0,
+        unsatisfiedSemantics: 0
+      }
+    }
+  };
+}
+
 async function seedAsyncProofSources(workDir, options = {}) {
   const {
+    includeSingleServiceLog = true,
     includeProducerEvents = true,
     includeConsumerEvents = true,
     includeMergeLog = true,
@@ -28,7 +73,21 @@ async function seedAsyncProofSources(workDir, options = {}) {
     includeSchemaFailureAsyncStdout = true,
     includeSchemaFailureAsyncStderr = true,
     includeSchemaFailureReport = true,
-    includeSchemaFailureReportHtml = true
+    includeSchemaFailureReportHtml = true,
+    reportDocument = createDefaultReportDocument(),
+    producerEventLine = '{"kind":"kafka","service":"producer"}\n',
+    consumerEventLine = '{"kind":"kafka","service":"consumer"}\n',
+    mergedEventLines = '{"kind":"kafka","service":"producer"}\n{"kind":"kafka","service":"consumer"}\n',
+    asyncStdoutContent = "Summary\nYANOTE_ASYNC_SUMMARY status=ok\n",
+    asyncStderrContent = "",
+    runtimeSelectedAsyncStdoutContent = "Summary\nYANOTE_ASYNC_SUMMARY status=partial\n",
+    runtimeSelectedAsyncStderrContent = "",
+    runtimeSelectedReportContent = '{"status":"partial"}\n',
+    runtimeSelectedReportHtmlContent = "<html><body>runtime selected html</body></html>\n",
+    schemaFailureAsyncStdoutContent = "Summary\nYANOTE_ASYNC_SUMMARY status=error\n",
+    schemaFailureAsyncStderrContent = 'YANOTE_ERROR code=ASYNC_SEMANTIC_INVALID_PAYLOAD class=semantic reason="invalid-payload must be object"\n',
+    schemaFailureReportContent = '{"status":"error"}\n',
+    schemaFailureReportHtmlContent = "<html><body>schema failure html</body></html>\n"
   } = options;
 
   const tmpDir = path.join(workDir, "proof-temp");
@@ -60,108 +119,58 @@ async function seedAsyncProofSources(workDir, options = {}) {
     schemaFailureAsyncReportHtml: path.join(schemaFailureReportDir, "yanote-async-report.html")
   };
 
-  await writeFile(paths.singleServiceLog, "single-service ok\n", "utf8");
+  if (includeSingleServiceLog) {
+    await writeFile(paths.singleServiceLog, "single-service ok\n", "utf8");
+  }
   await writeFile(paths.twoServiceLog, "two-service ok\n", "utf8");
 
   if (includeProducerEvents) {
-    await writeFile(paths.producerEvents, '{"kind":"kafka","service":"producer"}\n', "utf8");
+    await writeFile(paths.producerEvents, producerEventLine, "utf8");
   }
   if (includeConsumerEvents) {
-    await writeFile(paths.consumerEvents, '{"kind":"kafka","service":"consumer"}\n', "utf8");
+    await writeFile(paths.consumerEvents, consumerEventLine, "utf8");
   }
   if (includeMergeLog) {
     await writeFile(paths.mergeLog, "merged successfully\n", "utf8");
   }
   if (includeMergedEvents) {
-    await writeFile(
-      paths.mergedEvents,
-      '{"kind":"kafka","service":"producer"}\n{"kind":"kafka","service":"consumer"}\n',
-      "utf8"
-    );
+    await writeFile(paths.mergedEvents, mergedEventLines, "utf8");
   }
   if (includeAsyncStdout) {
-    await writeFile(paths.asyncStdout, "Summary\nYANOTE_ASYNC_SUMMARY status=ok\n", "utf8");
+    await writeFile(paths.asyncStdout, asyncStdoutContent, "utf8");
   }
   if (includeAsyncStderr) {
-    await writeFile(paths.asyncStderr, "", "utf8");
+    await writeFile(paths.asyncStderr, asyncStderrContent, "utf8");
   }
   if (includeReport) {
-    await writeFile(
-      paths.asyncReport,
-      JSON.stringify({
-        status: "ok",
-        specSource: { kind: "local-file", reference: "test/fixtures/asyncapi/v3.yaml" },
-        summary: {
-          totalChannels: 2,
-          coveredChannels: 2,
-          totalOperations: 2,
-          coveredOperations: 2,
-          totalMessages: 2,
-          coveredMessages: 2
-        },
-        bindingSupport: {
-          summary: {
-            supportedBindings: 2,
-            totalBindings: 2,
-            declaredOnlyBindings: 0,
-            deferredBindings: 0,
-            invalidBindings: 0,
-            totalOperations: 2
-          }
-        },
-        declaredSemantics: {
-          summary: {
-            messageCorrelationIds: 2,
-            operationsWithCorrelationId: 2,
-            operationsWithReply: 2,
-            totalOperations: 2
-          }
-        },
-        runtimeSemantics: {
-          summary: {
-            satisfiedOperations: 2,
-            totalOperations: 2,
-            satisfiedSemantics: 4,
-            totalSemantics: 4,
-            semanticCoveragePercent: 100,
-            unsatisfiedOperations: 0,
-            unsatisfiedSemantics: 0
-          }
-        }
-      }) + "\n",
-      "utf8"
-    );
+    await writeFile(paths.asyncReport, JSON.stringify(reportDocument) + "\n", "utf8");
   }
   if (includeReportHtml) {
     await writeFile(paths.asyncReportHtml, "<html><body>async report html</body></html>\n", "utf8");
   }
   if (includeRuntimeSelectedAsyncStdout) {
-    await writeFile(paths.runtimeSelectedAsyncStdout, "Summary\nYANOTE_ASYNC_SUMMARY status=partial\n", "utf8");
+    await writeFile(paths.runtimeSelectedAsyncStdout, runtimeSelectedAsyncStdoutContent, "utf8");
   }
   if (includeRuntimeSelectedAsyncStderr) {
-    await writeFile(paths.runtimeSelectedAsyncStderr, "", "utf8");
+    await writeFile(paths.runtimeSelectedAsyncStderr, runtimeSelectedAsyncStderrContent, "utf8");
   }
   if (includeRuntimeSelectedReport) {
-    await writeFile(paths.runtimeSelectedAsyncReport, '{"status":"partial"}\n', "utf8");
+    await writeFile(paths.runtimeSelectedAsyncReport, runtimeSelectedReportContent, "utf8");
   }
   if (includeRuntimeSelectedReportHtml) {
-    await writeFile(paths.runtimeSelectedAsyncReportHtml, "<html><body>runtime selected html</body></html>\n", "utf8");
+    await writeFile(paths.runtimeSelectedAsyncReportHtml, runtimeSelectedReportHtmlContent, "utf8");
   }
   if (includeSchemaFailureAsyncStdout) {
-    await writeFile(paths.schemaFailureAsyncStdout, "Summary\nYANOTE_ASYNC_SUMMARY status=error\n", "utf8");
+    await writeFile(paths.schemaFailureAsyncStdout, schemaFailureAsyncStdoutContent, "utf8");
   }
   if (includeSchemaFailureAsyncStderr) {
-    await writeFile(
-      paths.schemaFailureAsyncStderr,
-      'YANOTE_ERROR code=ASYNC_SEMANTIC_INVALID_PAYLOAD class=semantic reason="invalid-payload must be object"\n',
-      "utf8"
-    );
+    await writeFile(paths.schemaFailureAsyncStderr, schemaFailureAsyncStderrContent, "utf8");
   }
   if (includeSchemaFailureReport) {
-    await writeFile(paths.schemaFailureAsyncReport, '{"status":"error"}\n', "utf8");
+    await writeFile(paths.schemaFailureAsyncReport, schemaFailureReportContent, "utf8");
   }
   if (includeSchemaFailureReportHtml) {
-    await writeFile(paths.schemaFailureAsyncReportHtml, "<html><body>schema failure html</body></html>\n", "utf8");
+    await writeFile(paths.schemaFailureAsyncReportHtml, schemaFailureReportHtmlContent, "utf8");
   }
 
   return {
@@ -237,6 +246,7 @@ test("exports a deterministic widened async bundle when happy-path, runtime-sele
 
     const manifest = await readFile(path.join(outDir, "artifact-manifest.txt"), "utf8");
     assert.match(manifest, /proof_status=success/);
+    assert.match(manifest, /optional_artifacts=none/);
     assert.match(manifest, /report_found=true/);
     assert.match(manifest, /report_html_found=true/);
     assert.match(manifest, /runtime_selected_report_found=true/);
@@ -274,6 +284,7 @@ test("exports a deterministic widened async bundle when happy-path, runtime-sele
 
     const sourcePaths = await readFile(path.join(outDir, "artifact-source-paths.txt"), "utf8");
     assert.match(sourcePaths, new RegExp(`temp_dir=${escapeRegExp(tmpDir)}`));
+    assert.match(sourcePaths, /optional_artifacts=none/);
     assert.match(sourcePaths, /single-service-proof\.log=.*single-service-proof\.log/);
     assert.match(sourcePaths, /merged-two-service\.events\.jsonl=.*merged-two-service\.events\.jsonl/);
     assert.match(sourcePaths, /yanote-async-report\.json=.*async-report\/yanote-async-report\.json/);
@@ -313,6 +324,166 @@ test("exports a deterministic widened async bundle when happy-path, runtime-sele
     assert.match(sourcePaths, /report_runtime_unsatisfied_operations=0/);
     assert.match(sourcePaths, /report_runtime_unsatisfied_semantics=0/);
     assert.match(sourcePaths, /report_runtime_semantic_coverage_percent=100/);
+  } finally {
+    await rm(workDir, { recursive: true, force: true });
+  }
+});
+
+test("allows AMQP success bundles to omit Kafka-only companions and single-service artifacts while recording explicit none markers", async () => {
+  const workDir = await mkdtemp(path.join(os.tmpdir(), "yanote-async-export-"));
+  try {
+    const outDir = path.join(workDir, ".yanote-ci/live-rabbitmq-proof");
+    const optionalArtifacts = [
+      "single-service-proof.log",
+      "runtime-selected-async-report.stdout",
+      "runtime-selected-async-report.stderr",
+      "runtime-selected-yanote-async-report.json",
+      "runtime-selected-yanote-async-report.html",
+      "schema-failure-async-report.stdout",
+      "schema-failure-async-report.stderr",
+      "schema-failure-yanote-async-report.json",
+      "schema-failure-yanote-async-report.html"
+    ].join(",");
+    const { tmpDir, env } = await seedAsyncProofSources(workDir, {
+      includeSingleServiceLog: false,
+      includeRuntimeSelectedAsyncStdout: false,
+      includeRuntimeSelectedAsyncStderr: false,
+      includeRuntimeSelectedReport: false,
+      includeRuntimeSelectedReportHtml: false,
+      includeSchemaFailureAsyncStdout: false,
+      includeSchemaFailureAsyncStderr: false,
+      includeSchemaFailureReport: false,
+      includeSchemaFailureReportHtml: false,
+      producerEventLine: '{"kind":"amqp","service":"producer"}\n',
+      consumerEventLine: '{"kind":"amqp","service":"consumer"}\n',
+      mergedEventLines: '{"kind":"amqp","service":"producer"}\n{"kind":"amqp","service":"consumer"}\n',
+      asyncStdoutContent: "Summary\nYANOTE_ASYNC_SUMMARY status=ok protocols=amqp\n",
+      reportDocument: {
+        status: "ok",
+        specSource: {
+          kind: "local-file",
+          reference: "yanote-js/test/fixtures/asyncapi/spring-rabbitmq-two-service.yaml"
+        },
+        summary: {
+          totalChannels: 1,
+          coveredChannels: 1,
+          totalOperations: 2,
+          coveredOperations: 2,
+          totalMessages: 2,
+          coveredMessages: 2
+        },
+        bindingSupport: {
+          summary: {
+            supportedBindings: 0,
+            totalBindings: 0,
+            declaredOnlyBindings: 0,
+            deferredBindings: 0,
+            invalidBindings: 0,
+            totalOperations: 0
+          }
+        },
+        declaredSemantics: {
+          summary: {
+            messageCorrelationIds: 2,
+            operationsWithCorrelationId: 2,
+            operationsWithReply: 2,
+            totalOperations: 2
+          }
+        },
+        runtimeSemantics: {
+          summary: {
+            satisfiedOperations: 0,
+            totalOperations: 0,
+            satisfiedSemantics: 0,
+            totalSemantics: 0,
+            semanticCoveragePercent: null,
+            unsatisfiedOperations: 0,
+            unsatisfiedSemantics: 0
+          }
+        }
+      }
+    });
+
+    const result = spawnSync("bash", [scriptPath, outDir], {
+      cwd: workDir,
+      encoding: "utf8",
+      env: {
+        ...process.env,
+        ...env,
+        YANOTE_ASYNC_PROOF_STATUS: "success",
+        YANOTE_ASYNC_OPTIONAL_ARTIFACTS: optionalArtifacts
+      }
+    });
+
+    assert.equal(result.status, 0, result.stderr);
+    assert.deepEqual((await readdir(outDir)).sort(), [
+      "01-producer.events.jsonl",
+      "02-consumer.events.jsonl",
+      "artifact-manifest.txt",
+      "artifact-source-paths.txt",
+      "async-report.stderr",
+      "async-report.stdout",
+      "merge.log",
+      "merged-two-service.events.jsonl",
+      "two-service-test.log",
+      "yanote-async-report.html",
+      "yanote-async-report.json"
+    ]);
+
+    const manifest = await readFile(path.join(outDir, "artifact-manifest.txt"), "utf8");
+    assert.match(manifest, /proof_status=success/);
+    assert.match(manifest, /optional_artifacts=single-service-proof\.log,runtime-selected-async-report\.stdout,runtime-selected-async-report\.stderr,runtime-selected-yanote-async-report\.json,runtime-selected-yanote-async-report\.html,schema-failure-async-report\.stdout,schema-failure-async-report\.stderr,schema-failure-yanote-async-report\.json,schema-failure-yanote-async-report\.html/);
+    assert.match(manifest, /report_found=true/);
+    assert.match(manifest, /report_html_found=true/);
+    assert.match(manifest, /runtime_selected_report_found=false/);
+    assert.match(manifest, /runtime_selected_report_source=none/);
+    assert.match(manifest, /schema_failure_report_found=false/);
+    assert.match(manifest, /schema_failure_report_source=none/);
+    assert.match(manifest, /report_spec_source_ref=yanote-js\/test\/fixtures\/asyncapi\/spring-rabbitmq-two-service\.yaml/);
+    assert.match(manifest, /report_channels=1\/1/);
+    assert.match(manifest, /report_operations=2\/2/);
+    assert.match(manifest, /report_messages=2\/2/);
+    assert.match(manifest, /report_supported_bindings=0\/0/);
+    assert.match(manifest, /report_binding_total_operations=0/);
+    assert.match(manifest, /report_message_correlation_ids=2/);
+    assert.match(manifest, /report_operations_with_correlation_id=2\/2/);
+    assert.match(manifest, /report_operations_with_reply=2\/2/);
+    assert.match(manifest, /report_runtime_satisfied_operations=0\/0/);
+    assert.match(manifest, /report_runtime_satisfied_semantics=0\/0/);
+    assert.match(manifest, /report_runtime_semantic_coverage_percent=none/);
+    assert.match(manifest, /artifact_count=9/);
+    assert.match(manifest, /artifacts=.*two-service-test\.log/);
+    assert.match(manifest, /artifacts=.*yanote-async-report\.html/);
+    assert.match(manifest, /missing_artifacts=.*single-service-proof\.log/);
+    assert.match(manifest, /missing_artifacts=.*runtime-selected-yanote-async-report\.json/);
+    assert.match(manifest, /missing_artifacts=.*schema-failure-yanote-async-report\.html/);
+    assert.match(manifest, new RegExp(`destination=${escapeRegExp(outDir)}`));
+
+    const sourcePaths = await readFile(path.join(outDir, "artifact-source-paths.txt"), "utf8");
+    assert.match(sourcePaths, new RegExp(`temp_dir=${escapeRegExp(tmpDir)}`));
+    assert.match(sourcePaths, /optional_artifacts=single-service-proof\.log,runtime-selected-async-report\.stdout,runtime-selected-async-report\.stderr,runtime-selected-yanote-async-report\.json,runtime-selected-yanote-async-report\.html,schema-failure-async-report\.stdout,schema-failure-async-report\.stderr,schema-failure-yanote-async-report\.json,schema-failure-yanote-async-report\.html/);
+    assert.match(sourcePaths, /single-service-proof\.log=none/);
+    assert.match(sourcePaths, /runtime-selected-async-report\.stdout=none/);
+    assert.match(sourcePaths, /runtime-selected-async-report\.stderr=none/);
+    assert.match(sourcePaths, /runtime-selected-yanote-async-report\.json=none/);
+    assert.match(sourcePaths, /runtime-selected-yanote-async-report\.html=none/);
+    assert.match(sourcePaths, /schema-failure-async-report\.stdout=none/);
+    assert.match(sourcePaths, /schema-failure-async-report\.stderr=none/);
+    assert.match(sourcePaths, /schema-failure-yanote-async-report\.json=none/);
+    assert.match(sourcePaths, /schema-failure-yanote-async-report\.html=none/);
+    assert.match(sourcePaths, /report_spec_source_ref=yanote-js\/test\/fixtures\/asyncapi\/spring-rabbitmq-two-service\.yaml/);
+    assert.match(sourcePaths, /report_status=ok/);
+    assert.match(sourcePaths, /report_channels=1\/1/);
+    assert.match(sourcePaths, /report_operations=2\/2/);
+    assert.match(sourcePaths, /report_messages=2\/2/);
+    assert.match(sourcePaths, /report_supported_bindings=0\/0/);
+    assert.match(sourcePaths, /report_binding_total_operations=0/);
+    assert.match(sourcePaths, /report_message_correlation_ids=2/);
+    assert.match(sourcePaths, /report_operations_with_correlation_id=2\/2/);
+    assert.match(sourcePaths, /report_operations_with_reply=2\/2/);
+    assert.match(sourcePaths, /report_runtime_satisfied_operations=0\/0/);
+    assert.match(sourcePaths, /report_runtime_satisfied_semantics=0\/0/);
+    assert.match(sourcePaths, /report_runtime_semantic_coverage_percent=none/);
   } finally {
     await rm(workDir, { recursive: true, force: true });
   }
@@ -390,6 +561,7 @@ test("retains a deterministic failure bundle without inventing HTML artifacts wh
 
     const manifest = await readFile(path.join(outDir, "artifact-manifest.txt"), "utf8");
     assert.match(manifest, /proof_status=failure/);
+    assert.match(manifest, /optional_artifacts=none/);
     assert.match(manifest, /report_found=false/);
     assert.match(manifest, /report_source=none/);
     assert.match(manifest, /report_html_found=false/);
@@ -423,6 +595,7 @@ test("retains a deterministic failure bundle without inventing HTML artifacts wh
     assert.match(manifest, /missing_artifacts=.*schema-failure-yanote-async-report\.html/);
 
     const sourcePaths = await readFile(path.join(outDir, "artifact-source-paths.txt"), "utf8");
+    assert.match(sourcePaths, /optional_artifacts=none/);
     assert.match(sourcePaths, /merge\.log=none/);
     assert.match(sourcePaths, /merged-two-service\.events\.jsonl=none/);
     assert.match(sourcePaths, /async-report\.stdout=none/);

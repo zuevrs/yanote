@@ -19,6 +19,7 @@ function makeReport(): AsyncYanoteReport {
       reference: "test/fixtures/asyncapi/determinism.yaml"
     },
     phase: ASYNC_REPORT_PHASE,
+    protocols: ["kafka"],
     status: "partial",
     summary: {
       totalChannels: 2,
@@ -481,6 +482,8 @@ describe("writeAsyncYanoteReport determinism", () => {
       expect(html).toContain("<!doctype html>");
       expect(html).toContain("Skip to main content");
       expect(html).toContain("Provenance");
+      expect(html).toContain("Protocols");
+      expect(html).toContain("kafka");
       expect(html).toContain("Declared semantics");
       expect(html).toContain("Runtime semantics");
       expect(html).toContain("Runtime semantic diagnostics");

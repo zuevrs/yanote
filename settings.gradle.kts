@@ -22,6 +22,7 @@ include(
     "yanote-core",
     "yanote-recorder-spring-mvc",
     "yanote-recorder-spring-kafka",
+    "yanote-recorder-spring-amqp",
     "yanote-test-tags-restassured",
     "yanote-test-tags-cucumber",
     "yanote-gradle-plugin",

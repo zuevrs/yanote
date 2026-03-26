@@ -1,0 +1,9 @@
+artifact_dir=.tmp/m015-s03-combined-proof
+http_fixture_spec=scripts/ci/fixtures/m015-s03-combined-http.openapi.yaml
+http_fixture_events=scripts/ci/fixtures/m015-s03-combined-http.events.jsonl
+retained_async_report=.yanote-ci/live-rabbitmq-proof/yanote-async-report.json
+retained_async_html=.yanote-ci/live-rabbitmq-proof/yanote-async-report.html
+generated_http_report=.tmp/m015-s03-combined-proof/http-report/out/yanote-report.json
+generated_http_html=.tmp/m015-s03-combined-proof/http-report/out/yanote-report.html
+combined_report=.tmp/m015-s03-combined-proof/combined-report/out/yanote-combined-report.json
+combined_html=.tmp/m015-s03-combined-proof/combined-report/out/yanote-combined-report.html

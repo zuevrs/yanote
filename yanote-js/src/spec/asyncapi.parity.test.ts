@@ -209,11 +209,37 @@ const expectedHeaderRuntimeContracts = [
   }
 ] satisfies KafkaOperationContract[];
 
+const expectedAmqpContracts = [
+  {
+    operation: {
+      kind: "amqp",
+      action: "send",
+      channel: "users.signedup"
+    },
+    message: {
+      name: "UserSignedUp",
+      contentType: "application/json",
+      payloadSchema: {
+        type: "object",
+        "x-parser-schema-id": "<anonymous-schema-1>"
+      },
+      payloadSchemaId: "<anonymous-schema-1>",
+      headerValidationCapability: "none",
+      selectionHints: [{ kind: "message", value: "UserSignedUp" }]
+    },
+    messageSelection: {
+      mode: "single",
+      precedence: [{ kind: "message" }]
+    }
+  }
+] satisfies KafkaOperationContract[];
+
 const expectedKeys = expectedContracts.map((contract) => serializeOperationKey(contract.operation));
 const expectedSchemaDepthKeys = expectedSchemaDepthContracts.map((contract) => serializeOperationKey(contract.operation));
 const expectedTraitDeclarationV2Keys = expectedTraitDeclarationV2Contracts.map((contract) => serializeOperationKey(contract.operation));
 const expectedTraitDeclarationV3Keys = expectedTraitDeclarationV3Contracts.map((contract) => serializeOperationKey(contract.operation));
 const expectedHeaderRuntimeKeys = expectedHeaderRuntimeContracts.map((contract) => serializeOperationKey(contract.operation));
+const expectedAmqpKeys = expectedAmqpContracts.map((contract) => serializeOperationKey(contract.operation));
 
 describe("asyncapi parity contract", () => {
   it("keeps message-contract metadata beside the kafka identity instead of inside the serialized key", () => {
@@ -328,6 +354,21 @@ describe("asyncapi parity contract", () => {
     expect(contractsInOrder(trait)).toEqual(expectedHeaderRuntimeContracts);
   });
 
+  it("preserves kafka keys while emitting protocol-scoped amqp keys for the supported rabbitmq subset", async () => {
+    const kafka = await loadAsyncApiSemanticsBundle("test/fixtures/asyncapi/v3.yaml");
+    const amqp = await loadAsyncApiSemanticsBundle("test/fixtures/asyncapi/rabbitmq-amqp-basic.yaml");
+
+    expect(kafka.hasInvalid).toBe(false);
+    expect(amqp.hasInvalid).toBe(false);
+    expect(kafka.diagnostics).toEqual([]);
+    expect(amqp.diagnostics).toEqual([]);
+
+    expect(serializedOperationKeys(kafka)).toEqual(expectedKeys);
+    expect(serializedOperationKeys(amqp)).toEqual(expectedAmqpKeys);
+    expect(contractKeysInOrder(amqp)).toEqual(expectedAmqpKeys);
+    expect(contractsInOrder(amqp)).toEqual(expectedAmqpContracts);
+  });
+
   it("preserves the canonical kafka operation key when multi-message runtime selection metadata is attached", async () => {
     const bundle = await loadAsyncApiSemanticsBundle("test/fixtures/asyncapi/multi-message-resolvable.yaml");
 
@@ -357,7 +398,7 @@ function contractsInOrder(bundle: Awaited<ReturnType<typeof loadAsyncApiSemantic
     const key = serializeOperationKey(operation);
     const contract = bundle.operationContractsByKey.get(key);
     if (!contract) {
-      throw new Error(`Missing kafka contract for ${key}`);
+      throw new Error(`Missing async contract for ${key}`);
     }
 
     return contract;

@@ -1,0 +1,48 @@
+Summary
+- status: invalid
+- channels: 0/0 (N/A)
+- operations: 0/0 (N/A)
+- messages: 0/0 (N/A)
+- protocols: none
+- spec source: none
+
+Coverage Dimensions
+- channels: N/A (N/A)
+- operations: N/A (N/A)
+- messages: N/A (N/A)
+
+Kafka Binding Support
+- operations with bindings: 0
+- total bindings: 0
+- supported bindings: 0
+- declared-only bindings: 0
+- deferred bindings: 0
+- invalid bindings: 0
+- details: none
+
+Declared Semantics
+- operations with declarations: 0
+- operations with correlationId: 0
+- message correlationIds: 0
+- operations with reply: 0
+- details: none
+
+Runtime Semantics
+- operations with runtime semantics: 0
+- satisfied operations: 0
+- unsatisfied operations: 0
+- declared semantics: 0
+- satisfied semantics: 0
+- unsatisfied semantics: 0
+- runtime proof coverage: N/A
+- diagnostics: missing=0 unavailable=0 unsupported=0 mismatched=0
+- details: none
+- diagnostics: none
+
+Top Issues
+- high: ASYNC_SEMANTIC_SPEC_INVALID - AsyncAPI semantic extraction failed: Unsupported AsyncAPI protocol: mqtt. Supported protocols: amqp, kafka.
+
+Report Path
+none
+
+YANOTE_ASYNC_SUMMARY status=invalid channels=NA operations=NA messages=NA protocols=none spec_source_kind=none spec_source_ref="none" covered_channels=0/0 covered_operations=0/0 covered_messages=0/0 declared_operations=0 declared_correlation_operations=0 declared_correlation_messages=0 declared_reply_operations=0 runtime_operations=0 runtime_satisfied_operations=0 runtime_unsatisfied_operations=0 runtime_total_semantics=0 runtime_satisfied_semantics=0 runtime_unsatisfied_semantics=0 runtime_semantic_coverage=NA runtime_diagnostics=missing:0,unavailable:0,unsupported:0,mismatched:0 diagnostics=0 report=none binding_operations=0 binding_total=0 binding_supported=0 binding_declared_only=0 binding_deferred=0 binding_invalid=0 primary=ASYNC_SEMANTIC_SPEC_INVALID primary_reason="AsyncAPI semantic extraction failed: Unsupported AsyncAPI protocol: mqtt. Supported protocols: amqp, kafka." class_counts=input:0,semantic:1,gate:0,runtime:0

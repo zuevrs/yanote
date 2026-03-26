@@ -40,7 +40,7 @@
 - report contract: файл `yanote-report.json` со schema version `1.0.0` (`schemaVersion = 1.0.0`);
 - проверенные recorder paths: dependency-based `yanote-recorder-spring-mvc` для Spring Boot 3.x / Spring MVC с записью HTTP evidence в `events.jsonl`, и `yanote-recorder-spring-kafka` как release-published Spring Kafka recorder adapter для Kafka evidence capture;
 - analyzer delivery surface: основной путь — source-built CLI из `yanote-js`, где stable baseline для `--spec` — локальный файл или директория, а narrow opt-in remote path ограничен single-document `http(s)` `--spec`; offline fallback распространяется как release asset через GitHub Releases, а не как tracked documentation surface default branch;
-- CI/public summary surface: `yanote-validation-artifacts` и `build-and-test-artifacts` публикуют отдельные HTTP-vs-async JSON+HTML report families, deterministic `artifact-manifest.txt` / `artifact-source-paths.txt`, sanitized `specSource`, additive deprecated-operation counts в GitHub step summaries и для async path — redaction-safe строки `binding support`, `declared semantics`, `runtime semantics` с явными report/companion filenames без combined/dashboard wording и без raw retained-header leakage;
+- CI/public summary surface: `yanote-validation-artifacts` и `build-and-test-artifacts` публикуют отдельные HTTP-vs-async owner bundles; внутри `build-and-test-artifacts` widened async/combined surface идёт тремя proof families — `live-kafka-proof/`, `live-rabbitmq-proof/`, `combined-proof/`. Они удерживают deterministic `artifact-manifest.txt` / `artifact-source-paths.txt`, sanitized `specSource`, additive deprecated-operation counts в GitHub step summaries и для async/combined path — redaction-safe строки `binding support`, `declared semantics`, `runtime semantics`, RabbitMQ `protocols=amqp`, явные report/companion filenames и combined child-report paths без raw retained-header leakage, без hosted dashboard и без blended denominator wording;
 - публичный HTTP proof surface: `bash scripts/ci/run-v1-e2e.sh`, который удерживает `.yanote-ci/v1-e2e/out/yanote-report.json` как happy-path machine artifact и `.yanote-ci/v1-e2e/out/yanote-report.html` как sibling human artifact, рядом сохраняет additive request sidecar `.yanote-ci/v1-e2e/request-semantics.events.jsonl`, `.yanote-ci/v1-e2e/request-semantics.stdout`, `.yanote-ci/v1-e2e/request-semantics.stderr`, `.yanote-ci/v1-e2e/request-semantics-yanote-report.json`, payload sidecars `semantic-red.stdout`, `semantic-red.stderr`, `semantic-red-yanote-report.json` и fixture-backed security sidecars `security-semantics.stdout`, `security-semantics.stderr`, `security-semantics-yanote-report.json`, плюс provenance в `artifact-manifest.txt` и `artifact-source-paths.txt`;
 - focused retained proofs `bash scripts/ci/verify-m011-s02-request-semantics.sh`, `bash scripts/ci/verify-m011-s03-format-media.sh` и `bash scripts/ci/verify-m012-s02-security-semantics.sh` остаются deep-proof surfaces за публичным summary bundle и support wording;
 - observation coverage, `HTTP Payload Conformance`, `HTTP Request Conformance`, `HTTP Security Conformance`, `summary.deprecatedOperations` и HTML sibling `yanote-report.html` — разные truth surfaces: happy path на Spring MVC demo сейчас показывает `coverage.operations/status/parameters/aggregate = 100.00%`, deprecated counts и request/payload/security sidecars отдельно публикуют additive fail-closed boundaries и supported subsets;
@@ -51,32 +51,30 @@
 - additive request/security surfaces не меняют legacy `coverage.operations/status/parameters/aggregate` numerators;
 - broader OpenAPI objects `examples`, `links`, `callbacks`, `webhooks` сейчас явно deferred и не входят в поддерживаемую публичную HTTP proof surface.
 
-Именно в этих границах текущий HTTP path считается поддерживаемым: JSON-first request/response payload validation на Spring MVC path, additive request/payload/security retained proof artifacts и честное разделение между observation coverage и semantic conformance. Здесь **нет** обещания для произвольных media types, нет обещания для security scheme types вне `apiKey query/header/cookie`, нет обещания для broader OpenAPI objects `examples`, `links`, `callbacks`, `webhooks` и нет общего combined HTTP+async report surface.
+Именно в этих границах текущий HTTP path считается поддерживаемым: JSON-first request/response payload validation на Spring MVC path, additive request/payload/security retained proof artifacts и честное разделение между observation coverage и semantic conformance. Есть и widened combined-report surface, но он child-attributed: `yanote-combined-report.json` / `yanote-combined-report.html` ссылаются на отдельные HTTP и async child reports и не вводят blended HTTP+async denominator. Здесь **нет** обещания для произвольных media types, нет обещания для security scheme types вне `apiKey query/header/cookie`, нет обещания для broader OpenAPI objects `examples`, `links`, `callbacks`, `webhooks`, нет hosted dashboard surface и нет broker-agnostic async promise.
 
-### Первая волна async относительно релиза и `HEAD`
+### Widened async и combined surface относительно релиза и `HEAD`
 
-Первая user-facing async surface уже есть в текущем репозитории, но её нужно читать честно: это **source-built async path** через `yanote-js` на repository `HEAD`, а не отдельная новая стабильная release line поверх `v1.0.x`. Подписанные теги и GitHub Releases по-прежнему определяют публичную release truth; source-built async path просто фиксирует, что текущий `HEAD` уже несёт первую волну AsyncAPI/Kafka onboarding и proof surface. Публикация `yanote-recorder-spring-kafka` в release allowlist делает Spring Kafka recorder доступным как versioned Java dependency, но не отменяет отдельную async analyzer/report boundary и не превращает её в combined HTTP+async release surface.
+Widened user-facing async surface уже есть в текущем репозитории, но её нужно читать честно: это **source-built async + combined path** через `yanote-js` на repository `HEAD`, а не отдельная новая стабильная release line поверх `v1.0.x`. Подписанные теги и GitHub Releases по-прежнему определяют публичную release truth; widened path лишь фиксирует, что текущий `HEAD` уже несёт отдельные Kafka и RabbitMQ/AMQP async proof families плюс retained combined-report surface. Это не отменяет отдельную async analyzer/report boundary, не превращает combined-report в blended release gate и не делает текущий `HEAD` опубликованным стабильным релизом.
 
-Эта первая волна поддерживается только в таких границах:
+Эта widened surface поддерживается только в таких границах:
 
-- **Kafka-only**
-- **Spring Kafka-first**
-- **separate async report/gate**
+- **Kafka path поддержан и сохранён**
+- **RabbitMQ/AMQP — первый конкретный второй broker path**
+- **separate async report/gate + retained combined-report surface**
 - **payload-schema drift surfaced on the proven Kafka path**
 - **routing percentages remain routing-first**
-- **retained Kafka headers remain unverifiable**
+- **combined surface остаётся child-attributed**
+- **raw retained headers remain redacted support inputs, not public proof payloads**
 - **broker-agnostic promise нет**
 
-Поддерживаемые proof/support артефакты для этого async path тоже фиксированы:
+Поддерживаемые proof/support артефакты для этой widened surface тоже фиксированы:
 
-- `raw или merged async JSONL`
-- `yanote-async-report.json`
-- `yanote-async-report.html`
-- retained `runtime-selected-async-report.stderr`, `runtime-selected-yanote-async-report.json` и `runtime-selected-yanote-async-report.html` для proven Kafka multi-message selection truth
-- analyzer/proof `stderr`
-- retained `schema-failure-async-report.stderr`, `schema-failure-yanote-async-report.json` и `schema-failure-yanote-async-report.html` для proven Kafka payload drift
+- Kafka bundle: `.yanote-ci/live-kafka-proof/`, `build-and-test-artifacts/live-kafka-proof/`, `yanote-async-report.json`, `yanote-async-report.html`, retained `runtime-selected-*` и `schema-failure-*` companions;
+- RabbitMQ bundle: `.yanote-ci/live-rabbitmq-proof/`, `build-and-test-artifacts/live-rabbitmq-proof/`, `yanote-async-report.json`, `yanote-async-report.html`, `artifact-manifest.txt`, `artifact-source-paths.txt`, `async-report.stdout`, `async-report.stderr`, `protocols=amqp`;
+- combined bundle: `.tmp/m015-s03-combined-proof/`, `build-and-test-artifacts/combined-proof/`, `yanote-combined-report.json`, `yanote-combined-report.html`, `combined-report.stdout`, `combined-report.stderr`, `artifact-manifest.txt`, `artifact-source-paths.txt`, explicit HTTP/async child report paths.
 
-Практически это означает отдельный маршрут `node yanote-js/dist/yanote.cjs async-report` по Kafka evidence и авторитетный live-proof bundle из `bash scripts/ci/verify-m004-s03-live-kafka-proof.sh`. Зелёный bundle остаётся routing-first proof surface, retained runtime-selected sidecar показывает `selectionMode=runtime` и redacted selectors для multi-message AsyncAPI contract, а retained `schema-failure-*` sidecar показывает typed `invalid-payload` drift только для того Kafka evidence path, который уже доказан в репозитории. В CI этот async family публикуется как `build-and-test-artifacts` с отдельными `yanote-async-report.json` / `yanote-async-report.html`, retained runtime-selected/schema-failure JSON+HTML companions и redaction-safe строками `binding support`, `declared semantics`, `runtime semantics` в step summary / collected `async-summary.md`. Это дополняет стабильную линию `v1.0.x`, но не переопределяет release truth, не обещает broker-agnostic coverage, не делает headers публично проверяемыми и не превращает текущий repository `HEAD` в опубликованный стабильный релиз.
+Практически это означает отдельные маршруты `node yanote-js/dist/yanote.cjs async-report` по Kafka или RabbitMQ evidence и отдельный маршрут `node yanote-js/dist/yanote.cjs combined-report` по уже-retained child reports. В CI widened family публикуется как `build-and-test-artifacts/live-kafka-proof/`, `build-and-test-artifacts/live-rabbitmq-proof/` и `build-and-test-artifacts/combined-proof/`; GitHub step summary и collected summaries показывают `binding support`, `declared semantics`, `runtime semantics`, RabbitMQ `protocols=amqp` и combined child refs. Это дополняет стабильную линию `v1.0.x`, но не переопределяет release truth, не обещает broker-agnostic coverage, не делает raw retained headers публично проверяемыми и не превращает combined-report в hosted dashboard или blended denominator.
 
 Demo/example модули полезны для доказательства пути, но не входят в опубликованную Java release surface.
 
@@ -104,7 +102,7 @@ Yanote сейчас нужно воспринимать как Java-first пут
 - security validation публично поддерживается как truthful `apiKey` query/header/cookie subset и additive fixture-backed proof path, а не как обещание для `http`, `oauth2`, `openIdConnect`, path `apiKey` или иного broader security coverage;
 - examples, retained proof bundle, fallback release assets и maintainer-only workflow полезны для диагностики и сопровождения, но не равны по статусу опубликованной продуктовой поверхности;
 - broader OpenAPI objects `examples`, `links`, `callbacks`, `webhooks` остаются deferred и не публикуются как поддерживаемый proof surface;
-- HTTP и async surfaces публикуются раздельно: сегодня нет общего combined HTTP+async report surface, нет одной общей boundary-метрики поверх обоих режимов и нет отдельного hosted dashboard surface.
+- HTTP и async surfaces по-прежнему публикуются раздельно как source-of-truth child families: сегодня есть retained combined-report surface, но нет одного blended HTTP+async denominator, нет одной merge-blocking boundary-метрики поверх обоих режимов и нет отдельного hosted dashboard surface.
 
 ## Fallback-границы
 

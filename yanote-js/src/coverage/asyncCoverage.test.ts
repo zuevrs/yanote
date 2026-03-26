@@ -88,6 +88,138 @@ describe("computeAsyncCoverage contract", () => {
     });
   });
 
+  it("covers AMQP channel, operation, and message truth without inventing Kafka-only runtime semantics", async () => {
+    const bundle = await loadAsyncApiSemanticsBundle("test/fixtures/asyncapi/rabbitmq-amqp-basic.yaml");
+    const events = await readAsyncEventsJsonl("test/fixtures/async-events/amqp-basic.fixture.jsonl");
+
+    const coverage = computeAsyncCoverage(bundle, events.items);
+
+    expect(snapshotCoverage(coverage)).toEqual({
+      channels: {
+        summary: { total: 1, covered: 1, percent: 100 },
+        items: [
+          {
+            channel: "users.signedup",
+            state: "COVERED",
+            coveredActions: ["send"],
+            missingActions: []
+          }
+        ]
+      },
+      operations: {
+        summary: { total: 1, covered: 1, percent: 100 },
+        items: [
+          {
+            operationKey: "amqp send users.signedup",
+            channel: "users.signedup",
+            action: "send",
+            state: "COVERED",
+            messageContract: {
+              name: "UserSignedUp",
+              selectionMode: "single",
+              state: "COVERED"
+            },
+            suites: ["suite-amqp-basic"]
+          }
+        ]
+      },
+      messages: {
+        summary: { total: 1, covered: 1, percent: 100 },
+        items: [
+          {
+            operationKey: "amqp send users.signedup",
+            channel: "users.signedup",
+            action: "send",
+            message: "UserSignedUp [payload: <anonymous-schema-1>]",
+            state: "COVERED",
+            suites: ["suite-amqp-basic"]
+          }
+        ]
+      },
+      runtimeSemantics: {
+        summary: { total: 0, satisfied: 0, percent: null },
+        items: [],
+        diagnostics: []
+      },
+      diagnostics: []
+    });
+  });
+
+  it("fails closed when evidence matches channel and action but not the declared protocol", async () => {
+    const bundle = await loadAsyncApiSemanticsBundle("test/fixtures/asyncapi/rabbitmq-amqp-basic.yaml");
+    const events: AsyncEvent[] = [
+      {
+        kind: "kafka",
+        action: "send",
+        channel: "users.signedup",
+        message: "UserSignedUp",
+        payload: { userId: "wrong-protocol" },
+        testRunId: "run-wrong-protocol",
+        testSuite: "suite-wrong-protocol"
+      }
+    ];
+
+    const coverage = computeAsyncCoverage(bundle, events);
+
+    expect(snapshotCoverage(coverage)).toEqual({
+      channels: {
+        summary: { total: 1, covered: 0, percent: 0 },
+        items: [
+          {
+            channel: "users.signedup",
+            state: "UNCOVERED",
+            coveredActions: [],
+            missingActions: ["send"]
+          }
+        ]
+      },
+      operations: {
+        summary: { total: 1, covered: 0, percent: 0 },
+        items: [
+          {
+            operationKey: "amqp send users.signedup",
+            channel: "users.signedup",
+            action: "send",
+            state: "UNCOVERED",
+            messageContract: {
+              name: "UserSignedUp",
+              selectionMode: "single",
+              state: "UNCOVERED"
+            },
+            suites: []
+          }
+        ]
+      },
+      messages: {
+        summary: { total: 1, covered: 0, percent: 0 },
+        items: [
+          {
+            operationKey: "amqp send users.signedup",
+            channel: "users.signedup",
+            action: "send",
+            message: "UserSignedUp [payload: <anonymous-schema-1>]",
+            state: "UNCOVERED",
+            suites: []
+          }
+        ]
+      },
+      runtimeSemantics: {
+        summary: { total: 0, satisfied: 0, percent: null },
+        items: [],
+        diagnostics: []
+      },
+      diagnostics: [
+        {
+          kind: "unmatched",
+          channel: "users.signedup",
+          action: "send",
+          observedMessage: "UserSignedUp",
+          message: "No canonical async operation matched the observed kafka evidence"
+        }
+      ]
+    });
+  });
+
   it("treats unmatched and mismatched async evidence as explicit drift instead of synthetic coverage", async () => {
     const bundle = await loadAsyncApiSemanticsBundle("test/fixtures/asyncapi/v3.yaml");
     const events = await readAsyncEventsJsonl("test/fixtures/async-events/drift.fixture.jsonl");
@@ -254,8 +386,8 @@ describe("computeAsyncCoverage contract", () => {
           messageName: "OrderCreatedEnvelope",
           schemaId: "OrderCreatedPayload",
           pointer: "/",
-          reason: "Observed kafka evidence did not include a payload.",
-          message: "Observed kafka evidence is missing the payload required for AsyncAPI schema validation"
+          reason: "Observed async evidence did not include a payload.",
+          message: "Observed async evidence is missing the payload required for AsyncAPI schema validation"
         },
         {
           kind: "invalid-payload",
@@ -267,7 +399,7 @@ describe("computeAsyncCoverage contract", () => {
           schemaId: "OrderCreatedPayload",
           pointer: "/order/total",
           reason: "required: must have required property 'total'",
-          message: "Observed kafka payload did not conform to the retained AsyncAPI payload schema"
+          message: "Observed async payload did not conform to the retained AsyncAPI payload schema"
         }
       ]
     });

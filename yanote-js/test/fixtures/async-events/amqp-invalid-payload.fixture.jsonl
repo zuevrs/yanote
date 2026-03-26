@@ -1,0 +1,1 @@
+{"kind":"amqp","ts":1711000001000,"action":"send","channel":"users.signedup","message":"UserSignedUp","payload":"payload-should-be-object","service":"identity-service","test.run_id":"run-amqp-invalid","test.suite":"suite-amqp-invalid"}

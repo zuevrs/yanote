@@ -19,6 +19,7 @@ const baseReport: AsyncYanoteReport = {
     reference: "test/fixtures/asyncapi/base.yaml"
   },
   phase: ASYNC_REPORT_PHASE,
+  protocols: ["kafka"],
   status: "ok",
   summary: {
     totalChannels: 1,
@@ -318,6 +319,8 @@ describe("async report schema contract", () => {
 
     expect(html).toContain("Yanote async report");
     expect(html).toContain("Async coverage summary");
+    expect(html).toContain("Protocols");
+    expect(html).toContain("&lt;protocol&gt; &lt;action&gt; &lt;channel&gt;");
     expect(html).toContain("Declared semantics");
     expect(html).toContain("Runtime semantics");
     expect(html).toContain("Runtime semantics by async operation");
@@ -339,6 +342,105 @@ describe("async report schema contract", () => {
     expect(html).not.toContain("Governance");
   });
 
+  it("renders Kafka-only additive sections truthfully empty for AMQP protocol reports", () => {
+    const amqpReport = normalizeAsyncReport({
+      ...baseReport,
+      protocols: ["amqp"],
+      coverage: {
+        channels: {
+          state: "COVERED",
+          percent: 100,
+          items: [
+            {
+              channel: "users.signedup",
+              state: "COVERED",
+              coveredActions: ["send"],
+              missingActions: []
+            }
+          ]
+        },
+        operations: {
+          state: "COVERED",
+          percent: 100,
+          items: [
+            {
+              operationKey: "amqp send users.signedup",
+              channel: "users.signedup",
+              action: "send",
+              operation: { state: "COVERED" },
+              messageContract: { name: "UserSignedUp", state: "COVERED" },
+              suites: ["suite-amqp"]
+            }
+          ]
+        },
+        messages: {
+          state: "COVERED",
+          percent: 100,
+          items: [
+            {
+              operationKey: "amqp send users.signedup",
+              channel: "users.signedup",
+              action: "send",
+              message: "UserSignedUp",
+              state: "COVERED",
+              suites: ["suite-amqp"]
+            }
+          ]
+        }
+      },
+      bindingSupport: {
+        summary: {
+          totalOperations: 0,
+          totalBindings: 0,
+          supportedBindings: 0,
+          declaredOnlyBindings: 0,
+          deferredBindings: 0,
+          invalidBindings: 0
+        },
+        operations: []
+      },
+      declaredSemantics: {
+        summary: {
+          totalOperations: 0,
+          operationsWithCorrelationId: 0,
+          messageCorrelationIds: 0,
+          operationsWithReply: 0
+        },
+        operations: []
+      },
+      runtimeSemantics: {
+        summary: {
+          totalOperations: 0,
+          satisfiedOperations: 0,
+          unsatisfiedOperations: 0,
+          totalSemantics: 0,
+          satisfiedSemantics: 0,
+          unsatisfiedSemantics: 0,
+          semanticCoveragePercent: null
+        },
+        operations: [],
+        diagnostics: {
+          counts: {
+            missing: 0,
+            unavailable: 0,
+            unsupported: 0,
+            mismatched: 0
+          },
+          items: []
+        }
+      }
+    });
+
+    const html = renderAsyncYanoteReportHtml(amqpReport);
+
+    expect(html).toContain("Protocols");
+    expect(html).toContain("amqp");
+    expect(html).toContain("Kafka Binding Support");
+    expect(html).toContain("intentionally empty for AMQP inputs");
+    expect(html).toContain("Current normalized report protocol is amqp");
+    expect(html).toContain("amqp send users.signedup");
+  });
+
   it("validates schemaVersion independently from toolVersion and requires the widened diagnostic union", () => {
     const wrongSchema = {
       ...baseReport,
@@ -347,13 +449,12 @@ describe("async report schema contract", () => {
     };
 
     expect(validateAsyncReport(wrongSchema).ok).toBe(false);
-    expect(
-      validateAsyncReport({
-        ...baseReport,
-        schemaVersion: ASYNC_REPORT_SCHEMA_VERSION,
-        toolVersion: "2.0.0"
-      }).ok
-    ).toBe(true);
+    const missingProtocols = {
+      ...baseReport
+    } as any;
+    delete missingProtocols.protocols;
+
+    expect(validateAsyncReport(missingProtocols).ok).toBe(false);
 
     const missingDeclaredSemantics = {
       ...baseReport,

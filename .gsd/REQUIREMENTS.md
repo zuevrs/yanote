@@ -59,6 +59,28 @@ This file is the explicit capability and coverage contract for the project.
 - Validation: validated
 - Notes: The current docs and retained proof surfaces explicitly preserve this narrow async boundary while proving deeper truth inside it.
 
+### R020 — Produce one combined HTTP + async report/gate surface without losing the current truthful split between `report` and `async-report`.
+- Class: admin/support
+- Status: validated
+- Description: Produce one combined HTTP + async report/gate surface without losing the current truthful split between `report` and `async-report`.
+- Why it matters: It may reduce operator overhead later, but the current truthful split is explicit and supported.
+- Source: execution
+- Primary owning slice: S03
+- Supporting slices: S04
+- Validation: Validated by M015 closeout on current HEAD: S03 delivered the child-attributed combined report surface, and milestone verification reran `bash scripts/ci/verify-m015-s03-combined-report.sh`, regenerating the retained combined bundle with canonical HTTP and async child JSON/HTML artifacts, `combined_status=ok`, `combined_async_protocols=amqp`, explicit child report paths, and no blended denominator.
+- Notes: The validated surface aggregates canonical HTTP and async child reports into explicit combined JSON/HTML/CLI summaries while preserving child attribution, drill-down artifact paths, AMQP protocol visibility, and fail-closed typed errors instead of inventing a blended denominator.
+
+### R021 — Extend the async path beyond the current Kafka-only boundary to non-Kafka brokers or a broker-agnostic runtime promise.
+- Class: differentiator
+- Status: validated
+- Description: Extend the async path beyond the current Kafka-only boundary to non-Kafka brokers or a broker-agnostic runtime promise.
+- Why it matters: Useful later, but outside the current public support boundary.
+- Source: execution
+- Primary owning slice: S01
+- Supporting slices: S02,S04
+- Validation: Validated by M015 closeout on current HEAD: S01 established protocol-aware AMQP analyzer/report/CLI semantics, S02 reran `bash scripts/ci/verify-m015-s02-live-rabbitmq-proof.sh` to regenerate the retained live RabbitMQ proof bundle with `protocols=amqp` and `operations=2/2`, and S04 reran the collector/renderer/workflow/docs verification stack proving the first RabbitMQ/AMQP path survives CI artifacts, GitHub summaries, workflow enforcement, public docs, and support intake.
+- Notes: Validated by M015 after S01 established protocol-aware async contracts, S02 proved the live RabbitMQ/AMQP path, and S04 closed CI/docs/support surfaces around retained RabbitMQ and combined proof bundles without claiming broker-agnostic support.
+
 ### R022 — Extend the HTTP/OpenAPI path from key-presence truth into supported parameter serialization, cookie, media, and format semantics that can be proven through retained evidence.
 - Class: contract-depth
 - Status: validated
@@ -147,30 +169,6 @@ This file is the explicit capability and coverage contract for the project.
 - Validation: Validated by `bash scripts/ci/verify-m004-s03-live-kafka-proof.sh` and `bash scripts/docs/verify-m010-s04-final-boundary.sh`, which proved live missing, invalid, unavailable, and unverifiable Kafka header diagnostics on the supported Spring Kafka path.
 - Notes: This does not widen the product beyond Kafka-only or introduce broker-agnostic header promises.
 
-## Deferred
-
-### R020 — Produce one combined HTTP + async report/gate surface without losing the current truthful split between `report` and `async-report`.
-- Class: admin/support
-- Status: deferred
-- Description: Produce one combined HTTP + async report/gate surface without losing the current truthful split between `report` and `async-report`.
-- Why it matters: It may reduce operator overhead later, but the current truthful split is explicit and supported.
-- Source: execution
-- Primary owning slice: none
-- Supporting slices: none
-- Validation: unmapped
-- Notes: Explicitly deferred in `docs/requirements.md` as ASYNC-02.
-
-### R021 — Extend the async path beyond the current Kafka-only boundary to non-Kafka brokers or a broker-agnostic runtime promise.
-- Class: differentiator
-- Status: deferred
-- Description: Extend the async path beyond the current Kafka-only boundary to non-Kafka brokers or a broker-agnostic runtime promise.
-- Why it matters: Useful later, but outside the current public support boundary.
-- Source: execution
-- Primary owning slice: none
-- Supporting slices: none
-- Validation: unmapped
-- Notes: Explicitly deferred in `docs/requirements.md` as ASYNC-03.
-
 ## Out of Scope
 
 ### R030 — A web dashboard/report UI is not required for the current product value; CLI plus file reports are the supported surfaces.
@@ -193,8 +191,8 @@ This file is the explicit capability and coverage contract for the project.
 | R003 | launchability | validated | S04 | S01,S02,S03 | validated |
 | R004 | operability | validated | docs phase 5 equivalent | docs phase 4 equivalent | validated |
 | R005 | constraint | validated | M005/M009 equivalent | retained proof/docs boundary | validated |
-| R020 | admin/support | deferred | none | none | unmapped |
-| R021 | differentiator | deferred | none | none | unmapped |
+| R020 | admin/support | validated | S03 | S04 | Validated by M015 closeout on current HEAD: S03 delivered the child-attributed combined report surface, and milestone verification reran `bash scripts/ci/verify-m015-s03-combined-report.sh`, regenerating the retained combined bundle with canonical HTTP and async child JSON/HTML artifacts, `combined_status=ok`, `combined_async_protocols=amqp`, explicit child report paths, and no blended denominator. |
+| R021 | differentiator | validated | S01 | S02,S04 | Validated by M015 closeout on current HEAD: S01 established protocol-aware AMQP analyzer/report/CLI semantics, S02 reran `bash scripts/ci/verify-m015-s02-live-rabbitmq-proof.sh` to regenerate the retained live RabbitMQ proof bundle with `protocols=amqp` and `operations=2/2`, and S04 reran the collector/renderer/workflow/docs verification stack proving the first RabbitMQ/AMQP path survives CI artifacts, GitHub summaries, workflow enforcement, public docs, and support intake. |
 | R022 | contract-depth | validated | S02 | S01,S03,S04 | M011 closeout reran and passed the public proof stack on current HEAD: `node --test scripts/ci/run-v1-e2e.contract.test.mjs scripts/ci/collect-yanote-artifacts.test.mjs`, `bash scripts/docs/verify-s03-landing.sh`, `bash scripts/docs/verify-s02-doc-links.sh`, `bash scripts/docs/verify-s04-boundaries.sh`, `bash scripts/ci/run-v1-e2e.sh`, `bash scripts/ci/verify-m011-s02-request-semantics.sh`, and `bash scripts/ci/verify-m011-s03-format-media.sh`. |
 | R023 | contract-depth | validated | S01 | S02 | Validated by M012 closeout: `bash scripts/ci/verify-m012-s02-security-semantics.sh`, `node --test scripts/ci/render-yanote-summary.test.mjs scripts/ci/run-v1-e2e.contract.test.mjs scripts/ci/collect-yanote-artifacts.test.mjs`, `bash scripts/docs/verify-s02-doc-links.sh`, `bash scripts/docs/verify-s03-landing.sh`, `bash scripts/docs/verify-s04-boundaries.sh`, and `bash scripts/ci/run-v1-e2e.sh` proved truthful OpenAPI security semantics on additive report/CLI/CI/doc surfaces while other broader OpenAPI objects remain explicitly deferred. |
 | R024 | launchability | validated | none | none | Validated by M013 S04 closeout: `node --test scripts/ci/collect-yanote-artifacts.test.mjs scripts/ci/export-async-proof-artifacts.test.mjs scripts/ci/run-v1-e2e.contract.test.mjs scripts/ci/render-yanote-summary.test.mjs scripts/ci/yanote-ci-workflow.contract.test.mjs`, `bash scripts/docs/verify-s03-landing.sh`, and `bash scripts/docs/verify-s04-boundaries.sh` proved the widened CI bundles, GitHub summaries, and public docs/support surfaces publish sanitized remote spec provenance, additive deprecated-operation truth, and separate HTTP/async JSON+HTML artifacts without introducing combined-report or dashboard claims. |
@@ -209,5 +207,5 @@ This file is the explicit capability and coverage contract for the project.
 
 - Active requirements: 0
 - Mapped to slices: 0
-- Validated: 13 (R001, R002, R003, R004, R005, R022, R023, R024, R025, R031, R032, R033, R034)
+- Validated: 15 (R001, R002, R003, R004, R005, R020, R021, R022, R023, R024, R025, R031, R032, R033, R034)
 - Unmapped active requirements: 0

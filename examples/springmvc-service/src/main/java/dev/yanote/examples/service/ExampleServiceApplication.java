@@ -1,5 +1,6 @@
 package dev.yanote.examples.service;
 
+import dev.yanote.recorder.springamqp.YanoteAmqpHeaders;
 import java.nio.charset.StandardCharsets;
 import java.util.List;
 import java.util.Locale;
@@ -9,6 +10,15 @@ import java.util.concurrent.TimeoutException;
 import org.apache.kafka.clients.admin.NewTopic;
 import org.apache.kafka.clients.producer.ProducerRecord;
 import org.apache.kafka.common.header.internals.RecordHeader;
+import org.springframework.amqp.AmqpException;
+import org.springframework.amqp.core.Message;
+import org.springframework.amqp.core.MessageProperties;
+import org.springframework.amqp.core.Queue;
+import org.springframework.amqp.rabbit.annotation.EnableRabbit;
+import org.springframework.amqp.rabbit.annotation.RabbitListener;
+import org.springframework.amqp.rabbit.core.RabbitTemplate;
+import org.springframework.amqp.support.converter.Jackson2JsonMessageConverter;
+import org.springframework.amqp.support.converter.MessageConverter;
 import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.boot.SpringApplication;
@@ -35,19 +45,23 @@ import org.springframework.web.bind.annotation.RestController;
 
 @SpringBootApplication
 @EnableKafka
+@EnableRabbit
 public class ExampleServiceApplication {
     static final String USER_EVENTS_TOPIC = "users.created";
     static final String USER_REPUBLISHED_TOPIC = "users.created.republished";
+    static final String USER_EVENTS_QUEUE = "users.created";
     static final String USER_CREATED_MESSAGE = "UserCreated";
     static final String USER_REPUBLISHED_MESSAGE = "UserRepublished";
     static final String RUN_ID_HEADER = "X-Test-Run-Id";
     static final String SUITE_HEADER = "X-Test-Suite";
     static final String USER_CREATED_LISTENER_ID = "example-user-created-listener";
     static final String USER_REPUBLISHED_LISTENER_ID = "example-user-republished-listener";
+    static final String USER_CREATED_AMQP_LISTENER_ID = "example-user-created-amqp-listener";
     static final String CORRELATION_ID_HEADER = "correlation_id";
     static final String REPLY_TO_HEADER = "reply_to";
 
     private static final String YANOTE_MESSAGE_HEADER = "yanote.message";
+    private static final String DEFAULT_AMQP_EXCHANGE = "";
 
     public static void main(String[] args) {
         SpringApplication.run(ExampleServiceApplication.class, args);
@@ -57,8 +71,13 @@ public class ExampleServiceApplication {
         return messageHint + "-proof-correlation";
     }
 
-    static String proofReplyAddress(String topic) {
-        return topic;
+    static String proofReplyAddress(String channel) {
+        return channel;
+    }
+
+    @Bean
+    MessageConverter rabbitMessageConverter() {
+        return new Jackson2JsonMessageConverter();
     }
 
     @Bean
@@ -84,12 +103,39 @@ public class ExampleServiceApplication {
     }
 
     @Bean
+    @ConditionalOnExpression(
+            "'${example.rabbitmq.roles.producer.enabled:false}' == 'true'"
+                    + " or '${example.rabbitmq.roles.listeners.user-created.enabled:false}' == 'true'"
+    )
+    Queue userEventsQueue(
+            @Value("${example.rabbitmq.queues.user-created:" + USER_EVENTS_QUEUE + "}") String queue
+    ) {
+        return new Queue(queue, false, false, false);
+    }
+
+    @Bean
     @ConditionalOnProperty(name = "example.kafka.roles.producer.enabled", havingValue = "true")
     UserCreatedPublisher userCreatedPublisher(
             KafkaTemplate<String, Object> kafkaTemplate,
             @Value("${example.kafka.topics.user-created:" + USER_EVENTS_TOPIC + "}") String topic
     ) {
         return new UserCreatedPublisher(new KafkaMessagePublisher(kafkaTemplate, topic, USER_CREATED_MESSAGE));
+    }
+
+    @Bean
+    @ConditionalOnProperty(name = "example.rabbitmq.roles.producer.enabled", havingValue = "true")
+    AmqpUserCreatedPublisher amqpUserCreatedPublisher(
+            RabbitTemplate rabbitTemplate,
+            MessageConverter rabbitMessageConverter,
+            @Value("${example.rabbitmq.queues.user-created:" + USER_EVENTS_QUEUE + "}") String queue
+    ) {
+        return new AmqpUserCreatedPublisher(new RabbitMessagePublisher(
+                rabbitTemplate,
+                rabbitMessageConverter,
+                DEFAULT_AMQP_EXCHANGE,
+                queue,
+                USER_CREATED_MESSAGE
+        ));
     }
 
     @Bean
@@ -113,13 +159,24 @@ public class ExampleServiceApplication {
         return new UserRepublishedListener();
     }
 
+    @Bean
+    @ConditionalOnProperty(name = "example.rabbitmq.roles.listeners.user-created.enabled", havingValue = "true")
+    AmqpUserCreatedListener amqpUserCreatedListener() {
+        return new AmqpUserCreatedListener();
+    }
+
     @RestController
     @RequestMapping
     static class DemoController {
         private final ObjectProvider<UserCreatedPublisher> userCreatedPublisher;
+        private final ObjectProvider<AmqpUserCreatedPublisher> amqpUserCreatedPublisher;
 
-        DemoController(ObjectProvider<UserCreatedPublisher> userCreatedPublisher) {
+        DemoController(
+                ObjectProvider<UserCreatedPublisher> userCreatedPublisher,
+                ObjectProvider<AmqpUserCreatedPublisher> amqpUserCreatedPublisher
+        ) {
             this.userCreatedPublisher = userCreatedPublisher;
+            this.amqpUserCreatedPublisher = amqpUserCreatedPublisher;
         }
 
         @GetMapping("/health")
@@ -146,10 +203,14 @@ public class ExampleServiceApplication {
         public CreateUserResponse createUser(@RequestBody CreateUserRequest requestBody) {
             String normalizedName = requestBody.normalizedName();
             String normalizedEmail = requestBody.normalizedEmail();
-            CreateUserRequest kafkaPayload = new CreateUserRequest(normalizedName, normalizedEmail);
-            UserCreatedPublisher publisher = userCreatedPublisher.getIfAvailable();
-            if (publisher != null) {
-                publisher.publish(kafkaPayload);
+            CreateUserRequest eventPayload = new CreateUserRequest(normalizedName, normalizedEmail);
+            UserCreatedPublisher kafkaPublisher = userCreatedPublisher.getIfAvailable();
+            if (kafkaPublisher != null) {
+                kafkaPublisher.publish(eventPayload);
+            }
+            AmqpUserCreatedPublisher rabbitPublisher = amqpUserCreatedPublisher.getIfAvailable();
+            if (rabbitPublisher != null) {
+                rabbitPublisher.publish(eventPayload);
             }
             return new CreateUserResponse(
                     "user-" + normalizedName.toLowerCase(Locale.ROOT),
@@ -194,6 +255,18 @@ public class ExampleServiceApplication {
         private final KafkaMessagePublisher publisher;
 
         UserCreatedPublisher(KafkaMessagePublisher publisher) {
+            this.publisher = publisher;
+        }
+
+        void publish(CreateUserRequest payload) {
+            publisher.publish(payload);
+        }
+    }
+
+    static class AmqpUserCreatedPublisher {
+        private final RabbitMessagePublisher publisher;
+
+        AmqpUserCreatedPublisher(RabbitMessagePublisher publisher) {
             this.publisher = publisher;
         }
 
@@ -263,6 +336,19 @@ public class ExampleServiceApplication {
         }
     }
 
+    static class AmqpUserCreatedListener {
+        @RabbitListener(
+                id = USER_CREATED_AMQP_LISTENER_ID,
+                queues = "${example.rabbitmq.queues.user-created:users.created}",
+                autoStartup = "${example.rabbitmq.roles.listeners.user-created.enabled:false}"
+        )
+        void handle(CreateUserRequest payload) {
+            if (payload == null) {
+                throw new IllegalArgumentException("payload must not be null");
+            }
+        }
+    }
+
     static class UserRepublishedListener {
         @KafkaListener(
                 id = USER_REPUBLISHED_LISTENER_ID,
@@ -308,6 +394,43 @@ public class ExampleServiceApplication {
                 throw new IllegalStateException("Interrupted while publishing Kafka example event", ex);
             } catch (ExecutionException | TimeoutException ex) {
                 throw new IllegalStateException("Failed to publish Kafka example event", ex);
+            }
+        }
+    }
+
+    static class RabbitMessagePublisher {
+        private final RabbitTemplate rabbitTemplate;
+        private final MessageConverter messageConverter;
+        private final String exchange;
+        private final String routingKey;
+        private final String messageHint;
+
+        RabbitMessagePublisher(
+                RabbitTemplate rabbitTemplate,
+                MessageConverter messageConverter,
+                String exchange,
+                String routingKey,
+                String messageHint
+        ) {
+            this.rabbitTemplate = rabbitTemplate;
+            this.messageConverter = messageConverter;
+            this.exchange = exchange;
+            this.routingKey = routingKey;
+            this.messageHint = messageHint;
+        }
+
+        void publish(Object payload) {
+            try {
+                MessageProperties properties = new MessageProperties();
+                properties.setContentType(MessageProperties.CONTENT_TYPE_JSON);
+                properties.setContentEncoding(StandardCharsets.UTF_8.name());
+                YanoteAmqpHeaders.setHeaders(properties, null, null, messageHint);
+                properties.setHeader(CORRELATION_ID_HEADER, proofCorrelationId(messageHint));
+                properties.setHeader(REPLY_TO_HEADER, proofReplyAddress(routingKey));
+                Message message = messageConverter.toMessage(payload, properties);
+                rabbitTemplate.send(exchange, routingKey, message);
+            } catch (AmqpException ex) {
+                throw new IllegalStateException("Failed to publish RabbitMQ example event", ex);
             }
         }
     }

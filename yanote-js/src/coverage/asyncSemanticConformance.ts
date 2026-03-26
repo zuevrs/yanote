@@ -85,7 +85,7 @@ export function computeAsyncSemanticConformance(
   for (const operation of operations) {
     const operationKey = serializeOperationKey(operation);
     const contract = bundle.operationContractsByKey.get(operationKey) ?? { operation };
-    contractsByMatchKey.set(matchKey(operation.action, operation.channel), {
+    contractsByMatchKey.set(matchKey("kafka", operation.action, operation.channel), {
       operationKey,
       contract
     });
@@ -93,7 +93,7 @@ export function computeAsyncSemanticConformance(
   }
 
   for (const event of events) {
-    const matched = contractsByMatchKey.get(matchKey(event.action, event.channel));
+    const matched = contractsByMatchKey.get(matchKey(event.kind, event.action, event.channel));
     if (!matched) {
       continue;
     }
@@ -661,8 +661,8 @@ function replyItemKey(operationKey: string, location: string): string {
   return `${operationKey}\u0000reply.address\u0000${location}`;
 }
 
-function matchKey(action: AsyncAction, channel: string): string {
-  return `${action}\u0000${channel}`;
+function matchKey(protocol: AsyncEvent["kind"], action: AsyncAction, channel: string): string {
+  return `${protocol}\u0000${action}\u0000${channel}`;
 }
 
 function roundPercent(value: number): number {

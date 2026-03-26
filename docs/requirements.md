@@ -48,21 +48,22 @@ Requirements for the current public product surface. Each maps to shipped or act
 - [x] **QUAL-02**: CI runs unit, integration, and end-to-end checks for v1 workflow and blocks merges on failure
 - [x] **QUAL-03**: Team verifies Java 21 baseline compatibility in automated checks
 
-### AsyncAPI / Kafka — первая волна
+### AsyncAPI / Kafka / RabbitMQ / Combined — widened current surface
 
-Текущая async surface уже входит в поддерживаемую публичную границу, но остаётся намеренно узкой. Эти клаузы нужно читать буквально:
+Текущая async/combined surface уже входит в поддерживаемую публичную границу, но остаётся намеренно узкой. Эти клаузы нужно читать буквально:
 
-- **Kafka-only**
-- **Spring Kafka-first**
-- **separate async report/gate**
+- **Kafka path поддержан и сохранён**
+- **RabbitMQ/AMQP — первый concrete second broker path**
+- **separate async report/gate + retained combined-report surface**
 - **payload-schema drift surfaced on the proven Kafka path**
 - **routing percentages remain routing-first**
-- **retained Kafka headers remain unverifiable**
+- **combined surface остаётся child-attributed, без blended denominator**
+- **raw retained headers и payload bodies не становятся support intake surface**
 - **broker-agnostic promise нет**
 
-Поддерживаемая evidence/support surface для этой первой волны тоже зафиксирована явно: `raw или merged async JSONL`, `yanote-async-report.json`, retained `runtime-selected-async-report.stderr` / `runtime-selected-yanote-async-report.json` для proven Kafka multi-message selection truth, analyzer/proof `stderr` и retained `schema-failure-async-report.stderr` / `schema-failure-yanote-async-report.json` для proven Kafka payload drift.
+Поддерживаемая evidence/support surface для этой widened ветки тоже зафиксирована явно: `raw или merged async JSONL`, `live-kafka-proof/`, `live-rabbitmq-proof/`, `combined-proof/`, `yanote-async-report.json`, `yanote-async-report.html`, `yanote-combined-report.json`, `yanote-combined-report.html`, retained Kafka `runtime-selected-*` и `schema-failure-*` companions, RabbitMQ `artifact-manifest.txt` / `artifact-source-paths.txt`, combined child report paths и analyzer/proof `stderr`.
 
-Практически это означает поддержанный путь через `async-report` и `yanote-async-report.json` для AsyncAPI/Kafka coverage, при этом HTTP `report` / `yanote-report.json` остаются отдельной поверхностью и не маскируются под один обязательный combined report. Happy-path coverage проценты остаются routing-first, retained runtime-selected sidecar публично доказывает multi-message selection только через redacted selectors, а payload drift считается доказанным только для того Kafka evidence path, который экспортирует `bash scripts/ci/verify-m004-s03-live-kafka-proof.sh`.
+Практически это означает поддержанный путь через `async-report` и `combined-report` для widened AsyncAPI coverage, при этом HTTP `report` / `yanote-report.json` остаются отдельной поверхностью и combined-report не маскируется под один обязательный blended gate. Happy-path coverage проценты остаются routing-first, retained runtime-selected sidecar публично доказывает multi-message selection только для proven Kafka path, RabbitMQ path публикует `protocols=amqp` и не фабрикует Kafka-only companions, а combined bundle ссылается на отдельные HTTP/async child reports вместо одного denominator.
 
 ## v2 Requirements
 
@@ -77,9 +78,9 @@ Deferred to future release. Tracked but not in current roadmap.
 
 ### Async Follow-ons
 
-- **ASYNC-01**: Team can extend the proven Kafka payload-drift proof to deeper AsyncAPI schema-keyword coverage and retained header validation
-- **ASYNC-02**: Team can produce one combined HTTP + async report/gate surface without losing the current truthful split between `report` and `async-report`
-- **ASYNC-03**: Team can support non-Kafka brokers or make a broker-agnostic async runtime promise
+- **ASYNC-01**: Team can extend the proven Kafka and RabbitMQ payload/semantics proof to deeper AsyncAPI schema-keyword coverage and retained header validation
+- **ASYNC-02**: Team can produce one blended HTTP + async denominator/gate/dashboard surface without losing the current truthful split between child `report`, `async-report`, and `combined-report`
+- **ASYNC-03**: Team can support brokers beyond the proven Kafka + first RabbitMQ/AMQP paths or make a broker-agnostic async runtime promise
 
 ## Out of Scope
 
@@ -87,9 +88,9 @@ Explicitly excluded from the current public surface. Documented to prevent scope
 
 | Feature | Reason |
 |---------|--------|
-| Async deeper schema-keyword coverage and retained header validation beyond the current Kafka payload-drift proof | Deferred follow-on; current public async surface proves payload drift only for the retained Kafka path and still treats headers as unverifiable |
-| Combined HTTP + async report/gate in the current first wave | Deferred follow-on; current product keeps a `separate async report/gate` |
-| Broker-agnostic or non-Kafka async coverage (RabbitMQ/AMQP/other brokers) | Deferred follow-on; current public boundary is `Kafka-only` and `broker-agnostic promise нет` |
+| Async deeper schema-keyword coverage and retained header validation beyond the current Kafka/RabbitMQ proof families | Deferred follow-on; current public async surface proves Kafka payload drift, RabbitMQ happy-path AMQP truth, and still keeps raw retained headers out of public support intake |
+| Blended HTTP + async denominator/gate/dashboard surface | Deferred follow-on; current product keeps separate child `report`, `async-report`, and `combined-report` truth surfaces |
+| Broker-agnostic coverage beyond the proven Kafka + RabbitMQ/AMQP paths | Deferred follow-on; current public boundary keeps `broker-agnostic promise нет` |
 | Non-Java service ecosystem support | Explicitly deferred until Java-first workflow is stable |
 | Web dashboard/report UI | Not required for v1 value; CLI + file reports are sufficient |
 | Built-in autonomous test generation/fuzzing | High complexity, lower priority than deterministic coverage governance |

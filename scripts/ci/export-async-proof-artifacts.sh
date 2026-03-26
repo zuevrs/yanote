@@ -4,6 +4,9 @@ set -euo pipefail
 DEST_DIR="${1:-.yanote-ci/live-kafka-proof}"
 PROOF_STATUS="${YANOTE_ASYNC_PROOF_STATUS:-unknown}"
 SOURCE_TEMP_DIR="${YANOTE_ASYNC_SOURCE_TEMP_DIR:-none}"
+OPTIONAL_ARTIFACTS="${YANOTE_ASYNC_OPTIONAL_ARTIFACTS:-}"
+OPTIONAL_ARTIFACTS="${OPTIONAL_ARTIFACTS//[[:space:]]/}"
+OPTIONAL_ARTIFACTS_NOTE="${OPTIONAL_ARTIFACTS:-none}"
 SOURCE_PATHS_NOTE_NAME="artifact-source-paths.txt"
 MANIFEST_NAME="artifact-manifest.txt"
 SOURCE_PATHS_NOTE_PATH="${DEST_DIR}/${SOURCE_PATHS_NOTE_NAME}"
@@ -26,6 +29,22 @@ join_by_comma() {
     joined+="${joined:+,}${item}"
   done
   printf '%s' "${joined}"
+}
+
+is_optional_artifact() {
+  local target_name="$1"
+  if [[ -z "${OPTIONAL_ARTIFACTS}" ]]; then
+    return 1
+  fi
+
+  case ",${OPTIONAL_ARTIFACTS}," in
+    *,"${target_name}",*)
+      return 0
+      ;;
+    *)
+      return 1
+      ;;
+  esac
 }
 
 extract_async_report_metadata() {
@@ -119,7 +138,7 @@ copy_or_note() {
   missing_artifacts+=("${target_name}")
   printf '%s=%s\n' "${target_name}" "none" >> "${SOURCE_PATHS_NOTE_PATH}"
 
-  if [[ "${PROOF_STATUS}" == "success" && "${required_on_success}" == "true" ]]; then
+  if [[ "${PROOF_STATUS}" == "success" && "${required_on_success}" == "true" ]] && ! is_optional_artifact "${target_name}"; then
     echo "ERROR: Missing allowlisted async proof artifact for success export: ${target_name}" >&2
     exit 1
   fi
@@ -167,6 +186,7 @@ exported_artifacts=()
 missing_artifacts=()
 
 printf 'temp_dir=%s\n' "${SOURCE_TEMP_DIR}" > "${SOURCE_PATHS_NOTE_PATH}"
+printf 'optional_artifacts=%s\n' "${OPTIONAL_ARTIFACTS_NOTE}" >> "${SOURCE_PATHS_NOTE_PATH}"
 
 copy_or_note "single-service-proof.log" "${YANOTE_ASYNC_SOURCE_SINGLE_SERVICE_LOG:-}" "true"
 copy_or_note "two-service-test.log" "${YANOTE_ASYNC_SOURCE_TWO_SERVICE_LOG:-}" "true"
@@ -305,6 +325,7 @@ fi
 {
   printf 'created_at=%s\n' "$(date -u +"%Y-%m-%dT%H:%M:%SZ")"
   printf 'proof_status=%s\n' "${PROOF_STATUS}"
+  printf 'optional_artifacts=%s\n' "${OPTIONAL_ARTIFACTS_NOTE}"
   printf 'report_found=%s\n' "${report_found}"
   printf 'report_source=%s\n' "${report_source}"
   printf 'report_html_found=%s\n' "${report_html_found}"

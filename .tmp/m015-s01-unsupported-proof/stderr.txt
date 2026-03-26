@@ -1,0 +1,1 @@
+YANOTE_ASYNC_ERROR class=semantic code=ASYNC_SEMANTIC_SPEC_INVALID reason="AsyncAPI semantic extraction failed: Unsupported AsyncAPI protocol: mqtt. Supported protocols: amqp, kafka." hint="Fix invalid AsyncAPI operations and rerun async-report."

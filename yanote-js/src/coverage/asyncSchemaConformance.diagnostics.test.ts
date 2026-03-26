@@ -28,7 +28,7 @@ describe("computeAsyncSchemaConformance diagnostics", () => {
           schemaId: "OrderCreatedPayload",
           pointer: "/order/total",
           reason: "required: must have required property 'total'",
-          message: "Observed kafka payload did not conform to the retained AsyncAPI payload schema"
+          message: "Observed async payload did not conform to the retained AsyncAPI payload schema"
         }
       ]
     });
@@ -55,8 +55,8 @@ describe("computeAsyncSchemaConformance diagnostics", () => {
           messageName: "OrderCreatedEnvelope",
           schemaId: "OrderCreatedPayload",
           pointer: "/",
-          reason: "Observed kafka evidence did not include a payload.",
-          message: "Observed kafka evidence is missing the payload required for AsyncAPI schema validation"
+          reason: "Observed async evidence did not include a payload.",
+          message: "Observed async evidence is missing the payload required for AsyncAPI schema validation"
         }
       ]
     });
@@ -82,8 +82,8 @@ describe("computeAsyncSchemaConformance diagnostics", () => {
         messageName: "OrderCreatedEnvelope",
         schemaId: "OrderCreatedPayload",
         pointer: "/",
-        reason: "Observed kafka evidence did not include a payload.",
-        message: "Observed kafka evidence is missing the payload required for AsyncAPI schema validation"
+        reason: "Observed async evidence did not include a payload.",
+        message: "Observed async evidence is missing the payload required for AsyncAPI schema validation"
       },
       {
         kind: "invalid-payload",
@@ -95,7 +95,7 @@ describe("computeAsyncSchemaConformance diagnostics", () => {
         schemaId: "OrderCreatedPayload",
         pointer: "/order/total",
         reason: "required: must have required property 'total'",
-        message: "Observed kafka payload did not conform to the retained AsyncAPI payload schema"
+        message: "Observed async payload did not conform to the retained AsyncAPI payload schema"
       }
     ]);
 
@@ -123,8 +123,8 @@ describe("computeAsyncSchemaConformance diagnostics", () => {
           messageName: "OrderCreatedEnvelope",
           schemaId: "OrderEventHeaders",
           pointer: "/traceId",
-          reason: "Observed kafka header 'traceId' was retained as redacted evidence (reason: sensitive), so its value could not be validated.",
-          message: "Observed kafka header value was unavailable for AsyncAPI header validation"
+          reason: "Observed async header 'traceId' was retained as redacted evidence (reason: sensitive), so its value could not be validated.",
+          message: "Observed async header value was unavailable for AsyncAPI header validation"
         }
       ]
     });
@@ -168,7 +168,7 @@ describe("computeAsyncSchemaConformance diagnostics", () => {
           schemaId: "OrderEventHeaders",
           pointer: "/traceId",
           reason: "pattern: must match pattern '^trace-[0-9]+$'",
-          message: "Observed kafka headers did not conform to the retained AsyncAPI header schema"
+          message: "Observed async headers did not conform to the retained AsyncAPI header schema"
         }
       ]
     });

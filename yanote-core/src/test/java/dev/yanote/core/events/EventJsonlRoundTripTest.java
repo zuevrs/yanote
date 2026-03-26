@@ -5,6 +5,7 @@ import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.List;
+import java.util.Map;
 import org.junit.jupiter.api.Test;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
@@ -91,7 +92,7 @@ class EventJsonlRoundTripTest {
     }
 
     @Test
-    void shouldReadMixedHttpAndKafkaEventsFromOneJsonlFile() throws Exception {
+    void shouldReadMixedHttpKafkaAndAmqpEventsFromOneJsonlFile() throws Exception {
         HttpEvent httpEvent = new HttpEvent(
                 1689000000000L,
                 "POST",
@@ -132,18 +133,43 @@ class EventJsonlRoundTripTest {
                 "run-1",
                 "suite-a"
         );
+        AmqpEvent amqpEvent = new AmqpEvent(
+                1689000000200L,
+                AmqpEvent.Action.RECEIVE,
+                "users.queue",
+                "UserQueued",
+                "billing-service",
+                null,
+                OBJECT_MAPPER.readTree("""
+                        {"userId":"alice"}
+                        """),
+                PayloadCaptureState.CAPTURED,
+                null,
+                Map.of(
+                        "trace-id", new AmqpEvent.HeaderEvidence(
+                                AmqpEvent.HeaderCaptureState.CAPTURED,
+                                "trace-456",
+                                null
+                        )
+                ),
+                false,
+                "run-1",
+                "suite-a"
+        );
 
         Path tempFile = Files.createTempFile("yanote-events-mixed-", ".jsonl");
 
         try (EventJsonlWriter writer = new EventJsonlWriter(tempFile)) {
             writer.write(httpEvent);
             writer.write(kafkaEvent);
+            writer.write(amqpEvent);
         }
 
         List<YanoteEvent> events = new EventJsonlReader().read(tempFile);
-        assertEquals(2, events.size());
+        assertEquals(3, events.size());
         assertHttpEventRoundTrips(httpEvent, events.get(0));
         assertKafkaEventRoundTrips(kafkaEvent, events.get(1));
+        assertAmqpEventRoundTrips(amqpEvent, events.get(2));
     }
 
     private void assertHttpEventRoundTrips(HttpEvent expected, YanoteEvent actualEvent) throws Exception {
@@ -166,6 +192,18 @@ class EventJsonlRoundTripTest {
 
     private void assertKafkaEventRoundTrips(KafkaEvent expected, YanoteEvent actualEvent) throws Exception {
         KafkaEvent actual = assertInstanceOf(KafkaEvent.class, actualEvent);
+        assertEquals(expected.action(), actual.action());
+        assertEquals(expected.channel(), actual.channel());
+        assertEquals(expected.payloadState(), actual.payloadState());
+        assertEquals(expected.payloadReason(), actual.payloadReason());
+        assertEquals(expected.headers(), actual.headers());
+        assertEquals(expected.testRunId(), actual.testRunId());
+        assertEquals(expected.testSuite(), actual.testSuite());
+        assertEquals(OBJECT_MAPPER.writeValueAsString(expected), OBJECT_MAPPER.writeValueAsString(actual));
+    }
+
+    private void assertAmqpEventRoundTrips(AmqpEvent expected, YanoteEvent actualEvent) throws Exception {
+        AmqpEvent actual = assertInstanceOf(AmqpEvent.class, actualEvent);
         assertEquals(expected.action(), actual.action());
         assertEquals(expected.channel(), actual.channel());
         assertEquals(expected.payloadState(), actual.payloadState());

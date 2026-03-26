@@ -17,6 +17,7 @@ export function normalizeAsyncReport(report: AsyncYanoteReport): AsyncYanoteRepo
       kind: report.specSource.kind,
       reference: report.specSource.reference
     },
+    protocols: [...report.protocols].sort((left, right) => left.localeCompare(right)),
     summary: {
       ...report.summary,
       channelCoveragePercent: normalizeNullablePercent(report.summary.channelCoveragePercent),

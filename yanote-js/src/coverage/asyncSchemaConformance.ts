@@ -4,9 +4,10 @@ import {
   formatKafkaMessageIdentity,
   serializeOperationKey,
   type AsyncAction,
+  type AsyncOperationContract,
+  type AsyncOperationKey,
+  type AsyncProtocol,
   type KafkaMessageContract,
-  type KafkaOperationContract,
-  type KafkaOperationKey,
   type KafkaMessageSelectionRule
 } from "../model/operationKey.js";
 import type { AsyncApiSemanticsBundle } from "../spec/asyncapi.js";
@@ -90,9 +91,9 @@ export type AsyncSchemaConformanceResult = {
   validatedOperationKeys: string[];
 };
 
-type MatchedKafkaContract = {
+type MatchedAsyncContract = {
   operationKey: string;
-  contract: KafkaOperationContract;
+  contract: AsyncOperationContract;
 };
 
 type PayloadValidationPlan =
@@ -135,18 +136,18 @@ export function computeAsyncSchemaConformance(
   bundle: AsyncApiSemanticsBundle,
   events: AsyncEvent[]
 ): AsyncSchemaConformanceResult {
-  const contractsByMatchKey = new Map<string, MatchedKafkaContract>();
+  const contractsByMatchKey = new Map<string, MatchedAsyncContract>();
   const payloadValidationPlans = new Map<string, PayloadValidationPlan>();
   const headerValidationPlans = new Map<string, HeaderValidationPlan>();
 
   for (const operation of bundle.operations) {
-    if (operation.kind !== "kafka") {
+    if (!isAsyncOperationKey(operation)) {
       continue;
     }
 
     const operationKey = serializeOperationKey(operation);
     const contract = bundle.operationContractsByKey.get(operationKey) ?? { operation };
-    contractsByMatchKey.set(matchKey(operation.action, operation.channel), {
+    contractsByMatchKey.set(matchKey(operation.kind, operation.action, operation.channel), {
       operationKey,
       contract
     });
@@ -158,7 +159,7 @@ export function computeAsyncSchemaConformance(
   const validatedOperationKeys = new Set<string>();
 
   for (const event of events) {
-    const matched = contractsByMatchKey.get(matchKey(event.action, event.channel));
+    const matched = contractsByMatchKey.get(matchKey(event.kind, event.action, event.channel));
     if (!matched) {
       continue;
     }
@@ -202,8 +203,8 @@ export function computeAsyncSchemaConformance(
         messageName: message.name,
         schemaId: payloadPlan.schemaId,
         pointer: "/",
-        reason: "Observed kafka evidence did not include a payload.",
-        message: "Observed kafka evidence is missing the payload required for AsyncAPI schema validation"
+        reason: "Observed async evidence did not include a payload.",
+        message: "Observed async evidence is missing the payload required for AsyncAPI schema validation"
       });
       continue;
     }
@@ -224,7 +225,7 @@ export function computeAsyncSchemaConformance(
         schemaId: payloadPlan.schemaId,
         pointer: toJsonPointer(error),
         reason: toAjvReason(error),
-        message: "Observed kafka payload did not conform to the retained AsyncAPI payload schema"
+        message: "Observed async payload did not conform to the retained AsyncAPI payload schema"
       });
     }
   }
@@ -237,7 +238,7 @@ export function computeAsyncSchemaConformance(
 }
 
 export function resolveAsyncMessageContract(
-  contract: KafkaOperationContract,
+  contract: AsyncOperationContract,
   operationKey: string,
   event: AsyncEvent
 ): AsyncResolvedMessageContract {
@@ -416,7 +417,7 @@ function uniqueMessageNames(messages: KafkaMessageContract[]): string[] {
 }
 
 function getPayloadValidationPlan(
-  matched: MatchedKafkaContract,
+  matched: MatchedAsyncContract,
   message: KafkaMessageContract,
   messageIdentity: string,
   cache: Map<string, PayloadValidationPlan>
@@ -432,7 +433,7 @@ function getPayloadValidationPlan(
   return plan;
 }
 
-function buildPayloadValidationPlan(matched: MatchedKafkaContract, message: KafkaMessageContract): PayloadValidationPlan {
+function buildPayloadValidationPlan(matched: MatchedAsyncContract, message: KafkaMessageContract): PayloadValidationPlan {
   if (message.payloadSchema === undefined) {
     return { kind: "none" };
   }
@@ -497,7 +498,7 @@ function buildPayloadValidationPlan(matched: MatchedKafkaContract, message: Kafk
 }
 
 function getHeaderValidationPlan(
-  matched: MatchedKafkaContract,
+  matched: MatchedAsyncContract,
   message: KafkaMessageContract,
   messageIdentity: string,
   cache: Map<string, HeaderValidationPlan>
@@ -513,7 +514,7 @@ function getHeaderValidationPlan(
   return plan;
 }
 
-function buildHeaderValidationPlan(matched: MatchedKafkaContract, message: KafkaMessageContract): HeaderValidationPlan {
+function buildHeaderValidationPlan(matched: MatchedAsyncContract, message: KafkaMessageContract): HeaderValidationPlan {
   if (!message.headersSchemaId && message.headersSchema === undefined) {
     return { kind: "none" };
   }
@@ -556,7 +557,7 @@ function buildHeaderValidationPlan(matched: MatchedKafkaContract, message: Kafka
 function validateHeaders(
   diagnostics: AsyncSchemaConformanceDiagnostic[],
   seenDiagnostics: Set<string>,
-  matched: MatchedKafkaContract,
+  matched: MatchedAsyncContract,
   message: KafkaMessageContract,
   plan: Extract<HeaderValidationPlan, { kind: "validator" }>,
   event: AsyncEvent
@@ -591,8 +592,8 @@ function validateHeaders(
       messageName: message.name,
       schemaId: plan.schemaId,
       pointer: toHeaderPointer(headerKey),
-      reason: `Observed kafka evidence did not include required header '${headerKey}'.`,
-      message: "Observed kafka evidence is missing a required header for AsyncAPI header validation"
+      reason: `Observed async evidence did not include required header '${headerKey}'.`,
+      message: "Observed async evidence is missing a required header for AsyncAPI header validation"
     });
   }
 
@@ -616,13 +617,13 @@ function validateHeaders(
       schemaId: plan.schemaId,
       pointer: toJsonPointer(error),
       reason: toAjvReason(error),
-      message: "Observed kafka headers did not conform to the retained AsyncAPI header schema"
+      message: "Observed async headers did not conform to the retained AsyncAPI header schema"
     });
   }
 }
 
 function buildUnsupportedHeaderDiagnostic(
-  matched: MatchedKafkaContract,
+  matched: MatchedAsyncContract,
   message: KafkaMessageContract,
   reason: string
 ): AsyncSchemaConformanceDiagnostic {
@@ -635,12 +636,12 @@ function buildUnsupportedHeaderDiagnostic(
     messageName: message.name,
     schemaId: message.headersSchemaId,
     reason,
-    message: "Retained AsyncAPI header schema is outside the current kafka header-validation scope"
+    message: "Retained AsyncAPI header schema is outside the current async header-validation scope"
   };
 }
 
 function buildUnavailableHeaderDiagnostic(
-  matched: MatchedKafkaContract,
+  matched: MatchedAsyncContract,
   message: KafkaMessageContract,
   schemaId: string | undefined,
   headerKey: string,
@@ -656,8 +657,8 @@ function buildUnavailableHeaderDiagnostic(
     messageName: message.name,
     schemaId,
     pointer: toHeaderPointer(headerKey),
-    reason: `Observed kafka header '${headerKey}' was retained as ${evidence.state} evidence${reasonSuffix}, so its value could not be validated.`,
-    message: "Observed kafka header value was unavailable for AsyncAPI header validation"
+    reason: `Observed async header '${headerKey}' was retained as ${evidence.state} evidence${reasonSuffix}, so its value could not be validated.`,
+    message: "Observed async header value was unavailable for AsyncAPI header validation"
   };
 }
 
@@ -926,9 +927,19 @@ function validationCacheKey(operationKey: string, messageIdentity: string, kind:
   return `${operationKey}\u0000${messageIdentity}\u0000${kind}`;
 }
 
-function matchKey(action: AsyncAction, channel: string): string {
-  return `${action}\u0000${channel}`;
+function matchKey(protocol: AsyncProtocol, action: AsyncAction, channel: string): string {
+  return `${protocol}\u0000${action}\u0000${channel}`;
 }
+
+function isAsyncOperationKey(value: AsyncOperationKey | OperationKeyLike): value is AsyncOperationKey {
+  return value.kind === "kafka" || value.kind === "amqp";
+}
+
+type OperationKeyLike = {
+  kind: string;
+  action?: AsyncAction;
+  channel?: string;
+};
 
 function isRecord(value: JsonValue): value is Record<string, JsonValue> {
   return typeof value === "object" && value !== null && !Array.isArray(value);

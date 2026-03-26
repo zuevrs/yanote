@@ -1,55 +1,55 @@
-# Канонический путь: AsyncAPI + Kafka через `async-report`
+# Канонический путь: AsyncAPI через Kafka, RabbitMQ и `combined-report`
 
-Это отдельный guide-level путь для первой волны async coverage в Yanote. Он не заменяет HTTP/OpenAPI guide: для HTTP используйте [`docs/guides/analyzer-coverage.md`](analyzer-coverage.md), а здесь описана только связка **AsyncAPI + Kafka evidence → `node yanote-js/dist/yanote.cjs async-report` → `yanote-async-report.json` + `yanote-async-report.html`**.
+Это отдельный guide-level путь для widened async и combined coverage в Yanote. Он не заменяет HTTP/OpenAPI guide: для HTTP используйте [`docs/guides/analyzer-coverage.md`](analyzer-coverage.md), а здесь описана связка **Kafka или RabbitMQ/AMQP evidence → `node yanote-js/dist/yanote.cjs async-report` → `yanote-async-report.json` + `yanote-async-report.html`**, а также **child-attributed `combined-report` → `yanote-combined-report.json` + `yanote-combined-report.html`**.
 
-Главное правило этого guide простое: не смешивайте HTTP `report` / `yanote-report.json` / `yanote-report.html` и async `async-report` / `yanote-async-report.json` / `yanote-async-report.html` в один размытый onboarding. У этих поверхностей разные входы, разные summary-строки и отдельные gate-ожидания.
+Главное правило этого guide простое: не смешивайте HTTP `report` / `yanote-report.json` / `yanote-report.html` и async `async-report` / `yanote-async-report.json` / `yanote-async-report.html` в один размытый onboarding. Combined surface теперь поддержан, но он additive и child-attributed: он не превращает HTTP и async в один blended denominator, не заменяет отдельные proof bundles и не создаёт hosted dashboard.
 
-## 1. Что поддерживается в первой волне
+## 1. Что поддерживается в widened async и combined surface
 
 Сегодняшний проверенный async path в репозитории такой:
 
 - AsyncAPI как источник объявленного async-контракта;
-- Kafka evidence как реальный источник наблюдений;
-- source-built CLI из `yanote-js` с командой `async-report`;
-- поддержанные входы: `raw` или `merged` async JSONL с Kafka evidence (`kind: "kafka"`, `action: "send" | "receive"`, `channel`, `message`);
-- канонический happy-path bundle из `bash scripts/ci/verify-m004-s03-live-kafka-proof.sh`: `async-report.stdout`, `async-report.stderr`, `yanote-async-report.json`, `yanote-async-report.html`;
-- retained schema-failure bundle из того же proof path: `schema-failure-async-report.stdout`, `schema-failure-async-report.stderr`, `schema-failure-yanote-async-report.json`, `schema-failure-yanote-async-report.html`.
+- source-built CLI из `yanote-js` с командами `async-report` и `combined-report`;
+- отдельный proven Kafka path через retained bundle `.yanote-ci/live-kafka-proof/` и collected bundle `build-and-test-artifacts/live-kafka-proof/`;
+- отдельный proven RabbitMQ/AMQP path через retained bundle `.yanote-ci/live-rabbitmq-proof/` и collected bundle `build-and-test-artifacts/live-rabbitmq-proof/`;
+- child-attributed combined path через retained bundle `.tmp/m015-s03-combined-proof/` и collected bundle `build-and-test-artifacts/combined-proof/`, где `yanote-combined-report.json` / `yanote-combined-report.html` ссылаются на отдельные HTTP и async child reports;
+- поддержанные async inputs: `raw` или `merged` async JSONL с Kafka evidence (`kind: "kafka"`) или первым RabbitMQ/AMQP evidence (`kind: "amqp"`), плюс retained HTTP child report для `combined-report`.
 
-Если вам нужен user-facing путь, который уже доказан live-proof скриптами из репозитория, считайте поддержанным именно этот маршрут, а не абстрактный «любой AsyncAPI в любом брокере».
+Если вам нужен user-facing путь, который уже доказан live-proof скриптами из репозитория, считайте поддержанными именно эти три семейства, а не абстрактный «любой AsyncAPI в любом брокере» или blended dashboard surface.
 
 ## 2. Авторитетные live-proof команды
 
-Перед тем как переносить путь в свой сервис или спорить о границах поддержки, перепроверьте две авторитетные proof-команды из M004:
+Перед тем как переносить путь в свой сервис или спорить о границах поддержки, перепроверьте три авторитетные proof-команды widened surface:
 
 ```bash
-bash scripts/ci/verify-m004-s02-metadata-propagation.sh
 bash scripts/ci/verify-m004-s03-live-kafka-proof.sh
+bash scripts/ci/verify-m015-s02-live-rabbitmq-proof.sh
+bash scripts/ci/verify-m015-s03-combined-report.sh
 ```
 
 Что именно они доказывают:
 
-- [`scripts/ci/verify-m004-s02-metadata-propagation.sh`](../../scripts/ci/verify-m004-s02-metadata-propagation.sh) — single-service proof для HTTP → Kafka → Kafka republish: проверяет raw `events.jsonl`, наличие Kafka `send`/`receive` evidence, propagation `test.run_id` / `test.suite` и успешный `async-report` с артефактом `yanote-async-report.json`.
-- [`scripts/ci/verify-m004-s03-live-kafka-proof.sh`](../../scripts/ci/verify-m004-s03-live-kafka-proof.sh) — two-service live Kafka proof: проверяет producer/consumer raw JSONL, детерминированный merge, успешный happy-path `async-report` по merged evidence, retained runtime-selection sidecar для multi-message AsyncAPI path и retained schema-failure pass по той же merged evidence.
+- [`scripts/ci/verify-m004-s03-live-kafka-proof.sh`](../../scripts/ci/verify-m004-s03-live-kafka-proof.sh) — two-service live Kafka proof: producer/consumer raw JSONL, deterministic merge, happy-path `async-report`, retained runtime-selection companion и retained schema-failure companion для proven Kafka path.
+- [`scripts/ci/verify-m015-s02-live-rabbitmq-proof.sh`](../../scripts/ci/verify-m015-s02-live-rabbitmq-proof.sh) — first live RabbitMQ/AMQP proof: producer/consumer raw JSONL с `kind: "amqp"`, deterministic merge, happy-path `async-report`, `protocols=amqp`, declared semantics и явное отсутствие fabricated Kafka-only companion artifacts.
+- [`scripts/ci/verify-m015-s03-combined-report.sh`](../../scripts/ci/verify-m015-s03-combined-report.sh) — retained combined proof: генерирует отдельный HTTP child report, берёт retained RabbitMQ async child report и собирает `yanote-combined-report.json` / `yanote-combined-report.html` с явными child-path ссылками вместо blended denominator.
 
-После T02 второй proof-скрипт экспортирует в `.yanote-ci/live-kafka-proof/` три правдивые поверхности:
+После T02 эти proof-скрипты экспортируют три правдивые поверхности:
 
-- happy path: `async-report.stdout`, `async-report.stderr`, `yanote-async-report.json`, `yanote-async-report.html`;
-- runtime-selected multi-message sidecar: `runtime-selected-async-report.stdout`, `runtime-selected-async-report.stderr`, `runtime-selected-yanote-async-report.json`, `runtime-selected-yanote-async-report.html`;
-- intentional schema failure: `schema-failure-async-report.stdout`, `schema-failure-async-report.stderr`, `schema-failure-yanote-async-report.json`, `schema-failure-yanote-async-report.html`.
+- Kafka bundle `.yanote-ci/live-kafka-proof/` с happy path, runtime-selected companion и schema-failure companion; в CI — `build-and-test-artifacts/live-kafka-proof/`;
+- RabbitMQ bundle `.yanote-ci/live-rabbitmq-proof/` с `async-report.stdout`, `async-report.stderr`, `yanote-async-report.json`, `yanote-async-report.html`, `artifact-manifest.txt`, `artifact-source-paths.txt`; в CI — `build-and-test-artifacts/live-rabbitmq-proof/`;
+- combined bundle `.tmp/m015-s03-combined-proof/` с `combined-report.stdout`, `combined-report.stderr`, `yanote-combined-report.json`, `yanote-combined-report.html`, `artifact-manifest.txt`, `artifact-source-paths.txt`; в CI — `build-and-test-artifacts/combined-proof/`.
 
-Happy-path JSON/HTML/stdout теперь несут три additive widened semantics layers из того же live bundle: `bindingSupport.summary`, `declaredSemantics.summary` и `runtimeSemantics.summary`. В CI этот же bundle собирается в `build-and-test-artifacts/live-kafka-proof/`, а GitHub step summary и `async-summary.md` публикуют redaction-safe строки `binding support`, `declared semantics` и `runtime semantics` вместе с явными именами `yanote-async-report.json` / `yanote-async-report.html` и retained companion artifacts.
+GitHub step summary и collected summaries публикуют redaction-safe строки `binding support`, `declared semantics`, `runtime semantics`, RabbitMQ `protocols=amqp`, явные report filenames и child report paths. Это и есть текущая публичная truth для widened async/combined path: есть отдельные Kafka и RabbitMQ async bundles, есть combined child surface, но нет unified gate denominator, hosted dashboard или broker-agnostic promise.
 
-Это и есть текущая публичная truth для proven Kafka path: зелёный прогон показывает канонический coverage bundle и sibling human HTML, retained runtime-selected sidecar показывает `selectionMode=runtime` и выбранные `declaredMessages` / `selectedMessages` для multi-message AsyncAPI contract, а retained red sidecar показывает typed `ASYNC_SEMANTIC_INVALID_PAYLOAD` и `diagnostics.counts.invalid-payload` для той же merged Kafka evidence.
+## 3. Какие async evidence inputs поддержаны
 
-Если эти proof-скрипты падают, сначала разбирайте их failure artifacts и `stderr`, а уже потом меняйте документацию или интеграцию.
+Widened surface честно поддерживает **`raw` или `merged` async JSONL**, если в нём есть Kafka evidence (`kind: "kafka"`) или первый RabbitMQ/AMQP evidence (`kind: "amqp"`). Практически это означает три допустимых варианта входа:
 
-## 3. Какие Kafka evidence inputs поддержаны
-
-Первая волна честно поддерживает **`raw` или `merged` async JSONL**, если в нём есть Kafka evidence (`kind: "kafka"`, `action: "send" | "receive"`, `channel`, `message`). Практически это означает три допустимых варианта входа:
-
-1. **Raw single-service `events.jsonl`** — один файл с прогоном, где рядом могут лежать и HTTP-, и Kafka-события. Именно такой mixed raw surface использует `verify-m004-s02-metadata-propagation.sh`; `async-report` читает из него Kafka evidence.
+1. **Raw single-service `events.jsonl`** — один файл с прогоном, где рядом могут лежать HTTP- и async-события. Для Kafka такой mixed raw surface использует `verify-m004-s02-metadata-propagation.sh`; для RabbitMQ авторитетным live proof остаётся two-service bundle из `verify-m015-s02-live-rabbitmq-proof.sh`.
 2. **Raw per-service async JSONL** — отдельные файлы сервиса-производителя и сервиса-потребителя, например `01-producer.events.jsonl` и `02-consumer.events.jsonl`.
 3. **Merged async JSONL** — детерминированно объединённый файл для multi-service анализа, например `merged-two-service.events.jsonl`.
+
+Для combined surface вход отдельный: `combined-report` не читает raw events напрямую, а берёт уже-retained HTTP child report плюс retained async child report.
 
 Repo helper для merge уже есть:
 
@@ -132,35 +132,37 @@ YANOTE_ASYNC_ERROR class=gate code=ASYNC_GATE_MIN_COVERAGE ...
 
 Для CI и support surface самый удобный набор такой:
 
-- `YANOTE_ASYNC_SUMMARY ...` — быстрая grep-friendly строка;
-- `yanote-async-report.json` и `yanote-async-report.html` — отдельная machine-facing и human-facing async family;
-- `build-and-test-artifacts/live-kafka-proof/async-summary.md` и GitHub step summary — redaction-safe строки `binding support`, `declared semantics`, `runtime semantics`, явные report filenames и retained companion filenames без публикации raw retained Kafka headers;
+- `YANOTE_ASYNC_SUMMARY ...` и `YANOTE_COMBINED_SUMMARY ...` — быстрые grep-friendly строки;
+- `yanote-async-report.json` / `yanote-async-report.html` — отдельная machine-facing и human-facing async family для Kafka или RabbitMQ;
+- `yanote-combined-report.json` / `yanote-combined-report.html` — combined child surface с явными HTTP/async child refs;
+- `build-and-test-artifacts/live-kafka-proof/`, `build-and-test-artifacts/live-rabbitmq-proof/` и `build-and-test-artifacts/combined-proof/` плюс GitHub step summary — redaction-safe строки `binding support`, `declared semantics`, `runtime semantics`, RabbitMQ `protocols=amqp`, явные report filenames, child report paths и retained companion filenames там, где они существуют, без публикации raw retained headers;
 - `stderr` analyzer-а или proof-скрипта — typed причина, если путь упал fail-closed;
 - для proven Kafka runtime-selection path — `runtime-selected-async-report.stderr`, `runtime-selected-yanote-async-report.json` и `runtime-selected-yanote-async-report.html` из `.yanote-ci/live-kafka-proof/`, если нужно разобрать multi-message selection truth;
 - для proven Kafka schema-failure path — `schema-failure-async-report.stderr`, `schema-failure-yanote-async-report.json` и `schema-failure-yanote-async-report.html` из `.yanote-ci/live-kafka-proof/`.
 
-Важно не переинтерпретировать async цифры: routing percentages remain routing-first. `channelCoveragePercent`, `operationCoveragePercent` и `messageCoveragePercent` показывают, что channel/operation/message wiring был наблюдён и сопоставлен, но не превращают зелёный happy path в обещание полной schema-keyword coverage.
+Важно не переинтерпретировать async цифры: routing percentages remain routing-first. `channelCoveragePercent`, `operationCoveragePercent` и `messageCoveragePercent` показывают, что channel/operation/message wiring был наблюдён и сопоставлен, а combined-report показывает child statuses и report paths, но не превращает зелёный happy path в обещание полной schema-keyword coverage или blended denominator.
 
-Payload-schema drift surfaced on the proven Kafka path, но только в тех границах, которые реально экспортирует live proof: retained invalid-payload sidecar показывает типизированный drift для той же merged Kafka evidence, а не абстрактную broker-agnostic schema validation для любых AsyncAPI runtime-ов.
+Payload-schema drift surfaced on the proven Kafka path, но только в тех границах, которые реально экспортирует live proof: retained invalid-payload sidecar показывает типизированный drift для той же merged Kafka evidence, а не абстрактную broker-agnostic schema validation для любых AsyncAPI runtime-ов. RabbitMQ happy path сейчас публикует AMQP truth и declared semantics без фабрикации Kafka-only companions.
 
-Отдельная честная граница касается headers: retained Kafka headers remain unverifiable. Runtime-selected sidecar публикует только redacted selectors (`declaredMessages` / `selectedMessages`) и доказывает multi-message runtime selection via retained headers, но user-facing bundle всё ещё не сохраняет raw Kafka headers и не делает публичным promise про header-schema coverage.
+Отдельная честная граница касается headers: retained headers остаются redacted support inputs, а не public proof payloads. Kafka runtime-selected sidecar публикует только redacted selectors (`declaredMessages` / `selectedMessages`) и доказывает multi-message runtime selection via retained headers, RabbitMQ proof не просит raw AMQP headers, а combined bundle ссылается на child report paths без публикации secret-bearing bodies.
 
-## 7. Честная граница первой волны
+## 7. Честная граница widened async surface
 
 Эти boundary-клаузы нужно считать буквальными, а не маркетинговыми обещаниями:
 
-- **Kafka-only** — текущий user-facing async path поддерживает Kafka evidence и Kafka-oriented AsyncAPI proof; это не promise про любые брокеры.
-- **Spring Kafka-first** — live-proof в репозитории проходит через Spring Kafka integration path; другие runtime/framework surface-ы здесь не обещаны как проверенные.
-- **separate async report/gate** — async onboarding идёт через `async-report`, `YANOTE_ASYNC_SUMMARY`, `YANOTE_ASYNC_ERROR` и `yanote-async-report.json`; HTTP `report` / `yanote-report.json` остаются отдельной surface.
-- **payload-schema drift surfaced on the proven Kafka path** — текущая первая волна уже умеет публиковать retained `invalid-payload` drift для live Kafka evidence через `schema-failure-*` артефакты, но не обещает полную schema-keyword coverage или broker-agnostic payload enforcement.
+- **Kafka path остаётся поддержанным и доказанным** — текущий user-facing async path по-прежнему поддерживает Kafka evidence и Kafka-oriented AsyncAPI proof.
+- **RabbitMQ/AMQP — первый конкретный второй broker path, а не broker-agnostic promise** — поддержан live proof через `.yanote-ci/live-rabbitmq-proof/`, `protocols=amqp` и retained AMQP child artifacts, но это не обещание для любых брокеров.
+- **separate async report/gate + retained combined-report surface** — Kafka и RabbitMQ живут через `async-report`, `YANOTE_ASYNC_SUMMARY`, `yanote-async-report.json` / `yanote-async-report.html`; combined path живёт через `combined-report`, `YANOTE_COMBINED_SUMMARY`, `yanote-combined-report.json` / `yanote-combined-report.html` и явные child refs.
+- **payload-schema drift surfaced on the proven Kafka path** — retained `schema-failure-*` артефакты остаются специфичными для proven Kafka path; RabbitMQ happy path не фабрикует эти Kafka-only companions.
 - **routing percentages remain routing-first** — проценты покрытия по-прежнему описывают прежде всего channel/operation/message wiring и не подменяют более глубокую schema semantics surface.
-- **retained Kafka headers remain unverifiable** — runtime-selected sidecar доказывает multi-message selection через retained header discriminators, но публичный bundle по-прежнему не делает raw Kafka headers или header-schema coverage поддержанной user-facing surface.
-- **broker-agnostic promise нет** — RabbitMQ/AMQP и другие расширения остаются follow-on scope, а не текущая поддерживаемая поверхность.
+- **combined surface остаётся child-attributed** — есть combined report family, но нет blended denominator, единой merge-blocking gate-метрики поверх HTTP+async и нет hosted dashboard.
+- **raw retained headers и payload bodies не становятся public support surface** — retained selectors и child paths можно inspect-ить, но support intake не просит сырые headers или full payload bodies.
+- **broker-agnostic promise нет** — кроме доказанных Kafka и первого RabbitMQ/AMQP path, другие брокеры и универсальная async runtime promise остаются follow-on scope.
 
 Из этого следуют два практических запрета:
 
 1. Не называйте текущий path «общим async analyzer для любого брокера».
-2. Не трактуйте `yanote-async-report.json`, `yanote-async-report.html`, `runtime-selected-*` bundle или `schema-failure-*` bundle как доказательство полной broker-agnostic, header-level schema validation, combined HTTP+async report surface или hosted dashboard.
+2. Не трактуйте `yanote-async-report.json`, `yanote-async-report.html`, `yanote-combined-report.json`, `yanote-combined-report.html`, retained Kafka companions или RabbitMQ/combined bundles как доказательство blended HTTP+async denominator, hosted dashboard или broker-agnostic header-level validation.
 
 ## Связанные поверхности
 

@@ -1,3 +1,5 @@
+import { readFile, rm } from "node:fs/promises";
+import path from "node:path";
 import { Command, CommanderError } from "commander";
 import {
   compareRegressionAgainstBaseline,
@@ -36,8 +38,11 @@ import {
   type GovernanceFailure
 } from "./gates/failureOrder.js";
 import { resolveGatePolicy, type GateProfile } from "./gates/policy.js";
-import { buildAsyncReport, type AsyncYanoteReport } from "./report/asyncReport.js";
+import { ASYNC_REPORT_PHASE, buildAsyncReport, type AsyncYanoteReport, validateAsyncReport } from "./report/asyncReport.js";
+import { buildCombinedReport, type CombinedYanoteReport } from "./report/combinedReport.js";
+import { writeCombinedYanoteReport } from "./report/writeCombinedReport.js";
 import { buildReport, type YanoteReport } from "./report/report.js";
+import { validateReport } from "./report/schema.js";
 import { writeAsyncYanoteReport } from "./report/writeAsyncReport.js";
 import { writeYanoteReport } from "./report/writeReport.js";
 import { loadAsyncApiSemanticsBundle } from "./spec/asyncapi.js";
@@ -57,7 +62,16 @@ export type CliResult = {
   stderr: string;
 };
 
-type CliFailure = GovernanceFailure;
+type CliFailure = GovernanceFailure & {
+  child?: "http" | "async" | "combined";
+  childPath?: string;
+  reportPath?: string;
+};
+
+const HTTP_REPORT_PHASE = {
+  id: "02",
+  slug: "coverage-metrics-and-cli-reporting"
+} as const;
 
 type SummaryIssue = {
   severityRank: number;
@@ -116,7 +130,7 @@ function createProgram(io?: { out?: (chunk: string) => void; err?: (chunk: strin
 
   program
     .command("async-report")
-    .description("Compute deterministic async coverage from AsyncAPI and kafka evidence")
+    .description("Compute deterministic async coverage from AsyncAPI and retained async evidence")
     .requiredOption("--spec <path>", "Spec file or directory (AsyncAPI)")
     .requiredOption("--events <path>", "Path to async events.jsonl")
     .requiredOption("--out <dir>", "Output directory")
@@ -127,6 +141,17 @@ function createProgram(io?: { out?: (chunk: string) => void; err?: (chunk: strin
     .option("--verbose", "Print additional issue details", false)
     .action(async (opts: any) => {
       await executeAsyncReportCommand(opts, writeOut, writeErr);
+    });
+
+  program
+    .command("combined-report")
+    .description("Combine canonical HTTP and async child reports into one attributed report surface")
+    .requiredOption("--report <path>", "Path to yanote-report.json")
+    .requiredOption("--async-report <path>", "Path to yanote-async-report.json")
+    .requiredOption("--out <dir>", "Output directory")
+    .option("--verbose", "Print additional issue details", false)
+    .action(async (opts: any) => {
+      await executeCombinedReportCommand(opts, writeOut, writeErr);
     });
 
   return program;
@@ -433,6 +458,323 @@ async function executeAsyncReportCommand(
     );
     throw new CommanderError(primaryFailure.exitCode, primaryFailure.code, primaryFailure.reason);
   }
+}
+
+async function executeCombinedReportCommand(
+  opts: any,
+  writeOut: (chunk: string) => void,
+  writeErr: (chunk: string) => void
+): Promise<void> {
+  let report: CombinedYanoteReport | undefined;
+  let reportPath: string | undefined;
+  const failureCandidates: CliFailure[] = [];
+  const httpReportPath = String(opts.report);
+  const asyncReportPath = String(opts.asyncReport);
+
+  const [httpChildResult, asyncChildResult] = await Promise.all([
+    loadCombinedHttpChildReport(httpReportPath),
+    loadCombinedAsyncChildReport(asyncReportPath)
+  ]);
+
+  if (!httpChildResult.ok) {
+    failureCandidates.push(httpChildResult.failure);
+  }
+  if (!asyncChildResult.ok) {
+    failureCandidates.push(asyncChildResult.failure);
+  }
+
+  if (httpChildResult.ok && asyncChildResult.ok) {
+    try {
+      report = buildCombinedReport({
+        toolVersion: TOOL_VERSION,
+        http: {
+          report: httpChildResult.report,
+          reportPath: httpReportPath
+        },
+        async: {
+          report: asyncChildResult.report,
+          reportPath: asyncReportPath
+        }
+      });
+    } catch (error) {
+      failureCandidates.push(classifyCombinedBuildFailure(error));
+    }
+
+    if (report) {
+      try {
+        reportPath = await writeCombinedYanoteReport(String(opts.out), report);
+      } catch (error) {
+        await cleanupCombinedArtifacts(String(opts.out));
+        failureCandidates.push(classifyCombinedWriteFailure(error));
+      }
+    }
+  }
+
+  const orderedFailures = sortFailuresByPrecedence(failureCandidates);
+  const primaryFailure = selectPrimaryFailure(orderedFailures);
+  const secondaryFailures = primaryFailure
+    ? orderedFailures.filter((failure) => failure.severity === "error" && failure !== primaryFailure)
+    : [];
+
+  const summary = formatCombinedSummaryOutput({
+    report,
+    reportPath,
+    httpReportPath,
+    asyncReportPath,
+    failures: orderedFailures,
+    verbose: Boolean(opts.verbose)
+  });
+  writeOut(summary);
+
+  if (primaryFailure) {
+    writeErr(
+      formatFailureOutput(primaryFailure, secondaryFailures, {
+        primaryPrefix: "YANOTE_COMBINED_ERROR",
+        secondaryPrefix: "YANOTE_COMBINED_ERROR_SECONDARY",
+        includeChildContext: true
+      })
+    );
+    throw new CommanderError(primaryFailure.exitCode, primaryFailure.code, primaryFailure.reason);
+  }
+}
+
+type CombinedChildLoadResult<T> =
+  | { ok: true; report: T }
+  | { ok: false; failure: CliFailure };
+
+async function loadCombinedHttpChildReport(reportPath: string): Promise<CombinedChildLoadResult<YanoteReport>> {
+  try {
+    const parsed = await readCombinedChildJson(reportPath, "http");
+    const validation = validateReport(parsed);
+    if (!validation.ok) {
+      return {
+        ok: false,
+        failure: makeCombinedChildFailure(
+          EXIT.INPUT,
+          "INPUT_COMBINED_CHILD_SCHEMA_INVALID",
+          "http",
+          reportPath,
+          `Invalid http child report schema at ${reportPath}: ${validation.errors.join("; ")}`,
+          "Provide a canonical yanote-report.json generated by the report command."
+        )
+      };
+    }
+
+    const phase = readPhase(parsed);
+    if (phase.id !== HTTP_REPORT_PHASE.id || phase.slug !== HTTP_REPORT_PHASE.slug) {
+      return {
+        ok: false,
+        failure: makeCombinedChildFailure(
+          EXIT.INPUT,
+          "INPUT_COMBINED_CHILD_PHASE_INVALID",
+          "http",
+          reportPath,
+          `Unexpected http child report phase at ${reportPath}: found ${phase.id}/${phase.slug}.`,
+          "Provide a canonical yanote-report.json from the HTTP report surface."
+        )
+      };
+    }
+
+    return { ok: true, report: parsed as YanoteReport };
+  } catch (error) {
+    return {
+      ok: false,
+      failure: classifyCombinedChildLoadFailure(error, "http", reportPath)
+    };
+  }
+}
+
+async function loadCombinedAsyncChildReport(reportPath: string): Promise<CombinedChildLoadResult<AsyncYanoteReport>> {
+  try {
+    const parsed = await readCombinedChildJson(reportPath, "async");
+    const validation = validateAsyncReport(parsed);
+    if (!validation.ok) {
+      return {
+        ok: false,
+        failure: makeCombinedChildFailure(
+          EXIT.INPUT,
+          "INPUT_COMBINED_CHILD_SCHEMA_INVALID",
+          "async",
+          reportPath,
+          `Invalid async child report schema at ${reportPath}: ${validation.errors.join("; ")}`,
+          "Provide a canonical yanote-async-report.json generated by the async-report command."
+        )
+      };
+    }
+
+    const phase = readPhase(parsed);
+    if (phase.id !== ASYNC_REPORT_PHASE.id || phase.slug !== ASYNC_REPORT_PHASE.slug) {
+      return {
+        ok: false,
+        failure: makeCombinedChildFailure(
+          EXIT.INPUT,
+          "INPUT_COMBINED_CHILD_PHASE_INVALID",
+          "async",
+          reportPath,
+          `Unexpected async child report phase at ${reportPath}: found ${phase.id}/${phase.slug}.`,
+          "Provide a canonical yanote-async-report.json from the async-report surface."
+        )
+      };
+    }
+
+    return { ok: true, report: parsed as AsyncYanoteReport };
+  } catch (error) {
+    return {
+      ok: false,
+      failure: classifyCombinedChildLoadFailure(error, "async", reportPath)
+    };
+  }
+}
+
+async function readCombinedChildJson(reportPath: string, child: "http" | "async"): Promise<unknown> {
+  let raw: string;
+  try {
+    raw = await readFile(reportPath, "utf8");
+  } catch (error) {
+    throw makeCombinedChildFailure(
+      EXIT.INPUT,
+      "INPUT_COMBINED_CHILD_READ_FAILED",
+      child,
+      reportPath,
+      `Unable to read ${child} child report at ${reportPath}: ${fsErrorReason(error, "Unable to read child report.")}`,
+      `Check the --${child === "http" ? "report" : "async-report"} path and file permissions.`
+    );
+  }
+
+  try {
+    return JSON.parse(raw) as unknown;
+  } catch (error) {
+    throw makeCombinedChildFailure(
+      EXIT.INPUT,
+      "INPUT_COMBINED_CHILD_JSON_INVALID",
+      child,
+      reportPath,
+      `Invalid JSON in ${child} child report at ${reportPath}: ${error instanceof Error ? error.message : String(error)}`,
+      `Regenerate the ${child} child report and rerun combined-report.`
+    );
+  }
+}
+
+function readPhase(value: unknown): { id: string; slug: string } {
+  if (!value || typeof value !== "object") {
+    return { id: "missing", slug: "missing" };
+  }
+
+  const phase = (value as { phase?: { id?: unknown; slug?: unknown } }).phase;
+  return {
+    id: typeof phase?.id === "string" && phase.id.length > 0 ? phase.id : "missing",
+    slug: typeof phase?.slug === "string" && phase.slug.length > 0 ? phase.slug : "missing"
+  };
+}
+
+function classifyCombinedChildLoadFailure(error: unknown, child: "http" | "async", reportPath: string): CliFailure {
+  if (isCliFailure(error)) {
+    return error;
+  }
+
+  if (isFsInputError(error)) {
+    return makeCombinedChildFailure(
+      EXIT.INPUT,
+      "INPUT_COMBINED_CHILD_READ_FAILED",
+      child,
+      reportPath,
+      `Unable to read ${child} child report at ${reportPath}: ${fsErrorReason(error, "Unable to read child report.")}`,
+      `Check the --${child === "http" ? "report" : "async-report"} path and file permissions.`
+    );
+  }
+
+  return makeCombinedChildFailure(
+    EXIT.RUNTIME,
+    "RUNTIME_COMBINED_CHILD_LOAD_FAILED",
+    child,
+    reportPath,
+    error instanceof Error ? error.message : String(error),
+    "Inspect stderr details and rerun with canonical child report inputs."
+  );
+}
+
+function classifyCombinedBuildFailure(error: unknown): CliFailure {
+  if (isCliFailure(error)) {
+    return error;
+  }
+
+  return {
+    ...makeFailure(
+      EXIT.RUNTIME,
+      "runtime",
+      "RUNTIME_COMBINED_REPORT_BUILD_FAILED",
+      error instanceof Error ? error.message : String(error),
+      "Inspect child reports for schema drift and rerun combined-report."
+    ),
+    child: "combined",
+    reportPath: "none"
+  };
+}
+
+function classifyCombinedWriteFailure(error: unknown): CliFailure {
+  if (isCliFailure(error)) {
+    return error;
+  }
+
+  return {
+    ...makeFailure(
+      EXIT.RUNTIME,
+      "runtime",
+      "RUNTIME_COMBINED_REPORT_WRITE_FAILED",
+      fsErrorReason(error, "Unable to write combined report artifact."),
+      "Check --out path permissions and available disk space."
+    ),
+    child: "combined",
+    reportPath: "none"
+  };
+}
+
+async function cleanupCombinedArtifacts(outDir: string): Promise<void> {
+  await Promise.allSettled([
+    rm(path.join(outDir, "yanote-combined-report.json"), { force: true }),
+    rm(path.join(outDir, "yanote-combined-report.html"), { force: true })
+  ]);
+}
+
+function makeCombinedChildFailure(
+  exitCode: number,
+  code: string,
+  child: "http" | "async" | "combined",
+  childPath: string,
+  reason: string,
+  hint: string
+): CliFailure {
+  return {
+    ...makeFailure(exitCode, exitCode === EXIT.RUNTIME ? "runtime" : "input", code, reason, hint),
+    child,
+    childPath,
+    reportPath: "none",
+    operationKey: childOrderKey(child)
+  };
+}
+
+function childOrderKey(child: "http" | "async" | "combined"): string {
+  switch (child) {
+    case "http":
+      return "0:http";
+    case "async":
+      return "1:async";
+    case "combined":
+      return "2:combined";
+  }
+}
+
+function isCliFailure(error: unknown): error is CliFailure {
+  return Boolean(
+    error &&
+      typeof error === "object" &&
+      "failureClass" in error &&
+      "code" in error &&
+      "reason" in error &&
+      "hint" in error &&
+      "exitCode" in error &&
+      "severity" in error
+  );
 }
 
 async function resolveCliSpecSource(
@@ -921,6 +1263,7 @@ function formatAsyncSummaryOutput(input: {
   const bindingSupport = input.report?.bindingSupport;
   const declaredSemantics = input.report?.declaredSemantics;
   const runtimeSemantics = input.report?.runtimeSemantics;
+  const protocols = resolveAsyncSummaryProtocols(input.report, input.coverage);
 
   const totalChannels = summary?.totalChannels ?? 0;
   const coveredChannels = summary?.coveredChannels ?? 0;
@@ -943,6 +1286,7 @@ function formatAsyncSummaryOutput(input: {
   lines.push(`- channels: ${coveredChannels}/${totalChannels} (${formatPercent(summary?.channelCoveragePercent ?? null)})`);
   lines.push(`- operations: ${coveredOperations}/${totalOperations} (${formatPercent(summary?.operationCoveragePercent ?? null)})`);
   lines.push(`- messages: ${coveredMessages}/${totalMessages} (${formatPercent(summary?.messageCoveragePercent ?? null)})`);
+  lines.push(`- protocols: ${formatAsyncProtocolsSummary(protocols)}`);
   lines.push(`- spec source: ${formatSpecSourceSummary(input.report?.specSource)}`);
 
   lines.push("");
@@ -1015,6 +1359,7 @@ function formatAsyncSummaryOutput(input: {
       `channels=${formatMachinePercent(summary?.channelCoveragePercent ?? null)}`,
       `operations=${formatMachinePercent(summary?.operationCoveragePercent ?? null)}`,
       `messages=${formatMachinePercent(summary?.messageCoveragePercent ?? null)}`,
+      `protocols=${formatAsyncProtocolsMachine(protocols)}`,
       `spec_source_kind=${input.report?.specSource.kind ?? "none"}`,
       `spec_source_ref=${quote(input.report?.specSource.reference ?? "none")}`,
       `covered_channels=${coveredChannels}/${totalChannels}`,
@@ -1047,6 +1392,191 @@ function formatAsyncSummaryOutput(input: {
   );
 
   return `${lines.join("\n")}\n`;
+}
+
+function formatCombinedSummaryOutput(input: {
+  report?: CombinedYanoteReport;
+  reportPath?: string;
+  httpReportPath: string;
+  asyncReportPath: string;
+  failures: CliFailure[];
+  verbose: boolean;
+}): string {
+  const primaryFailure = selectPrimaryFailure(input.failures);
+  const status = input.report?.status ?? (primaryFailure ? "invalid" : "ok");
+  const overview = input.report?.overview;
+  const httpChild = input.report?.children.http;
+  const asyncChild = input.report?.children.async;
+  const issues = prioritizePrimaryIssue(collectCombinedIssues(input.report, input.failures), primaryFailure);
+  const maxIssues = input.verbose ? issues.length : 5;
+  const shownIssues = issues.slice(0, maxIssues);
+  const hiddenCount = Math.max(0, issues.length - shownIssues.length);
+
+  const lines: string[] = [];
+  lines.push("Summary");
+  lines.push(`- status: ${status}`);
+  lines.push(
+    `- children: ok=${overview?.okChildren ?? 0} partial=${overview?.partialChildren ?? 0} invalid=${overview?.invalidChildren ?? 0}`
+  );
+  lines.push(`- http child: ${httpChild?.status ?? "missing"}`);
+  lines.push(`- async child: ${asyncChild?.status ?? "missing"}`);
+
+  lines.push("");
+  lines.push("HTTP Child");
+  lines.push(`- status: ${httpChild?.status ?? "missing"}`);
+  lines.push(
+    `- operations: ${httpChild?.summary.coveredOperations ?? 0}/${httpChild?.summary.totalOperations ?? 0} (${formatPercent(httpChild?.summary.operationCoveragePercent ?? null)})`
+  );
+  lines.push(
+    `- aggregate: ${formatPercent(httpChild?.summary.aggregateCoveragePercent ?? null)}${httpChild?.summary.aggregateExplanation ? ` (${httpChild.summary.aggregateExplanation})` : ""}`
+  );
+  lines.push(`- deprecated operations: ${formatDeprecatedSummary(httpChild?.summary.deprecatedOperations)}`);
+  lines.push(
+    `- payload diagnostics: ${formatPayloadDiagnosticCounts(httpChild?.summary.payloadConformance.diagnostics)}`
+  );
+  lines.push(`- request truths: ${formatRequestTruthCounts(httpChild?.summary.requestConformance.counts)}`);
+  lines.push(`- security truths: ${formatSecurityTruthCounts(httpChild?.summary.securityConformance.counts)}`);
+  lines.push(`- spec source: ${formatSpecSourceSummary(httpChild?.provenance.specSource)}`);
+
+  lines.push("");
+  lines.push("Async Child");
+  lines.push(`- status: ${asyncChild?.status ?? "missing"}`);
+  lines.push(`- protocols: ${formatAsyncProtocolsSummary(asyncChild?.summary.protocols ?? [])}`);
+  lines.push(
+    `- channels: ${asyncChild?.summary.coveredChannels ?? 0}/${asyncChild?.summary.totalChannels ?? 0} (${formatPercent(asyncChild?.summary.channelCoveragePercent ?? null)})`
+  );
+  lines.push(
+    `- operations: ${asyncChild?.summary.coveredOperations ?? 0}/${asyncChild?.summary.totalOperations ?? 0} (${formatPercent(asyncChild?.summary.operationCoveragePercent ?? null)})`
+  );
+  lines.push(
+    `- messages: ${asyncChild?.summary.coveredMessages ?? 0}/${asyncChild?.summary.totalMessages ?? 0} (${formatPercent(asyncChild?.summary.messageCoveragePercent ?? null)})`
+  );
+  lines.push(
+    `- binding support: total=${asyncChild?.summary.bindingSupport.totalBindings ?? 0} supported=${asyncChild?.summary.bindingSupport.supportedBindings ?? 0} declared-only=${asyncChild?.summary.bindingSupport.declaredOnlyBindings ?? 0} deferred=${asyncChild?.summary.bindingSupport.deferredBindings ?? 0} invalid=${asyncChild?.summary.bindingSupport.invalidBindings ?? 0}`
+  );
+  lines.push(
+    `- runtime semantics: operations=${asyncChild?.summary.runtimeSemantics.totalOperations ?? 0} satisfied=${asyncChild?.summary.runtimeSemantics.satisfiedOperations ?? 0} unsatisfied=${asyncChild?.summary.runtimeSemantics.unsatisfiedOperations ?? 0} coverage=${formatPercent(asyncChild?.summary.runtimeSemantics.semanticCoveragePercent ?? null)}`
+  );
+  lines.push(`- spec source: ${formatSpecSourceSummary(asyncChild?.provenance.specSource)}`);
+
+  lines.push("");
+  lines.push("Top Issues");
+  if (shownIssues.length === 0) {
+    lines.push("- none");
+  } else {
+    for (const issue of shownIssues) {
+      lines.push(`- ${issue.severityLabel}: ${issue.text}`);
+    }
+  }
+  if (hiddenCount > 0) {
+    lines.push(`... +${hiddenCount} more; see report`);
+  }
+
+  lines.push("");
+  lines.push("Child Reports");
+  lines.push(`- http json: ${resolveCombinedArtifactPath(httpChild, "json", input.httpReportPath)}`);
+  lines.push(`- http html: ${resolveCombinedArtifactPath(httpChild, "html", deriveCombinedSiblingHtmlPath(input.httpReportPath))}`);
+  lines.push(`- async json: ${resolveCombinedArtifactPath(asyncChild, "json", input.asyncReportPath)}`);
+  lines.push(`- async html: ${resolveCombinedArtifactPath(asyncChild, "html", deriveCombinedSiblingHtmlPath(input.asyncReportPath))}`);
+
+  lines.push("");
+  lines.push("Report Path");
+  lines.push(input.reportPath ?? "none");
+
+  lines.push("");
+  lines.push(
+    [
+      "YANOTE_COMBINED_SUMMARY",
+      `status=${status}`,
+      `http_status=${httpChild?.status ?? "missing"}`,
+      `async_status=${asyncChild?.status ?? "missing"}`,
+      `ok_children=${overview?.okChildren ?? 0}`,
+      `partial_children=${overview?.partialChildren ?? 0}`,
+      `invalid_children=${overview?.invalidChildren ?? 0}`,
+      `http_report=${resolveCombinedArtifactPath(httpChild, "json", input.httpReportPath)}`,
+      `async_report=${resolveCombinedArtifactPath(asyncChild, "json", input.asyncReportPath)}`,
+      `protocols=${formatAsyncProtocolsMachine(asyncChild?.summary.protocols ?? [])}`,
+      `report=${input.reportPath ?? "none"}`,
+      `primary=${primaryFailure?.code ?? "none"}`,
+      `child=${primaryFailure?.child ?? "none"}`,
+      `primary_reason=${quote(primaryFailure?.reason ?? "none")}`,
+      `class_counts=${formatClassCounts(input.failures)}`
+    ].join(" ")
+  );
+
+  return `${lines.join("\n")}\n`;
+}
+
+function collectCombinedIssues(report: CombinedYanoteReport | undefined, failures: CliFailure[]): SummaryIssue[] {
+  const issues: SummaryIssue[] = [];
+
+  if (report) {
+    for (const [child, childReport] of [
+      ["http", report.children.http],
+      ["async", report.children.async]
+    ] as const) {
+      for (const [index, issue] of childReport.issues.entries()) {
+        const severity = combinedChildIssueSeverity(childReport.status, issue);
+        issues.push({
+          severityRank: severity.rank,
+          severityLabel: severity.label,
+          sortKey: `combined:${child}:${severity.rank}:${index.toString().padStart(4, "0")}`,
+          text: `${child} - ${issue}`
+        });
+      }
+    }
+  }
+
+  for (const failure of failures.filter((item) => item.severity === "error")) {
+    issues.push({
+      severityRank: 0,
+      severityLabel: "high",
+      sortKey: `failure:${failure.failureClass}:${failure.code}:${failure.operationKey ?? ""}`,
+      text: formatCombinedFailureSummaryText(failure)
+    });
+  }
+
+  return issues.sort((left, right) => {
+    const severity = left.severityRank - right.severityRank;
+    if (severity !== 0) return severity;
+    if (left.sortKey !== right.sortKey) return left.sortKey.localeCompare(right.sortKey);
+    return left.text.localeCompare(right.text);
+  });
+}
+
+function combinedChildIssueSeverity(
+  status: CombinedYanoteReport["status"],
+  issue: string
+): { rank: number; label: "high" | "medium" | "low" } {
+  if (issue.startsWith("status=invalid") || status === "invalid") {
+    return { rank: 0, label: "high" };
+  }
+  if (issue.startsWith("status=partial") || issue.includes("diagnostics") || issue.includes("errors retained") || issue.includes("invalid")) {
+    return { rank: 1, label: "medium" };
+  }
+  return { rank: 2, label: "low" };
+}
+
+function formatCombinedFailureSummaryText(failure: CliFailure): string {
+  const child = failure.child ? `${failure.child} ` : "";
+  const childPath = failure.childPath ? ` path=${failure.childPath}` : "";
+  return `${child}${failure.code} - ${failure.reason}${childPath}`;
+}
+
+function resolveCombinedArtifactPath(
+  child: CombinedYanoteReport["children"]["http"] | CombinedYanoteReport["children"]["async"] | undefined,
+  kind: "json" | "html",
+  fallback: string
+): string {
+  return child?.provenance.artifacts.find((artifact) => artifact.kind === kind)?.path ?? fallback;
+}
+
+function deriveCombinedSiblingHtmlPath(reportPath: string): string {
+  if (reportPath.endsWith(".json")) {
+    return `${reportPath.slice(0, -5)}.html`;
+  }
+
+  return path.join(path.dirname(reportPath), reportPath.includes("async") ? "yanote-async-report.html" : "yanote-report.html");
 }
 
 function formatAsyncDeclaredSemanticsDetails(
@@ -1400,9 +1930,10 @@ function collectAsyncIssues(
 ): SummaryIssue[] {
   const issues: SummaryIssue[] = [...extraIssues];
   const diagnostics = report?.diagnostics.items ?? coverage?.diagnostics ?? [];
+  const knownProtocols = resolveAsyncSummaryProtocols(report, coverage);
 
   for (const [index, diagnostic] of diagnostics.entries()) {
-    issues.push(toAsyncDiagnosticSummaryIssue(diagnostic, index));
+    issues.push(toAsyncDiagnosticSummaryIssue(diagnostic, index, knownProtocols));
   }
 
   if (report) {
@@ -1517,8 +2048,18 @@ function formatFailureSummaryText(failure: CliFailure): string {
   return `${failure.code} - ${failure.reason}`;
 }
 
-function toAsyncDiagnosticSummaryIssue(diagnostic: AsyncCoverageDiagnostic, index: number): SummaryIssue {
-  const operationKey = "operationKey" in diagnostic ? diagnostic.operationKey : `${diagnostic.action} ${diagnostic.channel}`;
+function toAsyncDiagnosticSummaryIssue(
+  diagnostic: AsyncCoverageDiagnostic,
+  index: number,
+  knownProtocols: string[]
+): SummaryIssue {
+  const defaultProtocol = knownProtocols.length === 1 ? knownProtocols[0] : undefined;
+  const operationKey =
+    "operationKey" in diagnostic
+      ? diagnostic.operationKey
+      : defaultProtocol
+        ? `${defaultProtocol} ${diagnostic.action} ${diagnostic.channel}`
+        : `${diagnostic.action} ${diagnostic.channel}`;
   const schema = "schemaId" in diagnostic && diagnostic.schemaId ? ` schema=${diagnostic.schemaId}` : "";
   const pointer = "pointer" in diagnostic && diagnostic.pointer ? ` pointer=${diagnostic.pointer}` : "";
   return {
@@ -1681,20 +2222,39 @@ function formatRequestTruthCountsMachine(
 function formatFailureOutput(
   primaryFailure: CliFailure,
   secondaryFailures: CliFailure[],
-  prefixes: { primaryPrefix: string; secondaryPrefix: string } = {
+  prefixes: {
+    primaryPrefix: string;
+    secondaryPrefix: string;
+    includeChildContext?: boolean;
+  } = {
     primaryPrefix: "YANOTE_ERROR",
     secondaryPrefix: "YANOTE_ERROR_SECONDARY"
   }
 ): string {
-  const lines = [formatFailureLine(prefixes.primaryPrefix, primaryFailure)];
+  const lines = [formatFailureLine(prefixes.primaryPrefix, primaryFailure, prefixes.includeChildContext)];
   for (const failure of secondaryFailures) {
-    lines.push(formatFailureLine(prefixes.secondaryPrefix, failure));
+    lines.push(formatFailureLine(prefixes.secondaryPrefix, failure, prefixes.includeChildContext));
   }
   return `${lines.join("\n")}\n`;
 }
 
-function formatFailureLine(prefix: string, failure: CliFailure): string {
-  return `${prefix} class=${failure.failureClass} code=${failure.code} reason=${quote(failure.reason)} hint=${quote(failure.hint)}`;
+function formatFailureLine(prefix: string, failure: CliFailure, includeChildContext = false): string {
+  const childTokens = includeChildContext
+    ? [
+        `child=${failure.child ?? "none"}`,
+        `path=${quote(failure.childPath ?? "none")}`,
+        `report=${failure.reportPath ?? "none"}`
+      ]
+    : [];
+
+  return [
+    prefix,
+    `class=${failure.failureClass}`,
+    `code=${failure.code}`,
+    ...childTokens,
+    `reason=${quote(failure.reason)}`,
+    `hint=${quote(failure.hint)}`
+  ].join(" ");
 }
 
 function makeFailure(
@@ -1726,6 +2286,41 @@ function formatSpecSourceSummary(
   }
 
   return `${specSource.kind} (${specSource.reference})`;
+}
+
+function resolveAsyncSummaryProtocols(
+  report: AsyncYanoteReport | undefined,
+  coverage: AsyncCoverageResult | undefined
+): string[] {
+  if (report?.protocols.length) {
+    return [...report.protocols];
+  }
+
+  const protocols = new Set<string>();
+  for (const operation of coverage?.operations.items ?? []) {
+    const [protocol] = operation.operationKey.split(" ", 1);
+    if (protocol === "kafka" || protocol === "amqp") {
+      protocols.add(protocol);
+    }
+  }
+
+  return Array.from(protocols).sort((left, right) => left.localeCompare(right));
+}
+
+function formatAsyncProtocolsSummary(protocols: string[]): string {
+  if (protocols.length === 0) {
+    return "none";
+  }
+
+  return protocols.join(", ");
+}
+
+function formatAsyncProtocolsMachine(protocols: string[]): string {
+  if (protocols.length === 0) {
+    return "none";
+  }
+
+  return protocols.join(",");
 }
 
 function formatPercent(value: number | null): string {
@@ -1768,7 +2363,7 @@ function isFsInputError(error: unknown): boolean {
 function isFsRuntimeError(error: unknown): boolean {
   if (!error || typeof error !== "object") return false;
   const code = (error as any).code;
-  return code === "EACCES" || code === "ENOSPC" || code === "EROFS" || code === "ENOTDIR";
+  return code === "EACCES" || code === "ENOSPC" || code === "EROFS" || code === "ENOTDIR" || code === "EEXIST";
 }
 
 function toBaselineDimensions(coverage: CoverageResult): BaselineDimensionsSnapshot {

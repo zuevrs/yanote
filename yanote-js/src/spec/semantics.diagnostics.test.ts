@@ -51,12 +51,12 @@ describe("semantic diagnostics", () => {
     expect(bundle.diagnostics).toEqual([]);
   });
 
-  it("accepts structured async diagnostic context for kafka contract failures", () => {
+  it("accepts structured async diagnostic context for protocol-aware contract failures", () => {
     const diagnostic = {
       kind: "invalid",
       message: "Unsupported async protocol for the current scope boundary",
       async: {
-        runtime: "kafka",
+        runtime: "asyncapi",
         protocol: "amqp",
         asyncapiVersion: "3.0.0",
         action: "send",
@@ -65,7 +65,7 @@ describe("semantic diagnostics", () => {
     } satisfies SemanticDiagnostic;
 
     expect(diagnostic.async).toEqual({
-      runtime: "kafka",
+      runtime: "asyncapi",
       protocol: "amqp",
       asyncapiVersion: "3.0.0",
       action: "send",

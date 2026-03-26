@@ -13,10 +13,12 @@ type CommandCase = {
   reportFileName: string;
   summaryToken: string;
   eventsText: string;
+  assertStdout: (stdout: string) => void;
   assertArtifact: (artifact: any) => void;
 };
 
 const ASYNC_EVENTS = await readFile("test/fixtures/async-events/kafka-bindings.fixture.jsonl", "utf8");
+const AMQP_EVENTS = await readFile("test/fixtures/async-events/amqp-basic.fixture.jsonl", "utf8");
 
 const COMMAND_CASES: CommandCase[] = [
   {
@@ -27,6 +29,13 @@ const COMMAND_CASES: CommandCase[] = [
     reportFileName: "yanote-report.json",
     summaryToken: "YANOTE_SUMMARY",
     eventsText: await readFile("test/fixtures/events/events.valid.fixture.jsonl", "utf8"),
+    assertStdout: (stdout) => {
+      expect(stdout).toContain("- deprecated operations: covered=0/0 uncovered=0 (0.00%)");
+      expect(stdout).toContain("deprecated_operations=0.00");
+      expect(stdout).toContain("deprecated_total=0");
+      expect(stdout).toContain("deprecated_covered=0");
+      expect(stdout).toContain("deprecated_uncovered=0");
+    },
     assertArtifact: (artifact) => {
       expect(artifact.summary.totalOperations).toBeGreaterThan(0);
       expect(artifact.summary.coveredOperations).toBeGreaterThan(0);
@@ -47,6 +56,59 @@ const COMMAND_CASES: CommandCase[] = [
     reportFileName: "yanote-async-report.json",
     summaryToken: "YANOTE_ASYNC_SUMMARY",
     eventsText: ASYNC_EVENTS,
+    assertStdout: (stdout) => {
+      expect(stdout).toContain("- protocols: kafka");
+      expect(stdout).toContain("protocols=kafka");
+      expect(stdout).toContain("Kafka Binding Support");
+      expect(stdout).toContain("- operations with bindings: 3");
+      expect(stdout).toContain("- total bindings: 18");
+      expect(stdout).toContain("- supported bindings: 1");
+      expect(stdout).toContain("- declared-only bindings: 6");
+      expect(stdout).toContain("- deferred bindings: 11");
+      expect(stdout).toContain("- invalid bindings: 0");
+      expect(stdout).toContain(
+        "- kafka send orders.command: supported=channel.topic=orders.actual [source=channel.bindings.kafka.topic]"
+      );
+      expect(stdout).toContain(
+        "declared-only=operation.groupId [source=operation.bindings.kafka.groupId], operation.clientId [source=operation.bindings.kafka.clientId], message.OrderCommand.key [source=message.bindings.kafka.key]"
+      );
+      expect(stdout).toContain(
+        "deferred=channel.partitions [source=channel.bindings.kafka.partitions], channel.replicas [source=channel.bindings.kafka.replicas], channel.topicConfiguration [source=channel.bindings.kafka.topicConfiguration]"
+      );
+      expect(stdout).toContain("Declared Semantics");
+      expect(stdout).toContain("- operations with declarations: 0");
+      expect(stdout).toContain("- details: none");
+      expect(stdout).toContain("Runtime Semantics");
+      expect(stdout).toContain("- operations with runtime semantics: 0");
+      expect(stdout).toContain("- satisfied operations: 0");
+      expect(stdout).toContain("- unsatisfied operations: 0");
+      expect(stdout).toContain("- declared semantics: 0");
+      expect(stdout).toContain("- satisfied semantics: 0");
+      expect(stdout).toContain("- unsatisfied semantics: 0");
+      expect(stdout).toContain("- runtime proof coverage: N/A");
+      expect(stdout).toContain("- diagnostics: missing=0 unavailable=0 unsupported=0 mismatched=0");
+      expect(stdout).toContain("binding_operations=3");
+      expect(stdout).toContain("binding_total=18");
+      expect(stdout).toContain("binding_supported=1");
+      expect(stdout).toContain("binding_declared_only=6");
+      expect(stdout).toContain("binding_deferred=11");
+      expect(stdout).toContain("binding_invalid=0");
+      expect(stdout).toContain("declared_operations=0");
+      expect(stdout).toContain("declared_correlation_operations=0");
+      expect(stdout).toContain("declared_correlation_messages=0");
+      expect(stdout).toContain("declared_reply_operations=0");
+      expect(stdout).toContain("runtime_operations=0");
+      expect(stdout).toContain("runtime_satisfied_operations=0");
+      expect(stdout).toContain("runtime_unsatisfied_operations=0");
+      expect(stdout).toContain("runtime_total_semantics=0");
+      expect(stdout).toContain("runtime_satisfied_semantics=0");
+      expect(stdout).toContain("runtime_unsatisfied_semantics=0");
+      expect(stdout).toContain("runtime_semantic_coverage=NA");
+      expect(stdout).toContain("runtime_diagnostics=missing:0,unavailable:0,unsupported:0,mismatched:0");
+      expect(stdout).not.toContain("- deprecated operations:");
+      expect(stdout).not.toContain("deprecated_operations=");
+      expect(stdout).not.toContain("corr-123");
+    },
     assertArtifact: (artifact) => {
       expect(artifact.summary.totalOperations).toBeGreaterThan(0);
       expect(artifact.summary.totalChannels).toBeGreaterThan(0);
@@ -233,6 +295,87 @@ const COMMAND_CASES: CommandCase[] = [
         }
       });
     }
+  },
+  {
+    label: "async-report-amqp",
+    command: "async-report",
+    specFixturePath: "test/fixtures/asyncapi/rabbitmq-amqp-basic.yaml",
+    localFileName: "asyncapi-amqp.yaml",
+    reportFileName: "yanote-async-report.json",
+    summaryToken: "YANOTE_ASYNC_SUMMARY",
+    eventsText: AMQP_EVENTS,
+    assertStdout: (stdout) => {
+      expect(stdout).toContain("- protocols: amqp");
+      expect(stdout).toContain("protocols=amqp");
+      expect(stdout).toContain("Kafka Binding Support");
+      expect(stdout).toContain("- operations with bindings: 0");
+      expect(stdout).toContain("- total bindings: 0");
+      expect(stdout).toContain("- supported bindings: 0");
+      expect(stdout).toContain("- declared-only bindings: 0");
+      expect(stdout).toContain("- deferred bindings: 0");
+      expect(stdout).toContain("- invalid bindings: 0");
+      expect(stdout).toContain("Declared Semantics");
+      expect(stdout).toContain("- operations with declarations: 0");
+      expect(stdout).toContain("Runtime Semantics");
+      expect(stdout).toContain("- operations with runtime semantics: 0");
+      expect(stdout).toContain("runtime_diagnostics=missing:0,unavailable:0,unsupported:0,mismatched:0");
+      expect(stdout).not.toContain("deprecated_operations=");
+    },
+    assertArtifact: (artifact) => {
+      expect(artifact.protocols).toEqual(["amqp"]);
+      expect(artifact.summary).toEqual({
+        totalChannels: 1,
+        coveredChannels: 1,
+        channelCoveragePercent: 100,
+        totalOperations: 1,
+        coveredOperations: 1,
+        operationCoveragePercent: 100,
+        totalMessages: 1,
+        coveredMessages: 1,
+        messageCoveragePercent: 100
+      });
+      expect(artifact.bindingSupport).toEqual({
+        summary: {
+          totalOperations: 0,
+          totalBindings: 0,
+          supportedBindings: 0,
+          declaredOnlyBindings: 0,
+          deferredBindings: 0,
+          invalidBindings: 0
+        },
+        operations: []
+      });
+      expect(artifact.declaredSemantics).toEqual({
+        summary: {
+          totalOperations: 0,
+          operationsWithCorrelationId: 0,
+          messageCorrelationIds: 0,
+          operationsWithReply: 0
+        },
+        operations: []
+      });
+      expect(artifact.runtimeSemantics).toEqual({
+        summary: {
+          totalOperations: 0,
+          satisfiedOperations: 0,
+          unsatisfiedOperations: 0,
+          totalSemantics: 0,
+          satisfiedSemantics: 0,
+          unsatisfiedSemantics: 0,
+          semanticCoveragePercent: null
+        },
+        operations: [],
+        diagnostics: {
+          counts: {
+            missing: 0,
+            unavailable: 0,
+            unsupported: 0,
+            mismatched: 0
+          },
+          items: []
+        }
+      });
+    }
   }
 ];
 
@@ -283,63 +426,7 @@ describe("cli remote spec contract", () => {
         expect(result.stdout).toContain(`- spec source: ${specCase.kind} (${specCase.reference})`);
         expect(result.stdout).toContain(`spec_source_kind=${specCase.kind}`);
         expect(result.stdout).toContain(`spec_source_ref="${specCase.reference}"`);
-        if (commandCase.command === "report") {
-          expect(result.stdout).toContain("- deprecated operations: covered=0/0 uncovered=0 (0.00%)");
-          expect(result.stdout).toContain("deprecated_operations=0.00");
-          expect(result.stdout).toContain("deprecated_total=0");
-          expect(result.stdout).toContain("deprecated_covered=0");
-          expect(result.stdout).toContain("deprecated_uncovered=0");
-        } else {
-          expect(result.stdout).toContain("Kafka Binding Support");
-          expect(result.stdout).toContain("- operations with bindings: 3");
-          expect(result.stdout).toContain("- total bindings: 18");
-          expect(result.stdout).toContain("- supported bindings: 1");
-          expect(result.stdout).toContain("- declared-only bindings: 6");
-          expect(result.stdout).toContain("- deferred bindings: 11");
-          expect(result.stdout).toContain("- invalid bindings: 0");
-          expect(result.stdout).toContain(
-            "- kafka send orders.command: supported=channel.topic=orders.actual [source=channel.bindings.kafka.topic]"
-          );
-          expect(result.stdout).toContain(
-            "declared-only=operation.groupId [source=operation.bindings.kafka.groupId], operation.clientId [source=operation.bindings.kafka.clientId], message.OrderCommand.key [source=message.bindings.kafka.key]"
-          );
-          expect(result.stdout).toContain(
-            "deferred=channel.partitions [source=channel.bindings.kafka.partitions], channel.replicas [source=channel.bindings.kafka.replicas], channel.topicConfiguration [source=channel.bindings.kafka.topicConfiguration]"
-          );
-          expect(result.stdout).toContain("Declared Semantics");
-          expect(result.stdout).toContain("- operations with declarations: 0");
-          expect(result.stdout).toContain("- details: none");
-          expect(result.stdout).toContain("Runtime Semantics");
-          expect(result.stdout).toContain("- operations with runtime semantics: 0");
-          expect(result.stdout).toContain("- satisfied operations: 0");
-          expect(result.stdout).toContain("- unsatisfied operations: 0");
-          expect(result.stdout).toContain("- declared semantics: 0");
-          expect(result.stdout).toContain("- satisfied semantics: 0");
-          expect(result.stdout).toContain("- unsatisfied semantics: 0");
-          expect(result.stdout).toContain("- runtime proof coverage: N/A");
-          expect(result.stdout).toContain("- diagnostics: missing=0 unavailable=0 unsupported=0 mismatched=0");
-          expect(result.stdout).toContain("binding_operations=3");
-          expect(result.stdout).toContain("binding_total=18");
-          expect(result.stdout).toContain("binding_supported=1");
-          expect(result.stdout).toContain("binding_declared_only=6");
-          expect(result.stdout).toContain("binding_deferred=11");
-          expect(result.stdout).toContain("binding_invalid=0");
-          expect(result.stdout).toContain("declared_operations=0");
-          expect(result.stdout).toContain("declared_correlation_operations=0");
-          expect(result.stdout).toContain("declared_correlation_messages=0");
-          expect(result.stdout).toContain("declared_reply_operations=0");
-          expect(result.stdout).toContain("runtime_operations=0");
-          expect(result.stdout).toContain("runtime_satisfied_operations=0");
-          expect(result.stdout).toContain("runtime_unsatisfied_operations=0");
-          expect(result.stdout).toContain("runtime_total_semantics=0");
-          expect(result.stdout).toContain("runtime_satisfied_semantics=0");
-          expect(result.stdout).toContain("runtime_unsatisfied_semantics=0");
-          expect(result.stdout).toContain("runtime_semantic_coverage=NA");
-          expect(result.stdout).toContain("runtime_diagnostics=missing:0,unavailable:0,unsupported:0,mismatched:0");
-          expect(result.stdout).not.toContain("- deprecated operations:");
-          expect(result.stdout).not.toContain("deprecated_operations=");
-          expect(result.stdout).not.toContain("corr-123");
-        }
+        commandCase.assertStdout(result.stdout);
 
         const artifact = JSON.parse(await readFile(path.join(outDir, commandCase.reportFileName), "utf8"));
         expect(artifact.specSource).toEqual({
