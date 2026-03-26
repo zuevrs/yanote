@@ -1,0 +1,49 @@
+Summary
+- status: ok
+- channels: 1/1 (100.00%)
+- operations: 2/2 (100.00%)
+- messages: 2/2 (100.00%)
+- protocols: amqp
+- spec source: local-file (yanote-js/test/fixtures/asyncapi/spring-rabbitmq-two-service.yaml)
+
+Coverage Dimensions
+- channels: 100.00% (COVERED)
+- operations: 100.00% (COVERED)
+- messages: 100.00% (COVERED)
+
+Kafka Binding Support
+- operations with bindings: 0
+- total bindings: 0
+- supported bindings: 0
+- declared-only bindings: 0
+- deferred bindings: 0
+- invalid bindings: 0
+- details: none
+
+Declared Semantics
+- operations with declarations: 2
+- operations with correlationId: 2
+- message correlationIds: 2
+- operations with reply: 2
+- amqp receive users.created: correlationId=UserCreated@$message.header#/correlation_id; reply=$message.header#/reply_to
+- amqp send users.created: correlationId=UserCreated@$message.header#/correlation_id; reply=$message.header#/reply_to
+
+Runtime Semantics
+- operations with runtime semantics: 0
+- satisfied operations: 0
+- unsatisfied operations: 0
+- declared semantics: 0
+- satisfied semantics: 0
+- unsatisfied semantics: 0
+- runtime proof coverage: N/A
+- diagnostics: missing=0 unavailable=0 unsupported=0 mismatched=0
+- details: none
+- diagnostics: none
+
+Top Issues
+- none
+
+Report Path
+/var/folders/6n/q9s0qd4d5b92jqqf9kk_0kdm0000gn/T/yanote-m015-s02-live-proof.Pvffo2/async-report/yanote-async-report.json
+
+YANOTE_ASYNC_SUMMARY status=ok channels=100.00 operations=100.00 messages=100.00 protocols=amqp spec_source_kind=local-file spec_source_ref="yanote-js/test/fixtures/asyncapi/spring-rabbitmq-two-service.yaml" covered_channels=1/1 covered_operations=2/2 covered_messages=2/2 declared_operations=2 declared_correlation_operations=2 declared_correlation_messages=2 declared_reply_operations=2 runtime_operations=0 runtime_satisfied_operations=0 runtime_unsatisfied_operations=0 runtime_total_semantics=0 runtime_satisfied_semantics=0 runtime_unsatisfied_semantics=0 runtime_semantic_coverage=NA runtime_diagnostics=missing:0,unavailable:0,unsupported:0,mismatched:0 diagnostics=0 report=/var/folders/6n/q9s0qd4d5b92jqqf9kk_0kdm0000gn/T/yanote-m015-s02-live-proof.Pvffo2/async-report/yanote-async-report.json binding_operations=0 binding_total=0 binding_supported=0 binding_declared_only=0 binding_deferred=0 binding_invalid=0 primary=none primary_reason="none" class_counts=input:0,semantic:0,gate:0,runtime:0

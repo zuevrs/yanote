@@ -1,5 +1,5 @@
 import type { PayloadCaptureReason, PayloadCaptureState } from "./payloadCapture.js";
-import type { AsyncAction } from "./operationKey.js";
+import type { AsyncAction, AsyncProtocol } from "./operationKey.js";
 
 export type JsonPrimitive = string | number | boolean | null;
 export type JsonValue = JsonPrimitive | JsonValue[] | { [key: string]: JsonValue };
@@ -16,7 +16,7 @@ export type AsyncHeaderEvidence = {
 export type AsyncHeaders = Record<string, AsyncHeaderEvidence>;
 
 export type AsyncEvent = {
-  kind: "kafka";
+  kind: AsyncProtocol;
   ts?: number;
   action: AsyncAction;
   channel: string;
@@ -32,6 +32,7 @@ export type AsyncEvent = {
   testSuite: string;
 };
 
+const ASYNC_PROTOCOLS = new Set<AsyncProtocol>(["kafka", "amqp"]);
 const ASYNC_HEADER_CAPTURE_STATES = new Set<AsyncHeaderCaptureState>([
   "captured",
   "redacted",
@@ -48,6 +49,12 @@ export function normalizeAsyncAction(value: unknown): AsyncAction | null {
   const normalized = value.trim().toLowerCase();
   if (normalized === "send" || normalized === "receive") return normalized;
   return null;
+}
+
+export function normalizeAsyncKind(value: unknown): AsyncProtocol | null {
+  if (typeof value !== "string") return null;
+  const normalized = value.trim().toLowerCase() as AsyncProtocol;
+  return ASYNC_PROTOCOLS.has(normalized) ? normalized : null;
 }
 
 export function normalizeChannel(value: unknown): string | null {

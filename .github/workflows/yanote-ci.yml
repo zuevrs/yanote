@@ -133,11 +133,35 @@ jobs:
           echo "exit_code=${exit_code}" >> "${GITHUB_OUTPUT}"
           exit 0
 
+      - name: Run live RabbitMQ proof stack
+        id: run-live-rabbitmq-proof
+        run: |
+          mkdir -p .yanote-ci
+          set +e
+          bash scripts/ci/verify-m015-s02-live-rabbitmq-proof.sh
+          exit_code=$?
+          set -e
+          printf '%s\n' "${exit_code}" > .yanote-ci/live-rabbitmq-proof-exit-code.txt
+          echo "exit_code=${exit_code}" >> "${GITHUB_OUTPUT}"
+          exit 0
+
+      - name: Run combined proof stack
+        id: run-combined-proof
+        run: |
+          mkdir -p .yanote-ci
+          set +e
+          bash scripts/ci/verify-m015-s03-combined-report.sh
+          exit_code=$?
+          set -e
+          printf '%s\n' "${exit_code}" > .yanote-ci/combined-proof-exit-code.txt
+          echo "exit_code=${exit_code}" >> "${GITHUB_OUTPUT}"
+          exit 0
+
       - name: Collect build-and-test artifacts
         if: ${{ always() }}
         run: bash scripts/ci/collect-yanote-artifacts.sh "${YANOTE_ARTIFACT_DIR}"
 
-      - name: Render async GitHub summary
+      - name: Render Kafka GitHub summary
         if: ${{ always() }}
         run: >
           node scripts/ci/render-yanote-summary.mjs
@@ -147,6 +171,28 @@ jobs:
           --artifacts-dir "${YANOTE_ARTIFACT_DIR}/live-kafka-proof"
           --output "${GITHUB_STEP_SUMMARY}"
           --exit-code "${{ steps.run-live-kafka-proof.outputs.exit_code }}"
+
+      - name: Render RabbitMQ GitHub summary
+        if: ${{ always() }}
+        run: >
+          node scripts/ci/render-yanote-summary.mjs
+          --report "${YANOTE_ARTIFACT_DIR}/live-rabbitmq-proof/yanote-async-report.json"
+          --stdout "${YANOTE_ARTIFACT_DIR}/live-rabbitmq-proof/async-report.stdout"
+          --stderr "${YANOTE_ARTIFACT_DIR}/live-rabbitmq-proof/async-report.stderr"
+          --artifacts-dir "${YANOTE_ARTIFACT_DIR}/live-rabbitmq-proof"
+          --output "${GITHUB_STEP_SUMMARY}"
+          --exit-code "${{ steps.run-live-rabbitmq-proof.outputs.exit_code }}"
+
+      - name: Render combined GitHub summary
+        if: ${{ always() }}
+        run: >
+          node scripts/ci/render-yanote-summary.mjs
+          --report "${YANOTE_ARTIFACT_DIR}/combined-proof/combined-report/out/yanote-combined-report.json"
+          --stdout "${YANOTE_ARTIFACT_DIR}/combined-proof/combined-report/combined-report.stdout"
+          --stderr "${YANOTE_ARTIFACT_DIR}/combined-proof/combined-report/combined-report.stderr"
+          --artifacts-dir "${YANOTE_ARTIFACT_DIR}/combined-proof"
+          --output "${GITHUB_STEP_SUMMARY}"
+          --exit-code "${{ steps.run-combined-proof.outputs.exit_code }}"
 
       - name: Upload build-and-test artifacts
         if: ${{ always() }}
@@ -158,14 +204,28 @@ jobs:
           retention-days: 14
 
       - name: Enforce build-and-test proof results
-        if: ${{ always() && (steps.run-live-kafka-proof.outputs.exit_code != '0' || steps.run-delivery-proof.outputs.exit_code != '0') }}
+        if: ${{ always() && (steps.run-live-kafka-proof.outputs.exit_code != '0' || steps.run-live-rabbitmq-proof.outputs.exit_code != '0' || steps.run-combined-proof.outputs.exit_code != '0' || steps.run-delivery-proof.outputs.exit_code != '0') }}
         run: |
           if [[ "${{ steps.run-delivery-proof.outputs.exit_code }}" != "0" ]]; then
             echo "Delivery-sensitive v1 e2e proof failed with exit code ${{ steps.run-delivery-proof.outputs.exit_code }} (reason=${{ steps.detect-delivery-proof.outputs.reason }})" >&2
           fi
           if [[ "${{ steps.run-live-kafka-proof.outputs.exit_code }}" != "0" ]]; then
             echo "Live Kafka proof failed with exit code ${{ steps.run-live-kafka-proof.outputs.exit_code }}" >&2
+          fi
+          if [[ "${{ steps.run-live-rabbitmq-proof.outputs.exit_code }}" != "0" ]]; then
+            echo "Live RabbitMQ proof failed with exit code ${{ steps.run-live-rabbitmq-proof.outputs.exit_code }}" >&2
+          fi
+          if [[ "${{ steps.run-combined-proof.outputs.exit_code }}" != "0" ]]; then
+            echo "Combined proof failed with exit code ${{ steps.run-combined-proof.outputs.exit_code }}" >&2
+          fi
+          if [[ "${{ steps.run-live-kafka-proof.outputs.exit_code }}" != "0" ]]; then
             exit "${{ steps.run-live-kafka-proof.outputs.exit_code }}"
+          fi
+          if [[ "${{ steps.run-live-rabbitmq-proof.outputs.exit_code }}" != "0" ]]; then
+            exit "${{ steps.run-live-rabbitmq-proof.outputs.exit_code }}"
+          fi
+          if [[ "${{ steps.run-combined-proof.outputs.exit_code }}" != "0" ]]; then
+            exit "${{ steps.run-combined-proof.outputs.exit_code }}"
           fi
           exit "${{ steps.run-delivery-proof.outputs.exit_code }}"
 

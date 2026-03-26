@@ -3,6 +3,7 @@ import readline from "node:readline";
 import {
   normalizeAsyncAction,
   normalizeAsyncHeaders,
+  normalizeAsyncKind,
   normalizeChannel,
   normalizeJsonValue,
   normalizeMessageContract,
@@ -42,14 +43,15 @@ export async function readAsyncEventsJsonl(filePath: string): Promise<ReadAsyncJ
       continue;
     }
 
-    if (!obj || obj.kind !== "kafka") continue;
+    const kind = normalizeAsyncKind(obj.kind);
+    if (!kind) continue;
 
     const action = normalizeAsyncAction(obj.action);
     const channel = normalizeChannel(obj.channel);
     if (!action || !channel) continue;
 
     items.push({
-      kind: "kafka",
+      kind,
       ts: typeof obj.ts === "number" ? obj.ts : undefined,
       action,
       channel,

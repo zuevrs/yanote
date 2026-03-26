@@ -23,6 +23,7 @@ export function renderAsyncYanoteReportHtml(report: AsyncYanoteReport): string {
       content: renderStack([
         renderMetricGrid([
           { label: "Status", value: renderStatusPill(report.status) },
+          { label: "Protocols", value: renderChipList(report.protocols, "None") },
           { label: "Total channels", value: escapeHtml(formatNumber(report.summary.totalChannels)) },
           { label: "Covered channels", value: escapeHtml(formatNumber(report.summary.coveredChannels)) },
           { label: "Channel coverage", value: escapeHtml(formatPercent(report.summary.channelCoveragePercent)) },
@@ -38,6 +39,11 @@ export function renderAsyncYanoteReportHtml(report: AsyncYanoteReport): string {
           { term: "Generated at", description: renderCode(report.generatedAt) },
           { term: "Tool version", description: renderCode(report.toolVersion) },
           { term: "Phase", description: `${renderCode(report.phase.id)} <span class="muted">${escapeHtml(report.phase.slug)}</span>` },
+          { term: "Protocols", description: renderChipList(report.protocols, "None") },
+          {
+            term: "Operation key format",
+            description: `${renderCode("<protocol> <action> <channel>")} remains the canonical async identity in both JSON and HTML artifacts.`
+          },
           {
             term: "Report artifact",
             description: `${renderCode("yanote-async-report.json")} remains the machine-facing report path; ${renderCode("yanote-async-report.html")} is the sibling human artifact.`
@@ -97,7 +103,7 @@ export function renderAsyncYanoteReportHtml(report: AsyncYanoteReport): string {
           {
             label: "Operations with bindings",
             value: escapeHtml(formatNumber(report.bindingSupport.summary.totalOperations)),
-            note: "Binding support is reported additively and stays Kafka-scoped."
+            note: renderKafkaBindingSupportNote(report.protocols)
           },
           {
             label: "Total bindings",
@@ -130,7 +136,7 @@ export function renderAsyncYanoteReportHtml(report: AsyncYanoteReport): string {
             renderKafkaBindingSupportCell(entry.bindings, "deferred"),
             renderKafkaBindingSupportCell(entry.bindings, "invalid")
           ]),
-          emptyMessage: "No retained Kafka binding declarations were present in the normalized report."
+          emptyMessage: renderKafkaBindingSupportEmptyMessage(report.protocols)
         })
       ])
     },
@@ -370,6 +376,22 @@ function renderMessageContractCell(
   }
 
   return `<div class="cell-stack">${blocks.join("")}</div>`;
+}
+
+function renderKafkaBindingSupportNote(protocols: AsyncYanoteReport["protocols"]): string {
+  if (protocols.length === 1 && protocols[0] === "amqp") {
+    return "Binding support is reported additively, stays Kafka-scoped, and remains intentionally empty for AMQP inputs.";
+  }
+
+  return "Binding support is reported additively and stays Kafka-scoped.";
+}
+
+function renderKafkaBindingSupportEmptyMessage(protocols: AsyncYanoteReport["protocols"]): string {
+  if (protocols.length === 1 && protocols[0] === "amqp") {
+    return "Current normalized report protocol is amqp, so no retained Kafka binding declarations apply.";
+  }
+
+  return "No retained Kafka binding declarations were present in the normalized report.";
 }
 
 function renderKafkaBindingSupportCell(

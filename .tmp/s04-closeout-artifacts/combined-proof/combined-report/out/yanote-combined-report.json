@@ -1,0 +1,196 @@
+{
+  "children": {
+    "async": {
+      "issues": [
+      ],
+      "kind": "async",
+      "provenance": {
+        "artifacts": [
+          {
+            "kind": "json",
+            "path": ".yanote-ci/live-rabbitmq-proof/yanote-async-report.json"
+          },
+          {
+            "kind": "html",
+            "path": ".yanote-ci/live-rabbitmq-proof/yanote-async-report.html"
+          }
+        ],
+        "generatedAt": "2026-03-26T18:35:32.036Z",
+        "specSource": {
+          "kind": "local-file",
+          "reference": "yanote-js/test/fixtures/asyncapi/spring-rabbitmq-two-service.yaml"
+        },
+        "toolVersion": "0.0.0"
+      },
+      "status": "ok",
+      "summary": {
+        "bindingSupport": {
+          "declaredOnlyBindings": 0,
+          "deferredBindings": 0,
+          "invalidBindings": 0,
+          "supportedBindings": 0,
+          "totalBindings": 0,
+          "totalOperations": 0
+        },
+        "channelCoveragePercent": 100,
+        "coveredChannels": 1,
+        "coveredMessages": 2,
+        "coveredOperations": 2,
+        "declaredSemantics": {
+          "messageCorrelationIds": 2,
+          "operationsWithCorrelationId": 2,
+          "operationsWithReply": 2,
+          "totalOperations": 2
+        },
+        "diagnostics": {
+          "ambiguous": 0,
+          "invalid-header": 0,
+          "invalid-payload": 0,
+          "mismatched": 0,
+          "missing-header": 0,
+          "missing-payload": 0,
+          "unavailable-header": 0,
+          "unmatched": 0,
+          "unsupported-content-type": 0,
+          "unsupported-schema-format": 0,
+          "unverifiable-headers": 0
+        },
+        "messageCoveragePercent": 100,
+        "operationCoveragePercent": 100,
+        "protocols": [
+          "amqp"
+        ],
+        "runtimeSemantics": {
+          "satisfiedOperations": 0,
+          "satisfiedSemantics": 0,
+          "semanticCoveragePercent": null,
+          "totalOperations": 0,
+          "totalSemantics": 0,
+          "unsatisfiedOperations": 0,
+          "unsatisfiedSemantics": 0
+        },
+        "totalChannels": 1,
+        "totalMessages": 2,
+        "totalOperations": 2
+      }
+    },
+    "http": {
+      "issues": [
+        "1 request diagnostics retained",
+        "2 payload diagnostics retained"
+      ],
+      "kind": "http",
+      "provenance": {
+        "artifacts": [
+          {
+            "kind": "json",
+            "path": ".tmp/m015-s03-combined-proof/http-report/out/yanote-report.json"
+          },
+          {
+            "kind": "html",
+            "path": ".tmp/m015-s03-combined-proof/http-report/out/yanote-report.html"
+          }
+        ],
+        "generatedAt": "2026-03-02T10:59:53.657Z",
+        "specSource": {
+          "kind": "local-file",
+          "reference": "scripts/ci/fixtures/m015-s03-combined-http.openapi.yaml"
+        },
+        "toolVersion": "0.0.0"
+      },
+      "status": "ok",
+      "summary": {
+        "aggregateCoveragePercent": 100,
+        "coveredOperations": 1,
+        "deprecatedOperations": {
+          "coveredOperations": 0,
+          "operationCoveragePercent": 0,
+          "totalOperations": 0,
+          "uncoveredOperations": 0
+        },
+        "governanceDiagnostics": {
+          "errors": 0,
+          "warnings": 0
+        },
+        "operationCoveragePercent": 100,
+        "payloadConformance": {
+          "diagnostics": {
+            "covered": 2,
+            "skipped": 0,
+            "uncovered": 0
+          },
+          "request": {
+            "coveredOperations": 1,
+            "invalidCount": 0,
+            "notApplicableOperations": 0,
+            "observedCount": 1,
+            "partialOperations": 0,
+            "skippedCount": 0,
+            "skippedOperations": 0,
+            "uncoveredOperations": 0,
+            "validCount": 1
+          },
+          "response": {
+            "coveredOperations": 1,
+            "invalidCount": 0,
+            "notApplicableOperations": 0,
+            "observedCount": 1,
+            "partialOperations": 0,
+            "skippedCount": 0,
+            "skippedOperations": 0,
+            "uncoveredOperations": 0,
+            "validCount": 1
+          }
+        },
+        "requestConformance": {
+          "counts": {
+            "capturedInvalid": 0,
+            "capturedValid": 1,
+            "omitted": 0,
+            "redacted": 0,
+            "unsupported": 0
+          },
+          "observedOperations": 1,
+          "observedParameters": 1
+        },
+        "securityConformance": {
+          "counts": {
+            "clear": 0,
+            "missing": 0,
+            "optional": 0,
+            "satisfied": 0,
+            "unavailable": 0,
+            "unsupported": 0
+          },
+          "declaredOperations": 0,
+          "observedEvaluations": 0,
+          "observedOperations": 1
+        },
+        "semanticDiagnostics": {
+          "ambiguous": 0,
+          "invalid": 0,
+          "unmatched": 0
+        },
+        "totalOperations": 1
+      }
+    }
+  },
+  "generatedAt": "2026-03-02T10:59:53.657Z",
+  "overview": {
+    "childStatuses": {
+      "async": "ok",
+      "http": "ok"
+    },
+    "invalidChildren": 0,
+    "okChildren": 2,
+    "partialChildren": 0,
+    "totalChildren": 2
+  },
+  "phase": {
+    "id": "04",
+    "slug": "combined-http-async-report-surface"
+  },
+  "schemaVersion": "1.0.0",
+  "status": "ok",
+  "toolVersion": "0.0.0"
+}

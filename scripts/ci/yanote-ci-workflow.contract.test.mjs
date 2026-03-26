@@ -97,25 +97,38 @@ test("workflow runs delivery-sensitive v1 e2e proof inside build-and-test withou
   assert.doesNotMatch(source, /^\s*delivery-sensitive-v1-e2e:\s*$/m);
 });
 
-test("workflow keeps always-on async triage in build-and-test before combined enforcement", async () => {
+test("workflow keeps widened async and combined triage in build-and-test before enforcement", async () => {
   const source = await loadWorkflowSource();
   const buildJob = extractJobBlock(source, "build-and-test", "yanote-validation");
 
   assert.match(
     buildJob,
-    /- name:\s*Run live Kafka proof stack[\s\S]*?- name:\s*Collect build-and-test artifacts[\s\S]*?- name:\s*Render async GitHub summary[\s\S]*?- name:\s*Upload build-and-test artifacts[\s\S]*?- name:\s*Enforce build-and-test proof results/
+    /- name:\s*Run live Kafka proof stack[\s\S]*?- name:\s*Run live RabbitMQ proof stack[\s\S]*?- name:\s*Run combined proof stack[\s\S]*?- name:\s*Collect build-and-test artifacts[\s\S]*?- name:\s*Render Kafka GitHub summary[\s\S]*?- name:\s*Render RabbitMQ GitHub summary[\s\S]*?- name:\s*Render combined GitHub summary[\s\S]*?- name:\s*Upload build-and-test artifacts[\s\S]*?- name:\s*Enforce build-and-test proof results/
   );
   assert.match(buildJob, /id:\s*run-live-kafka-proof/);
-  assert.match(buildJob, /echo "exit_code=\$\{exit_code\}" >> "\$\{GITHUB_OUTPUT\}"/);
+  assert.match(buildJob, /id:\s*run-live-rabbitmq-proof/);
+  assert.match(buildJob, /id:\s*run-combined-proof/);
+  assert.match(buildJob, /bash scripts\/ci\/verify-m004-s03-live-kafka-proof\.sh/);
+  assert.match(buildJob, /bash scripts\/ci\/verify-m015-s02-live-rabbitmq-proof\.sh/);
+  assert.match(buildJob, /bash scripts\/ci\/verify-m015-s03-combined-report\.sh/);
   assert.match(buildJob, /- name:\s*Collect build-and-test artifacts[\s\S]*?if:\s*\$\{\{\s*always\(\)\s*\}\}/);
-  assert.match(buildJob, /- name:\s*Render async GitHub summary[\s\S]*?if:\s*\$\{\{\s*always\(\)\s*\}\}/);
-  assert.match(buildJob, /- name:\s*Render async GitHub summary[\s\S]*?yanote-async-report\.json/);
-  assert.match(buildJob, /- name:\s*Render async GitHub summary[\s\S]*?--artifacts-dir "\$\{YANOTE_ARTIFACT_DIR\}\/live-kafka-proof"/);
+  assert.match(buildJob, /- name:\s*Render Kafka GitHub summary[\s\S]*?if:\s*\$\{\{\s*always\(\)\s*\}\}/);
+  assert.match(buildJob, /- name:\s*Render Kafka GitHub summary[\s\S]*?--report "\$\{YANOTE_ARTIFACT_DIR\}\/live-kafka-proof\/yanote-async-report\.json"/);
+  assert.match(buildJob, /- name:\s*Render Kafka GitHub summary[\s\S]*?--artifacts-dir "\$\{YANOTE_ARTIFACT_DIR\}\/live-kafka-proof"/);
+  assert.match(buildJob, /- name:\s*Render RabbitMQ GitHub summary[\s\S]*?--report "\$\{YANOTE_ARTIFACT_DIR\}\/live-rabbitmq-proof\/yanote-async-report\.json"/);
+  assert.match(buildJob, /- name:\s*Render RabbitMQ GitHub summary[\s\S]*?--artifacts-dir "\$\{YANOTE_ARTIFACT_DIR\}\/live-rabbitmq-proof"/);
+  assert.match(buildJob, /- name:\s*Render combined GitHub summary[\s\S]*?--report "\$\{YANOTE_ARTIFACT_DIR\}\/combined-proof\/combined-report\/out\/yanote-combined-report\.json"/);
+  assert.match(buildJob, /- name:\s*Render combined GitHub summary[\s\S]*?--stdout "\$\{YANOTE_ARTIFACT_DIR\}\/combined-proof\/combined-report\/combined-report\.stdout"/);
+  assert.match(buildJob, /- name:\s*Render combined GitHub summary[\s\S]*?--stderr "\$\{YANOTE_ARTIFACT_DIR\}\/combined-proof\/combined-report\/combined-report\.stderr"/);
+  assert.match(buildJob, /- name:\s*Render combined GitHub summary[\s\S]*?--artifacts-dir "\$\{YANOTE_ARTIFACT_DIR\}\/combined-proof"/);
   assert.match(buildJob, /- name:\s*Upload build-and-test artifacts[\s\S]*?name:\s*build-and-test-artifacts/);
   assert.match(
     buildJob,
-    /- name:\s*Enforce build-and-test proof results[\s\S]*?steps\.run-live-kafka-proof\.outputs\.exit_code != '0' \|\| steps\.run-delivery-proof\.outputs\.exit_code != '0'/
+    /- name:\s*Enforce build-and-test proof results[\s\S]*?steps\.run-live-kafka-proof\.outputs\.exit_code != '0' \|\| steps\.run-live-rabbitmq-proof\.outputs\.exit_code != '0' \|\| steps\.run-combined-proof\.outputs\.exit_code != '0' \|\| steps\.run-delivery-proof\.outputs\.exit_code != '0'/
   );
+  assert.match(buildJob, /Live Kafka proof failed with exit code/);
+  assert.match(buildJob, /Live RabbitMQ proof failed with exit code/);
+  assert.match(buildJob, /Combined proof failed with exit code/);
 });
 
 test("workflow keeps yanote-validation as the HTTP validation job with always-on HTTP triage", async () => {
@@ -163,15 +176,20 @@ test("workflow no longer runs direct CLI report command as primary validation pa
   assert.doesNotMatch(source, /node\s+yanote-js\/dist\/yanote\.cjs\s+report/);
 });
 
-test("branch protection documents the split between async proof, delivery proof, HTTP validation, and widened summary surfaces", async () => {
+test("branch protection documents the split between delivery proof, Kafka proof, RabbitMQ proof, combined proof, and HTTP validation", async () => {
   const source = await loadBranchProtectionSource();
   assert.match(source, /`build-and-test`.*runs `run-v1-e2e\.sh` when delivery-sensitive files changed/);
   assert.match(source, /`build-and-test`.*always runs earlier delivery proof on the merge group/);
-  assert.match(source, /`build-and-test` runs the authoritative live Kafka proof/);
+  assert.match(source, /`build-and-test` runs the authoritative live Kafka proof, the live RabbitMQ proof, and the combined proof/);
   assert.match(source, /`build-and-test-artifacts`/);
   assert.match(source, /sanitized `specSource`/);
+  assert.match(source, /`live-kafka-proof\/`/);
+  assert.match(source, /`live-rabbitmq-proof\/`/);
+  assert.match(source, /`combined-proof\/`/);
   assert.match(source, /`yanote-async-report\.json`\/`yanote-async-report\.html`/);
+  assert.match(source, /`yanote-combined-report\.json`\/`yanote-combined-report\.html`/);
   assert.match(source, /runtime-selected and schema-failure JSON\+HTML companions/);
+  assert.match(source, /without collapsing HTTP and async truth into a blended dashboard/);
   assert.match(source, /retains `v1-e2e\/` plus delivery-proof scope files/);
   assert.match(source, /`yanote-validation` remains the HTTP validation job/);
   assert.match(source, /`yanote-validation-artifacts`/);

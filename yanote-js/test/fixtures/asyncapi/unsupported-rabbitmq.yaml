@@ -1,11 +1,11 @@
 asyncapi: 3.0.0
 info:
-  title: unsupported rabbitmq async contract
+  title: unsupported rabbitmq protocol alias async contract
   version: '1.0.0'
 servers:
   rabbitmqLocal:
     host: localhost:5672
-    protocol: amqp
+    protocol: rabbitmq
 channels:
   usersSignedUp:
     address: users.signedup

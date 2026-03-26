@@ -8,11 +8,21 @@ export type HttpOperationKey = {
   route: string;
 };
 
+export type AsyncProtocol = "kafka" | "amqp";
+
 export type KafkaOperationKey = {
   kind: "kafka";
   action: AsyncAction;
   channel: string;
 };
+
+export type AmqpOperationKey = {
+  kind: "amqp";
+  action: AsyncAction;
+  channel: string;
+};
+
+export type AsyncOperationKey = KafkaOperationKey | AmqpOperationKey;
 
 export type KafkaHeaderValidationCapability = "none" | "supported" | "unverifiable";
 
@@ -88,8 +98,8 @@ export type KafkaMessageContract = {
   declaredCorrelationId?: KafkaDeclaredCorrelationId;
 };
 
-export type KafkaOperationContract = {
-  operation: KafkaOperationKey;
+export type AsyncOperationContract = {
+  operation: AsyncOperationKey;
   message?: KafkaMessageContract;
   messages?: KafkaMessageContract[];
   messageSelection?: {
@@ -100,9 +110,11 @@ export type KafkaOperationContract = {
   declaredReply?: KafkaDeclaredReply;
 };
 
+export type KafkaOperationContract = AsyncOperationContract;
+
 export type OperationKey =
   | HttpOperationKey
-  | KafkaOperationKey
+  | AsyncOperationKey
   | {
       kind: string;
       [k: string]: unknown;
@@ -113,9 +125,9 @@ export function serializeOperationKey(key: OperationKey): string {
     return `http ${key.method} ${key.route}`;
   }
 
-  const kafka = normalizeKafkaOperationKey(key);
-  if (kafka) {
-    return `kafka ${kafka.action} ${kafka.channel}`;
+  const asyncOperation = normalizeAsyncOperationKey(key);
+  if (asyncOperation) {
+    return `${asyncOperation.kind} ${asyncOperation.action} ${asyncOperation.channel}`;
   }
 
   return JSON.stringify(key);
@@ -140,19 +152,41 @@ export function formatKafkaMessageIdentity(message: KafkaMessageContract): strin
   return `${message.name} [${details.join("; ")}]`;
 }
 
-function normalizeKafkaOperationKey(key: OperationKey): KafkaOperationKey | null {
+function normalizeAsyncOperationKey(key: OperationKey): AsyncOperationKey | null {
   const action = key.action;
   const channel = key.channel;
 
-  if ((key.kind === "kafka" || key.kind === "asyncapi") && isAsyncAction(action) && typeof channel === "string") {
+  if (isAsyncProtocol(key.kind) && isAsyncAction(action) && typeof channel === "string") {
     return {
-      kind: "kafka",
+      kind: key.kind,
+      action,
+      channel
+    };
+  }
+
+  if (key.kind === "asyncapi" && isAsyncAction(action) && typeof channel === "string") {
+    const protocol = normalizeAsyncProtocol(key.protocol) ?? "kafka";
+    return {
+      kind: protocol,
       action,
       channel
     };
   }
 
   return null;
+}
+
+function isAsyncProtocol(value: unknown): value is AsyncProtocol {
+  return value === "kafka" || value === "amqp";
+}
+
+function normalizeAsyncProtocol(value: unknown): AsyncProtocol | null {
+  if (typeof value !== "string") {
+    return null;
+  }
+
+  const normalized = value.trim().toLowerCase();
+  return isAsyncProtocol(normalized) ? normalized : null;
 }
 
 function isAsyncAction(value: unknown): value is AsyncAction {

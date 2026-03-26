@@ -5,6 +5,7 @@ import path from "node:path";
 
 const DEFAULT_MAX_ISSUES = 5;
 const ASYNC_REPORT_BASENAME = "yanote-async-report.json";
+const COMBINED_REPORT_BASENAME = "yanote-combined-report.json";
 const ASYNC_DIAGNOSTIC_CODE_BY_KIND = {
   "unsupported-content-type": "ASYNC_SEMANTIC_UNSUPPORTED_CONTENT_TYPE",
   "unsupported-schema-format": "ASYNC_SEMANTIC_UNSUPPORTED_SCHEMA_FORMAT",
@@ -187,6 +188,106 @@ function isAsyncContext({ report, reportPath, stdoutText, stderrText }) {
   }
 
   return stdoutText.includes("YANOTE_ASYNC_") || stderrText.includes("YANOTE_ASYNC_");
+}
+
+function isCombinedReportShape(report) {
+  return Boolean(report?.overview?.childStatuses && report?.children?.http && report?.children?.async);
+}
+
+function isCombinedContext({ report, reportPath, stdoutText, stderrText }) {
+  if (report && isCombinedReportShape(report)) {
+    return true;
+  }
+
+  if (path.basename(reportPath ?? "") === COMBINED_REPORT_BASENAME) {
+    return true;
+  }
+
+  return stdoutText.includes("YANOTE_COMBINED_") || stderrText.includes("YANOTE_COMBINED_");
+}
+
+function parseEqualsFile(text) {
+  const parsed = {};
+  if (!text) {
+    return parsed;
+  }
+
+  for (const rawLine of text.split("\n")) {
+    const line = rawLine.trim();
+    if (!line) continue;
+    const separatorIndex = line.indexOf("=");
+    if (separatorIndex <= 0) continue;
+    const key = line.slice(0, separatorIndex).trim();
+    const value = line.slice(separatorIndex + 1).trim();
+    parsed[key] = value;
+  }
+
+  return parsed;
+}
+
+function parseCsvSet(value) {
+  return new Set(
+    String(value ?? "")
+      .split(",")
+      .map((item) => item.trim())
+      .filter((item) => item.length > 0 && item !== "none")
+  );
+}
+
+function resolveArtifactMetadataValue(artifactMetadata, keys) {
+  for (const key of keys) {
+    const value = artifactMetadata?.manifest?.[key] ?? artifactMetadata?.sourcePaths?.[key];
+    if (typeof value === "string" && value.trim().length > 0) {
+      return value.trim();
+    }
+  }
+
+  return "none";
+}
+
+function isRabbitMqArtifactsDir(artifactsDir, reportPath) {
+  return [artifactsDir, reportPath].some((value) => typeof value === "string" && value.includes("live-rabbitmq-proof"));
+}
+
+function formatProtocolList(protocols) {
+  return Array.isArray(protocols) && protocols.length > 0 ? protocols.join(", ") : "none";
+}
+
+function formatOptionalArtifactStatuses(expectedArtifactNames, artifactNames, optionalArtifacts = new Set()) {
+  const presentArtifacts = new Set(artifactNames);
+  return expectedArtifactNames
+    .map((name) => {
+      if (presentArtifacts.has(name)) {
+        return `${name} (present)`;
+      }
+      if (optionalArtifacts.has(name)) {
+        return `${name} (optional missing)`;
+      }
+      return `${name} (missing)`;
+    })
+    .join(", ");
+}
+
+async function loadArtifactMetadata(artifactsDir) {
+  if (!artifactsDir) {
+    return {
+      manifest: {},
+      sourcePaths: {},
+      optionalArtifacts: new Set()
+    };
+  }
+
+  const manifest = parseEqualsFile(await readOptionalText(path.join(artifactsDir, "artifact-manifest.txt")));
+  const sourcePaths = parseEqualsFile(await readOptionalText(path.join(artifactsDir, "artifact-source-paths.txt")));
+
+  return {
+    manifest,
+    sourcePaths,
+    optionalArtifacts: new Set([
+      ...parseCsvSet(manifest.optional_artifacts),
+      ...parseCsvSet(sourcePaths.optional_artifacts)
+    ])
+  };
 }
 
 function collectHttpIssues(report) {
@@ -661,7 +762,17 @@ function buildAsyncMetrics(report, machineSummary) {
   };
 }
 
-function validateAsyncNumericFields(report, reportPath) {
+function resolveAsyncProtocols(report) {
+  if (!Array.isArray(report?.protocols)) {
+    return [];
+  }
+
+  return report.protocols
+    .map((protocol) => safeString(protocol, ""))
+    .filter((protocol) => protocol.length > 0 && protocol !== "unknown");
+}
+
+function validateAsyncNumericFields(report, reportPath, artifactsDir) {
   if (!report) {
     return;
   }
@@ -701,23 +812,40 @@ function validateAsyncNumericFields(report, reportPath) {
       `Invalid async summary inputs at ${reportPath}: missing or non-numeric ${invalidFields.join(", ")}`
     );
   }
+
+  if (isRabbitMqArtifactsDir(artifactsDir, reportPath) && !resolveAsyncProtocols(report).includes("amqp")) {
+    throw new Error(`Invalid async summary inputs at ${reportPath}: missing protocols metadata for amqp bundle`);
+  }
 }
 
-function validateAsyncArtifactFamily(report, reportPath, artifactNames, artifactsDirProvided) {
+function validateAsyncArtifactFamily(report, reportPath, artifactNames, artifactsDirProvided, artifactMetadata) {
   if (!report || !artifactsDirProvided) {
     return;
   }
 
-  const requiredArtifacts = [
-    "yanote-async-report.json",
-    "yanote-async-report.html",
+  const requiredArtifacts = ["yanote-async-report.json", "yanote-async-report.html"];
+  const optionalArtifacts = artifactMetadata?.optionalArtifacts ?? new Set();
+  const sourcePaths = artifactMetadata?.sourcePaths ?? {};
+  const presentArtifacts = new Set(artifactNames);
+  const missingArtifacts = requiredArtifacts.filter((name) => !presentArtifacts.has(name));
+
+  const companionArtifacts = [
     "runtime-selected-yanote-async-report.json",
     "runtime-selected-yanote-async-report.html",
     "schema-failure-yanote-async-report.json",
     "schema-failure-yanote-async-report.html"
   ];
-  const presentArtifacts = new Set(artifactNames);
-  const missingArtifacts = requiredArtifacts.filter((name) => !presentArtifacts.has(name));
+
+  for (const artifactName of companionArtifacts) {
+    if (presentArtifacts.has(artifactName)) {
+      continue;
+    }
+
+    const explicitlyOptional = optionalArtifacts.has(artifactName) && safeString(sourcePaths[artifactName], "none") === "none";
+    if (!explicitlyOptional) {
+      missingArtifacts.push(artifactName);
+    }
+  }
 
   if (missingArtifacts.length > 0) {
     throw new Error(
@@ -778,6 +906,151 @@ function formatAsyncRuntimeSemanticsSummary(metrics, report) {
   return `satisfied_operations=${metrics.satisfiedOperations}/${metrics.totalOperations} satisfied_semantics=${metrics.satisfiedSemantics}/${metrics.totalSemantics} unsatisfied_operations=${metrics.unsatisfiedOperations} unsatisfied_semantics=${metrics.unsatisfiedSemantics} (${formatPercent(metrics.semanticCoveragePercent)})`;
 }
 
+function findCombinedArtifactPath(child, kind) {
+  const artifact = (child?.provenance?.artifacts ?? []).find((entry) => entry?.kind === kind);
+  return safeString(artifact?.path, "none");
+}
+
+function resolveCombinedAsyncProtocols(report, machineSummary) {
+  if (Array.isArray(report?.children?.async?.summary?.protocols)) {
+    return report.children.async.summary.protocols
+      .map((protocol) => safeString(protocol, ""))
+      .filter((protocol) => protocol.length > 0 && protocol !== "unknown");
+  }
+
+  return String(machineSummary?.protocols ?? "")
+    .split(",")
+    .map((protocol) => protocol.trim())
+    .filter((protocol) => protocol.length > 0 && protocol !== "none");
+}
+
+function validateCombinedSummaryInputs(report, reportPath) {
+  if (!report) {
+    return;
+  }
+
+  const asyncProtocols = resolveCombinedAsyncProtocols(report, null);
+  if (!asyncProtocols.includes("amqp")) {
+    throw new Error(`Invalid combined summary inputs at ${reportPath}: missing async child protocols metadata for amqp`);
+  }
+
+  for (const [childName, child] of Object.entries(report.children ?? {})) {
+    for (const kind of ["json", "html"]) {
+      const artifactPath = findCombinedArtifactPath(child, kind);
+      if (artifactPath === "none") {
+        throw new Error(`Invalid combined summary inputs at ${reportPath}: missing ${childName} child ${kind} provenance path`);
+      }
+    }
+  }
+}
+
+function validateCombinedArtifactFamily(report, reportPath, artifactNames, artifactsDirProvided, artifactMetadata) {
+  if (!report || !artifactsDirProvided) {
+    return;
+  }
+
+  const requiredArtifacts = [
+    "combined-report/out/yanote-combined-report.json",
+    "combined-report/out/yanote-combined-report.html",
+    "http-report/out/yanote-report.json",
+    "http-report/out/yanote-report.html"
+  ];
+  const presentArtifacts = new Set(artifactNames);
+  const missingArtifacts = requiredArtifacts.filter((name) => !presentArtifacts.has(name));
+
+  const metadataRequirements = [
+    ["combined report json", ["combined_report_json", "combined_report"]],
+    ["combined report html", ["combined_report_html", "combined_html"]],
+    ["http child report", ["http_report_json", "generated_http_report"]],
+    ["http child html", ["http_report_html", "generated_http_html"]],
+    ["async child report", ["retained_async_report"]],
+    ["async child html", ["retained_async_html"]]
+  ];
+
+  for (const [label, keys] of metadataRequirements) {
+    if (resolveArtifactMetadataValue(artifactMetadata, keys) === "none") {
+      missingArtifacts.push(label);
+    }
+  }
+
+  if (missingArtifacts.length > 0) {
+    throw new Error(`Invalid combined artifact bundle at ${reportPath}: missing ${missingArtifacts.join(", ")}`);
+  }
+}
+
+function collectCombinedIssues(report, fallbackPrimaryFailure) {
+  const issues = [];
+
+  for (const childName of ["http", "async"]) {
+    const child = report?.children?.[childName] ?? {};
+    const childStatus = safeString(child.status, "unknown");
+    const childIssues = Array.isArray(child.issues) && child.issues.length > 0 ? child.issues : childStatus !== "ok" ? [`status=${childStatus}`] : [];
+
+    for (const issue of childIssues) {
+      const severity = childStatus === "invalid" ? "high" : "medium";
+      issues.push({
+        severityRank: severity === "high" ? 0 : 1,
+        categoryRank: childName === "http" ? 0 : 1,
+        severity,
+        sortKey: `${childName}:${issue}`,
+        text: `${childName} - ${issue}`
+      });
+    }
+  }
+
+  if (issues.length === 0 && fallbackPrimaryFailure !== "none") {
+    issues.push({
+      severityRank: 0,
+      categoryRank: 0,
+      severity: "high",
+      sortKey: `fallback:${fallbackPrimaryFailure}`,
+      text: fallbackPrimaryFailure
+    });
+  }
+
+  return sortAndDedupeIssues(issues);
+}
+
+function resolveCombinedPrimaryFailure(issues, stdoutText, stderrText, exitCode) {
+  if (!Number.isFinite(exitCode) || exitCode === 0) {
+    return "none";
+  }
+
+  const failures = [
+    ...parseTypedFailures(stderrText, "YANOTE_COMBINED_ERROR", "YANOTE_COMBINED_ERROR_SECONDARY"),
+    ...parseTypedFailures(stdoutText, "YANOTE_COMBINED_ERROR", "YANOTE_COMBINED_ERROR_SECONDARY")
+  ];
+  const primaryFailure = failures.find((failure) => failure.kind === "primary") ?? failures[0];
+  if (primaryFailure) {
+    return primaryFailure.text;
+  }
+
+  const firstHighIssue = issues.find((issue) => issue.severity === "high");
+  if (firstHighIssue) {
+    return firstHighIssue.text;
+  }
+
+  const machineSummary = findMachineLine(stdoutText, "YANOTE_COMBINED_SUMMARY") ?? findMachineLine(stderrText, "YANOTE_COMBINED_SUMMARY");
+  if (machineSummary?.primary && machineSummary.primary !== "none") {
+    return `${safeString(machineSummary.primary)} - see combined proof logs`;
+  }
+
+  return `RUNTIME_EXIT - command exited with code ${exitCode}`;
+}
+
+function resolveCombinedSummarySource(report, stdoutText, stderrText) {
+  if (report) {
+    return "report file";
+  }
+
+  const machineSummary = findMachineLine(stdoutText, "YANOTE_COMBINED_SUMMARY") ?? findMachineLine(stderrText, "YANOTE_COMBINED_SUMMARY");
+  if (machineSummary) {
+    return "YANOTE_COMBINED_* fallback";
+  }
+
+  return "exit-code fallback";
+}
+
 function renderHttpSummary({ report, reportPath, stderrText, artifactNames, maxIssues, exitCode }) {
   const issues = collectHttpIssues(report);
   const shownIssues = issues.slice(0, maxIssues);
@@ -821,9 +1094,19 @@ function renderHttpSummary({ report, reportPath, stderrText, artifactNames, maxI
   return `${lines.join("\n")}\n`;
 }
 
-function renderAsyncSummary({ report, reportPath, stdoutText, stderrText, artifactNames, artifactsDirProvided, maxIssues, exitCode }) {
-  validateAsyncNumericFields(report, reportPath);
-  validateAsyncArtifactFamily(report, reportPath, artifactNames, artifactsDirProvided);
+function renderAsyncSummary({
+  report,
+  reportPath,
+  stdoutText,
+  stderrText,
+  artifactNames,
+  artifactsDirProvided,
+  artifactMetadata,
+  maxIssues,
+  exitCode
+}) {
+  validateAsyncNumericFields(report, reportPath, artifactMetadata?.artifactsDir);
+  validateAsyncArtifactFamily(report, reportPath, artifactNames, artifactsDirProvided, artifactMetadata);
 
   const parsedFailures = [
     ...parseTypedFailures(stderrText, "YANOTE_ASYNC_ERROR", "YANOTE_ASYNC_ERROR_SECONDARY"),
@@ -845,10 +1128,12 @@ function renderAsyncSummary({ report, reportPath, stdoutText, stderrText, artifa
   const reportName = resolveAsyncReportName(report, reportPath, machineSummary);
   const summarySource = resolveAsyncSummarySource(report, machineSummary, failures);
   const status = safeString(report?.status ?? machineSummary?.status, exitCode === 0 ? "ok" : "unknown");
+  const protocols = resolveAsyncProtocols(report);
 
   const lines = [];
   lines.push("## Yanote Async Summary");
   lines.push(`- status: ${status}`);
+  lines.push(`- protocols: ${formatProtocolList(protocols)}`);
   lines.push(`- channels: ${metrics.channels.covered}/${metrics.channels.total} (${formatPercent(metrics.channels.percent)})`);
   lines.push(`- operations: ${metrics.operations.covered}/${metrics.operations.total} (${formatPercent(metrics.operations.percent)})`);
   lines.push(`- messages: ${metrics.messages.covered}/${metrics.messages.total} (${formatPercent(metrics.messages.percent)})`);
@@ -857,12 +1142,12 @@ function renderAsyncSummary({ report, reportPath, stdoutText, stderrText, artifa
     `- report artifacts: ${formatNamedArtifactStatuses(["yanote-async-report.json", "yanote-async-report.html"], artifactNames)}`
   );
   lines.push(
-    `- retained async companions: ${formatNamedArtifactStatuses([
+    `- retained async companions: ${formatOptionalArtifactStatuses([
       "runtime-selected-yanote-async-report.json",
       "runtime-selected-yanote-async-report.html",
       "schema-failure-yanote-async-report.json",
       "schema-failure-yanote-async-report.html"
-    ], artifactNames)}`
+    ], artifactNames, artifactMetadata?.optionalArtifacts ?? new Set())}`
   );
   lines.push(`- binding support: ${formatAsyncBindingSupportSummary(semanticMetrics.bindingSupport, report)}`);
   lines.push(`- declared semantics: ${formatAsyncDeclaredSemanticsSummary(semanticMetrics.declaredSemantics, report)}`);
@@ -896,6 +1181,70 @@ function renderAsyncSummary({ report, reportPath, stdoutText, stderrText, artifa
   return `${lines.join("\n")}\n`;
 }
 
+function renderCombinedSummary({
+  report,
+  reportPath,
+  stdoutText,
+  stderrText,
+  artifactNames,
+  artifactsDirProvided,
+  artifactMetadata,
+  maxIssues,
+  exitCode
+}) {
+  validateCombinedSummaryInputs(report, reportPath);
+  validateCombinedArtifactFamily(report, reportPath, artifactNames, artifactsDirProvided, artifactMetadata);
+
+  const primaryFailure = resolveCombinedPrimaryFailure([], stdoutText, stderrText, exitCode);
+  const issues = collectCombinedIssues(report, primaryFailure);
+  const shownIssues = issues.slice(0, maxIssues);
+  const hiddenCount = Math.max(0, issues.length - shownIssues.length);
+  const asyncProtocols = resolveCombinedAsyncProtocols(report, null);
+  const combinedReportJsonPath = resolveArtifactMetadataValue(artifactMetadata, ["combined_report_json", "combined_report"]);
+  const combinedReportHtmlPath = resolveArtifactMetadataValue(artifactMetadata, ["combined_report_html", "combined_html"]);
+  const httpChildJsonPath = findCombinedArtifactPath(report?.children?.http, "json");
+  const httpChildHtmlPath = findCombinedArtifactPath(report?.children?.http, "html");
+  const asyncChildJsonPath = findCombinedArtifactPath(report?.children?.async, "json");
+  const asyncChildHtmlPath = findCombinedArtifactPath(report?.children?.async, "html");
+
+  const lines = [];
+  lines.push("## Yanote Combined Summary");
+  lines.push(`- status: ${safeString(report?.status, exitCode === 0 ? "ok" : "unknown")}`);
+  lines.push(
+    `- children: ok=${Number(report?.overview?.okChildren ?? 0)}/${Number(report?.overview?.totalChildren ?? 0)} partial=${Number(report?.overview?.partialChildren ?? 0)} invalid=${Number(report?.overview?.invalidChildren ?? 0)}`
+  );
+  lines.push(`- http child: ${safeString(report?.children?.http?.status, "unknown")}`);
+  lines.push(`- async child: ${safeString(report?.children?.async?.status, "unknown")}`);
+  lines.push(`- async protocols: ${formatProtocolList(asyncProtocols)}`);
+  lines.push(
+    `- combined report artifacts: ${formatNamedArtifactStatuses(["combined-report/out/yanote-combined-report.json", "combined-report/out/yanote-combined-report.html"], artifactNames)}`
+  );
+  lines.push(`- combined report paths: json=${combinedReportJsonPath} html=${combinedReportHtmlPath}`);
+  lines.push(`- http child reports: json=${httpChildJsonPath} html=${httpChildHtmlPath}`);
+  lines.push(`- async child reports: json=${asyncChildJsonPath} html=${asyncChildHtmlPath}`);
+  lines.push(`- primary failure: ${exitCode === 0 ? "none" : resolveCombinedPrimaryFailure(issues, stdoutText, stderrText, exitCode)}`);
+  lines.push(`- proof exit code: ${exitCode}`);
+  lines.push(`- report: ${path.basename(reportPath)}`);
+  lines.push(`- summary source: ${resolveCombinedSummarySource(report, stdoutText, stderrText)}`);
+  if (artifactNames.length > 0) {
+    lines.push(`- artifacts: ${artifactNames.slice(0, 4).join(", ")}`);
+  }
+  lines.push("");
+  lines.push("### Top Issues");
+  if (shownIssues.length === 0) {
+    lines.push("1. low: none");
+  } else {
+    shownIssues.forEach((issue, index) => {
+      lines.push(`${index + 1}. ${issue.severity}: ${issue.text}`);
+    });
+  }
+  if (hiddenCount > 0) {
+    lines.push(`... +${hiddenCount} more issues in combined artifacts`);
+  }
+
+  return `${lines.join("\n")}\n`;
+}
+
 async function loadReport(reportPath) {
   if (!reportPath) {
     return { exists: false, report: null, missingError: null };
@@ -918,9 +1267,31 @@ async function loadReport(reportPath) {
   }
 }
 
-async function listArtifactNames(artifactsDir) {
+async function listArtifactNames(artifactsDir, options = {}) {
   if (!artifactsDir) return [];
+
+  const recursive = options.recursive === true;
+
+  async function walk(currentDir, prefix = "") {
+    const entries = await readdir(currentDir, { withFileTypes: true });
+    const files = [];
+    for (const entry of entries.sort((left, right) => left.name.localeCompare(right.name))) {
+      const relativeName = prefix ? `${prefix}/${entry.name}` : entry.name;
+      const absolutePath = path.join(currentDir, entry.name);
+      if (entry.isDirectory()) {
+        files.push(...(await walk(absolutePath, relativeName)));
+      } else if (entry.isFile()) {
+        files.push(relativeName);
+      }
+    }
+    return files;
+  }
+
   try {
+    if (recursive) {
+      return await walk(artifactsDir);
+    }
+
     const entries = await readdir(artifactsDir, { withFileTypes: true });
     return entries
       .filter((entry) => entry.isFile())
@@ -948,42 +1319,71 @@ export async function renderSummary(input) {
     ? Math.max(1, Number(input.maxIssues))
     : DEFAULT_MAX_ISSUES;
   const exitCode = Number.isFinite(Number(input?.exitCode)) ? Number(input.exitCode) : 0;
-  const artifactNames = await listArtifactNames(input?.artifactsDir);
-  const asyncContext = isAsyncContext({
+  const combinedContext = isCombinedContext({
     report,
     reportPath: input?.reportPath,
     stdoutText,
     stderrText
   });
+  const asyncContext = !combinedContext && isAsyncContext({
+    report,
+    reportPath: input?.reportPath,
+    stdoutText,
+    stderrText
+  });
+  const artifactNames = await listArtifactNames(input?.artifactsDir, { recursive: combinedContext });
+  const artifactMetadata = {
+    ...(await loadArtifactMetadata(input?.artifactsDir)),
+    artifactsDir: input?.artifactsDir ?? ""
+  };
 
-  if (!reportExists && !asyncContext) {
-    if (!input?.reportPath) {
-      throw new Error("Unable to read report file: provide --report for HTTP summaries or async stderr/stdout logs for async fallback.");
+  if (!reportExists) {
+    if (combinedContext) {
+      throw new Error(`Invalid combined artifact bundle at ${input.reportPath}: missing yanote-combined-report.json`);
     }
-    throw new Error(
-      `Unable to read report file at ${input.reportPath}: ${safeString(missingError?.message, "unknown read failure")}`
-    );
+
+    if (!asyncContext) {
+      if (!input?.reportPath) {
+        throw new Error("Unable to read report file: provide --report for HTTP summaries or async stderr/stdout logs for async fallback.");
+      }
+      throw new Error(
+        `Unable to read report file at ${input.reportPath}: ${safeString(missingError?.message, "unknown read failure")}`
+      );
+    }
   }
 
-  const markdown = asyncContext
-    ? renderAsyncSummary({
+  const markdown = combinedContext
+    ? renderCombinedSummary({
         report,
         reportPath: input?.reportPath,
         stdoutText,
         stderrText,
         artifactNames,
         artifactsDirProvided: Boolean(input?.artifactsDir),
+        artifactMetadata,
         maxIssues,
         exitCode
       })
-    : renderHttpSummary({
-        report,
-        reportPath: input?.reportPath,
-        stderrText,
-        artifactNames,
-        maxIssues,
-        exitCode
-      });
+    : asyncContext
+      ? renderAsyncSummary({
+          report,
+          reportPath: input?.reportPath,
+          stdoutText,
+          stderrText,
+          artifactNames,
+          artifactsDirProvided: Boolean(input?.artifactsDir),
+          artifactMetadata,
+          maxIssues,
+          exitCode
+        })
+      : renderHttpSummary({
+          report,
+          reportPath: input?.reportPath,
+          stderrText,
+          artifactNames,
+          maxIssues,
+          exitCode
+        });
 
   if (input?.outputPath) {
     await writeFile(input.outputPath, markdown, "utf8");

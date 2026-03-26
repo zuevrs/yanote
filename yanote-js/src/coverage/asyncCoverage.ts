@@ -1,4 +1,11 @@
-import { formatKafkaMessageIdentity, serializeOperationKey, type AsyncAction, type KafkaOperationKey } from "../model/operationKey.js";
+import {
+  formatKafkaMessageIdentity,
+  serializeOperationKey,
+  type AsyncAction,
+  type AsyncOperationContract,
+  type AsyncOperationKey,
+  type AsyncProtocol
+} from "../model/operationKey.js";
 import type { AsyncEvent } from "../model/asyncEvent.js";
 import type { AsyncApiSemanticsBundle } from "../spec/asyncapi.js";
 import {
@@ -97,13 +104,14 @@ export type AsyncCoverageResult = {
 };
 
 type ChannelAccumulator = {
+  channel: string;
   expectedActions: AsyncAction[];
   observedOnKnownChannel: boolean;
   coveredActions: Set<AsyncAction>;
 };
 
 type OperationAccumulator = {
-  operation: KafkaOperationKey;
+  operation: AsyncOperationKey;
   operationKey: string;
   selectionMode?: "single" | "runtime";
   singleMessageName?: string;
@@ -122,7 +130,7 @@ type MessageAccumulator = {
 };
 
 export function computeAsyncCoverage(bundle: AsyncApiSemanticsBundle, events: AsyncEvent[]): AsyncCoverageResult {
-  const operations = bundle.operations.filter((operation): operation is KafkaOperationKey => operation.kind === "kafka");
+  const operations = bundle.operations.filter(isAsyncOperationKey);
   const schemaConformance = computeAsyncSchemaConformance(bundle, events);
   const runtimeSemantics = computeAsyncSemanticConformance(bundle, events);
   const matchedOperationKeys = new Set(schemaConformance.matchedOperationKeys);
@@ -138,19 +146,24 @@ export function computeAsyncCoverage(bundle: AsyncApiSemanticsBundle, events: As
       continue;
     }
 
+    const protocol = toAsyncProtocol(diagnostic.async.protocol ?? diagnostic.async.runtime);
+    if (!protocol) {
+      continue;
+    }
+
     const operationKey = serializeOperationKey({
-      kind: "kafka",
+      kind: protocol,
       action: diagnostic.async.action,
       channel: diagnostic.async.channel
     });
-    parserAmbiguitiesByMatchKey.set(matchKey(diagnostic.async.action, diagnostic.async.channel), {
+    parserAmbiguitiesByMatchKey.set(matchKey(protocol, diagnostic.async.action, diagnostic.async.channel), {
       kind: "ambiguous",
       operationKey,
       channel: diagnostic.async.channel,
       action: diagnostic.async.action,
       reason: diagnostic.message,
       candidates: [...(diagnostic.candidates ?? [])].sort((left, right) => left.localeCompare(right)),
-      message: "AsyncAPI message selection remained ambiguous, so the kafka operation was not normalized"
+      message: `AsyncAPI message selection remained ambiguous, so the ${protocol} operation was not normalized`
     });
   }
 
@@ -158,15 +171,17 @@ export function computeAsyncCoverage(bundle: AsyncApiSemanticsBundle, events: As
     const operationKey = serializeOperationKey(operation);
     const contract = bundle.operationContractsByKey.get(operationKey) ?? { operation };
     const declaredMessages = getDeclaredMessages(contract);
+    const channelKey = channelAccumulatorKey(operation.kind, operation.channel);
 
-    if (!channels.has(operation.channel)) {
-      channels.set(operation.channel, {
+    if (!channels.has(channelKey)) {
+      channels.set(channelKey, {
+        channel: operation.channel,
         expectedActions: [],
         observedOnKnownChannel: false,
         coveredActions: new Set<AsyncAction>()
       });
     }
-    channels.get(operation.channel)?.expectedActions.push(operation.action);
+    channels.get(channelKey)?.expectedActions.push(operation.action);
 
     const accumulator: OperationAccumulator = {
       operation,
@@ -178,8 +193,8 @@ export function computeAsyncCoverage(bundle: AsyncApiSemanticsBundle, events: As
       suites: new Set<string>()
     };
 
-    operationsByMatchKey.set(matchKey(operation.action, operation.channel), accumulator);
-    operationContractsByMatchKey.set(matchKey(operation.action, operation.channel), buildOperationContractEntry(contract));
+    operationsByMatchKey.set(matchKey(operation.kind, operation.action, operation.channel), accumulator);
+    operationContractsByMatchKey.set(matchKey(operation.kind, operation.action, operation.channel), buildOperationContractEntry(contract));
     operationOrder.push(accumulator);
 
     for (const message of declaredMessages) {
@@ -198,14 +213,14 @@ export function computeAsyncCoverage(bundle: AsyncApiSemanticsBundle, events: As
   const seenRoutingDiagnostics = new Set<string>();
 
   for (const event of events) {
-    const channel = channels.get(event.channel);
+    const channel = channels.get(channelAccumulatorKey(event.kind, event.channel));
     if (channel) {
       channel.observedOnKnownChannel = true;
     }
 
-    const matchedOperation = operationsByMatchKey.get(matchKey(event.action, event.channel));
+    const matchedOperation = operationsByMatchKey.get(matchKey(event.kind, event.action, event.channel));
     if (!matchedOperation) {
-      const parserAmbiguity = parserAmbiguitiesByMatchKey.get(matchKey(event.action, event.channel));
+      const parserAmbiguity = parserAmbiguitiesByMatchKey.get(matchKey(event.kind, event.action, event.channel));
       if (parserAmbiguity) {
         appendRoutingDiagnostic(routingDiagnostics, seenRoutingDiagnostics, {
           ...parserAmbiguity,
@@ -217,16 +232,16 @@ export function computeAsyncCoverage(bundle: AsyncApiSemanticsBundle, events: As
           channel: event.channel,
           action: event.action,
           observedMessage: event.message,
-          message: "No canonical async operation matched the observed kafka evidence"
+          message: `No canonical async operation matched the observed ${event.kind} evidence`
         });
       }
       continue;
     }
 
     matchedOperation.suites.add(event.testSuite);
-    channels.get(event.channel)?.coveredActions.add(event.action);
+    channels.get(channelAccumulatorKey(event.kind, event.channel))?.coveredActions.add(event.action);
 
-    const contractEntry = operationContractsByMatchKey.get(matchKey(event.action, event.channel));
+    const contractEntry = operationContractsByMatchKey.get(matchKey(event.kind, event.action, event.channel));
     if (!contractEntry) {
       continue;
     }
@@ -247,8 +262,8 @@ export function computeAsyncCoverage(bundle: AsyncApiSemanticsBundle, events: As
     }
   }
 
-  const channelItems = Array.from(channels.entries()).map(([channel, entry]) => ({
-    channel,
+  const channelItems = Array.from(channels.values()).map((entry) => ({
+    channel: entry.channel,
     state: entry.observedOnKnownChannel ? "COVERED" : "UNCOVERED",
     coveredActions: Array.from(entry.coveredActions),
     missingActions: entry.expectedActions.filter((action) => !entry.coveredActions.has(action))
@@ -385,7 +400,7 @@ export function compareAsyncCoverageDiagnostics(left: AsyncCoverageDiagnostic, r
 
 function buildOperationContractEntry(contract: ReturnType<NonNullable<AsyncApiSemanticsBundle["operationContractsByKey"]>["get"]>) {
   return {
-    contract: contract ?? { operation: { kind: "kafka", action: "send", channel: "" } as KafkaOperationKey }
+    contract: contract ?? { operation: { kind: "kafka", action: "send", channel: "" } as AsyncOperationKey }
   };
 }
 
@@ -507,8 +522,20 @@ function asyncActionRank(value: AsyncAction): number {
   return value === "send" ? 0 : 1;
 }
 
-function matchKey(action: AsyncAction, channel: string): string {
-  return `${action}\u0000${channel}`;
+function matchKey(protocol: AsyncProtocol, action: AsyncAction, channel: string): string {
+  return `${protocol}\u0000${action}\u0000${channel}`;
+}
+
+function channelAccumulatorKey(protocol: AsyncProtocol, channel: string): string {
+  return `${protocol}\u0000${channel}`;
+}
+
+function isAsyncOperationKey(value: { kind: string }): value is AsyncOperationKey {
+  return value.kind === "kafka" || value.kind === "amqp";
+}
+
+function toAsyncProtocol(value: unknown): AsyncProtocol | null {
+  return value === "kafka" || value === "amqp" ? value : null;
 }
 
 function messageAccumulatorKey(operationKey: string, identity: string): string {

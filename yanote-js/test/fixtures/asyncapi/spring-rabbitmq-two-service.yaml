@@ -1,0 +1,75 @@
+asyncapi: 3.0.0
+info:
+  title: spring rabbitmq two-service proof
+  version: '1.0.0'
+servers:
+  rabbitmqLocal:
+    host: localhost:5672
+    protocol: amqp
+channels:
+  userCreated:
+    address: users.created
+    messages:
+      UserCreated:
+        name: UserCreated
+        contentType: application/json
+        correlationId:
+          location: $message.header#/correlation_id
+        headers:
+          $ref: '#/components/schemas/YanoteAmqpHeaders'
+        payload:
+          $ref: '#/components/schemas/UserCreatedPayload'
+operations:
+  'amqp send users.created':
+    action: send
+    channel:
+      $ref: '#/channels/userCreated'
+    reply:
+      channel:
+        $ref: '#/channels/userCreated'
+      address:
+        location: $message.header#/reply_to
+    messages:
+      - $ref: '#/channels/userCreated/messages/UserCreated'
+  'amqp receive users.created':
+    action: receive
+    channel:
+      $ref: '#/channels/userCreated'
+    reply:
+      channel:
+        $ref: '#/channels/userCreated'
+      address:
+        location: $message.header#/reply_to
+    messages:
+      - $ref: '#/channels/userCreated/messages/UserCreated'
+components:
+  schemas:
+    YanoteAmqpHeaders:
+      type: object
+      required:
+        - yanote.message
+        - yanote.test.run_id
+        - yanote.test.suite
+        - correlation_id
+        - reply_to
+      properties:
+        yanote.message:
+          type: string
+        yanote.test.run_id:
+          type: string
+        yanote.test.suite:
+          type: string
+        correlation_id:
+          type: string
+        reply_to:
+          type: string
+    UserCreatedPayload:
+      type: object
+      required:
+        - name
+        - email
+      properties:
+        name:
+          type: string
+        email:
+          type: string

@@ -56,8 +56,8 @@ describe("computeAsyncCoverage diagnostics", () => {
         messageName: "OrderCreatedEnvelope",
         schemaId: "OrderCreatedPayload",
         pointer: "/",
-        reason: "Observed kafka evidence did not include a payload.",
-        message: "Observed kafka evidence is missing the payload required for AsyncAPI schema validation"
+        reason: "Observed async evidence did not include a payload.",
+        message: "Observed async evidence is missing the payload required for AsyncAPI schema validation"
       },
       {
         kind: "invalid-payload",
@@ -69,7 +69,7 @@ describe("computeAsyncCoverage diagnostics", () => {
         schemaId: "OrderCreatedPayload",
         pointer: "/order/total",
         reason: "required: must have required property 'total'",
-        message: "Observed kafka payload did not conform to the retained AsyncAPI payload schema"
+        message: "Observed async payload did not conform to the retained AsyncAPI payload schema"
       },
       {
         kind: "mismatched",

@@ -316,6 +316,7 @@ function createAsyncHappyPathReportFixture() {
     toolVersion: "0.0.0",
     phase: { id: "03", slug: "async-report-and-gate-surface" },
     status: "partial",
+    protocols: ["kafka"],
     specSource: {
       kind: "remote-url",
       reference: "https://async-user:async-pass@example.test/asyncapi.yaml?token=async-secret#frag"
@@ -437,6 +438,7 @@ function createAsyncDiagnosticReportFixture() {
     toolVersion: "0.0.0",
     phase: { id: "03", slug: "async-report-and-gate-surface" },
     status: "partial",
+    protocols: ["kafka"],
     specSource: {
       kind: "local-file",
       reference: "test/fixtures/asyncapi/orders.yaml"
@@ -833,6 +835,7 @@ test("renders async report artifacts with typed stderr failures and no payload l
     const expected = [
       "## Yanote Async Summary",
       "- status: partial",
+      "- protocols: kafka",
       "- channels: 1/2 (50.00%)",
       "- operations: 1/2 (50.00%)",
       "- messages: 1/2 (50.00%)",
@@ -901,6 +904,7 @@ test("renders async report-only schema and routing diagnostics with explicit sem
     const expected = [
       "## Yanote Async Summary",
       "- status: partial",
+      "- protocols: kafka",
       "- channels: 1/1 (100.00%)",
       "- operations: 1/1 (100.00%)",
       "- messages: 1/1 (100.00%)",
@@ -972,6 +976,7 @@ test("renders async no-report fallback from YANOTE_ASYNC summary signals using p
     const expected = [
       "## Yanote Async Summary",
       "- status: invalid",
+      "- protocols: none",
       "- channels: 0/0 (N/A)",
       "- operations: 0/0 (N/A)",
       "- messages: 0/0 (N/A)",

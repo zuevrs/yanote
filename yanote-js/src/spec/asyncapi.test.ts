@@ -13,6 +13,46 @@ describe("asyncapi contract", () => {
     ).toBe("kafka send users.signedup");
   });
 
+  it("serializes amqp identities with the protocol-scoped operation key", () => {
+    expect(
+      serializeOperationKey({
+        kind: "amqp",
+        action: "send",
+        channel: "users.signedup"
+      })
+    ).toBe("amqp send users.signedup");
+  });
+
+  it("accepts the supported amqp subset with protocol-attributed diagnostics and identities", async () => {
+    const bundle = await loadAsyncApiSemanticsBundle("test/fixtures/asyncapi/rabbitmq-amqp-basic.yaml");
+
+    expect(bundle.hasInvalid).toBe(false);
+    expect(bundle.diagnostics).toEqual([]);
+    expect(bundle.operations.map((operation) => serializeOperationKey(operation))).toEqual(["amqp send users.signedup"]);
+    expect(bundle.operationContractsByKey.get("amqp send users.signedup")).toEqual({
+      operation: {
+        kind: "amqp",
+        action: "send",
+        channel: "users.signedup"
+      },
+      message: {
+        name: "UserSignedUp",
+        contentType: "application/json",
+        payloadSchema: {
+          type: "object",
+          "x-parser-schema-id": "<anonymous-schema-1>"
+        },
+        payloadSchemaId: "<anonymous-schema-1>",
+        headerValidationCapability: "none",
+        selectionHints: [{ kind: "message", value: "UserSignedUp" }]
+      },
+      messageSelection: {
+        mode: "single",
+        precedence: [{ kind: "message" }]
+      }
+    });
+  });
+
   it("retains payload schema metadata beside the canonical kafka identity", async () => {
     const bundle = await loadAsyncApiSemanticsBundle("test/fixtures/asyncapi/v3.yaml");
 
@@ -473,7 +513,7 @@ describe("asyncapi contract", () => {
     ]);
   });
 
-  it("surfaces structured async diagnostics when a document falls outside the kafka-only scope boundary", async () => {
+  it("surfaces structured async diagnostics when a document uses an unsupported rabbitmq protocol alias", async () => {
     const bundle = await loadAsyncApiSemanticsBundle("test/fixtures/asyncapi/unsupported-rabbitmq.yaml");
 
     expect(bundle.operations).toEqual([]);
@@ -481,17 +521,77 @@ describe("asyncapi contract", () => {
     expect(bundle.diagnostics).toEqual([
       {
         kind: "invalid",
-        message: "Unsupported AsyncAPI protocol: amqp. Only kafka is supported.",
+        message: "Unsupported AsyncAPI protocol: rabbitmq. Supported protocols: amqp, kafka.",
         async: {
-          runtime: "kafka",
+          runtime: "asyncapi",
           asyncapiVersion: "3.0.0",
-          protocol: "amqp"
+          protocol: "rabbitmq"
         }
       }
     ]);
   });
 
-  it("rejects unsupported AsyncAPI version documents before kafka normalization starts", async () => {
+  it("surfaces structured async diagnostics when a document uses an unsupported mqtt protocol", async () => {
+    const bundle = await loadAsyncApiSemanticsBundle("test/fixtures/asyncapi/unsupported-mqtt.yaml");
+
+    expect(bundle.operations).toEqual([]);
+    expect(bundle.hasInvalid).toBe(true);
+    expect(bundle.diagnostics).toEqual([
+      {
+        kind: "invalid",
+        message: "Unsupported AsyncAPI protocol: mqtt. Supported protocols: amqp, kafka.",
+        async: {
+          runtime: "asyncapi",
+          asyncapiVersion: "3.0.0",
+          protocol: "mqtt"
+        }
+      }
+    ]);
+  });
+
+  it("fails closed when an AsyncAPI document mixes supported protocols across servers", () => {
+    const bundle = buildAsyncApiSemantics({
+      asyncapi: "3.0.0",
+      servers: {
+        kafkaLocal: {
+          protocol: "kafka"
+        },
+        rabbitmqLocal: {
+          protocol: "amqp"
+        }
+      },
+      channels: {
+        usersSignedUp: {
+          address: "users.signedup"
+        }
+      },
+      operations: {
+        sendUserSignedUp: {
+          action: "send",
+          channel: {
+            $ref: "#/channels/usersSignedUp"
+          }
+        }
+      }
+    });
+
+    expect(bundle.operations).toEqual([]);
+    expect(bundle.hasInvalid).toBe(true);
+    expect(bundle.diagnostics).toEqual([
+      {
+        kind: "invalid",
+        message:
+          "Mixed AsyncAPI protocols are not supported: amqp, kafka. Declare exactly one supported protocol (amqp, kafka).",
+        async: {
+          runtime: "asyncapi",
+          asyncapiVersion: "3.0.0",
+          protocol: "amqp, kafka"
+        }
+      }
+    ]);
+  });
+
+  it("rejects unsupported AsyncAPI version documents before protocol-aware normalization starts", async () => {
     await expectParserBoundaryToReject(
       "test/fixtures/asyncapi/unsupported-version.yaml",
       /Version "4\.0\.0" is not supported/i
@@ -524,9 +624,19 @@ describe("asyncapi contract", () => {
     );
   });
 
-  it("expects non-kafka async protocols to be rejected at the current scope boundary", async () => {
+  it("expects unsupported async protocols to be rejected while the supported amqp subset is accepted", async () => {
+    await expect(loadAsyncApiOperations("test/fixtures/asyncapi/rabbitmq-amqp-basic.yaml")).resolves.toEqual([
+      {
+        kind: "amqp",
+        action: "send",
+        channel: "users.signedup"
+      }
+    ]);
     await expect(loadAsyncApiOperations("test/fixtures/asyncapi/unsupported-rabbitmq.yaml")).rejects.toThrow(
-      /unsupported|kafka|rabbitmq|amqp/i
+      /unsupported|rabbitmq|protocol/i
+    );
+    await expect(loadAsyncApiOperations("test/fixtures/asyncapi/unsupported-mqtt.yaml")).rejects.toThrow(
+      /unsupported|mqtt|protocol/i
     );
   });
 });

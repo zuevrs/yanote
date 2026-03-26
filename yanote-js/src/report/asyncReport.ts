@@ -12,7 +12,7 @@ import type {
   AsyncRuntimeSemanticDiagnostic,
   AsyncRuntimeSemanticFailureState
 } from "../coverage/asyncSemanticConformance.js";
-import type { KafkaOperationContract } from "../model/operationKey.js";
+import type { AsyncOperationContract, AsyncProtocol } from "../model/operationKey.js";
 import { normalizeAsyncReport, roundCoverage } from "./asyncNormalize.js";
 import { ASYNC_REPORT_PHASE, ASYNC_REPORT_SCHEMA_VERSION, validateAsyncReport } from "./asyncSchema.js";
 
@@ -99,7 +99,7 @@ export type AsyncBindingSupportReport = {
     operationKey: string;
     channel: string;
     action: "send" | "receive";
-    bindings: KafkaOperationContract["bindingSupport"] extends Array<infer T> ? T[] : never;
+    bindings: AsyncOperationContract["bindingSupport"] extends Array<infer T> ? T[] : never;
   }>;
 };
 
@@ -112,6 +112,7 @@ export type AsyncYanoteReport = {
     id: string;
     slug: string;
   };
+  protocols: AsyncProtocol[];
   status: AsyncReportStatus;
   summary: {
     totalChannels: number;
@@ -183,7 +184,7 @@ export function buildAsyncReport(
     toolVersion: string;
     specSource: SpecSourceProvenance;
     eventTimestamps?: number[];
-    operationContractsByKey?: ReadonlyMap<string, KafkaOperationContract>;
+    operationContractsByKey?: ReadonlyMap<string, AsyncOperationContract>;
   }
 ): AsyncYanoteReport {
   const diagnostics = [...coverage.diagnostics];
@@ -198,6 +199,7 @@ export function buildAsyncReport(
       reference: opts.specSource.reference
     },
     phase: ASYNC_REPORT_PHASE,
+    protocols: collectAsyncReportProtocols(coverage, opts.operationContractsByKey),
     status: resolveAsyncReportStatus(coverage, counts),
     summary: buildAsyncReportSummary(coverage),
     coverage: {
@@ -306,8 +308,43 @@ export function resolveGeneratedAt(eventTimestamps: number[] | undefined): strin
   return new Date(min).toISOString();
 }
 
+function collectAsyncReportProtocols(
+  coverage: AsyncCoverageResult,
+  operationContractsByKey: ReadonlyMap<string, AsyncOperationContract> | undefined
+): AsyncProtocol[] {
+  const seen = new Set<AsyncProtocol>();
+
+  for (const operation of coverage.operations.items) {
+    const protocol = parseAsyncProtocolFromOperationKey(operation.operationKey);
+    if (protocol) {
+      seen.add(protocol);
+    }
+  }
+
+  for (const operationKey of operationContractsByKey?.keys() ?? []) {
+    const protocol = parseAsyncProtocolFromOperationKey(operationKey);
+    if (protocol) {
+      seen.add(protocol);
+    }
+  }
+
+  return Array.from(seen).sort((left, right) => left.localeCompare(right));
+}
+
+function parseAsyncProtocolFromOperationKey(operationKey: string): AsyncProtocol | null {
+  if (operationKey.startsWith("kafka ")) {
+    return "kafka";
+  }
+
+  if (operationKey.startsWith("amqp ")) {
+    return "amqp";
+  }
+
+  return null;
+}
+
 function buildBindingSupportReport(
-  operationContractsByKey: ReadonlyMap<string, KafkaOperationContract> | undefined
+  operationContractsByKey: ReadonlyMap<string, AsyncOperationContract> | undefined
 ): AsyncBindingSupportReport {
   const operations = Array.from(operationContractsByKey?.entries() ?? [])
     .map(([operationKey, contract]) => buildBindingSupportOperation(operationKey, contract))
@@ -330,7 +367,7 @@ function buildBindingSupportReport(
 
 function buildBindingSupportOperation(
   operationKey: string,
-  contract: KafkaOperationContract
+  contract: AsyncOperationContract
 ): AsyncBindingSupportReport["operations"][number] | null {
   const bindings = [...(contract.bindingSupport ?? [])];
   if (bindings.length === 0) {
@@ -346,7 +383,7 @@ function buildBindingSupportOperation(
 }
 
 function buildDeclaredSemanticsReport(
-  operationContractsByKey: ReadonlyMap<string, KafkaOperationContract> | undefined
+  operationContractsByKey: ReadonlyMap<string, AsyncOperationContract> | undefined
 ): AsyncDeclaredSemanticsReport {
   const operations = Array.from(operationContractsByKey?.entries() ?? [])
     .map(([operationKey, contract]) => buildDeclaredSemanticsOperation(operationKey, contract))
@@ -366,7 +403,7 @@ function buildDeclaredSemanticsReport(
 
 function buildDeclaredSemanticsOperation(
   operationKey: string,
-  contract: KafkaOperationContract
+  contract: AsyncOperationContract
 ): AsyncDeclaredSemanticsReport["operations"][number] | null {
   const correlationIds = collectDeclaredCorrelationIds(contract);
   const reply = contract.declaredReply
@@ -391,7 +428,7 @@ function buildDeclaredSemanticsOperation(
 }
 
 function collectDeclaredCorrelationIds(
-  contract: KafkaOperationContract
+  contract: AsyncOperationContract
 ): AsyncDeclaredSemanticsReport["operations"][number]["correlationIds"] {
   const messages = contract.message ? [contract.message] : contract.messages ?? [];
   const unique = new Map<string, AsyncDeclaredSemanticsReport["operations"][number]["correlationIds"][number]>();

@@ -6,6 +6,7 @@ import { loadAsyncApiSemanticsBundle, type AsyncApiSemanticsBundle } from "../sp
 import { computeAsyncSchemaConformance } from "./asyncSchemaConformance.js";
 
 const OPERATION_KEY = "kafka send orders.created";
+const AMQP_OPERATION_KEY = "amqp send users.signedup";
 
 describe("computeAsyncSchemaConformance contract", () => {
   it("validates routed payloads against sanitized AsyncAPI payload schemas after routing match", async () => {
@@ -16,6 +17,41 @@ describe("computeAsyncSchemaConformance contract", () => {
       matchedOperationKeys: [OPERATION_KEY],
       validatedOperationKeys: [OPERATION_KEY],
       diagnostics: []
+    });
+  });
+
+  it("validates AMQP payloads against protocol-aware operation identities without Kafka drift", async () => {
+    const bundle = await loadAsyncApiSemanticsBundle("test/fixtures/asyncapi/rabbitmq-amqp-basic.yaml");
+    const events = await readAsyncEventsJsonl("test/fixtures/async-events/amqp-basic.fixture.jsonl");
+
+    expect(computeAsyncSchemaConformance(bundle, events.items)).toEqual({
+      matchedOperationKeys: [AMQP_OPERATION_KEY],
+      validatedOperationKeys: [AMQP_OPERATION_KEY],
+      diagnostics: []
+    });
+  });
+
+  it("fails closed for invalid AMQP payloads with protocol-aware diagnostics", async () => {
+    const bundle = await loadAsyncApiSemanticsBundle("test/fixtures/asyncapi/rabbitmq-amqp-basic.yaml");
+    const events = await readAsyncEventsJsonl("test/fixtures/async-events/amqp-invalid-payload.fixture.jsonl");
+
+    expect(computeAsyncSchemaConformance(bundle, events.items)).toEqual({
+      matchedOperationKeys: [AMQP_OPERATION_KEY],
+      validatedOperationKeys: [AMQP_OPERATION_KEY],
+      diagnostics: [
+        {
+          kind: "invalid-payload",
+          validationKind: "payload",
+          operationKey: AMQP_OPERATION_KEY,
+          channel: "users.signedup",
+          action: "send",
+          messageName: "UserSignedUp",
+          schemaId: "<anonymous-schema-1>",
+          pointer: "/",
+          reason: "type: must be object",
+          message: "Observed async payload did not conform to the retained AsyncAPI payload schema"
+        }
+      ]
     });
   });
 
@@ -138,8 +174,8 @@ describe("computeAsyncSchemaConformance contract", () => {
           messageName: "OrderCreatedEnvelope",
           schemaId: "OrderEventHeaders",
           pointer: "/traceId",
-          reason: "Observed kafka evidence did not include required header 'traceId'.",
-          message: "Observed kafka evidence is missing a required header for AsyncAPI header validation"
+          reason: "Observed async evidence did not include required header 'traceId'.",
+          message: "Observed async evidence is missing a required header for AsyncAPI header validation"
         }
       ]
     });
@@ -162,8 +198,8 @@ describe("computeAsyncSchemaConformance contract", () => {
           messageName: "OrderCreatedEnvelope",
           schemaId: "OrderEventHeaders",
           pointer: "/traceId",
-          reason: "Observed kafka header 'traceId' was retained as redacted evidence (reason: sensitive), so its value could not be validated.",
-          message: "Observed kafka header value was unavailable for AsyncAPI header validation"
+          reason: "Observed async header 'traceId' was retained as redacted evidence (reason: sensitive), so its value could not be validated.",
+          message: "Observed async header value was unavailable for AsyncAPI header validation"
         }
       ]
     });
@@ -190,7 +226,7 @@ describe("computeAsyncSchemaConformance contract", () => {
           schemaId: "OrderEventHeaders",
           pointer: "/traceId",
           reason: "pattern: must match pattern '^trace-[0-9]+$'",
-          message: "Observed kafka headers did not conform to the retained AsyncAPI header schema"
+          message: "Observed async headers did not conform to the retained AsyncAPI header schema"
         }
       ]
     });
@@ -221,7 +257,7 @@ describe("computeAsyncSchemaConformance contract", () => {
           messageName: "OrderCreatedEnvelope",
           schemaId: "OrderEventHeaders",
           reason: "Retained AsyncAPI header schema could not be normalized into a validation-ready JSON Schema.",
-          message: "Retained AsyncAPI header schema is outside the current kafka header-validation scope"
+          message: "Retained AsyncAPI header schema is outside the current async header-validation scope"
         }
       ]
     });

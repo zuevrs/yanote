@@ -2,6 +2,8 @@ import { Parser, fromFile } from "@asyncapi/parser";
 import {
   serializeOperationKey,
   type AsyncAction,
+  type AsyncOperationContract,
+  type AsyncProtocol,
   type KafkaBindingSupport,
   type KafkaBindingSupportField,
   type KafkaBindingSupportScope,
@@ -18,14 +20,17 @@ import { normalizeJsonValue } from "../model/asyncEvent.js";
 import type { SemanticDiagnostic, SemanticDiagnosticsBundle } from "./diagnostics.js";
 import type { ResolvedSpecSource } from "./specSource.js";
 
-const KAFKA_RUNTIME = "kafka";
+const ASYNCAPI_RUNTIME = "asyncapi";
+const KAFKA_RUNTIME: AsyncProtocol = "kafka";
+const AMQP_RUNTIME: AsyncProtocol = "amqp";
+const SUPPORTED_ASYNC_PROTOCOLS: AsyncProtocol[] = [AMQP_RUNTIME, KAFKA_RUNTIME];
 
 export type AsyncApiSemanticsBundle = SemanticDiagnosticsBundle & {
   operations: OperationKey[];
-  operationContractsByKey: Map<string, KafkaOperationContract>;
+  operationContractsByKey: Map<string, AsyncOperationContract>;
 };
 
-type ResolvedKafkaMessageContracts = Pick<KafkaOperationContract, "message" | "messages" | "messageSelection"> & {
+type ResolvedKafkaMessageContracts = Pick<AsyncOperationContract, "message" | "messages" | "messageSelection"> & {
   bindingSupport?: KafkaBindingSupport[];
 };
 type AsyncApiSpecInput = string | Pick<ResolvedSpecSource, "materializedPath">;
@@ -53,7 +58,7 @@ export async function loadAsyncApiOperations(specInput: AsyncApiSpecInput): Prom
 
 export function buildAsyncApiSemantics(spec: unknown): AsyncApiSemanticsBundle {
   const operations: OperationKey[] = [];
-  const operationContractsByKey = new Map<string, KafkaOperationContract>();
+  const operationContractsByKey = new Map<string, AsyncOperationContract>();
   const diagnostics: SemanticDiagnostic[] = [];
   const seen = new Set<string>();
 
@@ -62,7 +67,7 @@ export function buildAsyncApiSemantics(spec: unknown): AsyncApiSemanticsBundle {
       kind: "invalid",
       message: "AsyncAPI document is not an object",
       async: {
-        runtime: KAFKA_RUNTIME
+        runtime: ASYNCAPI_RUNTIME
       }
     });
     return toBundle(operations, operationContractsByKey, diagnostics);
@@ -74,7 +79,7 @@ export function buildAsyncApiSemantics(spec: unknown): AsyncApiSemanticsBundle {
       kind: "invalid",
       message: "AsyncAPI document is missing a valid asyncapi version",
       async: {
-        runtime: KAFKA_RUNTIME
+        runtime: ASYNCAPI_RUNTIME
       }
     });
     return toBundle(operations, operationContractsByKey, diagnostics);
@@ -98,11 +103,7 @@ export function buildAsyncApiSemantics(spec: unknown): AsyncApiSemanticsBundle {
   diagnostics.push({
     kind: "invalid",
     message: `Unsupported AsyncAPI version: ${version}. Only v2 and v3 are supported.`,
-    async: {
-      runtime: KAFKA_RUNTIME,
-      asyncapiVersion: version,
-      protocol
-    }
+    async: buildAsyncContext(version, protocol)
   });
 
   return toBundle(operations, operationContractsByKey, diagnostics);
@@ -111,7 +112,7 @@ export function buildAsyncApiSemantics(spec: unknown): AsyncApiSemanticsBundle {
 function extractV2(
   doc: Record<string, unknown>,
   version: string,
-  protocol: string,
+  protocol: AsyncProtocol,
   seen: Set<string>,
   operations: OperationKey[],
   operationContractsByKey: Map<string, KafkaOperationContract>,
@@ -180,7 +181,7 @@ function appendV2Operation(
   action: AsyncAction,
   channel: string,
   version: string,
-  protocol: string,
+  protocol: AsyncProtocol,
   seen: Set<string>,
   operations: OperationKey[],
   operationContractsByKey: Map<string, KafkaOperationContract>,
@@ -205,15 +206,18 @@ function appendV2Operation(
   }
 
   const declaredReply = extractDeclaredReply(operationValue.reply, diagnostics, buildAsyncContext(version, protocol, { action, channel }));
-  const bindingSupport = collectKafkaBindingSupport(
-    extractKafkaChannelBindingSupport(channelValue.bindings, diagnostics, buildAsyncContext(version, protocol, { action, channel })),
-    extractKafkaOperationBindingSupport(operationValue.bindings, diagnostics, buildAsyncContext(version, protocol, { action, channel })),
-    messageContract.bindingSupport
-  );
+  const bindingSupport =
+    protocol === KAFKA_RUNTIME
+      ? collectKafkaBindingSupport(
+          extractKafkaChannelBindingSupport(channelValue.bindings, diagnostics, buildAsyncContext(version, protocol, { action, channel })),
+          extractKafkaOperationBindingSupport(operationValue.bindings, diagnostics, buildAsyncContext(version, protocol, { action, channel })),
+          messageContract.bindingSupport
+        )
+      : [];
   const { bindingSupport: _ignoredBindingSupport, ...resolvedMessageContract } = messageContract;
-  appendKafkaContract(
+  appendAsyncContract(
     {
-      operation: { kind: KAFKA_RUNTIME, action, channel },
+      operation: { kind: protocol, action, channel },
       ...(bindingSupport.length > 0 ? { bindingSupport } : {}),
       ...(declaredReply ? { declaredReply } : {}),
       ...resolvedMessageContract
@@ -227,7 +231,7 @@ function appendV2Operation(
 function extractV3(
   doc: Record<string, unknown>,
   version: string,
-  protocol: string,
+  protocol: AsyncProtocol,
   seen: Set<string>,
   operations: OperationKey[],
   operationContractsByKey: Map<string, KafkaOperationContract>,
@@ -292,15 +296,18 @@ function extractV3(
     }
 
     const declaredReply = extractDeclaredReply(operationValue.reply, diagnostics, buildAsyncContext(version, protocol, { action, channel }));
-    const bindingSupport = collectKafkaBindingSupport(
-      extractKafkaChannelBindingSupport(channelValue?.bindings, diagnostics, buildAsyncContext(version, protocol, { action, channel })),
-      extractKafkaOperationBindingSupport(operationValue.bindings, diagnostics, buildAsyncContext(version, protocol, { action, channel })),
-      messageContract.bindingSupport
-    );
+    const bindingSupport =
+      protocol === KAFKA_RUNTIME
+        ? collectKafkaBindingSupport(
+            extractKafkaChannelBindingSupport(channelValue?.bindings, diagnostics, buildAsyncContext(version, protocol, { action, channel })),
+            extractKafkaOperationBindingSupport(operationValue.bindings, diagnostics, buildAsyncContext(version, protocol, { action, channel })),
+            messageContract.bindingSupport
+          )
+        : [];
     const { bindingSupport: _ignoredBindingSupport, ...resolvedMessageContract } = messageContract;
-    appendKafkaContract(
+    appendAsyncContract(
       {
-        operation: { kind: KAFKA_RUNTIME, action, channel },
+        operation: { kind: protocol, action, channel },
         ...(bindingSupport.length > 0 ? { bindingSupport } : {}),
         ...(declaredReply ? { declaredReply } : {}),
         ...resolvedMessageContract
@@ -316,7 +323,7 @@ function resolveSupportedProtocol(
   serversValue: unknown,
   version: string,
   diagnostics: SemanticDiagnostic[]
-): string | null {
+): AsyncProtocol | null {
   if (!isRecord(serversValue) || Object.keys(serversValue).length === 0) {
     diagnostics.push({
       kind: "invalid",
@@ -356,20 +363,30 @@ function resolveSupportedProtocol(
     return null;
   }
 
-  if (normalizedProtocols.length !== 1 || normalizedProtocols[0] !== KAFKA_RUNTIME) {
+  if (normalizedProtocols.length !== 1) {
     const protocolList = normalizedProtocols.join(", ");
     diagnostics.push({
       kind: "invalid",
-      message: `Unsupported AsyncAPI protocol${normalizedProtocols.length === 1 ? "" : "s"}: ${protocolList}. Only kafka is supported.`,
-      async: buildAsyncContext(version, protocolList)
+      message: `Mixed AsyncAPI protocols are not supported: ${protocolList}. Declare exactly one supported protocol (${SUPPORTED_ASYNC_PROTOCOLS.join(", ")}).`,
+      async: buildAsyncContext(version, protocolList, {}, ASYNCAPI_RUNTIME)
     });
     return null;
   }
 
-  return normalizedProtocols[0];
+  const [protocol] = normalizedProtocols;
+  if (!isSupportedAsyncProtocol(protocol)) {
+    diagnostics.push({
+      kind: "invalid",
+      message: `Unsupported AsyncAPI protocol: ${protocol}. Supported protocols: ${SUPPORTED_ASYNC_PROTOCOLS.join(", ")}.`,
+      async: buildAsyncContext(version, protocol, {}, ASYNCAPI_RUNTIME)
+    });
+    return null;
+  }
+
+  return protocol;
 }
 
-function appendKafkaContract(
+function appendAsyncContract(
   contract: KafkaOperationContract,
   seen: Set<string>,
   operations: OperationKey[],
@@ -1195,6 +1212,10 @@ function normalizeProtocol(value: unknown): string | null {
   return protocol.length > 0 ? protocol : null;
 }
 
+function isSupportedAsyncProtocol(value: string): value is AsyncProtocol {
+  return SUPPORTED_ASYNC_PROTOCOLS.includes(value as AsyncProtocol);
+}
+
 function normalizeNonEmptyString(value: unknown): string | null {
   if (typeof value !== "string") {
     return null;
@@ -1220,10 +1241,11 @@ function toAsyncApiSpecPath(specInput: AsyncApiSpecInput): string {
 function buildAsyncContext(
   asyncapiVersion: string,
   protocol: string | undefined,
-  extra: Partial<NonNullable<SemanticDiagnostic["async"]>> = {}
+  extra: Partial<NonNullable<SemanticDiagnostic["async"]>> = {},
+  runtime: string = protocol ?? ASYNCAPI_RUNTIME
 ): NonNullable<SemanticDiagnostic["async"]> {
   return {
-    runtime: KAFKA_RUNTIME,
+    runtime,
     asyncapiVersion,
     ...(protocol ? { protocol } : {}),
     ...extra

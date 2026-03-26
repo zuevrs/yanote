@@ -146,6 +146,105 @@ describe("readAsyncEventsJsonl", () => {
     }
   });
 
+  it("accepts AMQP evidence alongside Kafka while ignoring non-async entries", async () => {
+    const dir = await mkdtemp(path.join(os.tmpdir(), "yanote-async-mixed-"));
+    const file = path.join(dir, "events.jsonl");
+
+    const lines = [
+      JSON.stringify({
+        kind: "amqp",
+        ts: 1710000000150,
+        action: " RECEIVE ",
+        channel: " users.queue ",
+        message: " UserQueued ",
+        service: "billing-service",
+        instance: null,
+        payload: { userId: "alice" },
+        payloadState: " captured ",
+        headers: {
+          " content-type ": {
+            state: " captured ",
+            value: " application/json "
+          },
+          authorization: {
+            state: " redacted ",
+            reason: " sensitive "
+          }
+        },
+        error: true,
+        "test.run_id": "run-amqp",
+        "test.suite": "suite-amqp"
+      }),
+      JSON.stringify({
+        kind: "kafka",
+        action: "send",
+        channel: "users.created",
+        message: "LegacyKafka",
+        "test.run_id": "run-kafka",
+        "test.suite": "suite-kafka"
+      }),
+      JSON.stringify({
+        kind: "http",
+        method: "GET",
+        route: "/users"
+      }),
+      "not-json"
+    ];
+
+    try {
+      await writeFile(file, `${lines.join("\n")}\n`, "utf8");
+
+      const result = await readAsyncEventsJsonl(file);
+      expect(result.invalidLines).toBe(1);
+      expect(result.invalidLineNumbers).toEqual([4]);
+      expect(result.items).toEqual([
+        {
+          kind: "amqp",
+          ts: 1710000000150,
+          action: "receive",
+          channel: "users.queue",
+          message: "UserQueued",
+          service: "billing-service",
+          instance: null,
+          payload: { userId: "alice" },
+          payloadState: "captured",
+          payloadReason: undefined,
+          headers: {
+            authorization: {
+              state: "redacted",
+              reason: "sensitive"
+            },
+            "content-type": {
+              state: "captured",
+              value: "application/json"
+            }
+          },
+          error: true,
+          testRunId: "run-amqp",
+          testSuite: "suite-amqp"
+        },
+        {
+          kind: "kafka",
+          ts: undefined,
+          action: "send",
+          channel: "users.created",
+          message: "LegacyKafka",
+          service: undefined,
+          instance: undefined,
+          payload: undefined,
+          payloadState: undefined,
+          payloadReason: undefined,
+          headers: undefined,
+          error: undefined,
+          testRunId: "run-kafka",
+          testSuite: "suite-kafka"
+        }
+      ]);
+    } finally {
+      await rm(dir, { recursive: true, force: true });
+    }
+  });
+
   it("keeps payload-bearing kafka evidence while ignoring invalid and non-kafka lines", async () => {
     const result = await readAsyncEventsJsonl("test/fixtures/async-events/payload-bearing.fixture.jsonl");
 

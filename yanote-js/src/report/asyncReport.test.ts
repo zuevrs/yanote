@@ -24,6 +24,10 @@ const MULTI_MESSAGE_ASYNC_SPEC_SOURCE = {
   kind: "local-file" as const,
   reference: "test/fixtures/asyncapi/multi-message-resolvable.yaml"
 };
+const AMQP_BASIC_ASYNC_SPEC_SOURCE = {
+  kind: "local-file" as const,
+  reference: "test/fixtures/asyncapi/rabbitmq-amqp-basic.yaml"
+};
 
 describe("async report", () => {
   it("builds a deterministic async report artifact without reusing the HTTP coverage surface", async () => {
@@ -45,6 +49,7 @@ describe("async report", () => {
       toolVersion: "test",
       specSource: V3_ASYNC_SPEC_SOURCE,
       phase: ASYNC_REPORT_PHASE,
+      protocols: ["kafka"],
       status: "partial",
       summary: {
         totalChannels: 2,
@@ -182,6 +187,106 @@ describe("async report", () => {
 
     expect(report).toEqual(expected);
     expect((report as Record<string, unknown>).governance).toBeUndefined();
+  });
+
+  it("builds a truthful AMQP async report artifact and keeps Kafka-only additive sections empty", async () => {
+    const bundle = await loadAsyncApiSemanticsBundle("test/fixtures/asyncapi/rabbitmq-amqp-basic.yaml");
+    const events = await readAsyncEventsJsonl("test/fixtures/async-events/amqp-basic.fixture.jsonl");
+    const coverage = computeAsyncCoverage(bundle, events.items);
+
+    const report = buildAsyncReport(coverage, {
+      toolVersion: "test",
+      specSource: AMQP_BASIC_ASYNC_SPEC_SOURCE,
+      eventTimestamps: events.items
+        .map((event) => event.ts)
+        .filter((timestamp): timestamp is number => typeof timestamp === "number"),
+      operationContractsByKey: bundle.operationContractsByKey
+    });
+
+    expect(report.protocols).toEqual(["amqp"]);
+    expect(report.status).toBe("ok");
+    expect(report.summary).toEqual({
+      totalChannels: 1,
+      coveredChannels: 1,
+      channelCoveragePercent: 100,
+      totalOperations: 1,
+      coveredOperations: 1,
+      operationCoveragePercent: 100,
+      totalMessages: 1,
+      coveredMessages: 1,
+      messageCoveragePercent: 100
+    });
+    expect(report.coverage.operations.items).toEqual([
+      {
+        operationKey: "amqp send users.signedup",
+        channel: "users.signedup",
+        action: "send",
+        operation: { state: "COVERED" },
+        messageContract: {
+          name: "UserSignedUp",
+          selectionMode: "single",
+          state: "COVERED"
+        },
+        suites: ["suite-amqp-basic"]
+      }
+    ]);
+    expect(report.bindingSupport).toEqual({
+      summary: {
+        totalOperations: 0,
+        totalBindings: 0,
+        supportedBindings: 0,
+        declaredOnlyBindings: 0,
+        deferredBindings: 0,
+        invalidBindings: 0
+      },
+      operations: []
+    });
+    expect(report.declaredSemantics).toEqual({
+      summary: {
+        totalOperations: 0,
+        operationsWithCorrelationId: 0,
+        messageCorrelationIds: 0,
+        operationsWithReply: 0
+      },
+      operations: []
+    });
+    expect(report.runtimeSemantics).toEqual({
+      summary: {
+        totalOperations: 0,
+        satisfiedOperations: 0,
+        unsatisfiedOperations: 0,
+        totalSemantics: 0,
+        satisfiedSemantics: 0,
+        unsatisfiedSemantics: 0,
+        semanticCoveragePercent: null
+      },
+      operations: [],
+      diagnostics: {
+        counts: {
+          missing: 0,
+          unavailable: 0,
+          unsupported: 0,
+          mismatched: 0
+        },
+        items: []
+      }
+    });
+    expect(report.diagnostics).toEqual({
+      counts: {
+        "unsupported-content-type": 0,
+        "unsupported-schema-format": 0,
+        "missing-payload": 0,
+        "invalid-payload": 0,
+        "missing-header": 0,
+        "unavailable-header": 0,
+        "invalid-header": 0,
+        "unverifiable-headers": 0,
+        ambiguous: 0,
+        unmatched: 0,
+        mismatched: 0
+      },
+      items: []
+    });
   });
 
   it("publishes declared correlationId and reply semantics additively without changing async coverage numerators", async () => {
@@ -524,8 +629,8 @@ describe("async report", () => {
           messageName: "OrderCreatedEnvelope",
           schemaId: "OrderCreatedPayload",
           pointer: "/",
-          reason: "Observed kafka evidence did not include a payload.",
-          message: "Observed kafka evidence is missing the payload required for AsyncAPI schema validation"
+          reason: "Observed async evidence did not include a payload.",
+          message: "Observed async evidence is missing the payload required for AsyncAPI schema validation"
         },
         {
           kind: "invalid-payload",
@@ -537,7 +642,7 @@ describe("async report", () => {
           schemaId: "OrderCreatedPayload",
           pointer: "/order/total",
           reason: "required: must have required property 'total'",
-          message: "Observed kafka payload did not conform to the retained AsyncAPI payload schema"
+          message: "Observed async payload did not conform to the retained AsyncAPI payload schema"
         }
       ]
     });
@@ -584,8 +689,8 @@ describe("async report", () => {
           messageName: "OrderCreatedEnvelope",
           schemaId: "OrderEventHeaders",
           pointer: "/traceId",
-          reason: "Observed kafka evidence did not include required header 'traceId'.",
-          message: "Observed kafka evidence is missing a required header for AsyncAPI header validation"
+          reason: "Observed async evidence did not include required header 'traceId'.",
+          message: "Observed async evidence is missing a required header for AsyncAPI header validation"
         }
       ]
     });
@@ -614,8 +719,8 @@ describe("async report", () => {
           messageName: "OrderCreatedEnvelope",
           schemaId: "OrderEventHeaders",
           pointer: "/traceId",
-          reason: "Observed kafka header 'traceId' was retained as redacted evidence (reason: sensitive), so its value could not be validated.",
-          message: "Observed kafka header value was unavailable for AsyncAPI header validation"
+          reason: "Observed async header 'traceId' was retained as redacted evidence (reason: sensitive), so its value could not be validated.",
+          message: "Observed async header value was unavailable for AsyncAPI header validation"
         }
       ]
     });
@@ -645,7 +750,7 @@ describe("async report", () => {
           schemaId: "OrderEventHeaders",
           pointer: "/traceId",
           reason: "pattern: must match pattern '^trace-[0-9]+$'",
-          message: "Observed kafka headers did not conform to the retained AsyncAPI header schema"
+          message: "Observed async headers did not conform to the retained AsyncAPI header schema"
         }
       ]
     });

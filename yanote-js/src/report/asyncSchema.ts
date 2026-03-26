@@ -113,6 +113,7 @@ const ASYNC_REPORT_SCHEMA = {
     "toolVersion",
     "specSource",
     "phase",
+    "protocols",
     "status",
     "summary",
     "coverage",
@@ -142,6 +143,11 @@ const ASYNC_REPORT_SCHEMA = {
         id: { const: ASYNC_REPORT_PHASE.id },
         slug: { const: ASYNC_REPORT_PHASE.slug }
       }
+    },
+    protocols: {
+      type: "array",
+      uniqueItems: true,
+      items: { enum: ["kafka", "amqp"] }
     },
     status: { enum: ["ok", "partial", "invalid"] },
     summary: {

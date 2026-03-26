@@ -147,10 +147,13 @@ export function evaluateAsyncGateFailures(input: {
 }
 
 function evaluateAsyncSemanticFailures(coverage: AsyncCoverageResult): GovernanceFailure[] {
+  const defaultProtocol = resolveAsyncCoverageProtocol(coverage);
   const runtimeFailures = [...coverage.runtimeSemantics.diagnostics]
     .sort(compareRuntimeSemanticDiagnostics)
     .map((diagnostic) => toRuntimeSemanticFailure(diagnostic));
-  const coverageFailures = [...coverage.diagnostics].sort(compareAsyncCoverageDiagnostics).map((diagnostic) => toSemanticFailure(diagnostic));
+  const coverageFailures = [...coverage.diagnostics]
+    .sort(compareAsyncCoverageDiagnostics)
+    .map((diagnostic) => toSemanticFailure(diagnostic, defaultProtocol));
 
   return [...runtimeFailures, ...coverageFailures];
 }
@@ -335,7 +338,10 @@ function normalizeOptionalText(value: string | undefined): string | undefined {
   return normalized.length > 0 ? normalized : undefined;
 }
 
-function toSemanticFailure(diagnostic: AsyncCoverageDiagnostic): GovernanceFailure {
+function toSemanticFailure(
+  diagnostic: AsyncCoverageDiagnostic,
+  defaultProtocol: "kafka" | "amqp" | null
+): GovernanceFailure {
   switch (diagnostic.kind) {
     case "unsupported-content-type":
       return {
@@ -446,27 +452,69 @@ function toSemanticFailure(diagnostic: AsyncCoverageDiagnostic): GovernanceFailu
     case "mismatched": {
       const observed = diagnostic.observedMessage ?? "(unknown)";
       const expected = diagnostic.expectedMessage ?? "(unknown)";
+      const observedOperation = formatObservedAsyncEvidence(defaultProtocol, diagnostic.action, diagnostic.channel);
+      const operationKey = formatObservedAsyncOperationKey(defaultProtocol, diagnostic.action, diagnostic.channel);
       return {
         failureClass: "semantic",
         code: "ASYNC_SEMANTIC_MESSAGE_MISMATCH",
-        reason: `Observed async evidence ${diagnostic.action} ${diagnostic.channel} reported message ${observed}, expected ${expected}.`,
+        reason: `${observedOperation} reported message ${observed}, expected ${expected}.`,
         hint: "Align the emitted message contract with AsyncAPI or update the AsyncAPI contract intentionally.",
         exitCode: 5,
         severity: "error",
-        operationKey: `${diagnostic.action} ${diagnostic.channel}`
+        operationKey
       };
     }
-    case "unmatched":
+    case "unmatched": {
+      const observedOperation = formatObservedAsyncEvidence(defaultProtocol, diagnostic.action, diagnostic.channel);
+      const operationKey = formatObservedAsyncOperationKey(defaultProtocol, diagnostic.action, diagnostic.channel);
       return {
         failureClass: "semantic",
         code: "ASYNC_SEMANTIC_UNMATCHED_EVIDENCE",
-        reason: `Observed async evidence ${diagnostic.action} ${diagnostic.channel} did not match any canonical AsyncAPI operation.`,
+        reason: `${observedOperation} did not match any canonical AsyncAPI operation.`,
         hint: "Add the missing AsyncAPI operation or stop emitting unmatched async evidence.",
         exitCode: 5,
         severity: "error",
-        operationKey: `${diagnostic.action} ${diagnostic.channel}`
+        operationKey
       };
+    }
   }
+}
+
+function resolveAsyncCoverageProtocol(coverage: AsyncCoverageResult): "kafka" | "amqp" | null {
+  const protocols = new Set<"kafka" | "amqp">();
+
+  for (const entry of coverage.operations.items) {
+    if (entry.operationKey.startsWith("kafka ")) {
+      protocols.add("kafka");
+      continue;
+    }
+
+    if (entry.operationKey.startsWith("amqp ")) {
+      protocols.add("amqp");
+    }
+  }
+
+  if (protocols.size !== 1) {
+    return null;
+  }
+
+  return Array.from(protocols)[0] ?? null;
+}
+
+function formatObservedAsyncEvidence(
+  protocol: "kafka" | "amqp" | null,
+  action: string,
+  channel: string
+): string {
+  return protocol ? `Observed async evidence ${protocol} ${action} ${channel}` : `Observed async evidence ${action} ${channel}`;
+}
+
+function formatObservedAsyncOperationKey(
+  protocol: "kafka" | "amqp" | null,
+  action: string,
+  channel: string
+): string {
+  return protocol ? `${protocol} ${action} ${channel}` : `${action} ${channel}`;
 }
 
 function formatAsyncOperation(operationKey: string): string {

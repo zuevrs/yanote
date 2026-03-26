@@ -201,6 +201,7 @@ describe("cli async-report contract", () => {
 
       expect(summaryLine.startsWith("YANOTE_ASYNC_SUMMARY ")).toBe(true);
       expect((output.match(/YANOTE_ASYNC_SUMMARY /g) ?? []).length).toBe(1);
+      expect(output).toContain("- protocols: kafka");
       expect(output).toContain("Declared Semantics");
       expect(output).toContain("- operations with declarations: 0");
       expect(output).toContain("- details: none");
@@ -218,6 +219,7 @@ describe("cli async-report contract", () => {
       expect(output).not.toContain("deprecated_operations=");
       expect(output).not.toMatch(/\u001b\[[0-9;]*m/);
       expect(reportPathSection).toBe(reportPath);
+      expect(summaryLine).toContain("protocols=kafka");
       expect(summaryLine).toContain(`report=${reportPath}`);
       expect(summaryLine).toContain("declared_operations=0");
       expect(summaryLine).toContain("declared_correlation_operations=0");
@@ -236,6 +238,59 @@ describe("cli async-report contract", () => {
       expect(html).toContain("Channel coverage");
       expect(html).not.toContain("HTTP Payload Conformance");
       expect(html).not.toContain("Deprecated operations");
+    } finally {
+      await rm(fixture.dir, { recursive: true, force: true });
+    }
+  });
+
+  it("prints protocol-aware AMQP summary lines and machine tokens for the RabbitMQ fixture", async () => {
+    const [specYaml, eventsJsonl] = await Promise.all([
+      readFile("test/fixtures/asyncapi/rabbitmq-amqp-basic.yaml", "utf8"),
+      readFile("test/fixtures/async-events/amqp-basic.fixture.jsonl", "utf8")
+    ]);
+    const fixture = await createFixture(specYaml, eventsJsonl);
+
+    try {
+      const result = await runCli([
+        "async-report",
+        "--spec",
+        fixture.specPath,
+        "--events",
+        fixture.eventsPath,
+        "--out",
+        fixture.outDir,
+        "--profile",
+        "local"
+      ]);
+      expect(result.code).toBe(0);
+
+      const reportPath = path.join(fixture.outDir, "yanote-async-report.json");
+      const htmlPath = path.join(fixture.outDir, "yanote-async-report.html");
+      const [report, html] = await Promise.all([
+        readFile(reportPath, "utf8").then((content) => JSON.parse(content)),
+        readFile(htmlPath, "utf8")
+      ]);
+      const summaryLine = result.stdout.trimEnd().split("\n").at(-1) ?? "";
+
+      expect(result.stdout).toContain("- protocols: amqp");
+      expect(result.stdout).toContain("Kafka Binding Support");
+      expect(result.stdout).toContain("- operations with bindings: 0");
+      expect(result.stdout).toContain("- details: none");
+      expect(summaryLine).toContain("protocols=amqp");
+      expect(summaryLine).toContain(`report=${reportPath}`);
+      expect(summaryLine).not.toContain("yanote-async-report.html");
+      expect(report.protocols).toEqual(["amqp"]);
+      expect(report.bindingSupport.summary).toEqual({
+        totalOperations: 0,
+        totalBindings: 0,
+        supportedBindings: 0,
+        declaredOnlyBindings: 0,
+        deferredBindings: 0,
+        invalidBindings: 0
+      });
+      expect(html).toContain("yanote-async-report.html");
+      expect(html).toContain("Protocols");
+      expect(html).toContain("amqp");
     } finally {
       await rm(fixture.dir, { recursive: true, force: true });
     }
@@ -412,11 +467,11 @@ describe("cli async-report contract", () => {
         "servers:",
         "  broker:",
         "    host: localhost:5672",
-        "    protocol: amqp",
+        "    protocol: rabbitmq",
         "channels: {}",
         "operations: {}"
       ].join("\n"),
-      '{"kind":"kafka","action":"send","channel":"users.signedup","message":"UserSignedUp"}'
+      '{"kind":"amqp","action":"send","channel":"users.signedup","message":"UserSignedUp"}'
     );
 
     try {
@@ -501,7 +556,7 @@ describe("cli async-report contract", () => {
       expect(stderrLines.filter((line) => line.startsWith("YANOTE_ASYNC_ERROR "))).toHaveLength(1);
       expect(result.stdout).toContain("primary=ASYNC_SEMANTIC_MISSING_PAYLOAD");
       expect(result.stdout).toContain(
-        'primary_reason="Async evidence kafka send orders.created is missing payload required by schema OrderCreatedPayload at /: Observed kafka evidence did not include a payload."'
+        'primary_reason="Async evidence kafka send orders.created is missing payload required by schema OrderCreatedPayload at /: Observed async evidence did not include a payload."'
       );
       expect(result.stdout).toContain("class_counts=input:0,semantic:4,gate:0,runtime:0");
     } finally {
