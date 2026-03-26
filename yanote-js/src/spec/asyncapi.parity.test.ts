@@ -112,8 +112,108 @@ const expectedSchemaDepthContracts = [
   }
 ] satisfies KafkaOperationContract[];
 
+const expectedTraitDeclarationV2Contracts = [
+  {
+    operation: {
+      kind: "kafka",
+      action: "send",
+      channel: "orders.command"
+    },
+    message: {
+      name: "OrderCommand",
+      declaredCorrelationId: {
+        location: "$message.header#/correlation_id"
+      },
+      contentType: "application/json",
+      payloadSchema: {
+        type: "object",
+        "x-parser-schema-id": "<anonymous-schema-1>"
+      },
+      payloadSchemaId: "<anonymous-schema-1>",
+      headerValidationCapability: "none",
+      selectionHints: [{ kind: "message", value: "OrderCommand" }]
+    },
+    messageSelection: {
+      mode: "single",
+      precedence: [{ kind: "message" }]
+    }
+  }
+] satisfies KafkaOperationContract[];
+
+const expectedTraitDeclarationV3Contracts = [
+  {
+    operation: {
+      kind: "kafka",
+      action: "send",
+      channel: "orders.command"
+    },
+    declaredReply: {
+      address: {
+        location: "$message.header#/reply_to"
+      }
+    },
+    message: {
+      name: "OrderCommand",
+      declaredCorrelationId: {
+        location: "$message.header#/correlation_id"
+      },
+      contentType: "application/json",
+      payloadSchema: {
+        type: "object",
+        "x-parser-schema-id": "<anonymous-schema-1>"
+      },
+      payloadSchemaId: "<anonymous-schema-1>",
+      headerValidationCapability: "none",
+      selectionHints: [{ kind: "message", value: "OrderCommand" }]
+    },
+    messageSelection: {
+      mode: "single",
+      precedence: [{ kind: "message" }]
+    }
+  }
+] satisfies KafkaOperationContract[];
+
+const expectedHeaderRuntimeContracts = [
+  {
+    operation: {
+      kind: "kafka",
+      action: "send",
+      channel: "orders.command"
+    },
+    declaredReply: {
+      address: {
+        location: "$message.header#/reply_to"
+      },
+      channel: {
+        address: "orders.reply"
+      }
+    },
+    message: {
+      name: "OrderCommand",
+      declaredCorrelationId: {
+        location: "$message.header#/correlation_id"
+      },
+      contentType: "application/json",
+      payloadSchema: {
+        type: "object",
+        "x-parser-schema-id": "<anonymous-schema-1>"
+      },
+      payloadSchemaId: "<anonymous-schema-1>",
+      headerValidationCapability: "none",
+      selectionHints: [{ kind: "message", value: "OrderCommand" }]
+    },
+    messageSelection: {
+      mode: "single",
+      precedence: [{ kind: "message" }]
+    }
+  }
+] satisfies KafkaOperationContract[];
+
 const expectedKeys = expectedContracts.map((contract) => serializeOperationKey(contract.operation));
 const expectedSchemaDepthKeys = expectedSchemaDepthContracts.map((contract) => serializeOperationKey(contract.operation));
+const expectedTraitDeclarationV2Keys = expectedTraitDeclarationV2Contracts.map((contract) => serializeOperationKey(contract.operation));
+const expectedTraitDeclarationV3Keys = expectedTraitDeclarationV3Contracts.map((contract) => serializeOperationKey(contract.operation));
+const expectedHeaderRuntimeKeys = expectedHeaderRuntimeContracts.map((contract) => serializeOperationKey(contract.operation));
 
 describe("asyncapi parity contract", () => {
   it("keeps message-contract metadata beside the kafka identity instead of inside the serialized key", () => {
@@ -166,6 +266,66 @@ describe("asyncapi parity contract", () => {
 
     expect(contractsInOrder(v2)).toEqual(expectedSchemaDepthContracts);
     expect(contractsInOrder(v3)).toEqual(expectedSchemaDepthContracts);
+  });
+
+  it("expects inline and trait-applied v2 declarations to normalize into the same retained kafka contract", async () => {
+    const inline = await loadAsyncApiSemanticsBundle("test/fixtures/asyncapi/trait-declarations-inline-v2.yaml");
+    const trait = await loadAsyncApiSemanticsBundle("test/fixtures/asyncapi/trait-declarations-trait-v2.yaml");
+
+    expect(inline.hasInvalid).toBe(false);
+    expect(trait.hasInvalid).toBe(false);
+    expect(inline.diagnostics).toEqual([]);
+    expect(trait.diagnostics).toEqual([]);
+
+    expect(serializedOperationKeys(inline)).toEqual(expectedTraitDeclarationV2Keys);
+    expect(serializedOperationKeys(trait)).toEqual(expectedTraitDeclarationV2Keys);
+    expect(serializedOperationKeys(inline)).toEqual(serializedOperationKeys(trait));
+
+    expect(contractKeysInOrder(inline)).toEqual(expectedTraitDeclarationV2Keys);
+    expect(contractKeysInOrder(trait)).toEqual(expectedTraitDeclarationV2Keys);
+
+    expect(contractsInOrder(inline)).toEqual(expectedTraitDeclarationV2Contracts);
+    expect(contractsInOrder(trait)).toEqual(expectedTraitDeclarationV2Contracts);
+  });
+
+  it("expects inline and trait-applied v3 declarations to normalize into the same retained kafka contract", async () => {
+    const inline = await loadAsyncApiSemanticsBundle("test/fixtures/asyncapi/trait-declarations-inline-v3.yaml");
+    const trait = await loadAsyncApiSemanticsBundle("test/fixtures/asyncapi/trait-declarations-trait-v3.yaml");
+
+    expect(inline.hasInvalid).toBe(false);
+    expect(trait.hasInvalid).toBe(false);
+    expect(inline.diagnostics).toEqual([]);
+    expect(trait.diagnostics).toEqual([]);
+
+    expect(serializedOperationKeys(inline)).toEqual(expectedTraitDeclarationV3Keys);
+    expect(serializedOperationKeys(trait)).toEqual(expectedTraitDeclarationV3Keys);
+    expect(serializedOperationKeys(inline)).toEqual(serializedOperationKeys(trait));
+
+    expect(contractKeysInOrder(inline)).toEqual(expectedTraitDeclarationV3Keys);
+    expect(contractKeysInOrder(trait)).toEqual(expectedTraitDeclarationV3Keys);
+
+    expect(contractsInOrder(inline)).toEqual(expectedTraitDeclarationV3Contracts);
+    expect(contractsInOrder(trait)).toEqual(expectedTraitDeclarationV3Contracts);
+  });
+
+  it("expects inline and trait-applied header-runtime declarations to normalize into the same retained kafka contract", async () => {
+    const inline = await loadAsyncApiSemanticsBundle("test/fixtures/asyncapi/header-runtime-inline-v3.yaml");
+    const trait = await loadAsyncApiSemanticsBundle("test/fixtures/asyncapi/header-runtime-trait-v3.yaml");
+
+    expect(inline.hasInvalid).toBe(false);
+    expect(trait.hasInvalid).toBe(false);
+    expect(inline.diagnostics).toEqual([]);
+    expect(trait.diagnostics).toEqual([]);
+
+    expect(serializedOperationKeys(inline)).toEqual(expectedHeaderRuntimeKeys);
+    expect(serializedOperationKeys(trait)).toEqual(expectedHeaderRuntimeKeys);
+    expect(serializedOperationKeys(inline)).toEqual(serializedOperationKeys(trait));
+
+    expect(contractKeysInOrder(inline)).toEqual(expectedHeaderRuntimeKeys);
+    expect(contractKeysInOrder(trait)).toEqual(expectedHeaderRuntimeKeys);
+
+    expect(contractsInOrder(inline)).toEqual(expectedHeaderRuntimeContracts);
+    expect(contractsInOrder(trait)).toEqual(expectedHeaderRuntimeContracts);
   });
 
   it("preserves the canonical kafka operation key when multi-message runtime selection metadata is attached", async () => {

@@ -1,0 +1,42 @@
+{
+  "schemaVersion": 1,
+  "taskId": "T02",
+  "unitId": "M014/S03/T02",
+  "timestamp": 1774529261382,
+  "passed": false,
+  "discoverySource": "task-plan",
+  "checks": [
+    {
+      "command": "npm -C yanote-js run build",
+      "exitCode": 0,
+      "durationMs": 191,
+      "verdict": "pass"
+    },
+    {
+      "command": "rm -rf .tmp/m014-s03-bindings",
+      "exitCode": 0,
+      "durationMs": 4,
+      "verdict": "pass"
+    },
+    {
+      "command": "test -f .tmp/m014-s03-bindings/yanote-async-report.json",
+      "exitCode": 1,
+      "durationMs": 3,
+      "verdict": "fail"
+    },
+    {
+      "command": "rg -n '\"bindingSupport\"' .tmp/m014-s03-bindings/yanote-async-report.json",
+      "exitCode": 2,
+      "durationMs": 5,
+      "verdict": "fail"
+    },
+    {
+      "command": "rg -n 'Kafka Binding Support' .tmp/m014-s03-bindings/yanote-async-report.html",
+      "exitCode": 2,
+      "durationMs": 4,
+      "verdict": "fail"
+    }
+  ],
+  "retryAttempt": 1,
+  "maxRetries": 2
+}

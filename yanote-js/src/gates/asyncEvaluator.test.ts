@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest";
 import { readAsyncEventsJsonl } from "../events/readAsyncEventsJsonl.js";
 import type { KafkaMessageContract } from "../model/operationKey.js";
 import { loadAsyncApiSemanticsBundle, type AsyncApiSemanticsBundle } from "../spec/asyncapi.js";
-import { computeAsyncCoverage } from "../coverage/asyncCoverage.js";
+import { computeAsyncCoverage, type AsyncCoverageResult } from "../coverage/asyncCoverage.js";
 import { sortFailuresByPrecedence } from "./failureOrder.js";
 import { resolveGatePolicy } from "./policy.js";
 import {
@@ -42,6 +42,101 @@ describe("async gate evaluator contract", () => {
       "ASYNC_SEMANTIC_UNMATCHED_EVIDENCE"
     ]);
     expect(ordered.every((failure) => failure.failureClass === "semantic" && failure.severity === "error")).toBe(true);
+  });
+
+  it("maps runtime semantic diagnostics to typed failures and short-circuits regression and threshold logic", async () => {
+    const coverage = await loadCoverage(
+      "test/fixtures/async-events/header-runtime-failures.fixture.jsonl",
+      "test/fixtures/asyncapi/header-runtime-inline-v3.yaml"
+    );
+    const comparison: AsyncRegressionComparison = {
+      missingCoveredOperations: ["kafka send orders.command"],
+      removedSpecOperations: [],
+      dimensionRegressions: [{ dimension: "operations", baseline: 100, current: 0 }]
+    };
+    const policy = await resolveGatePolicy({
+      profile: "local",
+      cliOverrides: {
+        minCoverage: 100
+      }
+    });
+
+    const ordered = sortFailuresByPrecedence(
+      evaluateAsyncGateFailures({
+        coverage,
+        policy,
+        comparison
+      })
+    );
+
+    expect(ordered.map((failure) => failure.code)).toEqual([
+      "ASYNC_SEMANTIC_CORRELATION_ID_MISSING",
+      "ASYNC_SEMANTIC_CORRELATION_ID_UNAVAILABLE",
+      "ASYNC_SEMANTIC_REPLY_ADDRESS_MISSING",
+      "ASYNC_SEMANTIC_REPLY_ADDRESS_UNAVAILABLE",
+      "ASYNC_SEMANTIC_REPLY_ADDRESS_MISMATCH"
+    ]);
+    expect(ordered.every((failure) => failure.failureClass === "semantic" && failure.severity === "error")).toBe(true);
+    expect(ordered[0]?.reason).toContain("Async evidence kafka send orders.command could not prove declared correlationId");
+    expect(ordered[0]?.reason).toContain("$message.header#/correlation_id");
+    expect(ordered[0]?.reason).not.toContain("corr-runtime-mismatch");
+    expect(ordered[4]?.reason).toContain("expected=orders.reply");
+    expect(ordered[4]?.reason).not.toContain("orders.deadletter");
+  });
+
+  it("maps unsupported runtime declarations to typed async semantic failures", async () => {
+    const coverage = await loadCoverage(
+      "test/fixtures/async-events/header-runtime-covered.fixture.jsonl",
+      "test/fixtures/asyncapi/header-runtime-unsupported-v3.yaml"
+    );
+    const policy = await resolveGatePolicy({
+      profile: "local",
+      cliOverrides: {
+        minCoverage: 100
+      }
+    });
+
+    const ordered = sortFailuresByPrecedence(evaluateAsyncGateFailures({ coverage, policy }));
+
+    expect(ordered.map((failure) => failure.code)).toEqual([
+      "ASYNC_SEMANTIC_CORRELATION_ID_UNSUPPORTED",
+      "ASYNC_SEMANTIC_REPLY_ADDRESS_UNSUPPORTED"
+    ]);
+    expect(ordered[0]?.reason).toContain("$message.payload#/meta/correlation_id");
+    expect(ordered[1]?.reason).toContain("$message.payload#/meta/reply_to");
+  });
+
+  it("fails closed when a runtime semantic diagnostic is malformed instead of dropping it", async () => {
+    const coverage = await loadCoverage(
+      "test/fixtures/async-events/header-runtime-covered.fixture.jsonl",
+      "test/fixtures/asyncapi/header-runtime-inline-v3.yaml"
+    );
+    const malformedCoverage: AsyncCoverageResult = {
+      ...coverage,
+      runtimeSemantics: {
+        ...coverage.runtimeSemantics,
+        diagnostics: [
+          {
+            semantic: "correlationId",
+            state: "mystery",
+            location: "$message.header#/correlation_id",
+            reason: "Unexpected runtime state."
+          } as unknown as AsyncCoverageResult["runtimeSemantics"]["diagnostics"][number]
+        ]
+      }
+    };
+    const policy = await resolveGatePolicy({
+      profile: "local",
+      cliOverrides: {
+        minCoverage: 100
+      }
+    });
+
+    const ordered = sortFailuresByPrecedence(evaluateAsyncGateFailures({ coverage: malformedCoverage, policy }));
+
+    expect(ordered.map((failure) => failure.code)).toEqual(["ASYNC_SEMANTIC_RUNTIME_FAIL_CLOSED"]);
+    expect(ordered[0]?.reason).toContain("could not be mapped safely");
+    expect(ordered[0]?.reason).toContain("correlationId");
   });
 
   it("uses raw operation coverage decimals for threshold comparison and hard-fails critical async operations", async () => {

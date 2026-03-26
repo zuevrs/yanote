@@ -397,6 +397,35 @@ function createAsyncHappyPathReportFixture() {
       },
       items: []
     },
+    bindingSupport: {
+      summary: {
+        supportedBindings: 2,
+        totalBindings: 2,
+        declaredOnlyBindings: 0,
+        deferredBindings: 0,
+        invalidBindings: 0,
+        totalOperations: 2
+      }
+    },
+    declaredSemantics: {
+      summary: {
+        messageCorrelationIds: 2,
+        operationsWithCorrelationId: 2,
+        operationsWithReply: 2,
+        totalOperations: 2
+      }
+    },
+    runtimeSemantics: {
+      summary: {
+        satisfiedOperations: 2,
+        totalOperations: 2,
+        satisfiedSemantics: 4,
+        totalSemantics: 4,
+        semanticCoveragePercent: 100,
+        unsatisfiedOperations: 0,
+        unsatisfiedSemantics: 0
+      }
+    },
     rawPayload: "SECRET_ASYNC_PAYLOAD_MUST_NOT_APPEAR"
   };
 }
@@ -537,6 +566,35 @@ function createAsyncDiagnosticReportFixture() {
           reason: "Observed kafka evidence did not include headers."
         }
       ]
+    },
+    bindingSupport: {
+      summary: {
+        supportedBindings: 1,
+        totalBindings: 1,
+        declaredOnlyBindings: 0,
+        deferredBindings: 0,
+        invalidBindings: 0,
+        totalOperations: 1
+      }
+    },
+    declaredSemantics: {
+      summary: {
+        messageCorrelationIds: 1,
+        operationsWithCorrelationId: 1,
+        operationsWithReply: 1,
+        totalOperations: 1
+      }
+    },
+    runtimeSemantics: {
+      summary: {
+        satisfiedOperations: 1,
+        totalOperations: 1,
+        satisfiedSemantics: 2,
+        totalSemantics: 2,
+        semanticCoveragePercent: 100,
+        unsatisfiedOperations: 0,
+        unsatisfiedSemantics: 0
+      }
     },
     rawPayload: "SECRET_ASYNC_PAYLOAD_MUST_NOT_APPEAR"
   };
@@ -781,6 +839,9 @@ test("renders async report artifacts with typed stderr failures and no payload l
       "- spec source: remote-url (https://example.test/asyncapi.yaml)",
       "- report artifacts: yanote-async-report.json (present), yanote-async-report.html (present)",
       "- retained async companions: runtime-selected-yanote-async-report.json (present), runtime-selected-yanote-async-report.html (present), schema-failure-yanote-async-report.json (present), schema-failure-yanote-async-report.html (present)",
+      "- binding support: supported=2/2 declared_only=0 deferred=0 invalid=0 operations=2",
+      "- declared semantics: correlation_operations=2/2 reply_operations=2/2 message_correlation_ids=2",
+      "- runtime semantics: satisfied_operations=2/2 satisfied_semantics=4/4 unsatisfied_operations=0 unsatisfied_semantics=0 (100.00%)",
       "- primary failure: ASYNC_SEMANTIC_MESSAGE_MISMATCH - message mismatch on users.deleted",
       "- class counts: input:0,semantic:1,gate:1,runtime:0",
       "- proof exit code: 5",
@@ -846,6 +907,9 @@ test("renders async report-only schema and routing diagnostics with explicit sem
       "- spec source: local-file (test/fixtures/asyncapi/orders.yaml)",
       "- report artifacts: yanote-async-report.json (present), yanote-async-report.html (present)",
       "- retained async companions: runtime-selected-yanote-async-report.json (present), runtime-selected-yanote-async-report.html (present), schema-failure-yanote-async-report.json (present), schema-failure-yanote-async-report.html (present)",
+      "- binding support: supported=1/1 declared_only=0 deferred=0 invalid=0 operations=1",
+      "- declared semantics: correlation_operations=1/1 reply_operations=1/1 message_correlation_ids=1",
+      "- runtime semantics: satisfied_operations=1/1 satisfied_semantics=2/2 unsatisfied_operations=0 unsatisfied_semantics=0 (100.00%)",
       "- primary failure: ASYNC_SEMANTIC_UNSUPPORTED_CONTENT_TYPE - Async evidence kafka send orders.created cannot validate payload schema OrderCreatedPayload because Unsupported content type application/xml for AsyncAPI message payload validation.",
       "- class counts: input:0,semantic:7,gate:0,runtime:0",
       "- proof exit code: 5",
@@ -914,6 +978,9 @@ test("renders async no-report fallback from YANOTE_ASYNC summary signals using p
       "- spec source: none",
       "- report artifacts: yanote-async-report.json (missing), yanote-async-report.html (missing)",
       "- retained async companions: runtime-selected-yanote-async-report.json (missing), runtime-selected-yanote-async-report.html (missing), schema-failure-yanote-async-report.json (missing), schema-failure-yanote-async-report.html (missing)",
+      "- binding support: unavailable (report missing)",
+      "- declared semantics: unavailable (report missing)",
+      "- runtime semantics: unavailable (report missing)",
       "- primary failure: ASYNC_SEMANTIC_SPEC_INVALID - AsyncAPI document is invalid",
       "- class counts: input:0,semantic:1,gate:0,runtime:0",
       "- proof exit code: 5",
@@ -933,6 +1000,53 @@ test("renders async no-report fallback from YANOTE_ASYNC summary signals using p
 
     assert.equal(markdown, expected);
     assert.equal(await readFile(summaryPath, "utf8"), markdown);
+  } finally {
+    await rm(workDir, { recursive: true, force: true });
+  }
+});
+
+test("fails when the async artifact family is missing retained companion siblings", async () => {
+  const workDir = await mkdtemp(path.join(os.tmpdir(), "yanote-summary-async-missing-companions-"));
+  try {
+    const artifactsDir = path.join(workDir, "live-kafka-proof");
+    const reportPath = path.join(artifactsDir, "yanote-async-report.json");
+
+    await writeArtifactFiles(artifactsDir, {
+      "yanote-async-report.html": "<html><body>async html</body></html>\n",
+      "yanote-async-report.json": JSON.stringify(createAsyncHappyPathReportFixture())
+    });
+
+    await assert.rejects(
+      () => renderSummary({ reportPath, artifactsDir, exitCode: 0 }),
+      /Invalid async artifact bundle .* missing runtime-selected-yanote-async-report\.json/
+    );
+  } finally {
+    await rm(workDir, { recursive: true, force: true });
+  }
+});
+
+test("fails when the async report is malformed even if a JSON file exists", async () => {
+  const workDir = await mkdtemp(path.join(os.tmpdir(), "yanote-summary-async-malformed-"));
+  try {
+    const artifactsDir = path.join(workDir, "live-kafka-proof");
+    const reportPath = path.join(artifactsDir, "yanote-async-report.json");
+
+    const malformedReport = createAsyncHappyPathReportFixture();
+    delete malformedReport.bindingSupport.summary.supportedBindings;
+
+    await writeArtifactFiles(artifactsDir, {
+      "runtime-selected-yanote-async-report.html": "<html><body>runtime selected html</body></html>\n",
+      "runtime-selected-yanote-async-report.json": '{"status":"partial"}\n',
+      "schema-failure-yanote-async-report.html": "<html><body>schema failure html</body></html>\n",
+      "schema-failure-yanote-async-report.json": '{"status":"error"}\n',
+      "yanote-async-report.html": "<html><body>async html</body></html>\n",
+      "yanote-async-report.json": JSON.stringify(malformedReport)
+    });
+
+    await assert.rejects(
+      () => renderSummary({ reportPath, artifactsDir, exitCode: 0 }),
+      /Invalid async summary inputs .* bindingSupport\.summary\.supportedBindings/
+    );
   } finally {
     await rm(workDir, { recursive: true, force: true });
   }

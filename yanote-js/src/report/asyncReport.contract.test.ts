@@ -73,6 +73,90 @@ const baseReport: AsyncYanoteReport = {
       ]
     }
   },
+  bindingSupport: {
+    summary: {
+      totalOperations: 0,
+      totalBindings: 0,
+      supportedBindings: 0,
+      declaredOnlyBindings: 0,
+      deferredBindings: 0,
+      invalidBindings: 0
+    },
+    operations: []
+  },
+  declaredSemantics: {
+    summary: {
+      totalOperations: 1,
+      operationsWithCorrelationId: 1,
+      messageCorrelationIds: 1,
+      operationsWithReply: 1
+    },
+    operations: [
+      {
+        operationKey: "kafka send users.signedup",
+        channel: "users.signedup",
+        action: "send",
+        correlationIds: [
+          {
+            message: "UserSignedUp",
+            location: "$message.header#/correlation_id"
+          }
+        ],
+        reply: {
+          address: {
+            location: "$message.header#/reply_to"
+          }
+        }
+      }
+    ]
+  },
+  runtimeSemantics: {
+    summary: {
+      totalOperations: 1,
+      satisfiedOperations: 1,
+      unsatisfiedOperations: 0,
+      totalSemantics: 2,
+      satisfiedSemantics: 2,
+      unsatisfiedSemantics: 0,
+      semanticCoveragePercent: 100
+    },
+    operations: [
+      {
+        operationKey: "kafka send users.signedup",
+        channel: "users.signedup",
+        action: "send",
+        state: "SATISFIED",
+        correlationIds: [
+          {
+            message: "UserSignedUp",
+            location: "$message.header#/correlation_id",
+            state: "SATISFIED",
+            suites: ["suite-a"],
+            header: "correlation_id",
+            messageName: "UserSignedUp"
+          }
+        ],
+        reply: {
+          address: {
+            location: "$message.header#/reply_to",
+            state: "SATISFIED",
+            suites: ["suite-a"],
+            header: "reply_to",
+            replyChannelAddress: "users.reply"
+          }
+        }
+      }
+    ],
+    diagnostics: {
+      counts: {
+        missing: 0,
+        unavailable: 0,
+        unsupported: 0,
+        mismatched: 0
+      },
+      items: []
+    }
+  },
   diagnostics: {
     counts: {
       "unsupported-content-type": 0,
@@ -115,6 +199,93 @@ describe("async report schema contract", () => {
           kind: "local-file",
           reference: 'test/fixtures/<unsafe>&"async".yaml'
         },
+        declaredSemantics: {
+          summary: {
+            totalOperations: 1,
+            operationsWithCorrelationId: 1,
+            messageCorrelationIds: 1,
+            operationsWithReply: 1
+          },
+          operations: [
+            {
+              operationKey: "kafka send users.signedup",
+              channel: "users.signedup",
+              action: "send",
+              correlationIds: [
+                {
+                  message: "UserSignedUp",
+                  location: "$message.header#/correlation_id"
+                }
+              ],
+              reply: {
+                address: {
+                  location: "$message.header#/reply_to"
+                }
+              }
+            }
+          ]
+        },
+        runtimeSemantics: {
+          summary: {
+            totalOperations: 1,
+            satisfiedOperations: 0,
+            unsatisfiedOperations: 1,
+            totalSemantics: 2,
+            satisfiedSemantics: 1,
+            unsatisfiedSemantics: 1,
+            semanticCoveragePercent: 50
+          },
+          operations: [
+            {
+              operationKey: "kafka send users.signedup",
+              channel: "users.signedup",
+              action: "send",
+              state: "PARTIAL",
+              correlationIds: [
+                {
+                  message: "UserSignedUp",
+                  location: "$message.header#/correlation_id",
+                  state: "SATISFIED",
+                  suites: ["suite-a"],
+                  header: "correlation_id",
+                  messageName: "UserSignedUp"
+                }
+              ],
+              reply: {
+                address: {
+                  location: "$message.header#/reply_to",
+                  state: "UNSATISFIED",
+                  suites: [],
+                  header: "reply_to",
+                  replyChannelAddress: "users.reply"
+                }
+              }
+            }
+          ],
+          diagnostics: {
+            counts: {
+              missing: 0,
+              unavailable: 1,
+              unsupported: 0,
+              mismatched: 0
+            },
+            items: [
+              {
+                semantic: "reply.address",
+                state: "unavailable",
+                operationKey: "kafka send users.signedup",
+                channel: "users.signedup",
+                action: "send",
+                location: "$message.header#/reply_to",
+                header: "reply_to",
+                replyChannelAddress: "users.reply",
+                reason:
+                  "Observed kafka header 'reply_to' required by declared reply.address location '$message.header#/reply_to' was unavailable because retained header evidence was redacted (sensitive).",
+                message: "Observed kafka header value was unavailable for AsyncAPI reply.address runtime proof"
+              }
+            ]
+          }
+        },
         diagnostics: {
           counts: {
             "unsupported-content-type": 0,
@@ -147,11 +318,21 @@ describe("async report schema contract", () => {
 
     expect(html).toContain("Yanote async report");
     expect(html).toContain("Async coverage summary");
+    expect(html).toContain("Declared semantics");
+    expect(html).toContain("Runtime semantics");
+    expect(html).toContain("Runtime semantics by async operation");
+    expect(html).toContain("Runtime semantic diagnostic counts");
+    expect(html).toContain("Runtime semantic diagnostics");
+    expect(html).toContain("Declared correlationId");
+    expect(html).toContain("$message.header#/correlation_id");
+    expect(html).toContain("$message.header#/reply_to");
     expect(html).toContain("Channel coverage");
     expect(html).toContain("Operation coverage");
     expect(html).toContain("Message coverage");
     expect(html).toContain("Provenance");
     expect(html).toContain("&lt;unsafe&gt;&amp;&quot;async&quot;.yaml");
+    expect(html).not.toContain("corr-unsafe");
+    expect(html).not.toContain("users.deadletter");
     expect(html).not.toContain("HTTP security conformance");
     expect(html).not.toContain("HTTP request conformance");
     expect(html).not.toContain("Deprecated operations");
@@ -173,6 +354,61 @@ describe("async report schema contract", () => {
         toolVersion: "2.0.0"
       }).ok
     ).toBe(true);
+
+    const missingDeclaredSemantics = {
+      ...baseReport,
+      declaredSemantics: {
+        summary: {
+          totalOperations: 1,
+          operationsWithCorrelationId: 1,
+          operationsWithReply: 1
+        },
+        operations: []
+      }
+    } as any;
+
+    expect(validateAsyncReport(missingDeclaredSemantics).ok).toBe(false);
+
+    const missingRuntimeSemantics = {
+      ...baseReport,
+      runtimeSemantics: {
+        summary: {
+          totalOperations: 1,
+          satisfiedOperations: 1,
+          unsatisfiedOperations: 0,
+          totalSemantics: 2,
+          satisfiedSemantics: 2,
+          unsatisfiedSemantics: 0
+        },
+        operations: [],
+        diagnostics: {
+          counts: {
+            missing: 0,
+            unavailable: 0,
+            unsupported: 0,
+            mismatched: 0
+          },
+          items: []
+        }
+      }
+    } as any;
+
+    expect(validateAsyncReport(missingRuntimeSemantics).ok).toBe(false);
+
+    const invalidRuntimeOperationState = {
+      ...baseReport,
+      runtimeSemantics: {
+        ...baseReport.runtimeSemantics,
+        operations: [
+          {
+            ...baseReport.runtimeSemantics.operations[0],
+            state: "BROKEN"
+          }
+        ]
+      }
+    } as any;
+
+    expect(validateAsyncReport(invalidRuntimeOperationState).ok).toBe(false);
 
     const missingCount = {
       ...baseReport,
@@ -344,6 +580,145 @@ describe("async report schema contract", () => {
           ]
         }
       },
+      declaredSemantics: {
+        summary: {
+          totalOperations: 2,
+          operationsWithCorrelationId: 2,
+          messageCorrelationIds: 3,
+          operationsWithReply: 1
+        },
+        operations: [
+          {
+            operationKey: "kafka send users.signedup",
+            channel: "users.signedup",
+            action: "send",
+            correlationIds: [
+              {
+                message: "UserSignedUpB",
+                location: "$message.header#/b"
+              },
+              {
+                message: "UserSignedUpA",
+                location: "$message.header#/a"
+              }
+            ]
+          },
+          {
+            operationKey: "kafka receive users.deleted",
+            channel: "users.deleted",
+            action: "receive",
+            correlationIds: [
+              {
+                message: "UserDeleted",
+                location: "$message.header#/correlation_id"
+              }
+            ],
+            reply: {
+              address: {
+                location: "$message.header#/reply_to"
+              }
+            }
+          }
+        ]
+      },
+      runtimeSemantics: {
+        summary: {
+          totalOperations: 2,
+          satisfiedOperations: 1,
+          unsatisfiedOperations: 1,
+          totalSemantics: 3,
+          satisfiedSemantics: 2,
+          unsatisfiedSemantics: 1,
+          semanticCoveragePercent: 66.6667
+        },
+        operations: [
+          {
+            operationKey: "kafka send users.signedup",
+            channel: "users.signedup",
+            action: "send",
+            state: "SATISFIED",
+            correlationIds: [
+              {
+                message: "UserSignedUpB",
+                location: "$message.header#/b",
+                state: "SATISFIED",
+                suites: ["suite-b", "suite-a"],
+                header: "b"
+              },
+              {
+                message: "UserSignedUpA",
+                location: "$message.header#/a",
+                state: "SATISFIED",
+                suites: ["suite-c", "suite-a"],
+                header: "a"
+              }
+            ]
+          },
+          {
+            operationKey: "kafka receive users.deleted",
+            channel: "users.deleted",
+            action: "receive",
+            state: "UNSATISFIED",
+            correlationIds: [],
+            reply: {
+              address: {
+                location: "$message.header#/reply_to",
+                state: "UNSATISFIED",
+                suites: ["suite-c", "suite-a"],
+                header: "reply_to",
+                replyChannelAddress: "users.reply"
+              }
+            }
+          }
+        ],
+        diagnostics: {
+          counts: {
+            missing: 1,
+            unavailable: 1,
+            unsupported: 0,
+            mismatched: 1
+          },
+          items: [
+            {
+              semantic: "reply.address",
+              state: "mismatched",
+              operationKey: "kafka receive users.deleted",
+              channel: "users.deleted",
+              action: "receive",
+              location: "$message.header#/reply_to",
+              header: "reply_to",
+              replyChannelAddress: "users.reply",
+              reason: "Observed kafka header 'reply_to' did not match declared AsyncAPI reply channel address 'users.reply'.",
+              message: "Observed kafka reply.address header did not match the declared AsyncAPI reply channel address"
+            },
+            {
+              semantic: "correlationId",
+              state: "missing",
+              operationKey: "kafka send users.signedup",
+              channel: "users.signedup",
+              action: "send",
+              location: "$message.header#/a",
+              header: "a",
+              messageName: "UserSignedUpA",
+              reason: "Observed kafka evidence did not retain header 'a' required by declared correlationId location '$message.header#/a'.",
+              message: "Observed kafka evidence is missing retained header evidence required to prove AsyncAPI correlationId"
+            },
+            {
+              semantic: "reply.address",
+              state: "unavailable",
+              operationKey: "kafka receive users.deleted",
+              channel: "users.deleted",
+              action: "receive",
+              location: "$message.header#/reply_to",
+              header: "reply_to",
+              replyChannelAddress: "users.reply",
+              reason:
+                "Observed kafka header 'reply_to' required by declared reply.address location '$message.header#/reply_to' was unavailable because retained header evidence was redacted (sensitive).",
+              message: "Observed kafka header value was unavailable for AsyncAPI reply.address runtime proof"
+            }
+          ]
+        }
+      },
       diagnostics: {
         counts: {
           "unsupported-content-type": 1,
@@ -415,6 +790,68 @@ describe("async report schema contract", () => {
     expect(normalized.coverage.messages.items.map((entry) => entry.operationKey)).toEqual([
       "kafka receive users.deleted",
       "kafka send users.signedup"
+    ]);
+    expect(normalized.declaredSemantics.operations.map((entry) => entry.operationKey)).toEqual([
+      "kafka receive users.deleted",
+      "kafka send users.signedup"
+    ]);
+    expect(normalized.declaredSemantics.operations[1].correlationIds).toEqual([
+      {
+        message: "UserSignedUpA",
+        location: "$message.header#/a"
+      },
+      {
+        message: "UserSignedUpB",
+        location: "$message.header#/b"
+      }
+    ]);
+    expect(normalized.runtimeSemantics.summary.semanticCoveragePercent).toBe(roundCoverage(66.6667));
+    expect(normalized.runtimeSemantics.operations.map((entry) => entry.operationKey)).toEqual([
+      "kafka receive users.deleted",
+      "kafka send users.signedup"
+    ]);
+    expect(normalized.runtimeSemantics.operations[0]).toEqual({
+      operationKey: "kafka receive users.deleted",
+      channel: "users.deleted",
+      action: "receive",
+      state: "UNSATISFIED",
+      correlationIds: [],
+      reply: {
+        address: {
+          location: "$message.header#/reply_to",
+          state: "UNSATISFIED",
+          suites: ["suite-a", "suite-c"],
+          header: "reply_to",
+          replyChannelAddress: "users.reply"
+        }
+      }
+    });
+    expect(normalized.runtimeSemantics.operations[1].correlationIds).toEqual([
+      {
+        message: "UserSignedUpA",
+        location: "$message.header#/a",
+        state: "SATISFIED",
+        suites: ["suite-a", "suite-c"],
+        header: "a"
+      },
+      {
+        message: "UserSignedUpB",
+        location: "$message.header#/b",
+        state: "SATISFIED",
+        suites: ["suite-a", "suite-b"],
+        header: "b"
+      }
+    ]);
+    expect(normalized.runtimeSemantics.diagnostics.counts).toEqual({
+      missing: 1,
+      unavailable: 1,
+      unsupported: 0,
+      mismatched: 1
+    });
+    expect(normalized.runtimeSemantics.diagnostics.items.map((entry) => entry.state)).toEqual([
+      "missing",
+      "unavailable",
+      "mismatched"
     ]);
     expect(normalized.diagnostics.counts).toEqual({
       "unsupported-content-type": 1,

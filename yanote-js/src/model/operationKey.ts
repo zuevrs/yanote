@@ -36,6 +36,45 @@ export type KafkaMessageSelectionRule =
       header: string;
     };
 
+export type KafkaDeclaredCorrelationId = {
+  location: string;
+};
+
+export type KafkaDeclaredReply = {
+  address: {
+    location: string;
+  };
+  channel?: {
+    address: string;
+  };
+};
+
+export type KafkaBindingSupportScope = "channel" | "operation" | "message";
+
+export type KafkaBindingSupportField =
+  | "topic"
+  | "partitions"
+  | "replicas"
+  | "topicConfiguration"
+  | "groupId"
+  | "clientId"
+  | "key"
+  | "schemaIdLocation"
+  | "schemaIdPayloadEncoding"
+  | "schemaLookupStrategy";
+
+export type KafkaBindingSupportStatus = "supported" | "declared-only" | "deferred" | "invalid";
+
+export type KafkaBindingSupport = {
+  scope: KafkaBindingSupportScope;
+  field: KafkaBindingSupportField;
+  status: KafkaBindingSupportStatus;
+  source: string;
+  messageName?: string;
+  value?: string;
+  reason?: string;
+};
+
 export type KafkaMessageContract = {
   name: string;
   payloadSchema?: JsonValue;
@@ -46,6 +85,7 @@ export type KafkaMessageContract = {
   headersSchemaId?: string;
   headerValidationCapability: KafkaHeaderValidationCapability;
   selectionHints?: KafkaMessageSelectionHint[];
+  declaredCorrelationId?: KafkaDeclaredCorrelationId;
 };
 
 export type KafkaOperationContract = {
@@ -56,6 +96,8 @@ export type KafkaOperationContract = {
     mode: "single" | "runtime";
     precedence: KafkaMessageSelectionRule[];
   };
+  bindingSupport?: KafkaBindingSupport[];
+  declaredReply?: KafkaDeclaredReply;
 };
 
 export type OperationKey =

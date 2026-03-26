@@ -82,6 +82,9 @@ require_contains "${BOUNDARY_DOC}" "source-built async path" "release-vs-HEAD as
 require_contains "${BOUNDARY_DOC}" 'repository `HEAD`' "release-vs-HEAD async wording"
 require_contains "${BOUNDARY_DOC}" '`v1.0.x`' "stable-line async relation"
 require_contains "${BOUNDARY_DOC}" "Первая волна async относительно релиза и `HEAD`" "named async release boundary section"
+require_contains "${BOUNDARY_DOC}" 'redaction-safe строки `binding support`, `declared semantics`, `runtime semantics`' "async CI summary semantics wording"
+require_contains "${BOUNDARY_DOC}" "raw retained-header leakage" "no raw retained-header leakage wording"
+require_contains "${BOUNDARY_DOC}" "async-summary.md" "collected async summary artifact wording"
 
 reject_contains "${REQUIREMENTS_DOC}" "AsyncAPI coverage (Kafka, RabbitMQ) | Explicitly deferred by project owner to keep v1 focused on Java HTTP/OpenAPI |" "broad deferred AsyncAPI row"
 require_contains "${REQUIREMENTS_DOC}" "### AsyncAPI / Kafka — первая волна" "current async scope section"

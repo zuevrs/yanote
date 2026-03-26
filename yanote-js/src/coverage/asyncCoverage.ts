@@ -10,6 +10,12 @@ import {
   type AsyncSchemaConformanceDiagnosticKind,
   type AsyncSchemaValidationKind
 } from "./asyncSchemaConformance.js";
+import {
+  computeAsyncSemanticConformance,
+  type AsyncRuntimeSemanticDiagnostic,
+  type AsyncRuntimeSemanticItem,
+  type AsyncRuntimeSemanticSummary
+} from "./asyncSemanticConformance.js";
 
 export type AsyncCoverageSummary = {
   total: number;
@@ -67,6 +73,12 @@ export type AsyncSchemaCoverageDiagnostic = {
 
 export type AsyncCoverageDiagnostic = AsyncRoutingCoverageDiagnostic | AsyncSchemaCoverageDiagnostic;
 
+export type AsyncRuntimeSemanticCoverage = {
+  summary: AsyncRuntimeSemanticSummary;
+  items: AsyncRuntimeSemanticItem[];
+  diagnostics: AsyncRuntimeSemanticDiagnostic[];
+};
+
 export type AsyncCoverageResult = {
   channels: {
     summary: AsyncCoverageSummary;
@@ -80,6 +92,7 @@ export type AsyncCoverageResult = {
     summary: AsyncCoverageSummary;
     items: AsyncMessageCoverage[];
   };
+  runtimeSemantics: AsyncRuntimeSemanticCoverage;
   diagnostics: AsyncCoverageDiagnostic[];
 };
 
@@ -111,6 +124,7 @@ type MessageAccumulator = {
 export function computeAsyncCoverage(bundle: AsyncApiSemanticsBundle, events: AsyncEvent[]): AsyncCoverageResult {
   const operations = bundle.operations.filter((operation): operation is KafkaOperationKey => operation.kind === "kafka");
   const schemaConformance = computeAsyncSchemaConformance(bundle, events);
+  const runtimeSemantics = computeAsyncSemanticConformance(bundle, events);
   const matchedOperationKeys = new Set(schemaConformance.matchedOperationKeys);
   const channels = new Map<string, ChannelAccumulator>();
   const operationsByMatchKey = new Map<string, OperationAccumulator>();
@@ -289,6 +303,7 @@ export function computeAsyncCoverage(bundle: AsyncApiSemanticsBundle, events: As
       ),
       items: messageItems
     },
+    runtimeSemantics,
     diagnostics: [
       ...routingDiagnostics,
       ...schemaConformance.diagnostics.filter(isPublicSchemaDiagnostic).map(toPublicSchemaDiagnostic)

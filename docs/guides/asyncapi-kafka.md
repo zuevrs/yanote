@@ -37,6 +37,8 @@ bash scripts/ci/verify-m004-s03-live-kafka-proof.sh
 - runtime-selected multi-message sidecar: `runtime-selected-async-report.stdout`, `runtime-selected-async-report.stderr`, `runtime-selected-yanote-async-report.json`, `runtime-selected-yanote-async-report.html`;
 - intentional schema failure: `schema-failure-async-report.stdout`, `schema-failure-async-report.stderr`, `schema-failure-yanote-async-report.json`, `schema-failure-yanote-async-report.html`.
 
+Happy-path JSON/HTML/stdout теперь несут три additive widened semantics layers из того же live bundle: `bindingSupport.summary`, `declaredSemantics.summary` и `runtimeSemantics.summary`. В CI этот же bundle собирается в `build-and-test-artifacts/live-kafka-proof/`, а GitHub step summary и `async-summary.md` публикуют redaction-safe строки `binding support`, `declared semantics` и `runtime semantics` вместе с явными именами `yanote-async-report.json` / `yanote-async-report.html` и retained companion artifacts.
+
 Это и есть текущая публичная truth для proven Kafka path: зелёный прогон показывает канонический coverage bundle и sibling human HTML, retained runtime-selected sidecar показывает `selectionMode=runtime` и выбранные `declaredMessages` / `selectedMessages` для multi-message AsyncAPI contract, а retained red sidecar показывает typed `ASYNC_SEMANTIC_INVALID_PAYLOAD` и `diagnostics.counts.invalid-payload` для той же merged Kafka evidence.
 
 Если эти proof-скрипты падают, сначала разбирайте их failure artifacts и `stderr`, а уже потом меняйте документацию или интеграцию.
@@ -132,6 +134,7 @@ YANOTE_ASYNC_ERROR class=gate code=ASYNC_GATE_MIN_COVERAGE ...
 
 - `YANOTE_ASYNC_SUMMARY ...` — быстрая grep-friendly строка;
 - `yanote-async-report.json` и `yanote-async-report.html` — отдельная machine-facing и human-facing async family;
+- `build-and-test-artifacts/live-kafka-proof/async-summary.md` и GitHub step summary — redaction-safe строки `binding support`, `declared semantics`, `runtime semantics`, явные report filenames и retained companion filenames без публикации raw retained Kafka headers;
 - `stderr` analyzer-а или proof-скрипта — typed причина, если путь упал fail-closed;
 - для proven Kafka runtime-selection path — `runtime-selected-async-report.stderr`, `runtime-selected-yanote-async-report.json` и `runtime-selected-yanote-async-report.html` из `.yanote-ci/live-kafka-proof/`, если нужно разобрать multi-message selection truth;
 - для proven Kafka schema-failure path — `schema-failure-async-report.stderr`, `schema-failure-yanote-async-report.json` и `schema-failure-yanote-async-report.html` из `.yanote-ci/live-kafka-proof/`.

@@ -85,10 +85,42 @@ const SCHEMA_DIAGNOSTIC_SCHEMA = {
   }
 } as const;
 
+const RUNTIME_SEMANTIC_DIAGNOSTIC_SCHEMA = {
+  type: "object",
+  additionalProperties: false,
+  required: ["semantic", "state", "operationKey", "channel", "action", "location", "reason", "message"],
+  properties: {
+    semantic: { enum: ["correlationId", "reply.address"] },
+    state: { enum: ["missing", "unavailable", "unsupported", "mismatched"] },
+    operationKey: { type: "string", minLength: 1 },
+    channel: { type: "string", minLength: 1 },
+    action: { enum: ["send", "receive"] },
+    location: { type: "string", minLength: 1 },
+    header: { type: "string", minLength: 1 },
+    messageName: { type: "string", minLength: 1 },
+    replyChannelAddress: { type: "string", minLength: 1 },
+    reason: { type: "string", minLength: 1 },
+    message: { type: "string", minLength: 1 }
+  }
+} as const;
+
 const ASYNC_REPORT_SCHEMA = {
   type: "object",
   additionalProperties: false,
-  required: ["schemaVersion", "generatedAt", "toolVersion", "specSource", "phase", "status", "summary", "coverage", "diagnostics"],
+  required: [
+    "schemaVersion",
+    "generatedAt",
+    "toolVersion",
+    "specSource",
+    "phase",
+    "status",
+    "summary",
+    "coverage",
+    "bindingSupport",
+    "declaredSemantics",
+    "runtimeSemantics",
+    "diagnostics"
+  ],
   properties: {
     schemaVersion: { const: ASYNC_REPORT_SCHEMA_VERSION },
     generatedAt: { type: "string", minLength: 1 },
@@ -198,6 +230,239 @@ const ASYNC_REPORT_SCHEMA = {
             suites: { type: "array", items: { type: "string" } }
           }
         })
+      }
+    },
+    bindingSupport: {
+      type: "object",
+      additionalProperties: false,
+      required: ["summary", "operations"],
+      properties: {
+        summary: {
+          type: "object",
+          additionalProperties: false,
+          required: [
+            "totalOperations",
+            "totalBindings",
+            "supportedBindings",
+            "declaredOnlyBindings",
+            "deferredBindings",
+            "invalidBindings"
+          ],
+          properties: {
+            totalOperations: { type: "integer", minimum: 0 },
+            totalBindings: { type: "integer", minimum: 0 },
+            supportedBindings: { type: "integer", minimum: 0 },
+            declaredOnlyBindings: { type: "integer", minimum: 0 },
+            deferredBindings: { type: "integer", minimum: 0 },
+            invalidBindings: { type: "integer", minimum: 0 }
+          }
+        },
+        operations: {
+          type: "array",
+          items: {
+            type: "object",
+            additionalProperties: false,
+            required: ["operationKey", "channel", "action", "bindings"],
+            properties: {
+              operationKey: { type: "string", minLength: 1 },
+              channel: { type: "string", minLength: 1 },
+              action: { enum: ["send", "receive"] },
+              bindings: {
+                type: "array",
+                items: {
+                  type: "object",
+                  additionalProperties: false,
+                  required: ["scope", "field", "status", "source"],
+                  properties: {
+                    scope: { enum: ["channel", "operation", "message"] },
+                    field: {
+                      enum: [
+                        "topic",
+                        "partitions",
+                        "replicas",
+                        "topicConfiguration",
+                        "groupId",
+                        "clientId",
+                        "key",
+                        "schemaIdLocation",
+                        "schemaIdPayloadEncoding",
+                        "schemaLookupStrategy"
+                      ]
+                    },
+                    status: { enum: ["supported", "declared-only", "deferred", "invalid"] },
+                    source: { type: "string", minLength: 1 },
+                    messageName: { type: "string", minLength: 1 },
+                    value: { type: "string", minLength: 1 },
+                    reason: { type: "string", minLength: 1 }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    declaredSemantics: {
+      type: "object",
+      additionalProperties: false,
+      required: ["summary", "operations"],
+      properties: {
+        summary: {
+          type: "object",
+          additionalProperties: false,
+          required: [
+            "totalOperations",
+            "operationsWithCorrelationId",
+            "messageCorrelationIds",
+            "operationsWithReply"
+          ],
+          properties: {
+            totalOperations: { type: "integer", minimum: 0 },
+            operationsWithCorrelationId: { type: "integer", minimum: 0 },
+            messageCorrelationIds: { type: "integer", minimum: 0 },
+            operationsWithReply: { type: "integer", minimum: 0 }
+          }
+        },
+        operations: {
+          type: "array",
+          items: {
+            type: "object",
+            additionalProperties: false,
+            required: ["operationKey", "channel", "action", "correlationIds"],
+            properties: {
+              operationKey: { type: "string", minLength: 1 },
+              channel: { type: "string", minLength: 1 },
+              action: { enum: ["send", "receive"] },
+              correlationIds: {
+                type: "array",
+                items: {
+                  type: "object",
+                  additionalProperties: false,
+                  required: ["message", "location"],
+                  properties: {
+                    message: { type: "string", minLength: 1 },
+                    location: { type: "string", minLength: 1 }
+                  }
+                }
+              },
+              reply: {
+                type: "object",
+                additionalProperties: false,
+                required: ["address"],
+                properties: {
+                  address: {
+                    type: "object",
+                    additionalProperties: false,
+                    required: ["location"],
+                    properties: {
+                      location: { type: "string", minLength: 1 }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    runtimeSemantics: {
+      type: "object",
+      additionalProperties: false,
+      required: ["summary", "operations", "diagnostics"],
+      properties: {
+        summary: {
+          type: "object",
+          additionalProperties: false,
+          required: [
+            "totalOperations",
+            "satisfiedOperations",
+            "unsatisfiedOperations",
+            "totalSemantics",
+            "satisfiedSemantics",
+            "unsatisfiedSemantics",
+            "semanticCoveragePercent"
+          ],
+          properties: {
+            totalOperations: { type: "integer", minimum: 0 },
+            satisfiedOperations: { type: "integer", minimum: 0 },
+            unsatisfiedOperations: { type: "integer", minimum: 0 },
+            totalSemantics: { type: "integer", minimum: 0 },
+            satisfiedSemantics: { type: "integer", minimum: 0 },
+            unsatisfiedSemantics: { type: "integer", minimum: 0 },
+            semanticCoveragePercent: { anyOf: [{ type: "number" }, { type: "null" }] }
+          }
+        },
+        operations: {
+          type: "array",
+          items: {
+            type: "object",
+            additionalProperties: false,
+            required: ["operationKey", "channel", "action", "state", "correlationIds"],
+            properties: {
+              operationKey: { type: "string", minLength: 1 },
+              channel: { type: "string", minLength: 1 },
+              action: { enum: ["send", "receive"] },
+              state: { enum: ["SATISFIED", "PARTIAL", "UNSATISFIED"] },
+              correlationIds: {
+                type: "array",
+                items: {
+                  type: "object",
+                  additionalProperties: false,
+                  required: ["message", "location", "state", "suites"],
+                  properties: {
+                    message: { type: "string", minLength: 1 },
+                    location: { type: "string", minLength: 1 },
+                    state: { enum: ["SATISFIED", "UNSATISFIED"] },
+                    suites: { type: "array", items: { type: "string" } },
+                    header: { type: "string", minLength: 1 },
+                    messageName: { type: "string", minLength: 1 }
+                  }
+                }
+              },
+              reply: {
+                type: "object",
+                additionalProperties: false,
+                required: ["address"],
+                properties: {
+                  address: {
+                    type: "object",
+                    additionalProperties: false,
+                    required: ["location", "state", "suites"],
+                    properties: {
+                      location: { type: "string", minLength: 1 },
+                      state: { enum: ["SATISFIED", "UNSATISFIED"] },
+                      suites: { type: "array", items: { type: "string" } },
+                      header: { type: "string", minLength: 1 },
+                      replyChannelAddress: { type: "string", minLength: 1 }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        },
+        diagnostics: {
+          type: "object",
+          additionalProperties: false,
+          required: ["counts", "items"],
+          properties: {
+            counts: {
+              type: "object",
+              additionalProperties: false,
+              required: ["missing", "unavailable", "unsupported", "mismatched"],
+              properties: {
+                missing: { type: "integer", minimum: 0 },
+                unavailable: { type: "integer", minimum: 0 },
+                unsupported: { type: "integer", minimum: 0 },
+                mismatched: { type: "integer", minimum: 0 }
+              }
+            },
+            items: {
+              type: "array",
+              items: RUNTIME_SEMANTIC_DIAGNOSTIC_SCHEMA
+            }
+          }
+        }
       }
     },
     diagnostics: {

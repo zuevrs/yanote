@@ -44,11 +44,21 @@ public class ExampleServiceApplication {
     static final String SUITE_HEADER = "X-Test-Suite";
     static final String USER_CREATED_LISTENER_ID = "example-user-created-listener";
     static final String USER_REPUBLISHED_LISTENER_ID = "example-user-republished-listener";
+    static final String CORRELATION_ID_HEADER = "correlation_id";
+    static final String REPLY_TO_HEADER = "reply_to";
 
     private static final String YANOTE_MESSAGE_HEADER = "yanote.message";
 
     public static void main(String[] args) {
         SpringApplication.run(ExampleServiceApplication.class, args);
+    }
+
+    static String proofCorrelationId(String messageHint) {
+        return messageHint + "-proof-correlation";
+    }
+
+    static String proofReplyAddress(String topic) {
+        return topic;
     }
 
     @Bean
@@ -283,6 +293,14 @@ public class ExampleServiceApplication {
                 record.headers().add(new RecordHeader(
                         YANOTE_MESSAGE_HEADER,
                         messageHint.getBytes(StandardCharsets.UTF_8)
+                ));
+                record.headers().add(new RecordHeader(
+                        CORRELATION_ID_HEADER,
+                        proofCorrelationId(messageHint).getBytes(StandardCharsets.UTF_8)
+                ));
+                record.headers().add(new RecordHeader(
+                        REPLY_TO_HEADER,
+                        proofReplyAddress(topic).getBytes(StandardCharsets.UTF_8)
                 ));
                 kafkaTemplate.send(record).get(10, TimeUnit.SECONDS);
             } catch (InterruptedException ex) {

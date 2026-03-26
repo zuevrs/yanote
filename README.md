@@ -50,7 +50,7 @@ Yanote нужен инженеру, который одновременно от
 
    Offline fallback для analyzer остаётся вторичным путём через release assets GitHub Releases; публичные tracked `dist/*` docs больше не считаются supported entrypoint, поэтому ориентируйтесь на [`docs/release-and-support.md`](docs/release-and-support.md).
 
-   Если вам нужен не HTTP/OpenAPI path, а первая волна AsyncAPI/Kafka, не смешивайте её с этим циклом: отдельный guide [`docs/guides/asyncapi-kafka.md`](docs/guides/asyncapi-kafka.md) ведёт по Kafka evidence, команде `async-report`, отдельным sibling-артефактам `yanote-async-report.json` + `yanote-async-report.html`, retained runtime-selected/schema-failure companion JSON+HTML и явной границе «никакого combined HTTP+async report surface и никакого hosted dashboard».
+   Если вам нужен не HTTP/OpenAPI path, а первая волна AsyncAPI/Kafka, не смешивайте её с этим циклом: отдельный guide [`docs/guides/asyncapi-kafka.md`](docs/guides/asyncapi-kafka.md) ведёт по Kafka evidence, команде `async-report`, авторитетному live Spring Kafka bundle с `yanote-async-report.json` + `yanote-async-report.html`, redaction-safe строкам `binding support` / `declared semantics` / `runtime semantics` в `build-and-test-artifacts` и GitHub step summary, retained runtime-selected/schema-failure companion JSON+HTML и явной границе «никакого combined HTTP+async report surface, никакого hosted dashboard и никакой публикации raw retained Kafka headers».
 
 4. **Прочитайте отчёт, а не только exit code.**
    В текущем публичном demo-path happy path показывает `operations/status/parameters/aggregate = 100.00%`, но это не отменяет три отдельные surfaces — `HTTP Payload Conformance`, `HTTP Request Conformance` и `HTTP Security Conformance`.

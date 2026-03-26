@@ -79,6 +79,11 @@ describe("computeAsyncCoverage contract", () => {
           }
         ]
       },
+      runtimeSemantics: {
+        summary: { total: 0, satisfied: 0, percent: null },
+        items: [],
+        diagnostics: []
+      },
       diagnostics: []
     });
   });
@@ -157,6 +162,11 @@ describe("computeAsyncCoverage contract", () => {
           }
         ]
       },
+      runtimeSemantics: {
+        summary: { total: 0, satisfied: 0, percent: null },
+        items: [],
+        diagnostics: []
+      },
       diagnostics: [
         {
           kind: "mismatched",
@@ -229,6 +239,11 @@ describe("computeAsyncCoverage contract", () => {
           }
         ]
       },
+      runtimeSemantics: {
+        summary: { total: 0, satisfied: 0, percent: null },
+        items: [],
+        diagnostics: []
+      },
       diagnostics: [
         {
           kind: "missing-payload",
@@ -255,6 +270,47 @@ describe("computeAsyncCoverage contract", () => {
           message: "Observed kafka payload did not conform to the retained AsyncAPI payload schema"
         }
       ]
+    });
+  });
+
+  it("adds truthful runtime semantics additively without changing legacy coverage numerators", async () => {
+    const bundle = await loadAsyncApiSemanticsBundle("test/fixtures/asyncapi/header-runtime-inline-v3.yaml");
+    const events = await readAsyncEventsJsonl("test/fixtures/async-events/header-runtime-covered.fixture.jsonl");
+
+    const coverage = computeAsyncCoverage(bundle, events.items);
+
+    expect(coverage.channels.summary).toEqual({ total: 1, covered: 1, percent: 100 });
+    expect(coverage.operations.summary).toEqual({ total: 1, covered: 1, percent: 100 });
+    expect(coverage.messages.summary).toEqual({ total: 1, covered: 1, percent: 100 });
+    expect(coverage.diagnostics).toEqual([]);
+    expect(coverage.runtimeSemantics).toEqual({
+      summary: { total: 2, satisfied: 2, percent: 100 },
+      items: [
+        {
+          operationKey: "kafka send orders.command",
+          channel: "orders.command",
+          action: "send",
+          semantic: "correlationId",
+          state: "SATISFIED",
+          location: "$message.header#/correlation_id",
+          header: "correlation_id",
+          messageName: "OrderCommand",
+          message: expect.stringContaining("OrderCommand"),
+          suites: ["suite-header-runtime-covered"]
+        },
+        {
+          operationKey: "kafka send orders.command",
+          channel: "orders.command",
+          action: "send",
+          semantic: "reply.address",
+          state: "SATISFIED",
+          location: "$message.header#/reply_to",
+          header: "reply_to",
+          replyChannelAddress: "orders.reply",
+          suites: ["suite-header-runtime-covered"]
+        }
+      ],
+      diagnostics: []
     });
   });
 
@@ -317,6 +373,9 @@ describe("computeAsyncCoverage contract", () => {
         })
       ])
     );
+    expect(selectedCoverage.runtimeSemantics.summary).toEqual({ total: 0, satisfied: 0, percent: null });
+    expect(selectedCoverage.runtimeSemantics.items).toEqual([]);
+    expect(selectedCoverage.runtimeSemantics.diagnostics).toEqual([]);
     expect(selectedCoverage.diagnostics).toEqual([]);
 
     const ambiguousCoverage = computeAsyncCoverage(bundle, [ambiguousEvent]);
@@ -330,6 +389,9 @@ describe("computeAsyncCoverage contract", () => {
       }
     });
     expect(ambiguousCoverage.messages.items.every((entry) => entry.state === "UNCOVERED")).toBe(true);
+    expect(ambiguousCoverage.runtimeSemantics.summary).toEqual({ total: 0, satisfied: 0, percent: null });
+    expect(ambiguousCoverage.runtimeSemantics.items).toEqual([]);
+    expect(ambiguousCoverage.runtimeSemantics.diagnostics).toEqual([]);
     expect(ambiguousCoverage.diagnostics).toEqual([
       expect.objectContaining({
         kind: "ambiguous",
@@ -378,6 +440,11 @@ function snapshotCoverage(coverage: ReturnType<typeof computeAsyncCoverage>) {
         state: entry.state,
         suites: [...entry.suites]
       }))
+    },
+    runtimeSemantics: {
+      summary: coverage.runtimeSemantics.summary,
+      items: coverage.runtimeSemantics.items.map((entry) => ({ ...entry, suites: [...entry.suites] })),
+      diagnostics: coverage.runtimeSemantics.diagnostics
     },
     diagnostics: coverage.diagnostics
   };

@@ -7,6 +7,7 @@ ROOT_README="README.md"
 DOCS_README="docs/README.md"
 ANALYZER_GUIDE="docs/guides/analyzer-coverage.md"
 ASYNC_GUIDE="docs/guides/asyncapi-kafka.md"
+BRANCH_PROTECTION_DOC=".github/BRANCH_PROTECTION.md"
 
 fail() {
   echo "ERROR: $1" >&2
@@ -31,7 +32,8 @@ for path in \
   "$ROOT_README" \
   "$DOCS_README" \
   "$ANALYZER_GUIDE" \
-  "$ASYNC_GUIDE"
+  "$ASYNC_GUIDE" \
+  "$BRANCH_PROTECTION_DOC"
 do
   require_file "$path"
 done
@@ -102,6 +104,9 @@ require_contains "$BOUNDARY_DOC" "runtime-selected-yanote-async-report.json" "as
 require_contains "$BOUNDARY_DOC" "runtime-selected-yanote-async-report.html" "async retained HTML artifact wording"
 require_contains "$BOUNDARY_DOC" "schema-failure-yanote-async-report.html" "async retained HTML artifact wording"
 require_contains "$BOUNDARY_DOC" "selectionMode=runtime" "async runtime-selection wording"
+require_contains "$BOUNDARY_DOC" 'redaction-safe строки `binding support`, `declared semantics`, `runtime semantics`' "async summary semantics wording"
+require_contains "$BOUNDARY_DOC" "async-summary.md" "collected async summary artifact wording"
+require_contains "$BOUNDARY_DOC" "raw retained-header leakage" "no raw retained-header leakage wording"
 
 require_contains "$ROOT_README" "docs/release-and-support.md" "release/support landing pointer"
 require_contains "$ROOT_README" '`v1.0.x`' "root landing stable line"
@@ -111,6 +116,11 @@ require_contains "$ROOT_README" "yanote-report.html" "root landing HTTP HTML wor
 require_contains "$ROOT_README" "yanote-validation-artifacts" "root landing HTTP CI bundle wording"
 require_contains "$ROOT_README" 'single-document `http(s)` URL поддерживается только как узкий opt-in remote path' "root landing remote wording"
 require_contains "$ROOT_README" "combined HTTP+async report surface" "root landing no-combined wording"
+require_contains "$ROOT_README" "build-and-test-artifacts" "root landing async CI bundle wording"
+require_contains "$ROOT_README" "binding support" "root landing widened async summary wording"
+require_contains "$ROOT_README" "declared semantics" "root landing widened async summary wording"
+require_contains "$ROOT_README" "runtime semantics" "root landing widened async summary wording"
+require_contains "$ROOT_README" "raw retained Kafka headers" "root landing no raw-header wording"
 require_contains "$DOCS_README" "release-and-support.md" "release/support landing pointer"
 require_contains "$DOCS_README" '`v1.0.x`' "docs landing stable line"
 require_contains "$DOCS_README" "security-semantics.*" "docs landing security proof surface"
@@ -119,6 +129,9 @@ require_contains "$DOCS_README" "yanote-async-report.html" "docs landing async H
 require_contains "$DOCS_README" "summary.deprecatedOperations" "docs landing deprecated additive wording"
 require_contains "$DOCS_README" "yanote-validation-artifacts" "docs landing HTTP CI bundle wording"
 require_contains "$DOCS_README" "build-and-test-artifacts" "docs landing async CI bundle wording"
+require_contains "$DOCS_README" "binding support" "docs landing widened async summary wording"
+require_contains "$DOCS_README" "declared semantics" "docs landing widened async summary wording"
+require_contains "$DOCS_README" "runtime semantics" "docs landing widened async summary wording"
 require_contains "$ANALYZER_GUIDE" "coverage.operations/status/parameters/aggregate" "analyzer guide legacy numerator wording"
 require_contains "$ANALYZER_GUIDE" "SEMANTIC_HTTP_MISSING_SECURITY" "analyzer guide missing-security wording"
 require_contains "$ANALYZER_GUIDE" "SEMANTIC_HTTP_UNAVAILABLE_SECURITY" "analyzer guide unavailable-security wording"
@@ -135,5 +148,21 @@ require_contains "$ASYNC_GUIDE" "selectionMode=runtime" "async guide runtime-sel
 require_contains "$ASYNC_GUIDE" "yanote-async-report.html" "async guide HTML wording"
 require_contains "$ASYNC_GUIDE" "combined HTTP+async report surface" "async guide no-combined wording"
 require_contains "$ASYNC_GUIDE" "hosted dashboard" "async guide no-dashboard wording"
+require_contains "$ASYNC_GUIDE" "bindingSupport.summary" "async guide widened binding summary wording"
+require_contains "$ASYNC_GUIDE" "declaredSemantics.summary" "async guide widened declared summary wording"
+require_contains "$ASYNC_GUIDE" "runtimeSemantics.summary" "async guide widened runtime summary wording"
+require_contains "$ASYNC_GUIDE" "async-summary.md" "async guide collected summary artifact wording"
+require_contains "$ASYNC_GUIDE" "без публикации raw retained Kafka headers" "async guide no raw-header wording"
+
+require_contains "$BRANCH_PROTECTION_DOC" "build-and-test-artifacts" "branch protection async artifact bundle wording"
+require_contains "$BRANCH_PROTECTION_DOC" "GITHUB_STEP_SUMMARY" "branch protection async summary wording"
+require_contains "$BRANCH_PROTECTION_DOC" "yanote-async-report.json" "branch protection async report wording"
+require_contains "$BRANCH_PROTECTION_DOC" "yanote-async-report.html" "branch protection async HTML wording"
+require_contains "$BRANCH_PROTECTION_DOC" "runtime-selected" "branch protection retained companion wording"
+require_contains "$BRANCH_PROTECTION_DOC" "schema-failure" "branch protection retained companion wording"
+require_contains "$BRANCH_PROTECTION_DOC" "binding support" "branch protection widened async summary wording"
+require_contains "$BRANCH_PROTECTION_DOC" "declared semantics" "branch protection widened async summary wording"
+require_contains "$BRANCH_PROTECTION_DOC" "runtime semantics" "branch protection widened async summary wording"
+require_contains "$BRANCH_PROTECTION_DOC" "raw retained Kafka headers" "branch protection no raw-header wording"
 
 echo "S04 boundary verification passed: release/support surface, additive security proof wording, and deferred broader-object boundary are aligned."

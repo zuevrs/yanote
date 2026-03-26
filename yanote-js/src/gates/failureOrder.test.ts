@@ -288,6 +288,120 @@ describe("failure precedence ordering", () => {
     expect(selectPrimaryFailure(failures)?.code).toBe("SEMANTIC_HTTP_MISSING_SECURITY");
   });
 
+  it("keeps async spec-invalid first, then typed runtime semantic failures, then generic drift and gate failures", () => {
+    const failures: GovernanceFailure[] = [
+      {
+        failureClass: "gate",
+        gateKind: "threshold",
+        code: "ASYNC_GATE_MIN_COVERAGE",
+        reason: "threshold",
+        hint: "threshold",
+        exitCode: 3,
+        severity: "error"
+      },
+      {
+        failureClass: "semantic",
+        code: "ASYNC_SEMANTIC_MESSAGE_MISMATCH",
+        reason: "message mismatch",
+        hint: "message mismatch",
+        exitCode: 5,
+        severity: "error",
+        operationKey: "kafka send orders.command"
+      },
+      {
+        failureClass: "semantic",
+        code: "ASYNC_SEMANTIC_CORRELATION_ID_MISSING",
+        reason: "correlation missing b",
+        hint: "correlation missing b",
+        exitCode: 5,
+        severity: "error",
+        operationKey: "kafka send z-topic"
+      },
+      {
+        failureClass: "semantic",
+        code: "ASYNC_SEMANTIC_SPEC_INVALID",
+        reason: "spec invalid",
+        hint: "spec invalid",
+        exitCode: 5,
+        severity: "error",
+        operationKey: "kafka send orders.command"
+      },
+      {
+        failureClass: "semantic",
+        code: "ASYNC_SEMANTIC_REPLY_ADDRESS_UNAVAILABLE",
+        reason: "reply unavailable",
+        hint: "reply unavailable",
+        exitCode: 5,
+        severity: "error",
+        operationKey: "kafka send orders.command"
+      },
+      {
+        failureClass: "semantic",
+        code: "ASYNC_SEMANTIC_CORRELATION_ID_MISSING",
+        reason: "correlation missing a",
+        hint: "correlation missing a",
+        exitCode: 5,
+        severity: "error",
+        operationKey: "kafka send a-topic"
+      }
+    ];
+
+    const ordered = sortFailuresByPrecedence(failures);
+    expect(ordered.map((failure) => failure.code)).toEqual([
+      "ASYNC_SEMANTIC_SPEC_INVALID",
+      "ASYNC_SEMANTIC_CORRELATION_ID_MISSING",
+      "ASYNC_SEMANTIC_CORRELATION_ID_MISSING",
+      "ASYNC_SEMANTIC_REPLY_ADDRESS_UNAVAILABLE",
+      "ASYNC_SEMANTIC_MESSAGE_MISMATCH",
+      "ASYNC_GATE_MIN_COVERAGE"
+    ]);
+    expect(ordered.slice(1, 3).map((failure) => failure.operationKey)).toEqual([
+      "kafka send a-topic",
+      "kafka send z-topic"
+    ]);
+    expect(selectPrimaryFailure(failures)?.code).toBe("ASYNC_SEMANTIC_SPEC_INVALID");
+  });
+
+  it("keeps malformed async runtime failures in a stable fail-closed bucket ahead of generic async drift and gate failures", () => {
+    const failures: GovernanceFailure[] = [
+      {
+        failureClass: "gate",
+        gateKind: "regression",
+        code: "ASYNC_GATE_REGRESSION_COVERAGE_LOSS",
+        reason: "regression",
+        hint: "regression",
+        exitCode: 4,
+        severity: "error",
+        operationKey: "kafka send orders.command"
+      },
+      {
+        failureClass: "semantic",
+        code: "ASYNC_SEMANTIC_MESSAGE_MISMATCH",
+        reason: "message mismatch",
+        hint: "message mismatch",
+        exitCode: 5,
+        severity: "error",
+        operationKey: "kafka send orders.command"
+      },
+      {
+        failureClass: "semantic",
+        code: "ASYNC_SEMANTIC_RUNTIME_FAIL_CLOSED",
+        reason: "runtime fail-closed",
+        hint: "runtime fail-closed",
+        exitCode: 5,
+        severity: "error"
+      }
+    ];
+
+    const ordered = sortFailuresByPrecedence(failures);
+    expect(ordered.map((failure) => failure.code)).toEqual([
+      "ASYNC_SEMANTIC_RUNTIME_FAIL_CLOSED",
+      "ASYNC_SEMANTIC_MESSAGE_MISMATCH",
+      "ASYNC_GATE_REGRESSION_COVERAGE_LOSS"
+    ]);
+    expect(selectPrimaryFailure(failures)?.code).toBe("ASYNC_SEMANTIC_RUNTIME_FAIL_CLOSED");
+  });
+
   it("returns undefined primary when only warnings exist", () => {
     const warningOnly: GovernanceFailure[] = [
       {

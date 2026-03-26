@@ -121,6 +121,47 @@ describe("async report", () => {
           ]
         }
       },
+      bindingSupport: {
+        summary: {
+          totalOperations: 0,
+          totalBindings: 0,
+          supportedBindings: 0,
+          declaredOnlyBindings: 0,
+          deferredBindings: 0,
+          invalidBindings: 0
+        },
+        operations: []
+      },
+      declaredSemantics: {
+        summary: {
+          totalOperations: 0,
+          operationsWithCorrelationId: 0,
+          messageCorrelationIds: 0,
+          operationsWithReply: 0
+        },
+        operations: []
+      },
+      runtimeSemantics: {
+        summary: {
+          totalOperations: 0,
+          satisfiedOperations: 0,
+          unsatisfiedOperations: 0,
+          totalSemantics: 0,
+          satisfiedSemantics: 0,
+          unsatisfiedSemantics: 0,
+          semanticCoveragePercent: null
+        },
+        operations: [],
+        diagnostics: {
+          counts: {
+            missing: 0,
+            unavailable: 0,
+            unsupported: 0,
+            mismatched: 0
+          },
+          items: []
+        }
+      },
       diagnostics: {
         counts: {
           "unsupported-content-type": 0,
@@ -141,6 +182,294 @@ describe("async report", () => {
 
     expect(report).toEqual(expected);
     expect((report as Record<string, unknown>).governance).toBeUndefined();
+  });
+
+  it("publishes declared correlationId and reply semantics additively without changing async coverage numerators", async () => {
+    const bundle = await loadAsyncApiSemanticsBundle("test/fixtures/asyncapi/trait-declarations-inline-v3.yaml");
+    const coverage = computeAsyncCoverage(bundle, []);
+
+    const report = buildAsyncReport(coverage, {
+      toolVersion: "test",
+      specSource: {
+        kind: "local-file",
+        reference: "test/fixtures/asyncapi/trait-declarations-inline-v3.yaml"
+      },
+      operationContractsByKey: bundle.operationContractsByKey
+    });
+
+    expect(report.summary).toEqual({
+      totalChannels: 1,
+      coveredChannels: 0,
+      channelCoveragePercent: 0,
+      totalOperations: 1,
+      coveredOperations: 0,
+      operationCoveragePercent: 0,
+      totalMessages: 1,
+      coveredMessages: 0,
+      messageCoveragePercent: 0
+    });
+    expect(report.coverage.operations.items).toEqual([
+      {
+        operationKey: "kafka send orders.command",
+        channel: "orders.command",
+        action: "send",
+        operation: { state: "UNCOVERED" },
+        messageContract: {
+          name: "OrderCommand",
+          selectionMode: "single",
+          state: "UNCOVERED"
+        },
+        suites: []
+      }
+    ]);
+    expect(report.declaredSemantics).toEqual({
+      summary: {
+        totalOperations: 1,
+        operationsWithCorrelationId: 1,
+        messageCorrelationIds: 1,
+        operationsWithReply: 1
+      },
+      operations: [
+        {
+          operationKey: "kafka send orders.command",
+          channel: "orders.command",
+          action: "send",
+          correlationIds: [
+            {
+              message: "OrderCommand",
+              location: "$message.header#/correlation_id"
+            }
+          ],
+          reply: {
+            address: {
+              location: "$message.header#/reply_to"
+            }
+          }
+        }
+      ]
+    });
+    expect(report.runtimeSemantics).toEqual({
+      summary: {
+        totalOperations: 1,
+        satisfiedOperations: 0,
+        unsatisfiedOperations: 1,
+        totalSemantics: 2,
+        satisfiedSemantics: 0,
+        unsatisfiedSemantics: 2,
+        semanticCoveragePercent: 0
+      },
+      operations: [
+        {
+          operationKey: "kafka send orders.command",
+          channel: "orders.command",
+          action: "send",
+          state: "UNSATISFIED",
+          correlationIds: [
+            {
+              message: expect.stringContaining("OrderCommand"),
+              location: "$message.header#/correlation_id",
+              state: "UNSATISFIED",
+              header: "correlation_id",
+              messageName: "OrderCommand",
+              suites: []
+            }
+          ],
+          reply: {
+            address: {
+              location: "$message.header#/reply_to",
+              state: "UNSATISFIED",
+              header: "reply_to",
+              suites: []
+            }
+          }
+        }
+      ],
+      diagnostics: {
+        counts: {
+          missing: 0,
+          unavailable: 0,
+          unsupported: 0,
+          mismatched: 0
+        },
+        items: []
+      }
+    });
+    expect(report.diagnostics.counts).toEqual({
+      "unsupported-content-type": 0,
+      "unsupported-schema-format": 0,
+      "missing-payload": 0,
+      "invalid-payload": 0,
+      "missing-header": 0,
+      "unavailable-header": 0,
+      "invalid-header": 0,
+      "unverifiable-headers": 0,
+      ambiguous: 0,
+      unmatched: 0,
+      mismatched: 0
+    });
+  });
+
+  it("publishes header-backed runtime semantics additively and keeps retained header values out of the artifact", async () => {
+    const bundle = await loadAsyncApiSemanticsBundle("test/fixtures/asyncapi/header-runtime-inline-v3.yaml");
+    const events = await readAsyncEventsJsonl("test/fixtures/async-events/header-runtime-failures.fixture.jsonl");
+    const coverage = computeAsyncCoverage(bundle, events.items);
+
+    const report = buildAsyncReport(coverage, {
+      toolVersion: "test",
+      specSource: {
+        kind: "local-file",
+        reference: "test/fixtures/asyncapi/header-runtime-inline-v3.yaml"
+      },
+      eventTimestamps: events.items
+        .map((event) => event.ts)
+        .filter((timestamp): timestamp is number => typeof timestamp === "number"),
+      operationContractsByKey: bundle.operationContractsByKey
+    });
+
+    expect(report.status).toBe("partial");
+    expect(report.summary).toEqual({
+      totalChannels: 1,
+      coveredChannels: 1,
+      channelCoveragePercent: 100,
+      totalOperations: 1,
+      coveredOperations: 1,
+      operationCoveragePercent: 100,
+      totalMessages: 1,
+      coveredMessages: 1,
+      messageCoveragePercent: 100
+    });
+    expect(report.diagnostics).toEqual({
+      counts: {
+        "unsupported-content-type": 0,
+        "unsupported-schema-format": 0,
+        "missing-payload": 0,
+        "invalid-payload": 0,
+        "missing-header": 0,
+        "unavailable-header": 0,
+        "invalid-header": 0,
+        "unverifiable-headers": 0,
+        ambiguous: 0,
+        unmatched: 0,
+        mismatched: 0
+      },
+      items: []
+    });
+    expect(report.runtimeSemantics).toEqual({
+      summary: {
+        totalOperations: 1,
+        satisfiedOperations: 0,
+        unsatisfiedOperations: 1,
+        totalSemantics: 2,
+        satisfiedSemantics: 1,
+        unsatisfiedSemantics: 1,
+        semanticCoveragePercent: 50
+      },
+      operations: [
+        {
+          operationKey: "kafka send orders.command",
+          channel: "orders.command",
+          action: "send",
+          state: "PARTIAL",
+          correlationIds: [
+            {
+              message: expect.stringContaining("OrderCommand"),
+              location: "$message.header#/correlation_id",
+              state: "SATISFIED",
+              header: "correlation_id",
+              messageName: "OrderCommand",
+              suites: ["suite-header-runtime-mismatch"]
+            }
+          ],
+          reply: {
+            address: {
+              location: "$message.header#/reply_to",
+              state: "UNSATISFIED",
+              header: "reply_to",
+              replyChannelAddress: "orders.reply",
+              suites: []
+            }
+          }
+        }
+      ],
+      diagnostics: {
+        counts: {
+          missing: 2,
+          unavailable: 2,
+          unsupported: 0,
+          mismatched: 1
+        },
+        items: [
+          {
+            semantic: "correlationId",
+            state: "missing",
+            operationKey: "kafka send orders.command",
+            channel: "orders.command",
+            action: "send",
+            location: "$message.header#/correlation_id",
+            header: "correlation_id",
+            messageName: "OrderCommand",
+            reason:
+              "Observed kafka evidence did not retain header 'correlation_id' required by declared correlationId location '$message.header#/correlation_id'.",
+            message: "Observed kafka evidence is missing retained header evidence required to prove AsyncAPI correlationId"
+          },
+          {
+            semantic: "correlationId",
+            state: "unavailable",
+            operationKey: "kafka send orders.command",
+            channel: "orders.command",
+            action: "send",
+            location: "$message.header#/correlation_id",
+            header: "correlation_id",
+            messageName: "OrderCommand",
+            reason:
+              "Observed kafka header 'correlation_id' required by declared correlationId location '$message.header#/correlation_id' was unavailable because retained header evidence was redacted (sensitive).",
+            message: "Observed kafka header value was unavailable for AsyncAPI correlationId runtime proof"
+          },
+          {
+            semantic: "reply.address",
+            state: "missing",
+            operationKey: "kafka send orders.command",
+            channel: "orders.command",
+            action: "send",
+            location: "$message.header#/reply_to",
+            header: "reply_to",
+            replyChannelAddress: "orders.reply",
+            reason:
+              "Observed kafka evidence did not retain header 'reply_to' required by declared reply.address location '$message.header#/reply_to'.",
+            message: "Observed kafka evidence is missing retained header evidence required to prove AsyncAPI reply.address"
+          },
+          {
+            semantic: "reply.address",
+            state: "unavailable",
+            operationKey: "kafka send orders.command",
+            channel: "orders.command",
+            action: "send",
+            location: "$message.header#/reply_to",
+            header: "reply_to",
+            replyChannelAddress: "orders.reply",
+            reason:
+              "Observed kafka header 'reply_to' required by declared reply.address location '$message.header#/reply_to' was unavailable because retained header evidence was omitted (unsupported).",
+            message: "Observed kafka header value was unavailable for AsyncAPI reply.address runtime proof"
+          },
+          {
+            semantic: "reply.address",
+            state: "mismatched",
+            operationKey: "kafka send orders.command",
+            channel: "orders.command",
+            action: "send",
+            location: "$message.header#/reply_to",
+            header: "reply_to",
+            replyChannelAddress: "orders.reply",
+            reason: "Observed kafka header 'reply_to' did not match declared AsyncAPI reply channel address 'orders.reply'.",
+            message: "Observed kafka reply.address header did not match the declared AsyncAPI reply channel address"
+          }
+        ]
+      }
+    });
+
+    const serialized = JSON.stringify(report);
+    expect(serialized).not.toContain("corr-runtime-mismatch");
+    expect(serialized).not.toContain("orders.deadletter");
   });
 
   it("reports schema-depth payload failures without changing routing coverage", async () => {

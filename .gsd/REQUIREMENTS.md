@@ -89,8 +89,19 @@ This file is the explicit capability and coverage contract for the project.
 - Source: planning
 - Primary owning slice: none
 - Supporting slices: none
-- Validation: Validated by M013 milestone closeout on current HEAD: `bash ./scripts/ci/verify-m013-s01-remote-spec.sh`, `bash ./scripts/ci/verify-m013-s02-deprecated-operations.sh`, `bash ./scripts/ci/verify-m013-s03-static-html-reports.sh`, `node --test scripts/ci/collect-yanote-artifacts.test.mjs scripts/ci/export-async-proof-artifacts.test.mjs scripts/ci/run-v1-e2e.contract.test.mjs scripts/ci/render-yanote-summary.test.mjs scripts/ci/yanote-ci-workflow.contract.test.mjs`, `bash scripts/docs/verify-s03-landing.sh`, and `bash scripts/docs/verify-s04-boundaries.sh` proved the widened delivery contract end to end: supported sanitized remote spec provenance, additive deprecated-operation truth without denominator drift, separate HTTP/async JSON+HTML artifacts, and aligned CI/docs/support wording without combined-report or dashboard claims.
+- Validation: Validated by M013 S04 closeout: `node --test scripts/ci/collect-yanote-artifacts.test.mjs scripts/ci/export-async-proof-artifacts.test.mjs scripts/ci/run-v1-e2e.contract.test.mjs scripts/ci/render-yanote-summary.test.mjs scripts/ci/yanote-ci-workflow.contract.test.mjs`, `bash scripts/docs/verify-s03-landing.sh`, and `bash scripts/docs/verify-s04-boundaries.sh` proved the widened CI bundles, GitHub summaries, and public docs/support surfaces publish sanitized remote spec provenance, additive deprecated-operation truth, and separate HTTP/async JSON+HTML artifacts without introducing combined-report or dashboard claims.
 - Notes: Validated by M013 after S01 delivered supported local/remote spec inputs with sanitized provenance, S02 added additive deprecated-operation truth without denominator drift, S03 emitted separate static HTTP/async HTML artifacts from canonical report data, and S04 aligned retained CI bundles, GitHub summaries, workflow contracts, and public docs/support wording to the same local-first / remote-opt-in / no-dashboard delivery boundary.
+
+### R025 — Extend the proven Kafka-first async path to selected richer AsyncAPI constructs such as bindings, traits, correlation, or reply semantics where they can be verified truthfully from runtime evidence.
+- Class: contract-depth
+- Status: validated
+- Description: Extend the proven Kafka-first async path to selected richer AsyncAPI constructs such as bindings, traits, correlation, or reply semantics where they can be verified truthfully from runtime evidence.
+- Why it matters: Teams using richer AsyncAPI contracts will eventually expect more than channels, operations, messages, payloads, and headers.
+- Source: planning
+- Primary owning slice: S02
+- Supporting slices: S01,S03,S04
+- Validation: M014 milestone closeout reran and passed the authoritative live Kafka proof plus delivery/docs verifiers on current HEAD: `bash scripts/ci/verify-m004-s03-live-kafka-proof.sh`, `node --test scripts/ci/export-async-proof-artifacts.test.mjs scripts/ci/collect-yanote-artifacts.test.mjs scripts/ci/render-yanote-summary.test.mjs scripts/ci/yanote-ci-workflow.contract.test.mjs`, and `bash scripts/docs/verify-m005-s01-async-path.sh && bash scripts/docs/verify-m005-s01-async-boundaries.sh && bash scripts/docs/verify-s04-boundaries.sh`, proving additive Kafka binding support, declared semantics, and header-backed runtime semantics through the authoritative Spring Kafka JSON/HTML bundle, retained companions, collected CI summary surfaces, and public Kafka-first docs.
+- Notes: Validated by M014 after S01 trait-aware declarations, S02 header-backed runtime correlation/reply truth, S03 Kafka binding matrix, and S04 live Spring Kafka proof/docs/CI closeout. Scope remains Kafka-first, Spring-Kafka-first, separate async reporting; combined HTTP+async surfaces and broker expansion stay deferred.
 
 ### R031 — When live HTTP traffic returns a status not declared by the OpenAPI contract, Yanote must surface it explicitly instead of silently preserving a green declared-status numerator.
 - Class: contract-depth
@@ -160,17 +171,6 @@ This file is the explicit capability and coverage contract for the project.
 - Validation: unmapped
 - Notes: Explicitly deferred in `docs/requirements.md` as ASYNC-03.
 
-### R025 — Extend the proven Kafka-first async path to selected richer AsyncAPI constructs such as bindings, traits, correlation, or reply semantics where they can be verified truthfully from runtime evidence.
-- Class: contract-depth
-- Status: deferred
-- Description: Extend the proven Kafka-first async path to selected richer AsyncAPI constructs such as bindings, traits, correlation, or reply semantics where they can be verified truthfully from runtime evidence.
-- Why it matters: Teams using richer AsyncAPI contracts will eventually expect more than channels, operations, messages, payloads, and headers.
-- Source: planning
-- Primary owning slice: none
-- Supporting slices: none
-- Validation: unmapped
-- Notes: Planned as the queued M014 follow-on before any broker expansion or combined HTTP+async reporting work.
-
 ## Out of Scope
 
 ### R030 — A web dashboard/report UI is not required for the current product value; CLI plus file reports are the supported surfaces.
@@ -197,8 +197,8 @@ This file is the explicit capability and coverage contract for the project.
 | R021 | differentiator | deferred | none | none | unmapped |
 | R022 | contract-depth | validated | S02 | S01,S03,S04 | M011 closeout reran and passed the public proof stack on current HEAD: `node --test scripts/ci/run-v1-e2e.contract.test.mjs scripts/ci/collect-yanote-artifacts.test.mjs`, `bash scripts/docs/verify-s03-landing.sh`, `bash scripts/docs/verify-s02-doc-links.sh`, `bash scripts/docs/verify-s04-boundaries.sh`, `bash scripts/ci/run-v1-e2e.sh`, `bash scripts/ci/verify-m011-s02-request-semantics.sh`, and `bash scripts/ci/verify-m011-s03-format-media.sh`. |
 | R023 | contract-depth | validated | S01 | S02 | Validated by M012 closeout: `bash scripts/ci/verify-m012-s02-security-semantics.sh`, `node --test scripts/ci/render-yanote-summary.test.mjs scripts/ci/run-v1-e2e.contract.test.mjs scripts/ci/collect-yanote-artifacts.test.mjs`, `bash scripts/docs/verify-s02-doc-links.sh`, `bash scripts/docs/verify-s03-landing.sh`, `bash scripts/docs/verify-s04-boundaries.sh`, and `bash scripts/ci/run-v1-e2e.sh` proved truthful OpenAPI security semantics on additive report/CLI/CI/doc surfaces while other broader OpenAPI objects remain explicitly deferred. |
-| R024 | launchability | validated | none | none | Validated by M013 milestone closeout on current HEAD: `bash ./scripts/ci/verify-m013-s01-remote-spec.sh`, `bash ./scripts/ci/verify-m013-s02-deprecated-operations.sh`, `bash ./scripts/ci/verify-m013-s03-static-html-reports.sh`, `node --test scripts/ci/collect-yanote-artifacts.test.mjs scripts/ci/export-async-proof-artifacts.test.mjs scripts/ci/run-v1-e2e.contract.test.mjs scripts/ci/render-yanote-summary.test.mjs scripts/ci/yanote-ci-workflow.contract.test.mjs`, `bash scripts/docs/verify-s03-landing.sh`, and `bash scripts/docs/verify-s04-boundaries.sh` proved the widened delivery contract end to end: supported sanitized remote spec provenance, additive deprecated-operation truth without denominator drift, separate HTTP/async JSON+HTML artifacts, and aligned CI/docs/support wording without combined-report or dashboard claims. |
-| R025 | contract-depth | deferred | none | none | unmapped |
+| R024 | launchability | validated | none | none | Validated by M013 S04 closeout: `node --test scripts/ci/collect-yanote-artifacts.test.mjs scripts/ci/export-async-proof-artifacts.test.mjs scripts/ci/run-v1-e2e.contract.test.mjs scripts/ci/render-yanote-summary.test.mjs scripts/ci/yanote-ci-workflow.contract.test.mjs`, `bash scripts/docs/verify-s03-landing.sh`, and `bash scripts/docs/verify-s04-boundaries.sh` proved the widened CI bundles, GitHub summaries, and public docs/support surfaces publish sanitized remote spec provenance, additive deprecated-operation truth, and separate HTTP/async JSON+HTML artifacts without introducing combined-report or dashboard claims. |
+| R025 | contract-depth | validated | S02 | S01,S03,S04 | M014 milestone closeout reran and passed the authoritative live Kafka proof plus delivery/docs verifiers on current HEAD: `bash scripts/ci/verify-m004-s03-live-kafka-proof.sh`, `node --test scripts/ci/export-async-proof-artifacts.test.mjs scripts/ci/collect-yanote-artifacts.test.mjs scripts/ci/render-yanote-summary.test.mjs scripts/ci/yanote-ci-workflow.contract.test.mjs`, and `bash scripts/docs/verify-m005-s01-async-path.sh && bash scripts/docs/verify-m005-s01-async-boundaries.sh && bash scripts/docs/verify-s04-boundaries.sh`, proving additive Kafka binding support, declared semantics, and header-backed runtime semantics through the authoritative Spring Kafka JSON/HTML bundle, retained companions, collected CI summary surfaces, and public Kafka-first docs. |
 | R030 | anti-feature | out-of-scope | none | none | n/a |
 | R031 | contract-depth | validated | M010 | none | Validated by the M010 closeout stack: `bash scripts/docs/verify-m010-s04-final-boundary.sh` and the focused HTTP core gate/CLI suite proved undeclared HTTP statuses surface as explicit drift on the live Spring MVC path. |
 | R032 | contract-depth | validated | M010 | none | Validated by live retained-evidence proof in `bash scripts/docs/verify-m010-s01-http-evidence-depth.sh` and the final boundary verifier, which proved supported path/query/header parameter values are checked from retained evidence on the Spring MVC example path. |
@@ -209,5 +209,5 @@ This file is the explicit capability and coverage contract for the project.
 
 - Active requirements: 0
 - Mapped to slices: 0
-- Validated: 12 (R001, R002, R003, R004, R005, R022, R023, R024, R031, R032, R033, R034)
+- Validated: 13 (R001, R002, R003, R004, R005, R022, R023, R024, R025, R031, R032, R033, R034)
 - Unmapped active requirements: 0

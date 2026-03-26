@@ -1,8 +1,8 @@
 {
   "version": 1,
-  "projectName": "M013",
-  "projectPath": "/Users/zuevrs/Projects/yanote/.gsd/worktrees/M013",
-  "gsdVersion": "2.45.0",
+  "projectName": "M014",
+  "projectPath": "/Users/zuevrs/Projects/yanote/.gsd/worktrees/M014",
+  "gsdVersion": "2.50.0",
   "entries": [
     {
       "filename": "M011-2026-03-25T20-05-05.html",
@@ -49,6 +49,22 @@
       "doneSlices": 46,
       "totalSlices": 51,
       "doneMilestones": 13,
+      "totalMilestones": 15,
+      "phase": "pre-planning"
+    },
+    {
+      "filename": "M014-2026-03-26T14-31-36.html",
+      "generatedAt": "2026-03-26T14:31:36.448Z",
+      "milestoneId": "M014",
+      "milestoneTitle": "M014: AsyncAPI Semantic Breadth Within Kafka-First Boundaries",
+      "label": "M014: M014: AsyncAPI Semantic Breadth Within Kafka-First Boundaries",
+      "kind": "milestone",
+      "totalCost": 49.469325000000005,
+      "totalTokens": 92934537,
+      "totalDuration": 17221713,
+      "doneSlices": 50,
+      "totalSlices": 55,
+      "doneMilestones": 14,
       "totalMilestones": 15,
       "phase": "pre-planning"
     }

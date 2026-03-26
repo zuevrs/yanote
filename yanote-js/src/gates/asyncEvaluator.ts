@@ -3,6 +3,10 @@ import {
   type AsyncCoverageDiagnostic,
   type AsyncCoverageResult
 } from "../coverage/asyncCoverage.js";
+import {
+  compareRuntimeSemanticDiagnostics,
+  type AsyncRuntimeSemanticDiagnostic
+} from "../coverage/asyncSemanticConformance.js";
 import type { GovernanceFailure } from "./failureOrder.js";
 import type { GatePolicy } from "./policy.js";
 
@@ -143,7 +147,192 @@ export function evaluateAsyncGateFailures(input: {
 }
 
 function evaluateAsyncSemanticFailures(coverage: AsyncCoverageResult): GovernanceFailure[] {
-  return [...coverage.diagnostics].sort(compareAsyncCoverageDiagnostics).map((diagnostic) => toSemanticFailure(diagnostic));
+  const runtimeFailures = [...coverage.runtimeSemantics.diagnostics]
+    .sort(compareRuntimeSemanticDiagnostics)
+    .map((diagnostic) => toRuntimeSemanticFailure(diagnostic));
+  const coverageFailures = [...coverage.diagnostics].sort(compareAsyncCoverageDiagnostics).map((diagnostic) => toSemanticFailure(diagnostic));
+
+  return [...runtimeFailures, ...coverageFailures];
+}
+
+function toRuntimeSemanticFailure(diagnostic: AsyncRuntimeSemanticDiagnostic): GovernanceFailure {
+  const operationKey = normalizeOperationKey(diagnostic.operationKey);
+  const semantic = normalizeRuntimeSemantic(diagnostic.semantic);
+  const state = normalizeRuntimeState(diagnostic.state);
+  const location = normalizeOptionalText(diagnostic.location);
+  const messageName = normalizeOptionalText(diagnostic.messageName);
+  const replyChannelAddress = normalizeOptionalText(diagnostic.replyChannelAddress);
+  const reason = normalizeOptionalText(diagnostic.reason);
+
+  if (!operationKey || !semantic || !state || !location || !reason) {
+    return buildRuntimeSemanticFailClosedFailure(diagnostic, operationKey);
+  }
+
+  const context = formatRuntimeSemanticContext({
+    operationKey,
+    semantic,
+    location,
+    messageName,
+    replyChannelAddress
+  });
+
+  switch (`${semantic}:${state}`) {
+    case "correlationId:missing":
+      return {
+        failureClass: "semantic",
+        code: "ASYNC_SEMANTIC_CORRELATION_ID_MISSING",
+        reason: `${context} is missing retained header-backed runtime proof: ${reason}`,
+        hint: "Retain the declared Kafka header needed for AsyncAPI correlationId runtime proof or remove the header-backed declaration intentionally.",
+        exitCode: 5,
+        severity: "error",
+        operationKey
+      };
+    case "correlationId:unavailable":
+      return {
+        failureClass: "semantic",
+        code: "ASYNC_SEMANTIC_CORRELATION_ID_UNAVAILABLE",
+        reason: `${context} could not be proven from retained header evidence: ${reason}`,
+        hint: "Adjust Kafka header retention or redaction so AsyncAPI correlationId proof stays available, or stop relying on it intentionally.",
+        exitCode: 5,
+        severity: "error",
+        operationKey
+      };
+    case "correlationId:unsupported":
+      return {
+        failureClass: "semantic",
+        code: "ASYNC_SEMANTIC_CORRELATION_ID_UNSUPPORTED",
+        reason: `${context} is outside the supported runtime-proof subset: ${reason}`,
+        hint: "Keep AsyncAPI correlationId declarations within the supported $message.header#/... subset before relying on runtime proof.",
+        exitCode: 5,
+        severity: "error",
+        operationKey
+      };
+    case "reply.address:missing":
+      return {
+        failureClass: "semantic",
+        code: "ASYNC_SEMANTIC_REPLY_ADDRESS_MISSING",
+        reason: `${context} is missing retained header-backed runtime proof: ${reason}`,
+        hint: "Retain the declared Kafka reply header needed for AsyncAPI reply.address runtime proof or remove the declaration intentionally.",
+        exitCode: 5,
+        severity: "error",
+        operationKey
+      };
+    case "reply.address:unavailable":
+      return {
+        failureClass: "semantic",
+        code: "ASYNC_SEMANTIC_REPLY_ADDRESS_UNAVAILABLE",
+        reason: `${context} could not be proven from retained header evidence: ${reason}`,
+        hint: "Adjust Kafka reply-header retention or redaction so AsyncAPI reply.address proof stays available, or stop relying on it intentionally.",
+        exitCode: 5,
+        severity: "error",
+        operationKey
+      };
+    case "reply.address:unsupported":
+      return {
+        failureClass: "semantic",
+        code: "ASYNC_SEMANTIC_REPLY_ADDRESS_UNSUPPORTED",
+        reason: `${context} is outside the supported runtime-proof subset: ${reason}`,
+        hint: "Keep AsyncAPI reply.address declarations within the supported $message.header#/... subset before relying on runtime proof.",
+        exitCode: 5,
+        severity: "error",
+        operationKey
+      };
+    case "reply.address:mismatched":
+      return {
+        failureClass: "semantic",
+        code: "ASYNC_SEMANTIC_REPLY_ADDRESS_MISMATCH",
+        reason: `${context} contradicted retained header evidence: ${reason}`,
+        hint: "Emit the declared AsyncAPI reply channel address in retained Kafka header evidence or update the AsyncAPI reply contract intentionally.",
+        exitCode: 5,
+        severity: "error",
+        operationKey
+      };
+    default:
+      return buildRuntimeSemanticFailClosedFailure(diagnostic, operationKey);
+  }
+}
+
+function buildRuntimeSemanticFailClosedFailure(
+  diagnostic: Partial<AsyncRuntimeSemanticDiagnostic>,
+  operationKey: string | undefined
+): GovernanceFailure {
+  const fragments = [
+    normalizeOptionalText(diagnostic.semantic),
+    normalizeOptionalText(diagnostic.state),
+    normalizeOptionalText(diagnostic.location)
+  ].filter((value): value is string => value !== undefined);
+  const detail = fragments.length > 0 ? ` details=[${fragments.join(", ")}].` : "";
+
+  return {
+    failureClass: "semantic",
+    code: "ASYNC_SEMANTIC_RUNTIME_FAIL_CLOSED",
+    reason: `${formatRuntimeSemanticFallbackPrefix(operationKey)} could not be mapped safely.${detail}`,
+    hint: "Inspect async runtime semantic diagnostics and keep malformed or unknown runtime-proof outcomes fail-closed before relying on gate output.",
+    exitCode: 5,
+    severity: "error",
+    ...(operationKey ? { operationKey } : {})
+  };
+}
+
+function formatRuntimeSemanticContext(input: {
+  operationKey: string;
+  semantic: "correlationId" | "reply.address";
+  location: string;
+  messageName?: string;
+  replyChannelAddress?: string;
+}): string {
+  return [
+    `Async evidence ${input.operationKey}`,
+    input.semantic === "correlationId"
+      ? `could not prove declared correlationId${input.messageName ? ` for message ${input.messageName}` : ""}`
+      : `could not prove declared reply.address${
+          input.replyChannelAddress ? ` expected=${input.replyChannelAddress}` : ""
+        }`,
+    `at ${input.location}`
+  ].join(" ");
+}
+
+function formatRuntimeSemanticFallbackPrefix(operationKey: string | undefined): string {
+  return operationKey
+    ? `Async runtime semantic diagnostic for ${operationKey}`
+    : "Async runtime semantic diagnostic";
+}
+
+function normalizeRuntimeSemantic(value: AsyncRuntimeSemanticDiagnostic["semantic"] | undefined):
+  | "correlationId"
+  | "reply.address"
+  | undefined {
+  return value === "correlationId" || value === "reply.address" ? value : undefined;
+}
+
+function normalizeRuntimeState(value: AsyncRuntimeSemanticDiagnostic["state"] | undefined):
+  | "missing"
+  | "unavailable"
+  | "unsupported"
+  | "mismatched"
+  | undefined {
+  switch (value) {
+    case "missing":
+    case "unavailable":
+    case "unsupported":
+    case "mismatched":
+      return value;
+    default:
+      return undefined;
+  }
+}
+
+function normalizeOperationKey(value: string | undefined): string | undefined {
+  return normalizeOptionalText(value);
+}
+
+function normalizeOptionalText(value: string | undefined): string | undefined {
+  if (typeof value !== "string") {
+    return undefined;
+  }
+
+  const normalized = value.trim();
+  return normalized.length > 0 ? normalized : undefined;
 }
 
 function toSemanticFailure(diagnostic: AsyncCoverageDiagnostic): GovernanceFailure {

@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { serializeOperationKey } from "../model/operationKey.js";
-import { loadAsyncApiOperations, loadAsyncApiSemanticsBundle } from "./asyncapi.js";
+import { buildAsyncApiSemantics, loadAsyncApiOperations, loadAsyncApiSemanticsBundle } from "./asyncapi.js";
 
 describe("asyncapi contract", () => {
   it("serializes kafka identities without leaking message-contract metadata into the operation key", () => {
@@ -34,6 +34,287 @@ describe("asyncapi contract", () => {
         payloadSchemaId: "<anonymous-schema-1>",
         headerValidationCapability: "none",
         selectionHints: [{ kind: "message", value: "UserSignedUp" }]
+      },
+      messageSelection: {
+        mode: "single",
+        precedence: [{ kind: "message" }]
+      }
+    });
+  });
+
+  it("retains declared correlation and reply metadata beside the unchanged kafka identity", async () => {
+    const bundle = await loadAsyncApiSemanticsBundle("test/fixtures/asyncapi/trait-declarations-inline-v3.yaml");
+
+    expect(bundle.hasInvalid).toBe(false);
+    expect(bundle.diagnostics).toEqual([]);
+    expect(bundle.operations.map((operation) => serializeOperationKey(operation))).toEqual(["kafka send orders.command"]);
+    expect(bundle.operationContractsByKey.get("kafka send orders.command")).toEqual({
+      operation: {
+        kind: "kafka",
+        action: "send",
+        channel: "orders.command"
+      },
+      declaredReply: {
+        address: {
+          location: "$message.header#/reply_to"
+        }
+      },
+      message: {
+        name: "OrderCommand",
+        declaredCorrelationId: {
+          location: "$message.header#/correlation_id"
+        },
+        contentType: "application/json",
+        payloadSchema: {
+          type: "object",
+          "x-parser-schema-id": "<anonymous-schema-1>"
+        },
+        payloadSchemaId: "<anonymous-schema-1>",
+        headerValidationCapability: "none",
+        selectionHints: [{ kind: "message", value: "OrderCommand" }]
+      },
+      messageSelection: {
+        mode: "single",
+        precedence: [{ kind: "message" }]
+      }
+    });
+  });
+
+  it("retains resolved reply-channel address metadata beside the unchanged kafka identity", async () => {
+    const bundle = await loadAsyncApiSemanticsBundle("test/fixtures/asyncapi/header-runtime-inline-v3.yaml");
+
+    expect(bundle.hasInvalid).toBe(false);
+    expect(bundle.diagnostics).toEqual([]);
+    expect(bundle.operations.map((operation) => serializeOperationKey(operation))).toEqual(["kafka send orders.command"]);
+    expect(bundle.operationContractsByKey.get("kafka send orders.command")).toEqual({
+      operation: {
+        kind: "kafka",
+        action: "send",
+        channel: "orders.command"
+      },
+      declaredReply: {
+        address: {
+          location: "$message.header#/reply_to"
+        },
+        channel: {
+          address: "orders.reply"
+        }
+      },
+      message: {
+        name: "OrderCommand",
+        declaredCorrelationId: {
+          location: "$message.header#/correlation_id"
+        },
+        contentType: "application/json",
+        payloadSchema: {
+          type: "object",
+          "x-parser-schema-id": "<anonymous-schema-1>"
+        },
+        payloadSchemaId: "<anonymous-schema-1>",
+        headerValidationCapability: "none",
+        selectionHints: [{ kind: "message", value: "OrderCommand" }]
+      },
+      messageSelection: {
+        mode: "single",
+        precedence: [{ kind: "message" }]
+      }
+    });
+  });
+
+  it("retains supported-shape unsupported payload locations for later runtime fail-closed evaluation", async () => {
+    const bundle = await loadAsyncApiSemanticsBundle("test/fixtures/asyncapi/header-runtime-unsupported-v3.yaml");
+
+    expect(bundle.hasInvalid).toBe(false);
+    expect(bundle.diagnostics).toEqual([]);
+    expect(bundle.operations.map((operation) => serializeOperationKey(operation))).toEqual(["kafka send orders.command"]);
+    expect(bundle.operationContractsByKey.get("kafka send orders.command")).toEqual({
+      operation: {
+        kind: "kafka",
+        action: "send",
+        channel: "orders.command"
+      },
+      declaredReply: {
+        address: {
+          location: "$message.payload#/meta/reply_to"
+        },
+        channel: {
+          address: "orders.reply"
+        }
+      },
+      message: {
+        name: "OrderCommand",
+        declaredCorrelationId: {
+          location: "$message.payload#/meta/correlation_id"
+        },
+        contentType: "application/json",
+        payloadSchema: {
+          type: "object",
+          "x-parser-schema-id": "<anonymous-schema-1>"
+        },
+        payloadSchemaId: "<anonymous-schema-1>",
+        headerValidationCapability: "none",
+        selectionHints: [{ kind: "message", value: "OrderCommand" }]
+      },
+      messageSelection: {
+        mode: "single",
+        precedence: [{ kind: "message" }]
+      }
+    });
+  });
+
+  it("surfaces explicit invalid diagnostics for parser-surviving malformed declaration shells instead of silently retaining them", async () => {
+    const bundle = await loadAsyncApiSemanticsBundle("test/fixtures/asyncapi/header-runtime-malformed-v3.yaml");
+
+    expect(bundle.hasInvalid).toBe(true);
+    expect(bundle.operations.map((operation) => serializeOperationKey(operation))).toEqual(["kafka send orders.command"]);
+    expect(bundle.diagnostics).toEqual([
+      {
+        kind: "invalid",
+        message:
+          "AsyncAPI correlationId location must resolve to a non-empty $message.header#/... or $message.payload#/... path",
+        async: {
+          runtime: "kafka",
+          asyncapiVersion: "3.0.0",
+          protocol: "kafka",
+          action: "send",
+          channel: "orders.command",
+          message: "OrderCommand"
+        }
+      },
+      {
+        kind: "invalid",
+        message: "AsyncAPI reply.address location must resolve to a non-empty $message.header#/... or $message.payload#/... path",
+        async: {
+          runtime: "kafka",
+          asyncapiVersion: "3.0.0",
+          protocol: "kafka",
+          action: "send",
+          channel: "orders.command"
+        }
+      }
+    ]);
+    expect(bundle.operationContractsByKey.get("kafka send orders.command")).toEqual({
+      operation: {
+        kind: "kafka",
+        action: "send",
+        channel: "orders.command"
+      },
+      message: {
+        name: "OrderCommand",
+        contentType: "application/json",
+        payloadSchema: {
+          type: "object",
+          "x-parser-schema-id": "<anonymous-schema-1>"
+        },
+        payloadSchemaId: "<anonymous-schema-1>",
+        headerValidationCapability: "none",
+        selectionHints: [{ kind: "message", value: "OrderCommand" }]
+      },
+      messageSelection: {
+        mode: "single",
+        precedence: [{ kind: "message" }]
+      }
+    });
+  });
+
+  it("classifies raw malformed declaration shells as invalid instead of silently dropping them", () => {
+    const bundle = buildAsyncApiSemantics({
+      asyncapi: "3.0.0",
+      servers: {
+        kafkaLocal: {
+          protocol: "kafka"
+        }
+      },
+      channels: {
+        orderCommands: {
+          address: "orders.command"
+        }
+      },
+      operations: {
+        sendOrderCommand: {
+          action: "send",
+          channel: "orders.command",
+          reply: {},
+          messages: [
+            {
+              name: "OrderCommand",
+              correlationId: "nope"
+            }
+          ]
+        }
+      }
+    });
+
+    expect(bundle.hasInvalid).toBe(true);
+    expect(bundle.operations.map((operation) => serializeOperationKey(operation))).toEqual(["kafka send orders.command"]);
+    expect(bundle.diagnostics).toEqual([
+      {
+        kind: "invalid",
+        message: "AsyncAPI correlationId declaration must be an object with a non-empty runtime-expression path",
+        async: {
+          runtime: "kafka",
+          asyncapiVersion: "3.0.0",
+          protocol: "kafka",
+          action: "send",
+          channel: "orders.command",
+          message: "OrderCommand"
+        }
+      },
+      {
+        kind: "invalid",
+        message: "AsyncAPI reply declaration must include reply.address.location",
+        async: {
+          runtime: "kafka",
+          asyncapiVersion: "3.0.0",
+          protocol: "kafka",
+          action: "send",
+          channel: "orders.command"
+        }
+      }
+    ]);
+    expect(bundle.operationContractsByKey.get("kafka send orders.command")).toEqual({
+      operation: {
+        kind: "kafka",
+        action: "send",
+        channel: "orders.command"
+      },
+      message: {
+        name: "OrderCommand",
+        headerValidationCapability: "none",
+        selectionHints: [{ kind: "message", value: "OrderCommand" }]
+      },
+      messageSelection: {
+        mode: "single",
+        precedence: [{ kind: "message" }]
+      }
+    });
+  });
+
+  it("retains parser-merged trait declarations as additive metadata instead of leaking trait blobs", async () => {
+    const bundle = await loadAsyncApiSemanticsBundle("test/fixtures/asyncapi/trait-declarations-trait-v2.yaml");
+
+    expect(bundle.hasInvalid).toBe(false);
+    expect(bundle.diagnostics).toEqual([]);
+    expect(bundle.operations.map((operation) => serializeOperationKey(operation))).toEqual(["kafka send orders.command"]);
+    expect(bundle.operationContractsByKey.get("kafka send orders.command")).toEqual({
+      operation: {
+        kind: "kafka",
+        action: "send",
+        channel: "orders.command"
+      },
+      message: {
+        name: "OrderCommand",
+        declaredCorrelationId: {
+          location: "$message.header#/correlation_id"
+        },
+        contentType: "application/json",
+        payloadSchema: {
+          type: "object",
+          "x-parser-schema-id": "<anonymous-schema-1>"
+        },
+        payloadSchemaId: "<anonymous-schema-1>",
+        headerValidationCapability: "none",
+        selectionHints: [{ kind: "message", value: "OrderCommand" }]
       },
       messageSelection: {
         mode: "single",

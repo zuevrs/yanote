@@ -1,0 +1,2 @@
+{"kind":"kafka","ts":1710002001000,"action":"send","channel":"orders.command","message":"OrderCommand","payload":{"orderId":"ord-1"},"test.run_id":"run-bindings","test.suite":"suite-bindings"}
+{"kind":"kafka","ts":1710002002000,"action":"receive","channel":"orders.consumer","message":"OrderConsumerEvent","payload":{"consumerId":"cons-1"},"test.run_id":"run-bindings","test.suite":"suite-bindings"}

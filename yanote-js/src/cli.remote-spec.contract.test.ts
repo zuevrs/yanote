@@ -16,8 +16,7 @@ type CommandCase = {
   assertArtifact: (artifact: any) => void;
 };
 
-const ASYNC_EVENTS =
-  '{"kind":"kafka","action":"send","channel":"users.signedup","message":"UserSignedUp","test.run_id":"run-remote","test.suite":"suite-remote"}\n';
+const ASYNC_EVENTS = await readFile("test/fixtures/async-events/kafka-bindings.fixture.jsonl", "utf8");
 
 const COMMAND_CASES: CommandCase[] = [
   {
@@ -43,7 +42,7 @@ const COMMAND_CASES: CommandCase[] = [
   {
     label: "async-report",
     command: "async-report",
-    specFixturePath: "test/fixtures/asyncapi/v3.yaml",
+    specFixturePath: "test/fixtures/asyncapi/kafka-bindings-matrix-v3.yaml",
     localFileName: "asyncapi.yaml",
     reportFileName: "yanote-async-report.json",
     summaryToken: "YANOTE_ASYNC_SUMMARY",
@@ -51,6 +50,188 @@ const COMMAND_CASES: CommandCase[] = [
     assertArtifact: (artifact) => {
       expect(artifact.summary.totalOperations).toBeGreaterThan(0);
       expect(artifact.summary.totalChannels).toBeGreaterThan(0);
+      expect(artifact.bindingSupport).toEqual({
+        summary: {
+          totalOperations: 3,
+          totalBindings: 18,
+          supportedBindings: 1,
+          declaredOnlyBindings: 6,
+          deferredBindings: 11,
+          invalidBindings: 0
+        },
+        operations: [
+          {
+            operationKey: "kafka receive orders.consumer",
+            channel: "orders.consumer",
+            action: "receive",
+            bindings: [
+              {
+                scope: "operation",
+                field: "groupId",
+                status: "declared-only",
+                source: "operation.bindings.kafka.groupId"
+              },
+              {
+                scope: "operation",
+                field: "clientId",
+                status: "declared-only",
+                source: "operation.bindings.kafka.clientId"
+              },
+              {
+                scope: "message",
+                messageName: "OrderConsumerEvent",
+                field: "key",
+                status: "declared-only",
+                source: "message.bindings.kafka.key"
+              }
+            ]
+          },
+          {
+            operationKey: "kafka send orders.command",
+            channel: "orders.command",
+            action: "send",
+            bindings: [
+              {
+                scope: "channel",
+                field: "topic",
+                status: "supported",
+                source: "channel.bindings.kafka.topic",
+                value: "orders.actual"
+              },
+              {
+                scope: "channel",
+                field: "partitions",
+                status: "deferred",
+                source: "channel.bindings.kafka.partitions"
+              },
+              {
+                scope: "channel",
+                field: "replicas",
+                status: "deferred",
+                source: "channel.bindings.kafka.replicas"
+              },
+              {
+                scope: "channel",
+                field: "topicConfiguration",
+                status: "deferred",
+                source: "channel.bindings.kafka.topicConfiguration"
+              },
+              {
+                scope: "operation",
+                field: "groupId",
+                status: "declared-only",
+                source: "operation.bindings.kafka.groupId"
+              },
+              {
+                scope: "operation",
+                field: "clientId",
+                status: "declared-only",
+                source: "operation.bindings.kafka.clientId"
+              },
+              {
+                scope: "message",
+                messageName: "OrderCommand",
+                field: "key",
+                status: "declared-only",
+                source: "message.bindings.kafka.key"
+              },
+              {
+                scope: "message",
+                messageName: "OrderCommand",
+                field: "schemaIdLocation",
+                status: "deferred",
+                source: "message.bindings.kafka.schemaIdLocation"
+              },
+              {
+                scope: "message",
+                messageName: "OrderCommand",
+                field: "schemaLookupStrategy",
+                status: "deferred",
+                source: "message.bindings.kafka.schemaLookupStrategy"
+              }
+            ]
+          },
+          {
+            operationKey: "kafka send users.lifecycle",
+            channel: "users.lifecycle",
+            action: "send",
+            bindings: [
+              {
+                scope: "message",
+                messageName: "UserLifecycleEvent",
+                field: "schemaIdLocation",
+                status: "deferred",
+                source: "message.bindings.kafka.schemaIdLocation"
+              },
+              {
+                scope: "message",
+                messageName: "UserLifecycleEvent",
+                field: "schemaIdLocation",
+                status: "deferred",
+                source: "message.bindings.kafka.schemaIdLocation"
+              },
+              {
+                scope: "message",
+                messageName: "UserLifecycleEvent",
+                field: "schemaIdPayloadEncoding",
+                status: "deferred",
+                source: "message.bindings.kafka.schemaIdPayloadEncoding"
+              },
+              {
+                scope: "message",
+                messageName: "UserLifecycleEvent",
+                field: "schemaIdPayloadEncoding",
+                status: "deferred",
+                source: "message.bindings.kafka.schemaIdPayloadEncoding"
+              },
+              {
+                scope: "message",
+                messageName: "UserLifecycleEvent",
+                field: "schemaLookupStrategy",
+                status: "deferred",
+                source: "message.bindings.kafka.schemaLookupStrategy"
+              },
+              {
+                scope: "message",
+                messageName: "UserLifecycleEvent",
+                field: "schemaLookupStrategy",
+                status: "deferred",
+                source: "message.bindings.kafka.schemaLookupStrategy"
+              }
+            ]
+          }
+        ]
+      });
+      expect(artifact.declaredSemantics).toEqual({
+        summary: {
+          totalOperations: 0,
+          operationsWithCorrelationId: 0,
+          messageCorrelationIds: 0,
+          operationsWithReply: 0
+        },
+        operations: []
+      });
+      expect(artifact.runtimeSemantics).toEqual({
+        summary: {
+          totalOperations: 0,
+          satisfiedOperations: 0,
+          unsatisfiedOperations: 0,
+          totalSemantics: 0,
+          satisfiedSemantics: 0,
+          unsatisfiedSemantics: 0,
+          semanticCoveragePercent: null
+        },
+        operations: [],
+        diagnostics: {
+          counts: {
+            missing: 0,
+            unavailable: 0,
+            unsupported: 0,
+            mismatched: 0
+          },
+          items: []
+        }
+      });
     }
   }
 ];
@@ -109,8 +290,55 @@ describe("cli remote spec contract", () => {
           expect(result.stdout).toContain("deprecated_covered=0");
           expect(result.stdout).toContain("deprecated_uncovered=0");
         } else {
+          expect(result.stdout).toContain("Kafka Binding Support");
+          expect(result.stdout).toContain("- operations with bindings: 3");
+          expect(result.stdout).toContain("- total bindings: 18");
+          expect(result.stdout).toContain("- supported bindings: 1");
+          expect(result.stdout).toContain("- declared-only bindings: 6");
+          expect(result.stdout).toContain("- deferred bindings: 11");
+          expect(result.stdout).toContain("- invalid bindings: 0");
+          expect(result.stdout).toContain(
+            "- kafka send orders.command: supported=channel.topic=orders.actual [source=channel.bindings.kafka.topic]"
+          );
+          expect(result.stdout).toContain(
+            "declared-only=operation.groupId [source=operation.bindings.kafka.groupId], operation.clientId [source=operation.bindings.kafka.clientId], message.OrderCommand.key [source=message.bindings.kafka.key]"
+          );
+          expect(result.stdout).toContain(
+            "deferred=channel.partitions [source=channel.bindings.kafka.partitions], channel.replicas [source=channel.bindings.kafka.replicas], channel.topicConfiguration [source=channel.bindings.kafka.topicConfiguration]"
+          );
+          expect(result.stdout).toContain("Declared Semantics");
+          expect(result.stdout).toContain("- operations with declarations: 0");
+          expect(result.stdout).toContain("- details: none");
+          expect(result.stdout).toContain("Runtime Semantics");
+          expect(result.stdout).toContain("- operations with runtime semantics: 0");
+          expect(result.stdout).toContain("- satisfied operations: 0");
+          expect(result.stdout).toContain("- unsatisfied operations: 0");
+          expect(result.stdout).toContain("- declared semantics: 0");
+          expect(result.stdout).toContain("- satisfied semantics: 0");
+          expect(result.stdout).toContain("- unsatisfied semantics: 0");
+          expect(result.stdout).toContain("- runtime proof coverage: N/A");
+          expect(result.stdout).toContain("- diagnostics: missing=0 unavailable=0 unsupported=0 mismatched=0");
+          expect(result.stdout).toContain("binding_operations=3");
+          expect(result.stdout).toContain("binding_total=18");
+          expect(result.stdout).toContain("binding_supported=1");
+          expect(result.stdout).toContain("binding_declared_only=6");
+          expect(result.stdout).toContain("binding_deferred=11");
+          expect(result.stdout).toContain("binding_invalid=0");
+          expect(result.stdout).toContain("declared_operations=0");
+          expect(result.stdout).toContain("declared_correlation_operations=0");
+          expect(result.stdout).toContain("declared_correlation_messages=0");
+          expect(result.stdout).toContain("declared_reply_operations=0");
+          expect(result.stdout).toContain("runtime_operations=0");
+          expect(result.stdout).toContain("runtime_satisfied_operations=0");
+          expect(result.stdout).toContain("runtime_unsatisfied_operations=0");
+          expect(result.stdout).toContain("runtime_total_semantics=0");
+          expect(result.stdout).toContain("runtime_satisfied_semantics=0");
+          expect(result.stdout).toContain("runtime_unsatisfied_semantics=0");
+          expect(result.stdout).toContain("runtime_semantic_coverage=NA");
+          expect(result.stdout).toContain("runtime_diagnostics=missing:0,unavailable:0,unsupported:0,mismatched:0");
           expect(result.stdout).not.toContain("- deprecated operations:");
           expect(result.stdout).not.toContain("deprecated_operations=");
+          expect(result.stdout).not.toContain("corr-123");
         }
 
         const artifact = JSON.parse(await readFile(path.join(outDir, commandCase.reportFileName), "utf8"));
