@@ -1,8 +1,10 @@
 # Канонический путь: запуск analyzer и чтение HTTP coverage/conformance
 
-Это основной и проверенный HTTP/OpenAPI путь для `yanote`: соберите `yanote-js` из исходников этого репозитория, запустите `report`, прочитайте `Summary`, `HTTP Payload Conformance`, `HTTP Request Conformance`, `HTTP Security Conformance`, финальную строку `YANOTE_SUMMARY ...`, а затем откройте `yanote-report.json`.
+Это основной и проверенный HTTP/OpenAPI путь для `yanote`: соберите `yanote-js` из исходников этого репозитория, запустите `report`, прочитайте `Summary`, `HTTP Payload Conformance`, `HTTP Request Conformance`, `HTTP Security Conformance`, финальную строку `YANOTE_SUMMARY ...`, а затем откройте sibling-артефакты `yanote-report.json` и `yanote-report.html`.
 
 Если в вашем контуре нельзя выполнить `npm -C yanote-js ci && npm -C yanote-js run build`, offline fallback остаётся только через release assets GitHub Releases. Командная форма и структура отчёта у такого fallback те же; меняется только способ доставки CLI. Актуальные release/support границы и текущую release truth смотрите в [`docs/release-and-support.md`](../release-and-support.md).
+
+HTTP surface нужно читать local-first: stable baseline для `--spec` — локальный файл или директория со спецификацией. single-document `http(s)` URL поддерживается только как узкий opt-in remote path; persisted report surfaces, retained artifacts и GitHub summaries публикуют для него только sanitized `specSource`, без credentials/query/fragment provenance.
 
 Если вам нужен не HTTP/OpenAPI путь, а первая волна AsyncAPI/Kafka, не смешивайте этот guide с async semantics: отдельный onboarding вынесен в [`docs/guides/asyncapi-kafka.md`](asyncapi-kafka.md), где описаны Kafka evidence inputs, `async-report`, `YANOTE_ASYNC_SUMMARY` и `yanote-async-report.json`.
 
@@ -16,7 +18,7 @@ bash scripts/docs/verify-s02-analysis-path.sh
 
 Analyzer всегда ждёт три вещи:
 
-- `--spec` — OpenAPI-файл или директорию со спецификацией;
+- `--spec` — локальный OpenAPI-файл или директорию со спецификацией; single-document `http(s)` URL поддерживается только как узкий opt-in remote surface и в persisted surfaces остаётся в виде sanitized `specSource`;
 - `--events` — путь к собранному `events.jsonl`;
 - `--out` — директорию, куда будет записан отчёт.
 
@@ -46,9 +48,10 @@ node yanote-js/dist/yanote.cjs report \
   --out ./out
 ```
 
-Результат всегда пишется в стабильный файл:
+Результат всегда пишется в stable sibling-артефакты:
 
-- `./out/yanote-report.json`
+- `./out/yanote-report.json` — machine-readable contract surface;
+- `./out/yanote-report.html` — human-readable sibling surface.
 
 Проверенный repo-пример на реальных assets:
 
@@ -68,10 +71,12 @@ bash scripts/ci/run-v1-e2e.sh
 
 После него в `.yanote-ci/v1-e2e/` удерживаются такие публичные артефакты:
 
-- happy path: `.yanote-ci/v1-e2e/out/yanote-report.json`;
+- happy path: `.yanote-ci/v1-e2e/out/yanote-report.json` и `.yanote-ci/v1-e2e/out/yanote-report.html`;
 - retained request sidecar: `.yanote-ci/v1-e2e/request-semantics.events.jsonl`, `.yanote-ci/v1-e2e/request-semantics.stdout`, `.yanote-ci/v1-e2e/request-semantics.stderr`, `.yanote-ci/v1-e2e/request-semantics-yanote-report.json`;
 - retained payload semantic-red sidecar: `.yanote-ci/v1-e2e/semantic-red.stdout`, `.yanote-ci/v1-e2e/semantic-red.stderr`, `.yanote-ci/v1-e2e/semantic-red-yanote-report.json`;
 - retained security fixture sidecar: `.yanote-ci/v1-e2e/security-semantics.stdout`, `.yanote-ci/v1-e2e/security-semantics.stderr`, `.yanote-ci/v1-e2e/security-semantics-yanote-report.json`, плюс provenance в `artifact-manifest.txt` и `artifact-source-paths.txt`.
+
+В CI тот же HTTP delivery contract публикуется как `yanote-validation-artifacts`: GitHub step summary отдельно называет sanitized `specSource`, additive deprecated-operation counts и пару `yanote-report.json` / `yanote-report.html`, не смешивая HTTP surface ни с async artifacts, ни с dashboard wording.
 
 Если нужно не summary-level подтверждение, а более глубокая retained proof truth, запускайте точечные проверки:
 
@@ -95,11 +100,11 @@ bash scripts/ci/verify-m012-s02-security-semantics.sh
 
 Fail-closed semantic boundary по-прежнему уходит в `stderr` строками `YANOTE_ERROR ...`, но `yanote-report.json` при этом сохраняется для последующего разбора.
 
-### Summary и Coverage Dimensions
+### Summary, deprecated operations и Coverage Dimensions
 
-`Summary` и legacy numerators `coverage.operations/status/parameters/aggregate` отвечают только за observation coverage: были ли замечены операции, статусы и required parameters. Эти числа не эквивалентны полноте request/payload/security validation.
+`Summary`, секция `Deprecated operations`, HTML sibling `yanote-report.html` и legacy numerators `coverage.operations/status/parameters/aggregate` отвечают только за observation coverage плюс явную additive truth по deprecated operations: были ли замечены операции, статусы и required parameters, и сколько deprecated operations реально covered/uncovered. Эти числа не эквивалентны полноте request/payload/security validation.
 
-Важно читать это буквально: `httpSecurityConformance`, блок `HTTP Security Conformance`, security-токены `YANOTE_SUMMARY` и retained `security-semantics.*` sidecars — additive surfaces. Они не должны мутировать legacy `coverage.operations/status/parameters/aggregate` numerators и не добавляют отдельный security numerator внутрь `coverage.*`.
+Важно читать это буквально: `summary.deprecatedOperations`, `httpSecurityConformance`, блок `HTTP Security Conformance`, security-токены `YANOTE_SUMMARY` и retained `security-semantics.*` sidecars — additive surfaces. Они не должны мутировать legacy `coverage.operations/status/parameters/aggregate` numerators и не добавляют отдельный security numerator внутрь `coverage.*`.
 
 ### HTTP Payload Conformance
 
@@ -211,7 +216,7 @@ Security-токены `YANOTE_SUMMARY` тоже additive: ищите `security_d
 
 `bash scripts/ci/run-v1-e2e.sh` остаётся стандартным публичным proof entrypoint. Его нужно читать как bundle из четырёх truth-поверхностей:
 
-1. `.yanote-ci/v1-e2e/out/yanote-report.json` — зелёный happy path для observation coverage и supported payload path;
+1. `.yanote-ci/v1-e2e/out/yanote-report.json` + `.yanote-ci/v1-e2e/out/yanote-report.html` — зелёный happy path для observation coverage и supported payload path;
 2. `.yanote-ci/v1-e2e/request-semantics.*` — retained request subset proof поверх тех же live events;
 3. `.yanote-ci/v1-e2e/semantic-red.*` — retained payload fail-closed proof поверх тех же live events;
 4. `.yanote-ci/v1-e2e/security-semantics.*` — retained fixture-backed security proof с provenance в `artifact-manifest.txt` и `artifact-source-paths.txt`.
@@ -219,6 +224,7 @@ Security-токены `YANOTE_SUMMARY` тоже additive: ищите `security_d
 Это важно интерпретировать так:
 
 - observation coverage, request conformance, payload conformance и security conformance — разные поверхности;
+- `yanote-report.json` и `yanote-report.html` — sibling HTTP artifacts одной и той же normalized truth, а не начало combined/reporting dashboard surface;
 - полный `coverage.operations/status/parameters/aggregate` не отменяет request/payload/security semantic boundary;
 - request/payload/security sidecars публикуются additive, рядом с happy path, а не вместо него;
 - retained stdout/stderr/report артефакты redacted и не должны утекать raw Authorization/session/apiKey fixture values;

@@ -11,6 +11,13 @@ import { buildReport } from "./report.js";
 import { normalizeReport, roundCoverage } from "./normalize.js";
 import { REPORT_SCHEMA_VERSION, validateReport } from "./schema.js";
 
+function localFileSpecSource(reference: string) {
+  return {
+    kind: "local-file" as const,
+    reference
+  };
+}
+
 async function buildPayloadFixtureReport(eventsPath: string): Promise<YanoteReport> {
   const model = await loadOpenApiCoverageModel("test/fixtures/openapi/http-payload.yaml");
   const events = await readHttpEventsJsonl(eventsPath);
@@ -24,6 +31,30 @@ async function buildPayloadFixtureReport(eventsPath: string): Promise<YanoteRepo
 
   return buildReport(coverage, {
     toolVersion: "test",
+    specSource: localFileSpecSource("test/fixtures/openapi/http-payload.yaml"),
+    eventTimestamps: events.items
+      .map((event) => event.ts)
+      .filter((timestamp): timestamp is number => typeof timestamp === "number"),
+    payloadConformance
+  });
+}
+
+async function buildDeprecatedFixtureReport(): Promise<YanoteReport> {
+  const specPath = "test/fixtures/openapi/http-deprecated-operations.yaml";
+  const eventsPath = "test/fixtures/events/http-deprecated-operations.fixture.jsonl";
+  const model = await loadOpenApiCoverageModel(specPath);
+  const events = await readHttpEventsJsonl(eventsPath);
+
+  const coverage = computeCoverage(model.operations, events.items, [], {
+    operationContractsByKey: model.operationContractsByKey
+  });
+  const payloadConformance = computeHttpPayloadConformance(model.operations, events.items, {
+    operationContractsByKey: model.operationContractsByKey
+  });
+
+  return buildReport(coverage, {
+    toolVersion: "test",
+    specSource: localFileSpecSource(specPath),
     eventTimestamps: events.items
       .map((event) => event.ts)
       .filter((timestamp): timestamp is number => typeof timestamp === "number"),
@@ -45,6 +76,7 @@ async function buildFormatMediaFixtureReport(eventsPaths: string[]): Promise<Yan
 
   return buildReport(coverage, {
     toolVersion: "test",
+    specSource: localFileSpecSource("test/fixtures/openapi/http-payload-format-media.yaml"),
     eventTimestamps: items.map((event) => event.ts).filter((timestamp): timestamp is number => typeof timestamp === "number"),
     payloadConformance
   });
@@ -216,6 +248,7 @@ async function buildFullObservationPayloadTruthReport(
 
     return buildReport(coverage, {
       toolVersion: "test",
+      specSource: localFileSpecSource(specPath),
       eventTimestamps: events.items
         .map((event) => event.ts)
         .filter((timestamp): timestamp is number => typeof timestamp === "number"),
@@ -255,6 +288,7 @@ const baseReport: YanoteReport = {
   schemaVersion: REPORT_SCHEMA_VERSION,
   generatedAt: "1970-01-01T00:00:00.000Z",
   toolVersion: "test",
+  specSource: localFileSpecSource("test/fixtures/openapi/base.yaml"),
   phase: {
     id: "02",
     slug: "coverage-metrics-and-cli-reporting"
@@ -264,6 +298,12 @@ const baseReport: YanoteReport = {
     totalOperations: 1,
     coveredOperations: 1,
     operationCoveragePercent: 100,
+    deprecatedOperations: {
+      totalOperations: 0,
+      coveredOperations: 0,
+      uncoveredOperations: 0,
+      operationCoveragePercent: 0
+    },
     aggregateCoveragePercent: null,
     aggregateExplanation: "aggregate is N/A because weighted dimensions include N/A"
   },
@@ -277,6 +317,7 @@ const baseReport: YanoteReport = {
         operationKey: "http GET /users/{param}",
         method: "GET",
         route: "/users/{param}",
+        deprecated: false,
         operation: { state: "COVERED" },
         status: { state: "N/A", declared: [], covered: [], missing: [] },
         parameters: {
@@ -483,12 +524,43 @@ describe("report schema contract", () => {
     expect(validateReport(rightSchemaDifferentTool).ok).toBe(true);
   });
 
+  it("accepts additive deprecated summary truth without changing legacy coverage numerators or specSource", async () => {
+    const report = normalizeReport(await buildDeprecatedFixtureReport());
+
+    expect(validateReport(report).ok).toBe(true);
+    expect(report.specSource).toEqual({
+      kind: "local-file",
+      reference: "test/fixtures/openapi/http-deprecated-operations.yaml"
+    });
+    expect(report.summary.totalOperations).toBe(3);
+    expect(report.summary.coveredOperations).toBe(2);
+    expect(report.summary.operationCoveragePercent).toBe(66.67);
+    expect(report.summary.deprecatedOperations).toEqual({
+      totalOperations: 1,
+      coveredOperations: 0,
+      uncoveredOperations: 1,
+      operationCoveragePercent: 0
+    });
+    expect(report.coverage.operations).toEqual({ state: "PARTIAL", percent: 66.67 });
+    expect(report.coverage.perOperation.map((entry) => ({ operationKey: entry.operationKey, deprecated: entry.deprecated }))).toEqual([
+      { operationKey: "http GET /legacy-users", deprecated: true },
+      { operationKey: "http GET /users", deprecated: false },
+      { operationKey: "http POST /users", deprecated: false }
+    ]);
+  });
+
   it("normalizes ordering and rounds coverage values deterministically", () => {
     const normalized = normalizeReport({
       ...baseReport,
       summary: {
         ...baseReport.summary,
         operationCoveragePercent: 33.3333,
+        deprecatedOperations: {
+          totalOperations: 3,
+          coveredOperations: 2,
+          uncoveredOperations: 1,
+          operationCoveragePercent: 66.6666
+        },
         aggregateCoveragePercent: 16.6666
       },
       coverage: {
@@ -498,6 +570,7 @@ describe("report schema contract", () => {
             ...baseReport.coverage.perOperation[0],
             operationKey: "http GET /z",
             route: "/z",
+            deprecated: true,
             suites: ["suite-b", "suite-a"],
             status: { state: "PARTIAL", declared: ["404", "200"], covered: ["200"], missing: ["404"] }
           },
@@ -675,8 +748,10 @@ describe("report schema contract", () => {
     });
 
     expect(normalized.summary.operationCoveragePercent).toBe(roundCoverage(33.3333));
+    expect(normalized.summary.deprecatedOperations.operationCoveragePercent).toBe(roundCoverage(66.6666));
     expect(normalized.summary.aggregateCoveragePercent).toBe(roundCoverage(16.6666));
     expect(normalized.coverage.perOperation.map((entry) => entry.operationKey)).toEqual(["http GET /a", "http GET /z"]);
+    expect(normalized.coverage.perOperation.map((entry) => entry.deprecated)).toEqual([false, true]);
     expect(normalized.coverage.perOperation[1].suites).toEqual(["suite-a", "suite-b"]);
     expect(normalized.coverage.perOperation[1].status.declared).toEqual(["200", "404"]);
     expect(normalized.httpPayloadConformance.perOperation.map((entry) => entry.operationKey)).toEqual(["http GET /a", "http GET /z"]);
@@ -1307,6 +1382,7 @@ describe("report schema contract", () => {
       const report = normalizeReport(
         buildReport(coverage, {
           toolVersion: "test",
+          specSource: localFileSpecSource(specPath),
           eventTimestamps: events.items
             .map((event) => event.ts)
             .filter((timestamp): timestamp is number => typeof timestamp === "number"),

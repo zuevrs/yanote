@@ -149,4 +149,107 @@ describe("computeCoverage", () => {
       explanation: "aggregate is N/A because weighted dimensions include N/A"
     });
   });
+
+  it("threads deprecated operation truth onto per-operation coverage without shrinking the default denominator", async () => {
+    const model = await loadOpenApiCoverageModel("test/fixtures/openapi/http-deprecated-operations.yaml");
+    const events = (await readHttpEventsJsonl("test/fixtures/events/http-deprecated-operations.fixture.jsonl")).items;
+
+    const withoutDeprecatedContracts = new Map<string, HttpOperationContract>(
+      Array.from(model.operationContractsByKey.entries()).map(([key, contract]) => [
+        key,
+        {
+          declaredStatuses: [...contract.declaredStatuses],
+          parameters: [...contract.parameters],
+          requestParameters: contract.requestParameters ? [...contract.requestParameters] : undefined,
+          requestBody: contract.requestBody,
+          responseBodies: [...contract.responseBodies],
+          security: contract.security
+        }
+      ])
+    );
+
+    const withDeprecatedContracts = computeCoverage(model.operations, events, [], {
+      operationContractsByKey: model.operationContractsByKey
+    });
+    const withoutDeprecatedMetadata = computeCoverage(model.operations, events, [], {
+      operationContractsByKey: withoutDeprecatedContracts
+    });
+
+    expect(withDeprecatedContracts.coveredOperations).toEqual([
+      { kind: "http", method: "GET", route: "/users" },
+      { kind: "http", method: "POST", route: "/users" }
+    ]);
+    expect(withDeprecatedContracts.uncoveredOperations).toEqual([{ kind: "http", method: "GET", route: "/legacy-users" }]);
+    expect(withDeprecatedContracts.dimensions.operations).toEqual({ state: "PARTIAL", percent: 66.67 });
+    expect(withDeprecatedContracts.dimensions.status).toEqual({ state: "PARTIAL", percent: 66.67 });
+    expect(withDeprecatedContracts.dimensions.parameters).toEqual({ state: "N/A", percent: null });
+    expect(withDeprecatedContracts.dimensions.aggregate).toEqual({
+      state: "N/A",
+      percent: null,
+      explanation: "aggregate is N/A because weighted dimensions include N/A"
+    });
+    expect(withDeprecatedContracts.perOperation).toMatchObject([
+      {
+        operationKey: "http GET /users",
+        method: "GET",
+        route: "/users",
+        deprecated: false,
+        operation: { state: "COVERED" },
+        status: {
+          state: "COVERED",
+          declaredStatuses: ["200"],
+          coveredStatuses: ["200"],
+          missingStatuses: []
+        },
+        parameters: {
+          state: "N/A",
+          required: { covered: 0, total: 0, missing: [] },
+          optional: { covered: 0, total: 0, missing: [] }
+        },
+        suites: ["suite-users-read"]
+      },
+      {
+        operationKey: "http POST /users",
+        method: "POST",
+        route: "/users",
+        deprecated: false,
+        operation: { state: "COVERED" },
+        status: {
+          state: "COVERED",
+          declaredStatuses: ["201"],
+          coveredStatuses: ["201"],
+          missingStatuses: []
+        },
+        parameters: {
+          state: "N/A",
+          required: { covered: 0, total: 0, missing: [] },
+          optional: { covered: 0, total: 0, missing: [] }
+        },
+        suites: ["suite-users-create"]
+      },
+      {
+        operationKey: "http GET /legacy-users",
+        method: "GET",
+        route: "/legacy-users",
+        deprecated: true,
+        operation: { state: "UNCOVERED" },
+        status: {
+          state: "UNCOVERED",
+          declaredStatuses: ["200"],
+          coveredStatuses: [],
+          missingStatuses: ["200"]
+        },
+        parameters: {
+          state: "N/A",
+          required: { covered: 0, total: 0, missing: [] },
+          optional: { covered: 0, total: 0, missing: [] }
+        },
+        suites: []
+      }
+    ]);
+    expect(
+      withDeprecatedContracts.perOperation.map(({ deprecated, ...entry }) => entry)
+    ).toEqual(withoutDeprecatedMetadata.perOperation.map(({ deprecated: _deprecated, ...entry }) => entry));
+    expect(withoutDeprecatedMetadata.dimensions).toEqual(withDeprecatedContracts.dimensions);
+  });
 });

@@ -1,8 +1,8 @@
 # Канонический путь: AsyncAPI + Kafka через `async-report`
 
-Это отдельный guide-level путь для первой волны async coverage в Yanote. Он не заменяет HTTP/OpenAPI guide: для HTTP используйте [`docs/guides/analyzer-coverage.md`](analyzer-coverage.md), а здесь описана только связка **AsyncAPI + Kafka evidence → `node yanote-js/dist/yanote.cjs async-report` → `yanote-async-report.json`**.
+Это отдельный guide-level путь для первой волны async coverage в Yanote. Он не заменяет HTTP/OpenAPI guide: для HTTP используйте [`docs/guides/analyzer-coverage.md`](analyzer-coverage.md), а здесь описана только связка **AsyncAPI + Kafka evidence → `node yanote-js/dist/yanote.cjs async-report` → `yanote-async-report.json` + `yanote-async-report.html`**.
 
-Главное правило этого guide простое: не смешивайте HTTP `report` / `yanote-report.json` и async `async-report` / `yanote-async-report.json` в один размытый onboarding. У этих поверхностей разные входы, разные summary-строки и отдельные gate-ожидания.
+Главное правило этого guide простое: не смешивайте HTTP `report` / `yanote-report.json` / `yanote-report.html` и async `async-report` / `yanote-async-report.json` / `yanote-async-report.html` в один размытый onboarding. У этих поверхностей разные входы, разные summary-строки и отдельные gate-ожидания.
 
 ## 1. Что поддерживается в первой волне
 
@@ -12,8 +12,8 @@
 - Kafka evidence как реальный источник наблюдений;
 - source-built CLI из `yanote-js` с командой `async-report`;
 - поддержанные входы: `raw` или `merged` async JSONL с Kafka evidence (`kind: "kafka"`, `action: "send" | "receive"`, `channel`, `message`);
-- канонический happy-path bundle из `bash scripts/ci/verify-m004-s03-live-kafka-proof.sh`: `async-report.stdout`, `async-report.stderr`, `yanote-async-report.json`;
-- retained schema-failure bundle из того же proof path: `schema-failure-async-report.stdout`, `schema-failure-async-report.stderr`, `schema-failure-yanote-async-report.json`.
+- канонический happy-path bundle из `bash scripts/ci/verify-m004-s03-live-kafka-proof.sh`: `async-report.stdout`, `async-report.stderr`, `yanote-async-report.json`, `yanote-async-report.html`;
+- retained schema-failure bundle из того же proof path: `schema-failure-async-report.stdout`, `schema-failure-async-report.stderr`, `schema-failure-yanote-async-report.json`, `schema-failure-yanote-async-report.html`.
 
 Если вам нужен user-facing путь, который уже доказан live-proof скриптами из репозитория, считайте поддержанным именно этот маршрут, а не абстрактный «любой AsyncAPI в любом брокере».
 
@@ -33,11 +33,11 @@ bash scripts/ci/verify-m004-s03-live-kafka-proof.sh
 
 После T02 второй proof-скрипт экспортирует в `.yanote-ci/live-kafka-proof/` три правдивые поверхности:
 
-- happy path: `async-report.stdout`, `async-report.stderr`, `yanote-async-report.json`;
-- runtime-selected multi-message sidecar: `runtime-selected-async-report.stdout`, `runtime-selected-async-report.stderr`, `runtime-selected-yanote-async-report.json`;
-- intentional schema failure: `schema-failure-async-report.stdout`, `schema-failure-async-report.stderr`, `schema-failure-yanote-async-report.json`.
+- happy path: `async-report.stdout`, `async-report.stderr`, `yanote-async-report.json`, `yanote-async-report.html`;
+- runtime-selected multi-message sidecar: `runtime-selected-async-report.stdout`, `runtime-selected-async-report.stderr`, `runtime-selected-yanote-async-report.json`, `runtime-selected-yanote-async-report.html`;
+- intentional schema failure: `schema-failure-async-report.stdout`, `schema-failure-async-report.stderr`, `schema-failure-yanote-async-report.json`, `schema-failure-yanote-async-report.html`.
 
-Это и есть текущая публичная truth для proven Kafka path: зелёный прогон показывает канонический coverage bundle, retained runtime-selected sidecar показывает `selectionMode=runtime` и выбранные `declaredMessages` / `selectedMessages` для multi-message AsyncAPI contract, а retained red sidecar показывает typed `ASYNC_SEMANTIC_INVALID_PAYLOAD` и `diagnostics.counts.invalid-payload` для той же merged Kafka evidence.
+Это и есть текущая публичная truth для proven Kafka path: зелёный прогон показывает канонический coverage bundle и sibling human HTML, retained runtime-selected sidecar показывает `selectionMode=runtime` и выбранные `declaredMessages` / `selectedMessages` для multi-message AsyncAPI contract, а retained red sidecar показывает typed `ASYNC_SEMANTIC_INVALID_PAYLOAD` и `diagnostics.counts.invalid-payload` для той же merged Kafka evidence.
 
 Если эти proof-скрипты падают, сначала разбирайте их failure artifacts и `stderr`, а уже потом меняйте документацию или интеграцию.
 
@@ -94,9 +94,10 @@ node yanote-js/dist/yanote.cjs async-report \
   --min-coverage 100
 ```
 
-Результат всегда пишется в отдельный стабильный async-артефакт:
+Результат всегда пишется в отдельные stable async sibling-артефакты:
 
-- `./out/yanote-async-report.json`
+- `./out/yanote-async-report.json` — machine-readable async report path;
+- `./out/yanote-async-report.html` — human-readable sibling async surface.
 
 Что важно про поверхность команды:
 
@@ -130,10 +131,10 @@ YANOTE_ASYNC_ERROR class=gate code=ASYNC_GATE_MIN_COVERAGE ...
 Для CI и support surface самый удобный набор такой:
 
 - `YANOTE_ASYNC_SUMMARY ...` — быстрая grep-friendly строка;
-- `yanote-async-report.json` — стабильный machine-readable артефакт;
+- `yanote-async-report.json` и `yanote-async-report.html` — отдельная machine-facing и human-facing async family;
 - `stderr` analyzer-а или proof-скрипта — typed причина, если путь упал fail-closed;
-- для proven Kafka runtime-selection path — `runtime-selected-async-report.stderr` и `runtime-selected-yanote-async-report.json` из `.yanote-ci/live-kafka-proof/`, если нужно разобрать multi-message selection truth;
-- для proven Kafka schema-failure path — `schema-failure-async-report.stderr` и `schema-failure-yanote-async-report.json` из `.yanote-ci/live-kafka-proof/`.
+- для proven Kafka runtime-selection path — `runtime-selected-async-report.stderr`, `runtime-selected-yanote-async-report.json` и `runtime-selected-yanote-async-report.html` из `.yanote-ci/live-kafka-proof/`, если нужно разобрать multi-message selection truth;
+- для proven Kafka schema-failure path — `schema-failure-async-report.stderr`, `schema-failure-yanote-async-report.json` и `schema-failure-yanote-async-report.html` из `.yanote-ci/live-kafka-proof/`.
 
 Важно не переинтерпретировать async цифры: routing percentages remain routing-first. `channelCoveragePercent`, `operationCoveragePercent` и `messageCoveragePercent` показывают, что channel/operation/message wiring был наблюдён и сопоставлен, но не превращают зелёный happy path в обещание полной schema-keyword coverage.
 
@@ -156,7 +157,7 @@ Payload-schema drift surfaced on the proven Kafka path, но только в т�
 Из этого следуют два практических запрета:
 
 1. Не называйте текущий path «общим async analyzer для любого брокера».
-2. Не трактуйте `yanote-async-report.json`, `runtime-selected-*` bundle или `schema-failure-*` bundle как доказательство полной broker-agnostic или header-level schema validation.
+2. Не трактуйте `yanote-async-report.json`, `yanote-async-report.html`, `runtime-selected-*` bundle или `schema-failure-*` bundle как доказательство полной broker-agnostic, header-level schema validation, combined HTTP+async report surface или hosted dashboard.
 
 ## Связанные поверхности
 

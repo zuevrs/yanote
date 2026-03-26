@@ -38,6 +38,59 @@ function safeString(value, fallback = "unknown") {
   return fallback;
 }
 
+function sanitizeSpecSourceReference(value) {
+  const reference = safeString(value, "none");
+  if (reference === "none") {
+    return reference;
+  }
+
+  try {
+    const url = new URL(reference);
+    if (url.protocol === "http:" || url.protocol === "https:") {
+      url.username = "";
+      url.password = "";
+      url.search = "";
+      url.hash = "";
+      return url.toString();
+    }
+  } catch {
+    // Non-URL references should pass through unchanged.
+  }
+
+  return reference;
+}
+
+function formatSpecSource(report) {
+  const specSource = report?.specSource ?? {};
+  const kind = safeString(specSource.kind, "none");
+  const reference = sanitizeSpecSourceReference(specSource.reference);
+
+  if (reference === "none") {
+    return kind;
+  }
+
+  return `${kind} (${reference})`;
+}
+
+function formatDeprecatedOperations(report) {
+  const deprecated = report?.summary?.deprecatedOperations ?? {};
+  const totalOperations = Number(deprecated.totalOperations ?? 0);
+  const coveredOperations = Number(deprecated.coveredOperations ?? 0);
+  const uncoveredOperations = Number(deprecated.uncoveredOperations ?? 0);
+  const operationCoveragePercent = totalOperations > 0
+    ? Number(deprecated.operationCoveragePercent ?? 0)
+    : null;
+
+  return `covered=${coveredOperations}/${totalOperations} uncovered=${uncoveredOperations} (${formatPercent(operationCoveragePercent)})`;
+}
+
+function formatNamedArtifactStatuses(expectedArtifactNames, artifactNames) {
+  const presentArtifacts = new Set(artifactNames);
+  return expectedArtifactNames
+    .map((name) => `${name} (${presentArtifacts.has(name) ? "present" : "missing"})`)
+    .join(", ");
+}
+
 function parseKeyValuePayload(payload) {
   const parsed = {};
   const matcher = /([A-Za-z0-9_]+)=("[^"]*"|\S+)/g;
@@ -623,6 +676,9 @@ function renderHttpSummary({ report, reportPath, stderrText, artifactNames, maxI
   lines.push(`- aggregate: ${formatPercent(report.coverage?.aggregate?.percent)} (${safeString(report.coverage?.aggregate?.state, "N/A")})`);
   lines.push(`- status dimension: ${formatPercent(report.coverage?.status?.percent)} (${safeString(report.coverage?.status?.state, "N/A")})`);
   lines.push(`- parameters: ${formatPercent(report.coverage?.parameters?.percent)} (${safeString(report.coverage?.parameters?.state, "N/A")})`);
+  lines.push(`- spec source: ${formatSpecSource(report)}`);
+  lines.push(`- deprecated operations: ${formatDeprecatedOperations(report)}`);
+  lines.push(`- report artifacts: ${formatNamedArtifactStatuses(["yanote-report.json", "yanote-report.html"], artifactNames)}`);
   if (hasHttpSecuritySummary(report)) {
     lines.push(`- security observations: ${formatHttpSecurityObservationSummary(report)}`);
     lines.push(`- security truths: ${formatHttpSecurityTruthSummary(report)}`);
@@ -675,6 +731,18 @@ function renderAsyncSummary({ report, reportPath, stdoutText, stderrText, artifa
   lines.push(`- channels: ${metrics.channels.covered}/${metrics.channels.total} (${formatPercent(metrics.channels.percent)})`);
   lines.push(`- operations: ${metrics.operations.covered}/${metrics.operations.total} (${formatPercent(metrics.operations.percent)})`);
   lines.push(`- messages: ${metrics.messages.covered}/${metrics.messages.total} (${formatPercent(metrics.messages.percent)})`);
+  lines.push(`- spec source: ${formatSpecSource(report)}`);
+  lines.push(
+    `- report artifacts: ${formatNamedArtifactStatuses(["yanote-async-report.json", "yanote-async-report.html"], artifactNames)}`
+  );
+  lines.push(
+    `- retained async companions: ${formatNamedArtifactStatuses([
+      "runtime-selected-yanote-async-report.json",
+      "runtime-selected-yanote-async-report.html",
+      "schema-failure-yanote-async-report.json",
+      "schema-failure-yanote-async-report.html"
+    ], artifactNames)}`
+  );
   lines.push(`- primary failure: ${primaryFailure}`);
   lines.push(`- class counts: ${classCounts}`);
   lines.push(`- proof exit code: ${exitCode}`);

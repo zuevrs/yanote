@@ -88,11 +88,20 @@ const SCHEMA_DIAGNOSTIC_SCHEMA = {
 const ASYNC_REPORT_SCHEMA = {
   type: "object",
   additionalProperties: false,
-  required: ["schemaVersion", "generatedAt", "toolVersion", "phase", "status", "summary", "coverage", "diagnostics"],
+  required: ["schemaVersion", "generatedAt", "toolVersion", "specSource", "phase", "status", "summary", "coverage", "diagnostics"],
   properties: {
     schemaVersion: { const: ASYNC_REPORT_SCHEMA_VERSION },
     generatedAt: { type: "string", minLength: 1 },
     toolVersion: { type: "string", minLength: 1 },
+    specSource: {
+      type: "object",
+      additionalProperties: false,
+      required: ["kind", "reference"],
+      properties: {
+        kind: { enum: ["local-file", "local-directory", "remote-url"] },
+        reference: { type: "string", minLength: 1 }
+      }
+    },
     phase: {
       type: "object",
       additionalProperties: false,

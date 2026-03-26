@@ -69,11 +69,24 @@ test("v1 e2e script clears stale bundle paths before collecting fresh compose ar
   assert.match(source, /rm -rf "\$\{ARTIFACT_DIR\}\/out" "\$\{ARTIFACT_DIR\}\/events\.jsonl" "\$\{ARTIFACT_DIR\}\/compose\.log"/);
 });
 
-test("v1 e2e script retains the live compose events and canonical happy-path report bundle", async () => {
+test("v1 e2e script retains the live compose events and happy-path JSON+HTML report bundle", async () => {
   const source = await loadScriptSource();
+  assert.match(source, /HAPPY_PATH_REPORT_JSON_PATH="\$\{ARTIFACT_DIR\}\/out\/yanote-report\.json"/);
+  assert.match(source, /HAPPY_PATH_REPORT_HTML_PATH="\$\{ARTIFACT_DIR\}\/out\/yanote-report\.html"/);
   assert.match(source, /docker compose -f "\$\{COMPOSE_FILE\}" cp report:\/data\/yanote\/out "\$\{ARTIFACT_DIR\}\/out"/);
   assert.match(source, /docker compose -f "\$\{COMPOSE_FILE\}" cp report:\/data\/yanote\/events\.jsonl "\$\{ARTIFACT_DIR\}\/events\.jsonl"/);
   assert.match(source, /docker compose -f "\$\{COMPOSE_FILE\}" logs --no-color > "\$\{ARTIFACT_DIR\}\/compose\.log"/);
+});
+
+test("v1 e2e script extracts happy-path spec-source and deprecated-operation metadata from the retained HTTP report", async () => {
+  const source = await loadScriptSource();
+  assert.match(source, /extract_http_report_metadata\(\) \{/);
+  assert.match(source, /spec_source = report\.get\("specSource"\) or \{\}/);
+  assert.match(source, /deprecated = \(report\.get\("summary"\) or \{\}\)\.get\("deprecatedOperations"\) or \{\}/);
+  assert.match(source, /emit\("spec_source_kind", spec_source\.get\("kind", "none"\)\)/);
+  assert.match(source, /emit\("spec_source_ref", spec_source\.get\("reference", "none"\)\)/);
+  assert.match(source, /emit\("deprecated_total", deprecated\.get\("totalOperations", 0\)\)/);
+  assert.match(source, /emit\("deprecated_uncovered", deprecated\.get\("uncoveredOperations", 0\)\)/);
 });
 
 test("v1 e2e script reruns the analyzer locally against filtered retained request events with the request-evidence spec", async () => {
@@ -127,10 +140,16 @@ test("v1 e2e script reruns the analyzer locally against the retained events with
   assert.match(source, /cp "\$\{SEMANTIC_RED_OUT_DIR\}\/yanote-report\.json" "\$\{SEMANTIC_RED_REPORT_PATH\}"/);
 });
 
-test("v1 e2e script writes deterministic bundle manifest and source-path notes for retained green, request, security, and red artifacts", async () => {
+test("v1 e2e script writes deterministic bundle manifest and source-path notes for retained green JSON+HTML plus request, security, and red artifacts", async () => {
   const source = await loadScriptSource();
   assert.match(source, /SOURCE_PATHS_NOTE_NAME="artifact-source-paths\.txt"/);
   assert.match(source, /MANIFEST_NAME="artifact-manifest\.txt"/);
+  assert.match(source, /out\/yanote-report\.json=%s\\n' 'report:\/data\/yanote\/out\/yanote-report\.json'/);
+  assert.match(source, /out\/yanote-report\.html=%s\\n' 'report:\/data\/yanote\/out\/yanote-report\.html'/);
+  assert.match(source, /happy_path_spec_source_kind=%s\\n' "\$\{happy_path_spec_source_kind\}"/);
+  assert.match(source, /happy_path_spec_source_ref=%s\\n' "\$\{happy_path_spec_source_ref\}"/);
+  assert.match(source, /happy_path_deprecated_total=%s\\n' "\$\{happy_path_deprecated_total\}"/);
+  assert.match(source, /happy_path_report_html_found=%s\\n' "\$\{happy_path_report_html_found\}"/);
   assert.match(source, /request-semantics\.events\.jsonl/);
   assert.match(source, /request-semantics\.stdout/);
   assert.match(source, /request-semantics\.stderr/);
@@ -149,8 +168,6 @@ test("v1 e2e script writes deterministic bundle manifest and source-path notes f
   assert.match(source, /semantic-red\.stdout/);
   assert.match(source, /semantic-red\.stderr/);
   assert.match(source, /semantic-red-yanote-report\.json/);
-  assert.match(source, /out\/yanote-report\.json/);
-  assert.match(source, /events\.jsonl/);
   assert.match(source, /printf 'source_paths_note=%s\\n' "\$\{SOURCE_PATHS_NOTE_NAME\}"/);
 });
 

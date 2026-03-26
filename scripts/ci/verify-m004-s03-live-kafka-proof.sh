@@ -15,13 +15,16 @@ CONSUMER_EVENTS_PATH="${TMP_DIR}/02-consumer.events.jsonl"
 MERGED_EVENTS_PATH="${TMP_DIR}/merged-two-service.events.jsonl"
 OUT_DIR="${TMP_DIR}/async-report"
 ASYNC_REPORT_PATH="${OUT_DIR}/yanote-async-report.json"
+ASYNC_REPORT_HTML_PATH="${OUT_DIR}/yanote-async-report.html"
 RUNTIME_SELECTED_ASYNC_SPEC_PATH="${TMP_DIR}/runtime-selected-asyncapi.yaml"
 RUNTIME_SELECTED_OUT_DIR="${TMP_DIR}/runtime-selected-async-report"
 RUNTIME_SELECTED_ASYNC_STDOUT_PATH="${TMP_DIR}/runtime-selected-async-report.stdout"
 RUNTIME_SELECTED_ASYNC_STDERR_PATH="${TMP_DIR}/runtime-selected-async-report.stderr"
 RUNTIME_SELECTED_ASYNC_REPORT_PATH="${RUNTIME_SELECTED_OUT_DIR}/yanote-async-report.json"
+RUNTIME_SELECTED_ASYNC_REPORT_HTML_PATH="${RUNTIME_SELECTED_OUT_DIR}/yanote-async-report.html"
 SCHEMA_FAILURE_OUT_DIR="${TMP_DIR}/schema-failure-async-report"
 SCHEMA_FAILURE_ASYNC_REPORT_PATH="${SCHEMA_FAILURE_OUT_DIR}/yanote-async-report.json"
+SCHEMA_FAILURE_ASYNC_REPORT_HTML_PATH="${SCHEMA_FAILURE_OUT_DIR}/yanote-async-report.html"
 ASYNC_EXPORT_DIR="${YANOTE_ASYNC_EXPORT_DIR:-${ROOT_DIR}/.yanote-ci/live-kafka-proof}"
 KEEP_TEMP="false"
 SIMULATE_ANALYZER_FAILURE="false"
@@ -89,12 +92,15 @@ export_async_artifacts() {
     YANOTE_ASYNC_SOURCE_ASYNC_STDOUT="${ASYNC_STDOUT_PATH}" \
     YANOTE_ASYNC_SOURCE_ASYNC_STDERR="${ASYNC_STDERR_PATH}" \
     YANOTE_ASYNC_SOURCE_ASYNC_REPORT="${ASYNC_REPORT_PATH}" \
+    YANOTE_ASYNC_SOURCE_ASYNC_REPORT_HTML="${ASYNC_REPORT_HTML_PATH}" \
     YANOTE_ASYNC_SOURCE_RUNTIME_SELECTED_ASYNC_STDOUT="${RUNTIME_SELECTED_ASYNC_STDOUT_PATH}" \
     YANOTE_ASYNC_SOURCE_RUNTIME_SELECTED_ASYNC_STDERR="${RUNTIME_SELECTED_ASYNC_STDERR_PATH}" \
     YANOTE_ASYNC_SOURCE_RUNTIME_SELECTED_ASYNC_REPORT="${RUNTIME_SELECTED_ASYNC_REPORT_PATH}" \
+    YANOTE_ASYNC_SOURCE_RUNTIME_SELECTED_ASYNC_REPORT_HTML="${RUNTIME_SELECTED_ASYNC_REPORT_HTML_PATH}" \
     YANOTE_ASYNC_SOURCE_SCHEMA_FAILURE_ASYNC_STDOUT="${SCHEMA_FAILURE_ASYNC_STDOUT_PATH}" \
     YANOTE_ASYNC_SOURCE_SCHEMA_FAILURE_ASYNC_STDERR="${SCHEMA_FAILURE_ASYNC_STDERR_PATH}" \
     YANOTE_ASYNC_SOURCE_SCHEMA_FAILURE_ASYNC_REPORT="${SCHEMA_FAILURE_ASYNC_REPORT_PATH}" \
+    YANOTE_ASYNC_SOURCE_SCHEMA_FAILURE_ASYNC_REPORT_HTML="${SCHEMA_FAILURE_ASYNC_REPORT_HTML_PATH}" \
     bash scripts/ci/export-async-proof-artifacts.sh "${ASYNC_EXPORT_DIR}"
   ); then
     ARTIFACT_EXPORT_SUCCEEDED="true"
@@ -602,6 +608,9 @@ fi
 if [[ -s "${ASYNC_STDERR_PATH}" ]]; then
   fail "async-report unexpectedly wrote to stderr on the happy path."
 fi
+if [[ ! -f "${ASYNC_REPORT_HTML_PATH}" ]]; then
+  fail "async-report did not retain yanote-async-report.html on the happy path."
+fi
 if ! grep -q '^Summary$' "${ASYNC_STDOUT_PATH}"; then
   fail "async-report stdout is missing the Summary section."
 fi
@@ -691,6 +700,9 @@ fi
 
 if [[ -s "${RUNTIME_SELECTED_ASYNC_STDERR_PATH}" ]]; then
   fail "Runtime-selection async-report unexpectedly wrote to stderr."
+fi
+if [[ ! -f "${RUNTIME_SELECTED_ASYNC_REPORT_HTML_PATH}" ]]; then
+  fail "Runtime-selection async-report did not retain yanote-async-report.html."
 fi
 if ! grep -q '^Summary$' "${RUNTIME_SELECTED_ASYNC_STDOUT_PATH}"; then
   fail "Runtime-selection async-report stdout is missing the Summary section."
@@ -819,6 +831,9 @@ if ! grep -q 'ASYNC_SEMANTIC_INVALID_PAYLOAD' "${SCHEMA_FAILURE_ASYNC_STDERR_PAT
 fi
 if [[ ! -f "${SCHEMA_FAILURE_ASYNC_REPORT_PATH}" ]]; then
   fail "Intentional schema-failure async-report did not retain yanote-async-report.json."
+fi
+if [[ ! -f "${SCHEMA_FAILURE_ASYNC_REPORT_HTML_PATH}" ]]; then
+  fail "Intentional schema-failure async-report did not retain yanote-async-report.html."
 fi
 if ! grep -q '^YANOTE_ASYNC_SUMMARY ' "${SCHEMA_FAILURE_ASYNC_STDOUT_PATH}"; then
   fail "Intentional schema-failure stdout is missing the final YANOTE_ASYNC_SUMMARY line."

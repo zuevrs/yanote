@@ -1,4 +1,4 @@
-import { mkdtemp, rm, writeFile } from "node:fs/promises";
+import { mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
 import { describe, expect, it } from "vitest";
@@ -147,10 +147,25 @@ describe("cli async-report contract", () => {
       expect(machineIndex).toBeGreaterThan(pathIndex);
 
       const lines = output.trimEnd().split("\n");
-      expect(lines[lines.length - 1].startsWith("YANOTE_ASYNC_SUMMARY ")).toBe(true);
+      const summaryLine = lines[lines.length - 1];
+      const reportPath = path.join(fixture.outDir, "yanote-async-report.json");
+      const htmlPath = path.join(fixture.outDir, "yanote-async-report.html");
+      const html = await readFile(htmlPath, "utf8");
+      const reportPathSection = output.split("\nReport Path\n")[1]?.split("\n\nYANOTE_ASYNC_SUMMARY ")[0]?.trim();
+
+      expect(summaryLine.startsWith("YANOTE_ASYNC_SUMMARY ")).toBe(true);
       expect((output.match(/YANOTE_ASYNC_SUMMARY /g) ?? []).length).toBe(1);
       expect(output).toContain('primary_reason="none"');
+      expect(output).not.toContain("- deprecated operations:");
+      expect(output).not.toContain("deprecated_operations=");
       expect(output).not.toMatch(/\u001b\[[0-9;]*m/);
+      expect(reportPathSection).toBe(reportPath);
+      expect(summaryLine).toContain(`report=${reportPath}`);
+      expect(summaryLine).not.toContain("yanote-async-report.html");
+      expect(html).toContain("yanote-async-report.html");
+      expect(html).toContain("Channel coverage");
+      expect(html).not.toContain("HTTP Payload Conformance");
+      expect(html).not.toContain("Deprecated operations");
     } finally {
       await rm(fixture.dir, { recursive: true, force: true });
     }

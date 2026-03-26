@@ -87,11 +87,23 @@ describe("cli summary contract", () => {
       expect(machineIndex).toBeGreaterThan(pathIndex);
 
       const lines = output.trimEnd().split("\n");
-      expect(lines[lines.length - 1].startsWith("YANOTE_SUMMARY ")).toBe(true);
+      const summaryLine = lines[lines.length - 1];
+      const reportPath = path.join(fixture.outDir, "yanote-report.json");
+      const htmlPath = path.join(fixture.outDir, "yanote-report.html");
+      const html = await readFile(htmlPath, "utf8");
+      const reportPathSection = output.split("\nReport Path\n")[1]?.split("\n\nYANOTE_SUMMARY ")[0]?.trim();
+
+      expect(summaryLine.startsWith("YANOTE_SUMMARY ")).toBe(true);
       expect((output.match(/YANOTE_SUMMARY /g) ?? []).length).toBe(1);
       expect(output).toContain("- observations: operations=1 parameters=0");
       expect(output).toContain("- truths: captured-valid=0 captured-invalid=0 redacted=0 omitted=0 unsupported=0");
       expect(output).not.toMatch(/\u001b\[[0-9;]*m/);
+      expect(reportPathSection).toBe(reportPath);
+      expect(summaryLine).toContain(`report=${reportPath}`);
+      expect(summaryLine).not.toContain("yanote-report.html");
+      expect(html).toContain("yanote-report.html");
+      expect(html).toContain("HTTP payload conformance");
+      expect(html).not.toContain("Channel coverage");
     } finally {
       await rm(fixture.dir, { recursive: true, force: true });
     }
@@ -190,6 +202,40 @@ describe("cli summary contract", () => {
       expect(summaryLine).toContain("primary=none");
     } finally {
       await rm(fixture.dir, { recursive: true, force: true });
+    }
+  });
+
+  it("surfaces additive deprecated HTTP truth in the summary line, machine tokens, and Top Issues wording", async () => {
+    const outDir = await mkdtemp(path.join(os.tmpdir(), "yanote-cli-summary-deprecated-"));
+
+    try {
+      const result = await runCli([
+        "report",
+        "--spec",
+        "test/fixtures/openapi/http-deprecated-operations.yaml",
+        "--events",
+        "test/fixtures/events/http-deprecated-operations.fixture.jsonl",
+        "--out",
+        outDir,
+        "--profile",
+        "local"
+      ]);
+
+      expect(result.code).toBe(0);
+      expect(result.stderr).toBe("");
+      expect(result.stdout).toContain("- operations: 2/3 (66.67%)");
+      expect(result.stdout).toContain("- deprecated operations: covered=0/1 uncovered=1 (0.00%)");
+      expect(result.stdout).toContain("- low: http GET /legacy-users - deprecated operation is uncovered");
+
+      const summaryLine = result.stdout.trimEnd().split("\n").at(-1) ?? "";
+      expect(summaryLine).toContain("operations=66.67");
+      expect(summaryLine).toContain("covered=2/3");
+      expect(summaryLine).toContain("deprecated_operations=0.00");
+      expect(summaryLine).toContain("deprecated_total=1");
+      expect(summaryLine).toContain("deprecated_covered=0");
+      expect(summaryLine).toContain("deprecated_uncovered=1");
+    } finally {
+      await rm(outDir, { recursive: true, force: true });
     }
   });
 

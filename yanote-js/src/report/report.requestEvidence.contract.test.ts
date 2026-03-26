@@ -10,6 +10,13 @@ import { normalizeReport } from "./normalize.js";
 import { buildReport } from "./report.js";
 import { validateReport } from "./schema.js";
 
+function localFileSpecSource(reference: string) {
+  return {
+    kind: "local-file" as const,
+    reference
+  };
+}
+
 async function buildRequestEvidenceReport() {
   const dir = await mkdtemp(path.join(os.tmpdir(), "yanote-report-request-evidence-"));
   const specPath = path.join(dir, "openapi.yaml");
@@ -152,6 +159,7 @@ async function buildRequestEvidenceReport() {
     return normalizeReport(
       buildReport(coverage, {
         toolVersion: "test",
+        specSource: localFileSpecSource(specPath),
         eventTimestamps: events.items
           .map((event) => event.ts)
           .filter((timestamp): timestamp is number => typeof timestamp === "number"),
@@ -173,6 +181,15 @@ describe("report request evidence contract", () => {
     expect(report.coverage.status).toEqual({ state: "COVERED", percent: 100 });
     expect(report.coverage.parameters).toEqual({ state: "COVERED", percent: 100 });
     expect(report.summary.operationCoveragePercent).toBe(100);
+    expect(report.summary.deprecatedOperations).toEqual({
+      totalOperations: 0,
+      coveredOperations: 0,
+      uncoveredOperations: 0,
+      operationCoveragePercent: 0
+    });
+    expect(report.coverage.perOperation.map((entry) => ({ operationKey: entry.operationKey, deprecated: entry.deprecated }))).toEqual([
+      { operationKey: "http GET /evidence/users/{param}", deprecated: false }
+    ]);
     expect(report.httpRequestConformance.summary).toEqual({
       observedOperations: 1,
       observedParameters: 10,

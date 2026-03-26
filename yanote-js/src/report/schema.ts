@@ -9,6 +9,7 @@ const REPORT_SCHEMA = {
     "schemaVersion",
     "generatedAt",
     "toolVersion",
+    "specSource",
     "phase",
     "status",
     "summary",
@@ -23,6 +24,7 @@ const REPORT_SCHEMA = {
     schemaVersion: { const: REPORT_SCHEMA_VERSION },
     generatedAt: { type: "string", minLength: 1 },
     toolVersion: { type: "string", minLength: 1 },
+    specSource: { $ref: "#/$defs/specSourceProvenance" },
     phase: {
       type: "object",
       additionalProperties: false,
@@ -36,11 +38,28 @@ const REPORT_SCHEMA = {
     summary: {
       type: "object",
       additionalProperties: false,
-      required: ["totalOperations", "coveredOperations", "operationCoveragePercent", "aggregateCoveragePercent"],
+      required: [
+        "totalOperations",
+        "coveredOperations",
+        "operationCoveragePercent",
+        "deprecatedOperations",
+        "aggregateCoveragePercent"
+      ],
       properties: {
         totalOperations: { type: "integer", minimum: 0 },
         coveredOperations: { type: "integer", minimum: 0 },
         operationCoveragePercent: { type: "number" },
+        deprecatedOperations: {
+          type: "object",
+          additionalProperties: false,
+          required: ["totalOperations", "coveredOperations", "uncoveredOperations", "operationCoveragePercent"],
+          properties: {
+            totalOperations: { type: "integer", minimum: 0 },
+            coveredOperations: { type: "integer", minimum: 0 },
+            uncoveredOperations: { type: "integer", minimum: 0 },
+            operationCoveragePercent: { type: "number" }
+          }
+        },
         aggregateCoveragePercent: { anyOf: [{ type: "number" }, { type: "null" }] },
         aggregateExplanation: { type: "string" }
       }
@@ -92,11 +111,12 @@ const REPORT_SCHEMA = {
           items: {
             type: "object",
             additionalProperties: false,
-            required: ["operationKey", "method", "route", "operation", "status", "parameters"],
+            required: ["operationKey", "method", "route", "deprecated", "operation", "status", "parameters"],
             properties: {
               operationKey: { type: "string", minLength: 1 },
               method: { type: "string", minLength: 1 },
               route: { type: "string", minLength: 1 },
+              deprecated: { type: "boolean" },
               operation: {
                 type: "object",
                 additionalProperties: false,
@@ -595,6 +615,15 @@ const REPORT_SCHEMA = {
     }
   },
   $defs: {
+    specSourceProvenance: {
+      type: "object",
+      additionalProperties: false,
+      required: ["kind", "reference"],
+      properties: {
+        kind: { enum: ["local-file", "local-directory", "remote-url"] },
+        reference: { type: "string", minLength: 1 }
+      }
+    },
     httpRequestTruthAggregate: {
       type: "object",
       additionalProperties: false,

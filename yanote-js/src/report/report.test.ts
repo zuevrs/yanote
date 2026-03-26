@@ -10,6 +10,13 @@ import { loadOpenApiCoverageModel } from "../spec/openapi.js";
 import { REPORT_SCHEMA_VERSION } from "./schema.js";
 import { buildReport, type YanoteReport } from "./report.js";
 
+function localFileSpecSource(reference: string) {
+  return {
+    kind: "local-file" as const,
+    reference
+  };
+}
+
 async function buildPayloadFixtureReport(eventsPath: string): Promise<YanoteReport> {
   const model = await loadOpenApiCoverageModel("test/fixtures/openapi/http-payload.yaml");
   const events = await readHttpEventsJsonl(eventsPath);
@@ -23,6 +30,30 @@ async function buildPayloadFixtureReport(eventsPath: string): Promise<YanoteRepo
 
   return buildReport(coverage, {
     toolVersion: "test",
+    specSource: localFileSpecSource("test/fixtures/openapi/http-payload.yaml"),
+    eventTimestamps: events.items
+      .map((event) => event.ts)
+      .filter((timestamp): timestamp is number => typeof timestamp === "number"),
+    payloadConformance
+  });
+}
+
+async function buildDeprecatedFixtureReport(): Promise<YanoteReport> {
+  const specPath = "test/fixtures/openapi/http-deprecated-operations.yaml";
+  const eventsPath = "test/fixtures/events/http-deprecated-operations.fixture.jsonl";
+  const model = await loadOpenApiCoverageModel(specPath);
+  const events = await readHttpEventsJsonl(eventsPath);
+
+  const coverage = computeCoverage(model.operations, events.items, [], {
+    operationContractsByKey: model.operationContractsByKey
+  });
+  const payloadConformance = computeHttpPayloadConformance(model.operations, events.items, {
+    operationContractsByKey: model.operationContractsByKey
+  });
+
+  return buildReport(coverage, {
+    toolVersion: "test",
+    specSource: localFileSpecSource(specPath),
     eventTimestamps: events.items
       .map((event) => event.ts)
       .filter((timestamp): timestamp is number => typeof timestamp === "number"),
@@ -44,6 +75,7 @@ async function buildFormatMediaFixtureReport(eventsPaths: string[]): Promise<Yan
 
   return buildReport(coverage, {
     toolVersion: "test",
+    specSource: localFileSpecSource("test/fixtures/openapi/http-payload-format-media.yaml"),
     eventTimestamps: items.map((event) => event.ts).filter((timestamp): timestamp is number => typeof timestamp === "number"),
     payloadConformance
   });
@@ -215,6 +247,7 @@ async function buildFullObservationPayloadTruthReport(
 
     return buildReport(coverage, {
       toolVersion: "test",
+      specSource: localFileSpecSource(specPath),
       eventTimestamps: events.items
         .map((event) => event.ts)
         .filter((timestamp): timestamp is number => typeof timestamp === "number"),
@@ -259,6 +292,7 @@ describe("report", () => {
 
     const report = buildReport(coverage, {
       toolVersion: "test",
+      specSource: localFileSpecSource("test/fixtures/openapi/simple.yaml"),
       eventTimestamps: events.items
         .map((event) => event.ts)
         .filter((timestamp): timestamp is number => typeof timestamp === "number"),
@@ -276,6 +310,73 @@ describe("report", () => {
     expect(["ok", "partial", "invalid"]).toContain(report.status);
     expect(report.governance.exclusions.appliedRules).toEqual([]);
     expect(report.governance.exclusions.unmatchedRules).toEqual([]);
+  });
+
+  it("surfaces additive deprecated truth while preserving legacy HTTP numerators and status", async () => {
+    const report = await buildDeprecatedFixtureReport();
+
+    expect(report.status).toBe("partial");
+    expect(report.summary.totalOperations).toBe(3);
+    expect(report.summary.coveredOperations).toBe(2);
+    expect(report.summary.operationCoveragePercent).toBe(66.67);
+    expect(report.summary.deprecatedOperations).toEqual({
+      totalOperations: 1,
+      coveredOperations: 0,
+      uncoveredOperations: 1,
+      operationCoveragePercent: 0
+    });
+    expect(report.coverage.operations).toEqual({ state: "PARTIAL", percent: 66.67 });
+    expect(report.coverage.status).toEqual({ state: "PARTIAL", percent: 66.67 });
+    expect(report.coverage.parameters).toEqual({ state: "N/A", percent: null });
+    expect(report.coverage.aggregate).toEqual({
+      state: "N/A",
+      percent: null,
+      explanation: "aggregate is N/A because weighted dimensions include N/A"
+    });
+    expect(report.coverage.perOperation).toEqual([
+      {
+        operationKey: "http GET /users",
+        method: "GET",
+        route: "/users",
+        deprecated: false,
+        operation: { state: "COVERED" },
+        status: { state: "COVERED", declared: ["200"], covered: ["200"], missing: [] },
+        parameters: {
+          state: "N/A",
+          required: { total: 0, covered: 0, missing: [] },
+          optional: { total: 0, covered: 0, missing: [] }
+        },
+        suites: ["suite-users-read"]
+      },
+      {
+        operationKey: "http POST /users",
+        method: "POST",
+        route: "/users",
+        deprecated: false,
+        operation: { state: "COVERED" },
+        status: { state: "COVERED", declared: ["201"], covered: ["201"], missing: [] },
+        parameters: {
+          state: "N/A",
+          required: { total: 0, covered: 0, missing: [] },
+          optional: { total: 0, covered: 0, missing: [] }
+        },
+        suites: ["suite-users-create"]
+      },
+      {
+        operationKey: "http GET /legacy-users",
+        method: "GET",
+        route: "/legacy-users",
+        deprecated: true,
+        operation: { state: "UNCOVERED" },
+        status: { state: "UNCOVERED", declared: ["200"], covered: [], missing: ["200"] },
+        parameters: {
+          state: "N/A",
+          required: { total: 0, covered: 0, missing: [] },
+          optional: { total: 0, covered: 0, missing: [] }
+        },
+        suites: []
+      }
+    ]);
   });
 
   it("includes exclusion transparency and governance diagnostics deterministically", async () => {
@@ -325,6 +426,7 @@ describe("report", () => {
 
     const report = buildReport(coverage, {
       toolVersion: "test",
+      specSource: localFileSpecSource("test/fixtures/openapi/simple.yaml"),
       payloadConformance: computeHttpPayloadConformance(model.operations, events.items, {
         operationContractsByKey: model.operationContractsByKey
       }),

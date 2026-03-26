@@ -43,6 +43,12 @@ import { writeYanoteReport } from "./report/writeReport.js";
 import { loadAsyncApiSemanticsBundle } from "./spec/asyncapi.js";
 import { discoverSpecs } from "./spec/discover.js";
 import { loadOpenApiCoverageModel } from "./spec/openapi.js";
+import {
+  isSpecSourceError,
+  resolveSpecSource,
+  type ResolvedSpecSource,
+  type SpecSourceError
+} from "./spec/specSource.js";
 import { TOOL_VERSION } from "./version.js";
 
 export type CliResult = {
@@ -154,128 +160,135 @@ async function executeReportCommand(opts: any, writeOut: (chunk: string) => void
       }
     });
 
-    const { openapi } = await discoverSpecs(opts.spec);
-    if (!openapi) {
-      throw new CliFailureError(
-        makeFailure(
-          EXIT.INPUT,
-          "input",
-          "INPUT_SPEC_NOT_FOUND",
-          "No OpenAPI spec found.",
-          "Provide --spec with a valid OpenAPI file or directory."
-        )
-      );
-    }
-
-    const openapiModel = await loadCoverageModel(openapi);
-    const events = await loadEvents(opts.events);
-    if (events.invalidLines > 0) {
-      const lineInfo =
-        events.invalidLineNumbers.length > 0 ? ` at line(s) ${events.invalidLineNumbers.join(",")}` : "";
-      failureCandidates.push(
-        makeFailure(
-          EXIT.INPUT,
-          "input",
-          "INPUT_EVENTS_INVALID_LINES",
-          `${events.invalidLines} invalid JSONL line(s) detected${lineInfo}.`,
-          "Fix malformed events evidence and rerun report."
-        )
-      );
-    }
-
-    const compiledExclusions = compileExclusionRules(policy.exclusions.rules);
-    const exclusionResult = applyExclusionRules(openapiModel.operations, compiledExclusions, {
-      criticalOperationKeys: policy.thresholds.criticalOperations
-    });
-    summaryIssues = [...summaryIssues, ...toExclusionSummaryIssues(exclusionResult)];
-
-    coverage = computeCoverage(exclusionResult.includedOperations, events.items, [], {
-      operationContractsByKey: openapiModel.operationContractsByKey
-    });
-    payloadConformance = computeHttpPayloadConformance(exclusionResult.includedOperations, events.items, {
-      operationContractsByKey: openapiModel.operationContractsByKey
-    });
-    requestConformance = computeHttpRequestConformance(exclusionResult.includedOperations, events.items, {
-      operationContractsByKey: openapiModel.operationContractsByKey
-    });
-    securityConformance = computeHttpSecurityConformance(exclusionResult.includedOperations, events.items, {
-      operationContractsByKey: openapiModel.operationContractsByKey
-    });
-
-    let regressionComparison:
-      | ReturnType<typeof compareRegressionAgainstBaseline>
-      | undefined;
-    if (opts.baseline) {
-      const baseline = await loadBaseline(String(opts.baseline));
-      regressionComparison = compareRegressionAgainstBaseline({
-        baseline,
-        currentCovered: coverage.coveredOperations,
-        currentOperations: coverage.allOperations,
-        currentDimensions: toBaselineDimensions(coverage)
-      });
-    }
-
-    const gateDiagnostics = evaluateGateFailures({
-      coverage,
-      policy,
-      comparison: regressionComparison,
-      httpPayloadDiagnostics: payloadConformance.diagnostics,
-      httpRequestDiagnostics: requestConformance.diagnostics,
-      httpSecurityDiagnostics: securityConformance.diagnostics
-    });
-    for (const diagnostic of gateDiagnostics) {
-      if (diagnostic.severity === "error") {
-        failureCandidates.push(diagnostic);
-      } else {
-        summaryIssues.push(toSummaryIssueFromFailure(diagnostic));
-      }
-    }
-
-    report = buildReport(coverage, {
-      toolVersion: TOOL_VERSION,
-      eventTimestamps: events.items
-        .map((event) => event.ts)
-        .filter((timestamp): timestamp is number => typeof timestamp === "number"),
-      payloadConformance,
-      requestConformance,
-      securityConformance,
-      governance: {
-        exclusions: {
-          appliedRules: exclusionResult.appliedExclusions,
-          unmatchedRules: exclusionResult.unmatchedRules
-        },
-        diagnostics: gateDiagnostics
-      }
-    });
+    const specSource = await resolveCliSpecSource(String(opts.spec), "report");
 
     try {
-      reportPath = await writeYanoteReport(opts.out, report);
-    } catch (error) {
-      failureCandidates.push(classifyFailure(error));
-    }
+      const { openapi } = await discoverSpecs(specSource);
+      if (!openapi) {
+        throw new CliFailureError(
+          makeFailure(
+            EXIT.INPUT,
+            "input",
+            "INPUT_SPEC_NOT_FOUND",
+            "No OpenAPI spec found.",
+            "Provide --spec with a valid OpenAPI file or directory."
+          )
+        );
+      }
 
-    if (report.status === "invalid") {
-      failureCandidates.push(
-        makeFailure(
-          EXIT.SEMANTIC,
-          "semantic",
-          "SEMANTIC_FAIL_CLOSED",
-          "Semantic diagnostics require fail-closed exit.",
-          "Resolve invalid or ambiguous operation semantics, then rerun report."
-        )
-      );
-    }
+      const openapiModel = await loadCoverageModel(openapi, specSource);
+      const events = await loadEvents(opts.events);
+      if (events.invalidLines > 0) {
+        const lineInfo =
+          events.invalidLineNumbers.length > 0 ? ` at line(s) ${events.invalidLineNumbers.join(",")}` : "";
+        failureCandidates.push(
+          makeFailure(
+            EXIT.INPUT,
+            "input",
+            "INPUT_EVENTS_INVALID_LINES",
+            `${events.invalidLines} invalid JSONL line(s) detected${lineInfo}.`,
+            "Fix malformed events evidence and rerun report."
+          )
+        );
+      }
 
-    const primaryNow = selectPrimaryFailure(failureCandidates);
-    if (!primaryNow && coverage && opts.updateBaseline) {
-      await writeBaseline(
-        String(opts.updateBaseline),
-        createBaselineSnapshot({
-          coveredOperations: coverage.coveredOperations,
-          dimensions: toBaselineDimensions(coverage),
-          generatedAt: report.generatedAt
-        })
-      );
+      const compiledExclusions = compileExclusionRules(policy.exclusions.rules);
+      const exclusionResult = applyExclusionRules(openapiModel.operations, compiledExclusions, {
+        criticalOperationKeys: policy.thresholds.criticalOperations
+      });
+      summaryIssues = [...summaryIssues, ...toExclusionSummaryIssues(exclusionResult)];
+
+      coverage = computeCoverage(exclusionResult.includedOperations, events.items, [], {
+        operationContractsByKey: openapiModel.operationContractsByKey
+      });
+      payloadConformance = computeHttpPayloadConformance(exclusionResult.includedOperations, events.items, {
+        operationContractsByKey: openapiModel.operationContractsByKey
+      });
+      requestConformance = computeHttpRequestConformance(exclusionResult.includedOperations, events.items, {
+        operationContractsByKey: openapiModel.operationContractsByKey
+      });
+      securityConformance = computeHttpSecurityConformance(exclusionResult.includedOperations, events.items, {
+        operationContractsByKey: openapiModel.operationContractsByKey
+      });
+
+      let regressionComparison:
+        | ReturnType<typeof compareRegressionAgainstBaseline>
+        | undefined;
+      if (opts.baseline) {
+        const baseline = await loadBaseline(String(opts.baseline));
+        regressionComparison = compareRegressionAgainstBaseline({
+          baseline,
+          currentCovered: coverage.coveredOperations,
+          currentOperations: coverage.allOperations,
+          currentDimensions: toBaselineDimensions(coverage)
+        });
+      }
+
+      const gateDiagnostics = evaluateGateFailures({
+        coverage,
+        policy,
+        comparison: regressionComparison,
+        httpPayloadDiagnostics: payloadConformance.diagnostics,
+        httpRequestDiagnostics: requestConformance.diagnostics,
+        httpSecurityDiagnostics: securityConformance.diagnostics
+      });
+      for (const diagnostic of gateDiagnostics) {
+        if (diagnostic.severity === "error") {
+          failureCandidates.push(diagnostic);
+        } else {
+          summaryIssues.push(toSummaryIssueFromFailure(diagnostic));
+        }
+      }
+
+      report = buildReport(coverage, {
+        toolVersion: TOOL_VERSION,
+        specSource: specSource.provenance,
+        eventTimestamps: events.items
+          .map((event) => event.ts)
+          .filter((timestamp): timestamp is number => typeof timestamp === "number"),
+        payloadConformance,
+        requestConformance,
+        securityConformance,
+        governance: {
+          exclusions: {
+            appliedRules: exclusionResult.appliedExclusions,
+            unmatchedRules: exclusionResult.unmatchedRules
+          },
+          diagnostics: gateDiagnostics
+        }
+      });
+
+      try {
+        reportPath = await writeYanoteReport(opts.out, report);
+      } catch (error) {
+        failureCandidates.push(classifyFailure(error));
+      }
+
+      if (report.status === "invalid") {
+        failureCandidates.push(
+          makeFailure(
+            EXIT.SEMANTIC,
+            "semantic",
+            "SEMANTIC_FAIL_CLOSED",
+            "Semantic diagnostics require fail-closed exit.",
+            "Resolve invalid or ambiguous operation semantics, then rerun report."
+          )
+        );
+      }
+
+      const primaryNow = selectPrimaryFailure(failureCandidates);
+      if (!primaryNow && coverage && opts.updateBaseline) {
+        await writeBaseline(
+          String(opts.updateBaseline),
+          createBaselineSnapshot({
+            coveredOperations: coverage.coveredOperations,
+            dimensions: toBaselineDimensions(coverage),
+            generatedAt: report.generatedAt
+          })
+        );
+      }
+    } finally {
+      await specSource.cleanup();
     }
   } catch (error) {
     failureCandidates.push(classifyFailure(error));
@@ -328,60 +341,67 @@ async function executeAsyncReportCommand(
       }
     });
 
-    const { asyncapi } = await discoverSpecs(opts.spec);
-    if (!asyncapi) {
-      throw new CliFailureError(
-        makeFailure(
-          EXIT.INPUT,
-          "input",
-          "INPUT_ASYNC_SPEC_NOT_FOUND",
-          "No AsyncAPI spec found.",
-          "Provide --spec with a valid AsyncAPI file or directory."
-        )
-      );
-    }
-
-    const bundle = await loadAsyncCoverageModel(asyncapi);
-    const events = await loadAsyncEvents(opts.events);
-    if (events.invalidLines > 0) {
-      const lineInfo =
-        events.invalidLineNumbers.length > 0 ? ` at line(s) ${events.invalidLineNumbers.join(",")}` : "";
-      failureCandidates.push(
-        makeFailure(
-          EXIT.INPUT,
-          "input",
-          "INPUT_ASYNC_EVENTS_INVALID_LINES",
-          `${events.invalidLines} invalid JSONL line(s) detected${lineInfo}.`,
-          "Fix malformed async evidence and rerun async-report."
-        )
-      );
-    }
-
-    coverage = computeAsyncCoverage(bundle, events.items);
-
-    const gateDiagnostics = evaluateAsyncGateFailures({
-      coverage,
-      policy
-    });
-    for (const diagnostic of gateDiagnostics) {
-      if (diagnostic.severity === "error") {
-        failureCandidates.push(diagnostic);
-      } else {
-        summaryIssues.push(toSummaryIssueFromFailure(diagnostic));
-      }
-    }
-
-    report = buildAsyncReport(coverage, {
-      toolVersion: TOOL_VERSION,
-      eventTimestamps: events.items
-        .map((event) => event.ts)
-        .filter((timestamp): timestamp is number => typeof timestamp === "number")
-    });
+    const specSource = await resolveCliSpecSource(String(opts.spec), "async-report");
 
     try {
-      reportPath = await writeAsyncYanoteReport(opts.out, report);
-    } catch (error) {
-      failureCandidates.push(classifyFailure(error));
+      const { asyncapi } = await discoverSpecs(specSource);
+      if (!asyncapi) {
+        throw new CliFailureError(
+          makeFailure(
+            EXIT.INPUT,
+            "input",
+            "INPUT_ASYNC_SPEC_NOT_FOUND",
+            "No AsyncAPI spec found.",
+            "Provide --spec with a valid AsyncAPI file or directory."
+          )
+        );
+      }
+
+      const bundle = await loadAsyncCoverageModel(asyncapi, specSource);
+      const events = await loadAsyncEvents(opts.events);
+      if (events.invalidLines > 0) {
+        const lineInfo =
+          events.invalidLineNumbers.length > 0 ? ` at line(s) ${events.invalidLineNumbers.join(",")}` : "";
+        failureCandidates.push(
+          makeFailure(
+            EXIT.INPUT,
+            "input",
+            "INPUT_ASYNC_EVENTS_INVALID_LINES",
+            `${events.invalidLines} invalid JSONL line(s) detected${lineInfo}.`,
+            "Fix malformed async evidence and rerun async-report."
+          )
+        );
+      }
+
+      coverage = computeAsyncCoverage(bundle, events.items);
+
+      const gateDiagnostics = evaluateAsyncGateFailures({
+        coverage,
+        policy
+      });
+      for (const diagnostic of gateDiagnostics) {
+        if (diagnostic.severity === "error") {
+          failureCandidates.push(diagnostic);
+        } else {
+          summaryIssues.push(toSummaryIssueFromFailure(diagnostic));
+        }
+      }
+
+      report = buildAsyncReport(coverage, {
+        toolVersion: TOOL_VERSION,
+        specSource: specSource.provenance,
+        eventTimestamps: events.items
+          .map((event) => event.ts)
+          .filter((timestamp): timestamp is number => typeof timestamp === "number")
+      });
+
+      try {
+        reportPath = await writeAsyncYanoteReport(opts.out, report);
+      } catch (error) {
+        failureCandidates.push(classifyFailure(error));
+      }
+    } finally {
+      await specSource.cleanup();
     }
   } catch (error) {
     failureCandidates.push(classifyFailure(error));
@@ -414,7 +434,53 @@ async function executeAsyncReportCommand(
   }
 }
 
-async function loadCoverageModel(specPath: string) {
+async function resolveCliSpecSource(
+  specInput: string,
+  command: "report" | "async-report"
+): Promise<ResolvedSpecSource> {
+  try {
+    return await resolveSpecSource(specInput);
+  } catch (error) {
+    if (isSpecSourceError(error)) {
+      throw new CliFailureError(toCliFailureFromSpecSourceError(error, command));
+    }
+
+    throw error;
+  }
+}
+
+function toCliFailureFromSpecSourceError(
+  error: SpecSourceError,
+  command: "report" | "async-report"
+): CliFailure {
+  if (error.code === "INPUT_SPEC_SOURCE_NOT_FOUND") {
+    return makeFailure(
+      EXIT.INPUT,
+      "input",
+      command === "report" ? "INPUT_SPEC_NOT_FOUND" : "INPUT_ASYNC_SPEC_NOT_FOUND",
+      error.message,
+      command === "report"
+        ? "Provide --spec with a valid OpenAPI file, local directory, or supported remote URL."
+        : "Provide --spec with a valid AsyncAPI file, local directory, or supported remote URL."
+    );
+  }
+
+  if (error.code === "INPUT_SPEC_SOURCE_READ_FAILED") {
+    return makeFailure(
+      EXIT.INPUT,
+      "input",
+      command === "report" ? "INPUT_SPEC_READ_FAILED" : "INPUT_ASYNC_SPEC_READ_FAILED",
+      error.message,
+      command === "report"
+        ? "Check the local OpenAPI spec path and file permissions."
+        : "Check the local AsyncAPI spec path and file permissions."
+    );
+  }
+
+  return makeFailure(EXIT.INPUT, "input", error.code, error.message, error.hint);
+}
+
+async function loadCoverageModel(specPath: string, specSource: ResolvedSpecSource) {
   try {
     return await loadOpenApiCoverageModel(specPath);
   } catch (error) {
@@ -438,6 +504,18 @@ async function loadCoverageModel(specPath: string) {
           "INPUT_SPEC_READ_FAILED",
           fsErrorReason(error, "Unable to read OpenAPI spec."),
           "Check --spec path and file permissions."
+        )
+      );
+    }
+
+    if (specSource.kind === "remote-url") {
+      throw new CliFailureError(
+        makeFailure(
+          EXIT.INPUT,
+          "input",
+          "INPUT_SPEC_REMOTE_LOAD_FAILED",
+          "Unable to load the fetched remote OpenAPI spec.",
+          "Confirm the remote document is a self-contained OpenAPI file without external references."
         )
       );
     }
@@ -466,7 +544,7 @@ async function loadEvents(eventsPath: string) {
   }
 }
 
-async function loadAsyncCoverageModel(specPath: string) {
+async function loadAsyncCoverageModel(specPath: string, specSource: ResolvedSpecSource) {
   try {
     const bundle = await loadAsyncApiSemanticsBundle(specPath);
     const invalidDiagnostics = bundle.diagnostics.filter((diagnostic) => diagnostic.kind === "invalid");
@@ -511,6 +589,18 @@ async function loadAsyncCoverageModel(specPath: string) {
           "ASYNC_SEMANTIC_SPEC_INVALID",
           error.message,
           "Fix invalid AsyncAPI operations and rerun async-report."
+        )
+      );
+    }
+
+    if (specSource.kind === "remote-url") {
+      throw new CliFailureError(
+        makeFailure(
+          EXIT.INPUT,
+          "input",
+          "INPUT_SPEC_REMOTE_LOAD_FAILED",
+          "Unable to load the fetched remote AsyncAPI spec.",
+          "Confirm the remote document is a self-contained AsyncAPI file without external references."
         )
       );
     }
@@ -716,6 +806,7 @@ function formatSummaryOutput(input: {
 
   const totalOperations = summary?.totalOperations ?? 0;
   const coveredOperations = summary?.coveredOperations ?? 0;
+  const deprecatedSummary = summary?.deprecatedOperations;
 
   const issues = prioritizePrimaryIssue(
     collectIssues(input.report, input.coverage, input.failures, input.extraIssues),
@@ -729,6 +820,8 @@ function formatSummaryOutput(input: {
   lines.push("Summary");
   lines.push(`- status: ${status}`);
   lines.push(`- operations: ${coveredOperations}/${totalOperations} (${formatPercent(summary?.operationCoveragePercent ?? null)})`);
+  lines.push(`- deprecated operations: ${formatDeprecatedSummary(deprecatedSummary)}`);
+  lines.push(`- spec source: ${formatSpecSourceSummary(input.report?.specSource)}`);
 
   lines.push("");
   lines.push("Coverage Dimensions");
@@ -784,6 +877,12 @@ function formatSummaryOutput(input: {
       "YANOTE_SUMMARY",
       `status=${status}`,
       `operations=${formatMachinePercent(summary?.operationCoveragePercent ?? null)}`,
+      `deprecated_operations=${formatMachinePercent(deprecatedSummary?.operationCoveragePercent ?? null)}`,
+      `deprecated_total=${deprecatedSummary?.totalOperations ?? 0}`,
+      `deprecated_covered=${deprecatedSummary?.coveredOperations ?? 0}`,
+      `deprecated_uncovered=${deprecatedSummary?.uncoveredOperations ?? 0}`,
+      `spec_source_kind=${input.report?.specSource.kind ?? "none"}`,
+      `spec_source_ref=${quote(input.report?.specSource.reference ?? "none")}`,
       `status_dimension=${formatMachinePercent(dimensions?.status.percent ?? null)}`,
       `parameters=${formatMachinePercent(dimensions?.parameters.percent ?? null)}`,
       `aggregate=${formatMachinePercent(dimensions?.aggregate.percent ?? null)}`,
@@ -840,6 +939,7 @@ function formatAsyncSummaryOutput(input: {
   lines.push(`- channels: ${coveredChannels}/${totalChannels} (${formatPercent(summary?.channelCoveragePercent ?? null)})`);
   lines.push(`- operations: ${coveredOperations}/${totalOperations} (${formatPercent(summary?.operationCoveragePercent ?? null)})`);
   lines.push(`- messages: ${coveredMessages}/${totalMessages} (${formatPercent(summary?.messageCoveragePercent ?? null)})`);
+  lines.push(`- spec source: ${formatSpecSourceSummary(input.report?.specSource)}`);
 
   lines.push("");
   lines.push("Coverage Dimensions");
@@ -872,6 +972,8 @@ function formatAsyncSummaryOutput(input: {
       `channels=${formatMachinePercent(summary?.channelCoveragePercent ?? null)}`,
       `operations=${formatMachinePercent(summary?.operationCoveragePercent ?? null)}`,
       `messages=${formatMachinePercent(summary?.messageCoveragePercent ?? null)}`,
+      `spec_source_kind=${input.report?.specSource.kind ?? "none"}`,
+      `spec_source_ref=${quote(input.report?.specSource.reference ?? "none")}`,
       `covered_channels=${coveredChannels}/${totalChannels}`,
       `covered_operations=${coveredOperations}/${totalOperations}`,
       `covered_messages=${coveredMessages}/${totalMessages}`,
@@ -1010,7 +1112,7 @@ function collectIssues(
         severityRank: 2,
         severityLabel: "low",
         sortKey: `coverage:${entry.operationKey}`,
-        text: `${entry.operationKey} - operation is uncovered`
+        text: entry.deprecated ? `${entry.operationKey} - deprecated operation is uncovered` : `${entry.operationKey} - operation is uncovered`
       });
     }
   }
@@ -1242,6 +1344,15 @@ function formatSecurityTruthCountsMachine(
   ].join(",");
 }
 
+function formatDeprecatedSummary(summary: YanoteReport["summary"]["deprecatedOperations"] | undefined): string {
+  const totalOperations = summary?.totalOperations ?? 0;
+  const coveredOperations = summary?.coveredOperations ?? 0;
+  const uncoveredOperations = summary?.uncoveredOperations ?? 0;
+  return `covered=${coveredOperations}/${totalOperations} uncovered=${uncoveredOperations} (${formatPercent(
+    summary?.operationCoveragePercent ?? null
+  )})`;
+}
+
 function formatPayloadTargetSummary(
   target: YanoteReport["httpPayloadConformance"]["summary"]["request"] | undefined
 ): string {
@@ -1347,6 +1458,16 @@ function makeFailure(
 
 function quote(value: string): string {
   return `"${value.replace(/"/g, "'")}"`;
+}
+
+function formatSpecSourceSummary(
+  specSource: { kind: string; reference: string } | undefined
+): string {
+  if (!specSource) {
+    return "none";
+  }
+
+  return `${specSource.kind} (${specSource.reference})`;
 }
 
 function formatPercent(value: number | null): string {

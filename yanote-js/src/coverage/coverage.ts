@@ -34,6 +34,7 @@ export type PerOperationCoverage = {
   operationKey: string;
   method: string;
   route: string;
+  deprecated: boolean;
   operation: {
     state: "COVERED" | "UNCOVERED";
   };
@@ -150,6 +151,7 @@ export function computeCoverage(
       operationKey,
       method: operation.method,
       route: operation.route,
+      deprecated: contract?.deprecated ?? false,
       operation: {
         state: evidence.observed ? "COVERED" : "UNCOVERED"
       },

@@ -242,7 +242,11 @@ describe("cli report", () => {
     expect(res.code).toBe(0);
 
     const reportPath = path.join(outDir, "yanote-report.json");
-    const report = JSON.parse(await readFile(reportPath, "utf8"));
+    const htmlPath = path.join(outDir, "yanote-report.html");
+    const [report, html] = await Promise.all([
+      readFile(reportPath, "utf8").then((content) => JSON.parse(content)),
+      readFile(htmlPath, "utf8")
+    ]);
     expect(report.schemaVersion).toBe("1.0.0");
     expect(report.summary.totalOperations).toBeGreaterThan(0);
     expect(report.coverage.perOperation[0]).toHaveProperty("operationKey");
@@ -250,6 +254,11 @@ describe("cli report", () => {
     expect(report.governance.exclusions.appliedRules.length).toBeGreaterThanOrEqual(1);
     expect(report.governance.exclusions.appliedRules[0]).toHaveProperty("matchedOperationCount");
     expect(report.governance.exclusions.unmatchedRules).toEqual([]);
+    expect(res.stdout).toContain(`report=${reportPath}`);
+    expect(res.stdout).not.toContain(`report=${htmlPath}`);
+    expect(html).toContain("yanote-report.html");
+    expect(html).toContain("HTTP payload conformance");
+    expect(html).not.toContain("Channel coverage");
   });
 
   it("exits 3 for min-coverage gate failures and still writes report snapshot", async () => {
@@ -735,6 +744,56 @@ describe("cli report", () => {
       ]);
     } finally {
       await rm(fixture.dir, { recursive: true, force: true });
+    }
+  });
+
+  it("writes deprecated HTTP truth to stdout and the report artifact without changing legacy coverage semantics", async () => {
+    const outDir = await mkdtemp(path.join(os.tmpdir(), "yanote-js-out-deprecated-"));
+
+    try {
+      const res = await runCli([
+        "report",
+        "--spec",
+        "test/fixtures/openapi/http-deprecated-operations.yaml",
+        "--events",
+        "test/fixtures/events/http-deprecated-operations.fixture.jsonl",
+        "--out",
+        outDir,
+        "--profile",
+        "local"
+      ]);
+
+      expect(res.code).toBe(0);
+      expect(res.stderr).toBe("");
+      expect(res.stdout).toContain("- status: partial");
+      expect(res.stdout).toContain("- operations: 2/3 (66.67%)");
+      expect(res.stdout).toContain("- deprecated operations: covered=0/1 uncovered=1 (0.00%)");
+      expect(res.stdout).toContain("- low: http GET /legacy-users - deprecated operation is uncovered");
+
+      const summaryLine = res.stdout.trimEnd().split("\n").at(-1) ?? "";
+      expect(summaryLine).toContain("deprecated_operations=0.00");
+      expect(summaryLine).toContain("deprecated_total=1");
+      expect(summaryLine).toContain("deprecated_covered=0");
+      expect(summaryLine).toContain("deprecated_uncovered=1");
+
+      const report = JSON.parse(await readFile(path.join(outDir, "yanote-report.json"), "utf8"));
+      expect(report.status).toBe("partial");
+      expect(report.summary.totalOperations).toBe(3);
+      expect(report.summary.coveredOperations).toBe(2);
+      expect(report.summary.operationCoveragePercent).toBe(66.67);
+      expect(report.summary.deprecatedOperations).toEqual({
+        totalOperations: 1,
+        coveredOperations: 0,
+        uncoveredOperations: 1,
+        operationCoveragePercent: 0
+      });
+      expect(report.coverage.perOperation.map((entry: any) => ({ operationKey: entry.operationKey, deprecated: entry.deprecated }))).toEqual([
+        { operationKey: "http GET /legacy-users", deprecated: true },
+        { operationKey: "http GET /users", deprecated: false },
+        { operationKey: "http POST /users", deprecated: false }
+      ]);
+    } finally {
+      await rm(outDir, { recursive: true, force: true });
     }
   });
 

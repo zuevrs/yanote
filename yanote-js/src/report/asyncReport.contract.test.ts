@@ -8,11 +8,16 @@ import {
   type AsyncYanoteReport,
   validateAsyncReport
 } from "./asyncReport.js";
+import { renderAsyncYanoteReportHtml } from "./asyncReportHtml.js";
 
 const baseReport: AsyncYanoteReport = {
   schemaVersion: ASYNC_REPORT_SCHEMA_VERSION,
   generatedAt: "1970-01-01T00:00:00.000Z",
   toolVersion: "test",
+  specSource: {
+    kind: "local-file",
+    reference: "test/fixtures/asyncapi/base.yaml"
+  },
   phase: ASYNC_REPORT_PHASE,
   status: "ok",
   summary: {
@@ -100,6 +105,57 @@ describe("async report schema contract", () => {
     } as any;
 
     expect(validateAsyncReport(withUnknown).ok).toBe(false);
+  });
+
+  it("renders an async-only HTML surface from normalized canonical truth", () => {
+    const html = renderAsyncYanoteReportHtml(
+      normalizeAsyncReport({
+        ...baseReport,
+        specSource: {
+          kind: "local-file",
+          reference: 'test/fixtures/<unsafe>&"async".yaml'
+        },
+        diagnostics: {
+          counts: {
+            "unsupported-content-type": 0,
+            "unsupported-schema-format": 0,
+            "missing-payload": 0,
+            "invalid-payload": 0,
+            "missing-header": 0,
+            "unavailable-header": 0,
+            "invalid-header": 0,
+            "unverifiable-headers": 0,
+            ambiguous: 1,
+            unmatched: 0,
+            mismatched: 0
+          },
+          items: [
+            {
+              kind: "ambiguous",
+              operationKey: "kafka send users.signedup",
+              channel: "users.signedup",
+              action: "send",
+              observedMessage: "UserLifecycleEvent",
+              reason: "Runtime selection remained ambiguous.",
+              candidates: ["UserSignedUp", "UserLifecycleEvent"],
+              message: "AsyncAPI message selection remained ambiguous, so the kafka operation was not normalized"
+            }
+          ]
+        }
+      })
+    );
+
+    expect(html).toContain("Yanote async report");
+    expect(html).toContain("Async coverage summary");
+    expect(html).toContain("Channel coverage");
+    expect(html).toContain("Operation coverage");
+    expect(html).toContain("Message coverage");
+    expect(html).toContain("Provenance");
+    expect(html).toContain("&lt;unsafe&gt;&amp;&quot;async&quot;.yaml");
+    expect(html).not.toContain("HTTP security conformance");
+    expect(html).not.toContain("HTTP request conformance");
+    expect(html).not.toContain("Deprecated operations");
+    expect(html).not.toContain("Governance");
   });
 
   it("validates schemaVersion independently from toolVersion and requires the widened diagnostic union", () => {

@@ -13,12 +13,22 @@ function createHttpReportFixture() {
     toolVersion: "0.0.0",
     phase: { id: "02", slug: "coverage-metrics-and-cli-reporting" },
     status: "partial",
+    specSource: {
+      kind: "remote-url",
+      reference: "https://summary-user:summary-pass@example.test/openapi.yaml?token=summary-secret#frag"
+    },
     summary: {
       totalOperations: 6,
       coveredOperations: 1,
       operationCoveragePercent: 16.67,
       aggregateCoveragePercent: 33.33,
-      aggregateExplanation: "status or parameters incomplete"
+      aggregateExplanation: "status or parameters incomplete",
+      deprecatedOperations: {
+        totalOperations: 1,
+        coveredOperations: 0,
+        uncoveredOperations: 1,
+        operationCoveragePercent: 0
+      }
     },
     coverage: {
       operations: { state: "PARTIAL", percent: 16.67 },
@@ -57,6 +67,10 @@ function createHttpSemanticReportFixture() {
     toolVersion: "0.0.0",
     phase: { id: "02", slug: "coverage-metrics-and-cli-reporting" },
     status: "partial",
+    specSource: {
+      kind: "local-file",
+      reference: "examples/openapi/demo-openapi-unsupported-schema.yaml"
+    },
     summary: {
       totalOperations: 1,
       coveredOperations: 1,
@@ -136,6 +150,10 @@ function createHttpSecurityReportFixture() {
     toolVersion: "0.0.0",
     phase: { id: "02", slug: "coverage-metrics-and-cli-reporting" },
     status: "partial",
+    specSource: {
+      kind: "local-file",
+      reference: "yanote-js/test/fixtures/openapi/http-security-api-key.yaml"
+    },
     summary: {
       totalOperations: 12,
       coveredOperations: 12,
@@ -298,6 +316,10 @@ function createAsyncHappyPathReportFixture() {
     toolVersion: "0.0.0",
     phase: { id: "03", slug: "async-report-and-gate-surface" },
     status: "partial",
+    specSource: {
+      kind: "remote-url",
+      reference: "https://async-user:async-pass@example.test/asyncapi.yaml?token=async-secret#frag"
+    },
     summary: {
       totalChannels: 2,
       coveredChannels: 1,
@@ -386,6 +408,10 @@ function createAsyncDiagnosticReportFixture() {
     toolVersion: "0.0.0",
     phase: { id: "03", slug: "async-report-and-gate-surface" },
     status: "partial",
+    specSource: {
+      kind: "local-file",
+      reference: "test/fixtures/asyncapi/orders.yaml"
+    },
     summary: {
       totalChannels: 1,
       coveredChannels: 1,
@@ -532,6 +558,7 @@ test("renders the existing HTTP summary contract without payload leaks", async (
     const stderrPath = path.join(workDir, "yanote-validation.stderr.log");
 
     await writeArtifactFiles(artifactsDir, {
+      "yanote-report.html": "<html><body>http html</body></html>\n",
       "yanote-report.json": JSON.stringify(createHttpReportFixture()),
       "yanote-exit-code.txt": "3\n",
       "yanote-validation.stderr.log": 'YANOTE_ERROR class=gate code=GATE_THRESHOLD reason="coverage below threshold" hint="raise coverage"\n'
@@ -553,9 +580,12 @@ test("renders the existing HTTP summary contract without payload leaks", async (
       "- aggregate: 33.33% (PARTIAL)",
       "- status dimension: 20.00% (PARTIAL)",
       "- parameters: 10.00% (PARTIAL)",
+      "- spec source: remote-url (https://example.test/openapi.yaml)",
+      "- deprecated operations: covered=0/1 uncovered=1 (0.00%)",
+      "- report artifacts: yanote-report.json (present), yanote-report.html (present)",
       "- primary failure: GATE_THRESHOLD - coverage below threshold",
       "- report: yanote-report.json",
-      "- artifacts: yanote-exit-code.txt, yanote-report.json, yanote-validation.stderr.log",
+      "- artifacts: yanote-exit-code.txt, yanote-report.html, yanote-report.json, yanote-validation.stderr.log",
       "",
       "### Top Issues",
       "1. high: GATE_THRESHOLD - coverage below threshold",
@@ -570,6 +600,9 @@ test("renders the existing HTTP summary contract without payload leaks", async (
     assert.equal(markdown, expected);
     assert.equal(markdown.includes("SECRET_HTTP_PAYLOAD_MUST_NOT_APPEAR"), false);
     assert.equal(markdown.includes("rawPayload"), false);
+    assert.equal(markdown.includes("summary-user"), false);
+    assert.equal(markdown.includes("summary-pass"), false);
+    assert.equal(markdown.includes("summary-secret"), false);
     assert.equal(await readFile(summaryPath, "utf8"), markdown);
   } finally {
     await rm(workDir, { recursive: true, force: true });
@@ -586,6 +619,7 @@ test("renders HTTP semantic summaries from report-first artifacts without payloa
 
     await writeArtifactFiles(artifactsDir, {
       "evidence.events.jsonl": '{"requestBody":"SECRET_EVENT_BODY_MUST_NOT_APPEAR"}\n',
+      "yanote-report.html": "<html><body>semantic http html</body></html>\n",
       "yanote-report.json": JSON.stringify(createHttpSemanticReportFixture()),
       "yanote-validation.stderr.log": 'YANOTE_ERROR class=gate code=GATE_THRESHOLD reason="old threshold should not win" hint="stale artifact"\n'
     });
@@ -610,9 +644,12 @@ test("renders HTTP semantic summaries from report-first artifacts without payloa
       "- aggregate: 100.00% (COVERED)",
       "- status dimension: 100.00% (COVERED)",
       "- parameters: 100.00% (COVERED)",
+      "- spec source: local-file (examples/openapi/demo-openapi-unsupported-schema.yaml)",
+      "- deprecated operations: covered=0/0 uncovered=0 (N/A)",
+      "- report artifacts: yanote-report.json (present), yanote-report.html (present)",
       "- primary failure: SEMANTIC_HTTP_UNSUPPORTED_SCHEMA - request payload for http POST /compile-fail/{param} media=application/json declares JSON content without a usable validation schema.",
       "- report: yanote-report.json",
-      "- artifacts: evidence.events.jsonl, yanote-report.json, yanote-validation.stderr.log",
+      "- artifacts: evidence.events.jsonl, yanote-report.html, yanote-report.json, yanote-validation.stderr.log",
       "",
       "### Top Issues",
       "1. high: SEMANTIC_HTTP_UNSUPPORTED_SCHEMA - request payload for http POST /compile-fail/{param} media=application/json declares JSON content without a usable validation schema.",
@@ -641,6 +678,7 @@ test("renders HTTP security summaries from governance-driven report data without
 
     await writeArtifactFiles(artifactsDir, {
       "evidence.events.jsonl": '{"requestHeaders":{"x-api-key":{"state":"captured","values":["SECRET_HEADER"]}}}\n',
+      "yanote-report.html": "<html><body>security http html</body></html>\n",
       "yanote-report.json": JSON.stringify(createHttpSecurityReportFixture()),
       "yanote-validation.stderr.log": 'YANOTE_ERROR class=gate code=GATE_THRESHOLD reason="stale threshold should not win" hint="stale artifact"\n'
     });
@@ -665,11 +703,14 @@ test("renders HTTP security summaries from governance-driven report data without
       "- aggregate: N/A (N/A)",
       "- status dimension: 100.00% (COVERED)",
       "- parameters: N/A (N/A)",
+      "- spec source: local-file (yanote-js/test/fixtures/openapi/http-security-api-key.yaml)",
+      "- deprecated operations: covered=0/0 uncovered=0 (N/A)",
+      "- report artifacts: yanote-report.json (present), yanote-report.html (present)",
       "- security observations: declared=12 observed_operations=12 evaluations=12",
       "- security truths: satisfied=3 missing=1 unavailable=2 unsupported=4 optional=1 clear=1",
       "- primary failure: SEMANTIC_HTTP_MISSING_SECURITY - required query apiKey 'api_key' for security scheme 'queryKey' on http GET /or-and-missing was not retained in request evidence.",
       "- report: yanote-report.json",
-      "- artifacts: evidence.events.jsonl, yanote-report.json, yanote-validation.stderr.log",
+      "- artifacts: evidence.events.jsonl, yanote-report.html, yanote-report.json, yanote-validation.stderr.log",
       "",
       "### Top Issues",
       "1. high: SEMANTIC_HTTP_MISSING_SECURITY - required query apiKey 'api_key' for security scheme 'queryKey' on http GET /or-and-missing was not retained in request evidence.",
@@ -702,6 +743,11 @@ test("renders async report artifacts with typed stderr failures and no payload l
     await writeArtifactFiles(artifactsDir, {
       "artifact-manifest.txt": "proof_status=failure\nreport_found=true\n",
       "artifact-source-paths.txt": "temp_dir=/tmp/yanote-proof\n",
+      "runtime-selected-yanote-async-report.html": "<html><body>runtime selected html</body></html>\n",
+      "runtime-selected-yanote-async-report.json": '{"status":"partial"}\n',
+      "schema-failure-yanote-async-report.html": "<html><body>schema failure html</body></html>\n",
+      "schema-failure-yanote-async-report.json": '{"status":"error"}\n',
+      "yanote-async-report.html": "<html><body>async html</body></html>\n",
       "yanote-async-report.json": JSON.stringify(createAsyncHappyPathReportFixture()),
       "async-report.stdout": [
         "Summary",
@@ -732,6 +778,9 @@ test("renders async report artifacts with typed stderr failures and no payload l
       "- channels: 1/2 (50.00%)",
       "- operations: 1/2 (50.00%)",
       "- messages: 1/2 (50.00%)",
+      "- spec source: remote-url (https://example.test/asyncapi.yaml)",
+      "- report artifacts: yanote-async-report.json (present), yanote-async-report.html (present)",
+      "- retained async companions: runtime-selected-yanote-async-report.json (present), runtime-selected-yanote-async-report.html (present), schema-failure-yanote-async-report.json (present), schema-failure-yanote-async-report.html (present)",
       "- primary failure: ASYNC_SEMANTIC_MESSAGE_MISMATCH - message mismatch on users.deleted",
       "- class counts: input:0,semantic:1,gate:1,runtime:0",
       "- proof exit code: 5",
@@ -756,6 +805,9 @@ test("renders async report artifacts with typed stderr failures and no payload l
     assert.equal(markdown, expected);
     assert.equal(markdown.includes("SECRET_ASYNC_PAYLOAD_MUST_NOT_APPEAR"), false);
     assert.equal(markdown.includes("rawPayload"), false);
+    assert.equal(markdown.includes("async-user"), false);
+    assert.equal(markdown.includes("async-pass"), false);
+    assert.equal(markdown.includes("async-secret"), false);
     assert.equal(await readFile(summaryPath, "utf8"), markdown);
   } finally {
     await rm(workDir, { recursive: true, force: true });
@@ -770,6 +822,11 @@ test("renders async report-only schema and routing diagnostics with explicit sem
     const summaryPath = path.join(workDir, "summary.md");
 
     await writeArtifactFiles(artifactsDir, {
+      "runtime-selected-yanote-async-report.html": "<html><body>runtime selected html</body></html>\n",
+      "runtime-selected-yanote-async-report.json": '{"status":"partial"}\n',
+      "schema-failure-yanote-async-report.html": "<html><body>schema failure html</body></html>\n",
+      "schema-failure-yanote-async-report.json": '{"status":"error"}\n',
+      "yanote-async-report.html": "<html><body>async diagnostic html</body></html>\n",
       "yanote-async-report.json": JSON.stringify(createAsyncDiagnosticReportFixture())
     });
 
@@ -786,12 +843,15 @@ test("renders async report-only schema and routing diagnostics with explicit sem
       "- channels: 1/1 (100.00%)",
       "- operations: 1/1 (100.00%)",
       "- messages: 1/1 (100.00%)",
+      "- spec source: local-file (test/fixtures/asyncapi/orders.yaml)",
+      "- report artifacts: yanote-async-report.json (present), yanote-async-report.html (present)",
+      "- retained async companions: runtime-selected-yanote-async-report.json (present), runtime-selected-yanote-async-report.html (present), schema-failure-yanote-async-report.json (present), schema-failure-yanote-async-report.html (present)",
       "- primary failure: ASYNC_SEMANTIC_UNSUPPORTED_CONTENT_TYPE - Async evidence kafka send orders.created cannot validate payload schema OrderCreatedPayload because Unsupported content type application/xml for AsyncAPI message payload validation.",
       "- class counts: input:0,semantic:7,gate:0,runtime:0",
       "- proof exit code: 5",
       "- report: yanote-async-report.json",
       "- summary source: report file",
-      "- artifacts: yanote-async-report.json",
+      "- artifacts: runtime-selected-yanote-async-report.html, runtime-selected-yanote-async-report.json, schema-failure-yanote-async-report.html, schema-failure-yanote-async-report.json",
       "",
       "### Coverage Dimensions",
       "- channels: 100.00% (COVERED)",
@@ -851,6 +911,9 @@ test("renders async no-report fallback from YANOTE_ASYNC summary signals using p
       "- channels: 0/0 (N/A)",
       "- operations: 0/0 (N/A)",
       "- messages: 0/0 (N/A)",
+      "- spec source: none",
+      "- report artifacts: yanote-async-report.json (missing), yanote-async-report.html (missing)",
+      "- retained async companions: runtime-selected-yanote-async-report.json (missing), runtime-selected-yanote-async-report.html (missing), schema-failure-yanote-async-report.json (missing), schema-failure-yanote-async-report.html (missing)",
       "- primary failure: ASYNC_SEMANTIC_SPEC_INVALID - AsyncAPI document is invalid",
       "- class counts: input:0,semantic:1,gate:0,runtime:0",
       "- proof exit code: 5",

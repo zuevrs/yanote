@@ -1,0 +1,497 @@
+{
+  "coverage": {
+    "aggregate": {
+      "explanation": "aggregate is N/A because weighted dimensions include N/A",
+      "percent": null,
+      "state": "N/A"
+    },
+    "operations": {
+      "percent": 66.67,
+      "state": "PARTIAL"
+    },
+    "parameters": {
+      "percent": null,
+      "state": "N/A"
+    },
+    "perOperation": [
+      {
+        "deprecated": true,
+        "method": "GET",
+        "operation": {
+          "state": "UNCOVERED"
+        },
+        "operationKey": "http GET /legacy-users",
+        "parameters": {
+          "optional": {
+            "covered": 0,
+            "missing": [
+            ],
+            "total": 0
+          },
+          "required": {
+            "covered": 0,
+            "missing": [
+            ],
+            "total": 0
+          },
+          "state": "N/A"
+        },
+        "route": "/legacy-users",
+        "status": {
+          "covered": [
+          ],
+          "declared": [
+            "200"
+          ],
+          "missing": [
+            "200"
+          ],
+          "state": "UNCOVERED"
+        },
+        "suites": [
+        ]
+      },
+      {
+        "deprecated": false,
+        "method": "GET",
+        "operation": {
+          "state": "COVERED"
+        },
+        "operationKey": "http GET /users",
+        "parameters": {
+          "optional": {
+            "covered": 0,
+            "missing": [
+            ],
+            "total": 0
+          },
+          "required": {
+            "covered": 0,
+            "missing": [
+            ],
+            "total": 0
+          },
+          "state": "N/A"
+        },
+        "route": "/users",
+        "status": {
+          "covered": [
+            "200"
+          ],
+          "declared": [
+            "200"
+          ],
+          "missing": [
+          ],
+          "state": "COVERED"
+        },
+        "suites": [
+          "suite-users-read"
+        ]
+      },
+      {
+        "deprecated": false,
+        "method": "POST",
+        "operation": {
+          "state": "COVERED"
+        },
+        "operationKey": "http POST /users",
+        "parameters": {
+          "optional": {
+            "covered": 0,
+            "missing": [
+            ],
+            "total": 0
+          },
+          "required": {
+            "covered": 0,
+            "missing": [
+            ],
+            "total": 0
+          },
+          "state": "N/A"
+        },
+        "route": "/users",
+        "status": {
+          "covered": [
+            "201"
+          ],
+          "declared": [
+            "201"
+          ],
+          "missing": [
+          ],
+          "state": "COVERED"
+        },
+        "suites": [
+          "suite-users-create"
+        ]
+      }
+    ],
+    "status": {
+      "percent": 66.67,
+      "state": "PARTIAL"
+    }
+  },
+  "diagnostics": {
+    "counts": {
+      "ambiguous": 0,
+      "invalid": 0,
+      "unmatched": 0
+    },
+    "items": [
+    ]
+  },
+  "generatedAt": "2026-03-02T10:59:55.657Z",
+  "governance": {
+    "diagnostics": [
+      {
+        "class": "gate",
+        "code": "GATE_MIN_COVERAGE",
+        "message": "Operation coverage 66.6667% is below required 95.0000%.",
+        "severity": "warning"
+      }
+    ],
+    "exclusions": {
+      "appliedRules": [
+      ],
+      "unmatchedRules": [
+      ]
+    }
+  },
+  "httpPayloadConformance": {
+    "diagnostics": {
+      "counts": {
+        "covered": 0,
+        "skipped": 0,
+        "uncovered": 0
+      },
+      "items": [
+      ]
+    },
+    "perOperation": [
+      {
+        "method": "GET",
+        "operationKey": "http GET /legacy-users",
+        "request": {
+          "declaredMediaTypes": [
+          ],
+          "invalidCount": 0,
+          "observedCount": 0,
+          "observedMediaTypes": [
+          ],
+          "skippedCount": 0,
+          "state": "N/A",
+          "validCount": 0
+        },
+        "response": {
+          "declaredContent": [
+            {
+              "declaredStatus": "200",
+              "mediaTypes": [
+              ]
+            }
+          ],
+          "declaredMediaTypes": [
+          ],
+          "invalidCount": 0,
+          "observedCount": 0,
+          "observedMediaTypes": [
+          ],
+          "skippedCount": 0,
+          "state": "N/A",
+          "validCount": 0
+        },
+        "route": "/legacy-users",
+        "suites": [
+        ]
+      },
+      {
+        "method": "GET",
+        "operationKey": "http GET /users",
+        "request": {
+          "declaredMediaTypes": [
+          ],
+          "invalidCount": 0,
+          "observedCount": 0,
+          "observedMediaTypes": [
+          ],
+          "skippedCount": 0,
+          "state": "N/A",
+          "validCount": 0
+        },
+        "response": {
+          "declaredContent": [
+            {
+              "declaredStatus": "200",
+              "mediaTypes": [
+              ]
+            }
+          ],
+          "declaredMediaTypes": [
+          ],
+          "invalidCount": 0,
+          "observedCount": 0,
+          "observedMediaTypes": [
+          ],
+          "skippedCount": 0,
+          "state": "N/A",
+          "validCount": 0
+        },
+        "route": "/users",
+        "suites": [
+          "suite-users-read"
+        ]
+      },
+      {
+        "method": "POST",
+        "operationKey": "http POST /users",
+        "request": {
+          "declaredMediaTypes": [
+          ],
+          "invalidCount": 0,
+          "observedCount": 0,
+          "observedMediaTypes": [
+          ],
+          "skippedCount": 0,
+          "state": "N/A",
+          "validCount": 0
+        },
+        "response": {
+          "declaredContent": [
+            {
+              "declaredStatus": "201",
+              "mediaTypes": [
+              ]
+            }
+          ],
+          "declaredMediaTypes": [
+          ],
+          "invalidCount": 0,
+          "observedCount": 0,
+          "observedMediaTypes": [
+          ],
+          "skippedCount": 0,
+          "state": "N/A",
+          "validCount": 0
+        },
+        "route": "/users",
+        "suites": [
+          "suite-users-create"
+        ]
+      }
+    ],
+    "summary": {
+      "request": {
+        "coveredOperations": 0,
+        "invalidCount": 0,
+        "notApplicableOperations": 3,
+        "observedCount": 0,
+        "partialOperations": 0,
+        "skippedCount": 0,
+        "skippedOperations": 0,
+        "uncoveredOperations": 0,
+        "validCount": 0
+      },
+      "response": {
+        "coveredOperations": 0,
+        "invalidCount": 0,
+        "notApplicableOperations": 3,
+        "observedCount": 0,
+        "partialOperations": 0,
+        "skippedCount": 0,
+        "skippedOperations": 0,
+        "uncoveredOperations": 0,
+        "validCount": 0
+      }
+    }
+  },
+  "httpRequestConformance": {
+    "diagnostics": {
+      "counts": {
+        "capturedInvalid": 0,
+        "capturedValid": 0,
+        "omitted": 0,
+        "redacted": 0,
+        "unsupported": 0
+      },
+      "items": [
+      ]
+    },
+    "perOperation": [
+      {
+        "counts": {
+          "capturedInvalid": 0,
+          "capturedValid": 0,
+          "omitted": 0,
+          "redacted": 0,
+          "unsupported": 0
+        },
+        "method": "GET",
+        "observedCount": 0,
+        "operationKey": "http GET /legacy-users",
+        "parameters": [
+        ],
+        "route": "/legacy-users",
+        "suites": [
+        ]
+      },
+      {
+        "counts": {
+          "capturedInvalid": 0,
+          "capturedValid": 0,
+          "omitted": 0,
+          "redacted": 0,
+          "unsupported": 0
+        },
+        "method": "GET",
+        "observedCount": 1,
+        "operationKey": "http GET /users",
+        "parameters": [
+        ],
+        "route": "/users",
+        "suites": [
+          "suite-users-read"
+        ]
+      },
+      {
+        "counts": {
+          "capturedInvalid": 0,
+          "capturedValid": 0,
+          "omitted": 0,
+          "redacted": 0,
+          "unsupported": 0
+        },
+        "method": "POST",
+        "observedCount": 1,
+        "operationKey": "http POST /users",
+        "parameters": [
+        ],
+        "route": "/users",
+        "suites": [
+          "suite-users-create"
+        ]
+      }
+    ],
+    "summary": {
+      "counts": {
+        "capturedInvalid": 0,
+        "capturedValid": 0,
+        "omitted": 0,
+        "redacted": 0,
+        "unsupported": 0
+      },
+      "observedOperations": 2,
+      "observedParameters": 0
+    }
+  },
+  "httpSecurityConformance": {
+    "diagnostics": {
+      "counts": {
+        "clear": 0,
+        "missing": 0,
+        "optional": 0,
+        "satisfied": 0,
+        "unavailable": 0,
+        "unsupported": 0
+      },
+      "items": [
+      ]
+    },
+    "perOperation": [
+      {
+        "branches": [
+        ],
+        "method": "GET",
+        "observedCount": 0,
+        "operationKey": "http GET /legacy-users",
+        "overallTruths": {
+          "clear": 0,
+          "missing": 0,
+          "optional": 0,
+          "satisfied": 0,
+          "unavailable": 0,
+          "unsupported": 0
+        },
+        "route": "/legacy-users",
+        "suites": [
+        ]
+      },
+      {
+        "branches": [
+        ],
+        "method": "GET",
+        "observedCount": 1,
+        "operationKey": "http GET /users",
+        "overallTruths": {
+          "clear": 0,
+          "missing": 0,
+          "optional": 0,
+          "satisfied": 0,
+          "unavailable": 0,
+          "unsupported": 0
+        },
+        "route": "/users",
+        "suites": [
+          "suite-users-read"
+        ]
+      },
+      {
+        "branches": [
+        ],
+        "method": "POST",
+        "observedCount": 1,
+        "operationKey": "http POST /users",
+        "overallTruths": {
+          "clear": 0,
+          "missing": 0,
+          "optional": 0,
+          "satisfied": 0,
+          "unavailable": 0,
+          "unsupported": 0
+        },
+        "route": "/users",
+        "suites": [
+          "suite-users-create"
+        ]
+      }
+    ],
+    "summary": {
+      "counts": {
+        "clear": 0,
+        "missing": 0,
+        "optional": 0,
+        "satisfied": 0,
+        "unavailable": 0,
+        "unsupported": 0
+      },
+      "declaredOperations": 0,
+      "observedEvaluations": 0,
+      "observedOperations": 2
+    }
+  },
+  "phase": {
+    "id": "02",
+    "slug": "coverage-metrics-and-cli-reporting"
+  },
+  "schemaVersion": "1.0.0",
+  "specSource": {
+    "kind": "local-file",
+    "reference": "yanote-js/test/fixtures/openapi/http-deprecated-operations.yaml"
+  },
+  "status": "partial",
+  "summary": {
+    "aggregateCoveragePercent": null,
+    "aggregateExplanation": "aggregate is N/A because weighted dimensions include N/A",
+    "coveredOperations": 2,
+    "deprecatedOperations": {
+      "coveredOperations": 0,
+      "operationCoveragePercent": 0,
+      "totalOperations": 1,
+      "uncoveredOperations": 1
+    },
+    "operationCoveragePercent": 66.67,
+    "totalOperations": 3
+  },
+  "toolVersion": "0.0.0"
+}
