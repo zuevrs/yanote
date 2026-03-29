@@ -201,7 +201,7 @@ jobs:
 
       - name: Upload build-and-test artifacts
         if: ${{ always() }}
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v6
         with:
           name: build-and-test-artifacts
           path: ${{ env.YANOTE_ARTIFACT_DIR }}
@@ -279,7 +279,7 @@ jobs:
 
       - name: Upload Yanote artifacts
         if: ${{ always() }}
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v6
         with:
           name: yanote-validation-artifacts
           path: ${{ env.YANOTE_ARTIFACT_DIR }}
