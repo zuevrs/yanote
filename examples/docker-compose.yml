@@ -77,6 +77,7 @@ services:
       YANOTE_READY_MARKER: /data/yanote/tests-done.marker
       YANOTE_REPORT_MARKER: /data/yanote/report-done.marker
       YANOTE_TESTS_WAIT_ATTEMPTS: "900"
+      YANOTE_ANALYZER_PATH: /workspace/dist/standalone-analyzer/bin/yanote
     command: >
       sh -c '
         set -e;
@@ -93,7 +94,11 @@ services:
           echo "ERROR: tests marker not found at $${YANOTE_READY_MARKER}";
           exit 1;
         fi;
-        node yanote-js/dist/yanote.cjs report --spec /workspace/examples/openapi/demo-openapi.yaml --events /data/yanote/events.jsonl --out /data/yanote/out --min-coverage 100;
+        if ! test -x "$${YANOTE_ANALYZER_PATH}"; then
+          echo "ERROR: standalone analyzer launcher not found at $${YANOTE_ANALYZER_PATH}. Run ./gradlew distStandaloneAnalyzer before docker compose up.";
+          exit 1;
+        fi;
+        "$${YANOTE_ANALYZER_PATH}" report --spec /workspace/examples/openapi/demo-openapi.yaml --events /data/yanote/events.jsonl --out /data/yanote/out --min-coverage 100 --profile local;
         echo "Generated report:";
         cat /data/yanote/out/yanote-report.json;
         echo "done" > "$${YANOTE_REPORT_MARKER}";

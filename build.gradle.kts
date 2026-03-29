@@ -101,7 +101,20 @@ subprojects {
 }
 
 val distFlatdirRecorderLibsDir = layout.projectDirectory.dir("dist/flatdir-recorder/libs")
-val distNodeAnalyzerBinDir = layout.projectDirectory.dir("dist/node-analyzer/bin")
+val distNodeAnalyzerDir = layout.projectDirectory.dir("dist/node-analyzer")
+val distNodeAnalyzerBinDir = distNodeAnalyzerDir.dir("bin")
+val distStandaloneAnalyzerDir = layout.projectDirectory.dir("dist/standalone-analyzer")
+val distStandaloneAnalyzerBinDir = distStandaloneAnalyzerDir.dir("bin")
+val distStandaloneAnalyzerLibDir = distStandaloneAnalyzerDir.dir("lib")
+val distStandaloneAnalyzerArchive = layout.buildDirectory.file("distributions/yanote-analyzer.zip")
+val yanoteJsDir = layout.projectDirectory.dir("yanote-js")
+val yanoteJsPackageJson = yanoteJsDir.file("package.json")
+val yanoteJsPackageLockJson = yanoteJsDir.file("package-lock.json")
+val yanoteJsEsbuildConfig = yanoteJsDir.file("esbuild.config.mjs")
+val yanoteJsBinLauncher = yanoteJsDir.file("bin/yanote")
+val yanoteJsSourceDir = yanoteJsDir.dir("src")
+val yanoteJsNodeModulesDir = yanoteJsDir.dir("node_modules")
+val yanoteJsBuiltAnalyzer = yanoteJsDir.file("dist/yanote.cjs")
 
 tasks.register<Delete>("cleanDistFlatdirRecorder") {
     delete(distFlatdirRecorderLibsDir)
@@ -147,14 +160,48 @@ tasks.register<Copy>("distFlatdirRecorder") {
 }
 
 tasks.register<Delete>("cleanDistNodeAnalyzer") {
-    delete(distNodeAnalyzerBinDir)
+    delete(distNodeAnalyzerDir)
+}
+
+tasks.register<Delete>("cleanDistStandaloneAnalyzer") {
+    delete(distStandaloneAnalyzerDir)
+}
+
+tasks.register<Delete>("cleanDistStandaloneAnalyzerArchive") {
+    delete(distStandaloneAnalyzerArchive)
+}
+
+tasks.register<Exec>("installYanoteJsDependencies") {
+    group = "distribution"
+    description = "Install yanote-js dependencies deterministically"
+
+    inputs.files(yanoteJsPackageJson, yanoteJsPackageLockJson)
+    outputs.dir(yanoteJsNodeModulesDir)
+
+    commandLine("npm", "-C", "yanote-js", "ci")
+}
+
+tasks.register<Exec>("buildYanoteJsAnalyzer") {
+    group = "distribution"
+    description = "Build the yanote-js analyzer runtime"
+
+    dependsOn("installYanoteJsDependencies")
+
+    inputs.files(yanoteJsPackageJson, yanoteJsEsbuildConfig)
+    inputs.dir(yanoteJsSourceDir)
+    outputs.file(yanoteJsBuiltAnalyzer)
+
+    commandLine("npm", "-C", "yanote-js", "run", "build")
 }
 
 tasks.register<Exec>("buildDistNodeAnalyzer") {
     group = "distribution"
     description = "Build Node analyzer bundle (yanote.cjs)"
 
-    dependsOn("cleanDistNodeAnalyzer")
+    dependsOn("cleanDistNodeAnalyzer", "installYanoteJsDependencies", "buildYanoteJsAnalyzer")
+
+    inputs.files(yanoteJsPackageJson, yanoteJsPackageLockJson, yanoteJsBuiltAnalyzer)
+    outputs.dir(distNodeAnalyzerDir)
 
     workingDir = layout.projectDirectory.asFile
     commandLine(
@@ -162,9 +209,6 @@ tasks.register<Exec>("buildDistNodeAnalyzer") {
         "-lc",
         listOf(
             "set -euo pipefail",
-            "rm -rf yanote-js/node_modules",
-            "npm -C yanote-js ci",
-            "npm -C yanote-js run build",
             "rm -rf dist/node-analyzer/node_modules dist/node-analyzer/package.json dist/node-analyzer/package-lock.json",
             "mkdir -p dist/node-analyzer",
             "cp yanote-js/package.json dist/node-analyzer/package.json",
@@ -181,8 +225,80 @@ tasks.register<Copy>("distNodeAnalyzer") {
     dependsOn("buildDistNodeAnalyzer")
 
     into(distNodeAnalyzerBinDir)
-    from(layout.projectDirectory.file("yanote-js/dist/yanote.cjs"))
+    from(yanoteJsBuiltAnalyzer)
     rename { "yanote.cjs" }
+}
+
+tasks.register<Exec>("stageStandaloneAnalyzer") {
+    group = "distribution"
+    description = "Stage the versioned standalone analyzer bundle with stable launcher"
+
+    dependsOn("cleanDistStandaloneAnalyzer", "installYanoteJsDependencies", "buildYanoteJsAnalyzer")
+
+    inputs.files(yanoteJsPackageJson, yanoteJsPackageLockJson, yanoteJsBinLauncher, yanoteJsBuiltAnalyzer)
+    outputs.dir(distStandaloneAnalyzerDir)
+
+    environment("YANOTE_STANDALONE_VERSION", rootProject.version.toString())
+    workingDir = layout.projectDirectory.asFile
+    commandLine(
+        "bash",
+        "-lc",
+        listOf(
+            "set -euo pipefail",
+            "standalone_dir=dist/standalone-analyzer",
+            "standalone_version=\"${'$'}{YANOTE_STANDALONE_VERSION:-}\"",
+            "if [[ -z \"${'$'}standalone_version\" ]]; then echo \"distStandaloneAnalyzer requires a non-empty YANOTE_STANDALONE_VERSION.\" >&2; exit 1; fi",
+            "if [[ \"${'$'}standalone_version\" == \"0.0.0\" ]]; then echo \"distStandaloneAnalyzer refuses to stage the default 0.0.0 analyzer version.\" >&2; exit 1; fi",
+            "rm -rf \"${'$'}standalone_dir\"",
+            "mkdir -p \"${'$'}standalone_dir/bin\" \"${'$'}standalone_dir/lib\"",
+            "cp yanote-js/bin/yanote \"${'$'}standalone_dir/bin/yanote\"",
+            "chmod 755 \"${'$'}standalone_dir/bin/yanote\"",
+            "cp yanote-js/dist/yanote.cjs \"${'$'}standalone_dir/lib/yanote.cjs\"",
+            "printf '%s\\n' \"${'$'}standalone_version\" > \"${'$'}standalone_dir/VERSION\"",
+            "node -e 'const fs=require(\"node:fs\"); const path=require(\"node:path\"); const standaloneDir=process.argv[1]; const standaloneVersion=process.argv[2]; const packageJson=JSON.parse(fs.readFileSync(\"yanote-js/package.json\", \"utf8\")); packageJson.version=standaloneVersion; fs.writeFileSync(path.join(standaloneDir, \"package.json\"), JSON.stringify(packageJson, null, 2) + \"\\n\"); const packageLockJson=JSON.parse(fs.readFileSync(\"yanote-js/package-lock.json\", \"utf8\")); packageLockJson.version=standaloneVersion; if (packageLockJson.packages && packageLockJson.packages[\"\"]) { packageLockJson.packages[\"\"].version = standaloneVersion; } fs.writeFileSync(path.join(standaloneDir, \"package-lock.json\"), JSON.stringify(packageLockJson, null, 2) + \"\\n\");' \"${'$'}standalone_dir\" \"${'$'}standalone_version\"",
+            "npm --prefix \"${'$'}standalone_dir\" ci --omit=dev"
+        ).joinToString(" && ")
+    )
+}
+
+tasks.register<Zip>("packageStandaloneAnalyzer") {
+    group = "distribution"
+    description = "Package the staged standalone analyzer bundle as the official release archive"
+
+    dependsOn("cleanDistStandaloneAnalyzerArchive", "stageStandaloneAnalyzer")
+
+    inputs.dir(distStandaloneAnalyzerDir)
+    outputs.file(distStandaloneAnalyzerArchive)
+
+    archiveFileName.set("yanote-analyzer.zip")
+    destinationDirectory.set(layout.buildDirectory.dir("distributions"))
+    isPreserveFileTimestamps = false
+    isReproducibleFileOrder = true
+
+    doFirst {
+        val requiredEntries = listOf(
+            "bin/yanote",
+            "lib/yanote.cjs",
+            "VERSION",
+            "package.json",
+            "package-lock.json"
+        )
+        val missingEntries = requiredEntries.filterNot { distStandaloneAnalyzerDir.file(it).asFile.exists() }
+        if (missingEntries.isNotEmpty()) {
+            val missingMessage = missingEntries.joinToString(separator = ", ")
+            throw org.gradle.api.GradleException("distStandaloneAnalyzer expected a complete staged bundle before packaging; missing: $missingMessage")
+        }
+    }
+
+    from(distStandaloneAnalyzerDir) {
+        into("yanote-analyzer")
+    }
+}
+
+tasks.register("distStandaloneAnalyzer") {
+    group = "distribution"
+    description = "Build the standalone analyzer bundle and deterministic release archive"
+    dependsOn("packageStandaloneAnalyzer")
 }
 
 tasks.register("distAll") {

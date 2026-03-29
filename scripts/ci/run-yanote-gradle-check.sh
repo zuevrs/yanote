@@ -8,18 +8,50 @@ YANOTE_OUT_DIR="${YANOTE_OUT_DIR:-build/yanote/aggregate/check}"
 YANOTE_CI_DIR="${YANOTE_CI_DIR:-.yanote-ci}"
 YANOTE_GRADLE_FIXTURE_DIR="${YANOTE_GRADLE_FIXTURE_DIR:-${YANOTE_CI_DIR}/gradle-check-fixture}"
 YANOTE_GRADLE_TASK="${YANOTE_GRADLE_TASK:-yanoteCheck}"
-YANOTE_SKIP_DIST_NODE_ANALYZER="${YANOTE_SKIP_DIST_NODE_ANALYZER:-false}"
+YANOTE_SKIP_DIST_STANDALONE_ANALYZER="${YANOTE_SKIP_DIST_STANDALONE_ANALYZER:-${YANOTE_SKIP_DIST_NODE_ANALYZER:-false}}"
+YANOTE_ANALYZER_PATH="${YANOTE_ANALYZER_PATH:-}"
 INPUT_SPEC_PATH="${INPUT_SPEC_PATH:-yanote-js/test/fixtures/openapi/simple.yaml}"
 INPUT_EVENTS_PATH="${INPUT_EVENTS_PATH:-yanote-js/test/fixtures/events/events.ci.fixture.jsonl}"
 FIXTURE_DIR="${YANOTE_GRADLE_FIXTURE_DIR}"
+DEFAULT_ANALYZER_PATH="${ROOT_DIR}/dist/standalone-analyzer/bin/yanote"
+ANALYZER_PATH_RESOLVED="${DEFAULT_ANALYZER_PATH}"
+ANALYZER_SOURCE="default"
+
+fail() {
+  echo "ERROR: $1" >&2
+  exit 2
+}
+
+resolve_path() {
+  local candidate="$1"
+  if [[ "${candidate}" = /* ]]; then
+    printf '%s\n' "${candidate}"
+  else
+    printf '%s\n' "${ROOT_DIR}/${candidate}"
+  fi
+}
 
 case "${YANOTE_GRADLE_TASK}" in
   yanoteCheck|yanoteReport) ;;
   *)
-    echo "ERROR: YANOTE_GRADLE_TASK must be yanoteCheck or yanoteReport, got '${YANOTE_GRADLE_TASK}'." >&2
-    exit 2
+    fail "YANOTE_GRADLE_TASK must be yanoteCheck or yanoteReport, got '${YANOTE_GRADLE_TASK}'."
     ;;
 esac
+
+if [[ -n "${YANOTE_ANALYZER_PATH}" ]]; then
+  ANALYZER_PATH_RESOLVED="$(resolve_path "${YANOTE_ANALYZER_PATH}")"
+  ANALYZER_SOURCE="override"
+
+  if [[ -d "${ANALYZER_PATH_RESOLVED}" ]]; then
+    fail "YANOTE_ANALYZER_PATH must point to a launcher file, not a directory: ${ANALYZER_PATH_RESOLVED}"
+  fi
+  if [[ "$(basename "${ANALYZER_PATH_RESOLVED}")" == "yanote.cjs" ]]; then
+    fail "YANOTE_ANALYZER_PATH must point to the standalone launcher contract, not the raw yanote.cjs runtime: ${ANALYZER_PATH_RESOLVED}"
+  fi
+  if [[ ! -e "${ANALYZER_PATH_RESOLVED}" ]]; then
+    fail "YANOTE_ANALYZER_PATH does not exist: ${ANALYZER_PATH_RESOLVED}"
+  fi
+fi
 
 mkdir -p "${YANOTE_CI_DIR}" "${YANOTE_OUT_DIR}"
 rm -rf "${FIXTURE_DIR}"
@@ -30,6 +62,7 @@ export INPUT_SPEC_PATH
 export INPUT_EVENTS_PATH
 export YANOTE_OUT_DIR
 export YANOTE_GRADLE_TASK
+export YANOTE_ANALYZER_PATH_RESOLVED
 
 cat > "${FIXTURE_DIR}/settings.gradle.kts" <<EOF
 pluginManagement {
@@ -82,7 +115,8 @@ val specInput = resolveInput(repoRoot, System.getenv("INPUT_SPEC_PATH"), allowRe
     ?: error("INPUT_SPEC_PATH must be provided by run-yanote-gradle-check.sh")
 val eventsInput = resolveInput(repoRoot, System.getenv("INPUT_EVENTS_PATH"))
     ?: error("INPUT_EVENTS_PATH must be provided by run-yanote-gradle-check.sh")
-val analyzerInput = repoRoot.resolve("dist/node-analyzer/bin/yanote.cjs").absolutePath
+val analyzerInput = resolveInput(repoRoot, System.getenv("YANOTE_ANALYZER_PATH_RESOLVED"))
+    ?: repoRoot.resolve("dist/standalone-analyzer/bin/yanote").absolutePath
 
 yanote {
     profile.set("ci")
@@ -124,7 +158,7 @@ when (requestedTask) {
 }
 EOF
 
-GRADLE_DIST_CMD=(./gradlew distNodeAnalyzer --stacktrace)
+GRADLE_DIST_CMD=(./gradlew distStandaloneAnalyzer --stacktrace)
 if [[ "${YANOTE_GRADLE_TASK}" == "yanoteReport" ]]; then
   GRADLE_RUN_CMD=(./gradlew -p "${FIXTURE_DIR}" --stacktrace yanoteReport)
 else
@@ -132,8 +166,10 @@ else
 fi
 
 {
-    if [[ "${YANOTE_SKIP_DIST_NODE_ANALYZER}" == "true" ]]; then
-        printf '%s\n' "SKIPPED distNodeAnalyzer (YANOTE_SKIP_DIST_NODE_ANALYZER=true)"
+    printf '%s\n' "YANOTE_ANALYZER_PATH=${ANALYZER_PATH_RESOLVED}"
+    printf '%s\n' "YANOTE_ANALYZER_SOURCE=${ANALYZER_SOURCE}"
+    if [[ "${YANOTE_SKIP_DIST_STANDALONE_ANALYZER}" == "true" ]]; then
+        printf '%s\n' "SKIPPED distStandaloneAnalyzer (YANOTE_SKIP_DIST_STANDALONE_ANALYZER=true)"
     else
         printf '%q ' "${GRADLE_DIST_CMD[@]}"
         printf '\n'
@@ -147,9 +183,17 @@ fi
 
 set +e
 exit_code=0
-if [[ "${YANOTE_SKIP_DIST_NODE_ANALYZER}" != "true" ]]; then
+if [[ "${YANOTE_SKIP_DIST_STANDALONE_ANALYZER}" != "true" ]]; then
   "${GRADLE_DIST_CMD[@]}" >> "${YANOTE_CI_DIR}/yanote-validation.stdout.log" 2>> "${YANOTE_CI_DIR}/yanote-validation.stderr.log"
   exit_code=$?
+fi
+if [[ "${exit_code}" -eq 0 && ! -f "${ANALYZER_PATH_RESOLVED}" ]]; then
+  if [[ "${ANALYZER_SOURCE}" == "override" ]]; then
+    printf '%s\n' "ERROR: Standalone analyzer launcher override not found at ${ANALYZER_PATH_RESOLVED}. Point YANOTE_ANALYZER_PATH at a standalone launcher file." >> "${YANOTE_CI_DIR}/yanote-validation.stderr.log"
+  else
+    printf '%s\n' "ERROR: Standalone analyzer launcher not found at ${ANALYZER_PATH_RESOLVED}. Run ./gradlew distStandaloneAnalyzer before invoking scripts/ci/run-yanote-gradle-check.sh." >> "${YANOTE_CI_DIR}/yanote-validation.stderr.log"
+  fi
+  exit_code=2
 fi
 if [[ "${exit_code}" -eq 0 ]]; then
   "${GRADLE_RUN_CMD[@]}" >> "${YANOTE_CI_DIR}/yanote-validation.stdout.log" 2>> "${YANOTE_CI_DIR}/yanote-validation.stderr.log"

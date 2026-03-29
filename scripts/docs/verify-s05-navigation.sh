@@ -5,8 +5,10 @@ ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
 
 ROOT_README="README.md"
 DOCS_README="docs/README.md"
+QUICKSTART_DOC="docs/guides/getting-started.md"
 EXAMPLES_README="examples/README.md"
 MAINTAINERS_README="docs/maintainers/README.md"
+PUBLIC_SURFACE_PROOF_DOC="docs/maintainers/public-surface-proof.md"
 TRACEABILITY_README="docs/traceability/README.md"
 PLANS_README="docs/plans/README.md"
 RELEASE_SUPPORT_DOC="docs/release-and-support.md"
@@ -94,8 +96,10 @@ require_before() {
 for path in \
   "$ROOT_README" \
   "$DOCS_README" \
+  "$QUICKSTART_DOC" \
   "$EXAMPLES_README" \
   "$MAINTAINERS_README" \
+  "$PUBLIC_SURFACE_PROOF_DOC" \
   "$TRACEABILITY_README" \
   "$PLANS_README" \
   "$RELEASE_SUPPORT_DOC" \
@@ -110,7 +114,19 @@ require_contains "$MAINTAINERS_README" "# Maintainers / Для мейнтейн�
 require_contains "$MAINTAINERS_README" "maintainer-only surface" "maintainer-only audience label"
 require_contains "$MAINTAINERS_README" "../README.md" "owner-map backlink"
 require_contains "$MAINTAINERS_README" "release-signing.md" "maintainer leaf link"
+require_contains "$MAINTAINERS_README" "public-surface-proof.md" "public-surface proof leaf link"
 require_before "$MAINTAINERS_README" "../README.md" "release-signing.md" "owner-map backlink ordering"
+require_before "$MAINTAINERS_README" "../README.md" "public-surface-proof.md" "owner-map backlink ordering"
+
+require_contains "$PUBLIC_SURFACE_PROOF_DOC" "maintainer-only leaf" "public-surface-proof audience label"
+require_contains "$PUBLIC_SURFACE_PROOF_DOC" '[`docs/maintainers/README.md`](README.md)' "maintainer owner-map backlink"
+require_contains "$PUBLIC_SURFACE_PROOF_DOC" "bash scripts/docs/verify-m016-s05-public-surface.sh" "canonical rerun command"
+require_contains "$PUBLIC_SURFACE_PROOF_DOC" "S05-01" "stage label"
+require_contains "$PUBLIC_SURFACE_PROOF_DOC" "S05-12" "stage label"
+require_contains "$PUBLIC_SURFACE_PROOF_DOC" "phase-status.txt" "release diagnostics surface"
+require_contains "$PUBLIC_SURFACE_PROOF_DOC" "artifact-manifest.txt" "release diagnostics surface"
+require_contains "$PUBLIC_SURFACE_PROOF_DOC" "tag-context.txt" "release diagnostics surface"
+require_before "$PUBLIC_SURFACE_PROOF_DOC" '[`docs/maintainers/README.md`](README.md)' "## Каноническая команда" "maintainer owner-map backlink ordering"
 
 require_contains "$TRACEABILITY_README" "# Traceability / Reference map" "traceability landing title"
 require_contains "$TRACEABILITY_README" "reference-only surface" "traceability audience label"
@@ -137,7 +153,11 @@ require_before "$REQUIREMENTS_DOC" '[`docs/README.md`](README.md)' "## v1 Requir
 
 require_contains "$RELEASE_SIGNING_DOC" "maintainer-only leaf" "release-signing audience label"
 require_contains "$RELEASE_SIGNING_DOC" '[`docs/maintainers/README.md`](README.md)' "maintainer owner-map backlink"
+require_contains "$RELEASE_SIGNING_DOC" "public-surface-proof.md" "public-surface proof leaf link"
+require_contains "$RELEASE_SIGNING_DOC" "bash scripts/ci/verify-m016-s02-release-pipeline.sh" "local release-candidate proof command"
+require_contains "$RELEASE_SIGNING_DOC" "bash scripts/docs/verify-m016-s05-public-surface.sh" "final public-surface proof command"
 require_before "$RELEASE_SIGNING_DOC" '[`docs/maintainers/README.md`](README.md)' "## Current policy" "maintainer owner-map backlink ordering"
+require_before "$RELEASE_SIGNING_DOC" "bash scripts/ci/verify-m016-s02-release-pipeline.sh" "bash scripts/docs/verify-m016-s05-public-surface.sh" "release proof ordering"
 
 require_contains "$TRACEABILITY_MATRIX_DOC" "reference-only leaf" "traceability leaf audience label"
 require_contains "$TRACEABILITY_MATRIX_DOC" '[`docs/traceability/README.md`](README.md)' "traceability owner-map backlink"
@@ -147,8 +167,18 @@ require_before "$TRACEABILITY_MATRIX_DOC" '[`docs/traceability/README.md`](READM
 require_not_contains "$ROOT_README" "dist/README.md" "tracked dist owner map"
 require_not_contains "$ROOT_README" "dist/flatdir-recorder/README.md" "tracked flatdir fallback doc"
 require_not_contains "$ROOT_README" "dist/node-analyzer/README.md" "tracked analyzer fallback doc"
+require_not_contains "$ROOT_README" "public-surface-proof.md" "maintainer-only proof leaf"
+require_not_contains "$ROOT_README" "verify-m016-s05-public-surface.sh" "maintainer-only proof command"
 require_not_contains "$DOCS_README" "../dist/README.md" "tracked dist owner map"
+require_not_contains "$DOCS_README" "public-surface-proof.md" "maintainer-only proof leaf"
+require_not_contains "$DOCS_README" "verify-m016-s05-public-surface.sh" "maintainer-only proof command"
+require_not_contains "$QUICKSTART_DOC" "public-surface-proof.md" "maintainer-only proof leaf"
+require_not_contains "$QUICKSTART_DOC" "verify-m016-s05-public-surface.sh" "maintainer-only proof command"
 require_not_contains "$EXAMPLES_README" "../dist/README.md" "tracked dist owner map"
+require_not_contains "$EXAMPLES_README" "public-surface-proof.md" "maintainer-only proof leaf"
+require_not_contains "$EXAMPLES_README" "verify-m016-s05-public-surface.sh" "maintainer-only proof command"
+require_not_contains "$RELEASE_SUPPORT_DOC" "public-surface-proof.md" "maintainer-only proof leaf"
+require_not_contains "$RELEASE_SUPPORT_DOC" "verify-m016-s05-public-surface.sh" "maintainer-only proof command"
 
 if (( failures > 0 )); then
   echo "S05 navigation verification failed with ${failures} issue(s)." >&2

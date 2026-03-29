@@ -1,9 +1,0 @@
-{
-  "schemaVersion": 1,
-  "taskId": "T02",
-  "unitId": "M010/S02/T02",
-  "timestamp": 1774404813268,
-  "passed": true,
-  "discoverySource": "none",
-  "checks": []
-}

@@ -48,15 +48,16 @@ test("v1 e2e script shares one explicit Gradle home between host preflight and c
   assert.match(source, /\.\/gradlew --no-daemon -g "\$\{HOST_GRADLE_HOME\}"/);
 });
 
-test("v1 e2e script prebuilds example service and test assets on the host before compose", async () => {
+test("v1 e2e script prebuilds example service, test assets, and the standalone analyzer launcher on the host before compose", async () => {
   const source = await loadScriptSource();
   assert.match(source, /prepare_demo_assets\(\)/);
   assert.match(source, /:examples:springmvc-service:bootJar/);
   assert.match(source, /:examples:tests-restassured:testClasses/);
   assert.match(source, /:examples:tests-restassured:resolveTestRuntimeClasspath/);
+  assert.match(source, /distStandaloneAnalyzer/);
 });
 
-test("v1 e2e script prebuilds analyzer assets on the host before compose", async () => {
+test("v1 e2e script still prebuilds raw Node analyzer assets for host-side focused sidecar reruns", async () => {
   const source = await loadScriptSource();
   assert.match(source, /npm -C yanote-js ci/);
   assert.match(source, /npm -C yanote-js run build/);
@@ -208,9 +209,12 @@ test("tests-restassured exposes an explicit runtime prewarm task for offline dem
   assert.match(source, /configurations\.named\("testRuntimeClasspath"\)/);
 });
 
-test("compose demo report container consumes the prebuilt analyzer instead of reinstalling Node deps", async () => {
+test("compose demo report container consumes the prebuilt standalone analyzer launcher instead of the raw Node seam", async () => {
   const source = await loadComposeSource();
-  assert.match(source, /node yanote-js\/dist\/yanote\.cjs report/);
+  assert.match(source, /YANOTE_ANALYZER_PATH: \/workspace\/dist\/standalone-analyzer\/bin\/yanote/);
+  assert.match(source, /standalone analyzer launcher not found at \$\$\{YANOTE_ANALYZER_PATH\}\. Run \.\/gradlew distStandaloneAnalyzer before docker compose up\./);
+  assert.match(source, /"\$\$\{YANOTE_ANALYZER_PATH\}" report --spec \/workspace\/examples\/openapi\/demo-openapi\.yaml --events \/data\/yanote\/events\.jsonl --out \/data\/yanote\/out --min-coverage 100 --profile local/);
+  assert.doesNotMatch(source, /node yanote-js\/dist\/yanote\.cjs report/);
   assert.doesNotMatch(source, /npm -C yanote-js ci/);
   assert.doesNotMatch(source, /npm -C yanote-js run build/);
 });

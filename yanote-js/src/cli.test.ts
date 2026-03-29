@@ -16,12 +16,50 @@ async function createCliFixture(specYaml: string, eventsJsonl: string) {
   return { dir, specPath, eventsPath, outDir };
 }
 
+async function withToolVersion<T>(value: string | undefined, run: () => Promise<T>) {
+  const previous = process.env.YANOTE_TOOL_VERSION;
+
+  if (value === undefined) {
+    delete process.env.YANOTE_TOOL_VERSION;
+  } else {
+    process.env.YANOTE_TOOL_VERSION = value;
+  }
+
+  try {
+    return await run();
+  } finally {
+    if (previous === undefined) {
+      delete process.env.YANOTE_TOOL_VERSION;
+    } else {
+      process.env.YANOTE_TOOL_VERSION = previous;
+    }
+  }
+}
+
 describe("cli", () => {
   it("prints help", async () => {
     const res = await runCli(["--help"]);
     expect(res.code).toBe(0);
     expect(res.stdout).toContain("Compute deterministic operation coverage");
     expect(res.stdout).toContain("report [options]");
+  });
+
+  it("prints the injected standalone tool version when runtime metadata is present", async () => {
+    await withToolVersion("1.2.3-standalone", async () => {
+      const res = await runCli(["--version"]);
+      expect(res.code).toBe(0);
+      expect(res.stdout.trim()).toBe("1.2.3-standalone");
+      expect(res.stderr).toBe("");
+    });
+  });
+
+  it("falls back to the source-build marker when no standalone version metadata is injected", async () => {
+    await withToolVersion(undefined, async () => {
+      const res = await runCli(["--version"]);
+      expect(res.code).toBe(0);
+      expect(res.stdout.trim()).toBe("0.0.0");
+      expect(res.stderr).toBe("");
+    });
   });
 
   it("uses typed input failure for invalid min coverage", async () => {

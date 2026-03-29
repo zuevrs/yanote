@@ -24,7 +24,7 @@ class YanoteRemoteSpecContractTest {
     fun `yanoteCheck accepts supported remote spec urls and persists sanitized command args`() {
         val project = ProjectBuilder.builder().withProjectDir(tempDir.toFile()).build()
         val eventsFile = writeEventsFixture()
-        val analyzerFile = writeAnalyzerFixture()
+        val analyzerLauncher = writeAnalyzerFixture()
         val outputDir = project.layout.buildDirectory.dir("yanote/modules/app/check")
         val remoteSpecUrl = "http://127.0.0.1:18080/specs/simple.yaml"
 
@@ -32,7 +32,7 @@ class YanoteRemoteSpecContractTest {
         task.defaultProfile.set("ci")
         task.specPath.set(remoteSpecUrl)
         task.eventsPath.set(eventsFile.toString())
-        task.analyzerPath.set(analyzerFile.toString())
+        task.analyzerPath.set(analyzerLauncher.toString())
         task.outputDir.set(outputDir)
 
         assertDoesNotThrow { task.runCheck() }
@@ -40,6 +40,8 @@ class YanoteRemoteSpecContractTest {
         val argsPath = outputDir.get().asFile.toPath().resolve("yanote-check-command.args")
         val argsSurface = argsPath.readText()
         assertTrue(argsSurface.contains("report --spec <remote-url>"))
+        assertTrue(argsSurface.contains("analyzer_path=${analyzerLauncher.toAbsolutePath()}"))
+        assertTrue(argsSurface.contains("analyzer_contract=standalone-launcher"))
         assertTrue(argsSurface.contains("spec_source_kind=remote-url"))
         assertTrue(argsSurface.contains("spec_source_ref=$remoteSpecUrl"))
         assertFalse(argsSurface.contains("--spec $remoteSpecUrl"))
@@ -52,13 +54,13 @@ class YanoteRemoteSpecContractTest {
     fun `yanoteCheck keeps local-path validation fail-closed`() {
         val project = ProjectBuilder.builder().withProjectDir(tempDir.toFile()).build()
         val eventsFile = writeEventsFixture()
-        val analyzerFile = writeAnalyzerFixture()
+        val analyzerLauncher = writeAnalyzerFixture()
 
         val task = project.tasks.create("localMissingCheck", YanoteCheckTask::class.java)
         task.defaultProfile.set("ci")
         task.specPath.set(tempDir.resolve("missing.yaml").toString())
         task.eventsPath.set(eventsFile.toString())
-        task.analyzerPath.set(analyzerFile.toString())
+        task.analyzerPath.set(analyzerLauncher.toString())
         task.outputDir.set(project.layout.buildDirectory.dir("yanote/modules/app/check-missing"))
 
         val error = assertThrows<GradleException> {
@@ -73,7 +75,7 @@ class YanoteRemoteSpecContractTest {
     fun `yanoteReport accepts supported remote spec urls and persists sanitized command args`() {
         val project = ProjectBuilder.builder().withProjectDir(tempDir.toFile()).build()
         val eventsFile = writeEventsFixture()
-        val analyzerFile = writeAnalyzerFixture()
+        val analyzerLauncher = writeAnalyzerFixture()
         val outputDir = project.layout.buildDirectory.dir("yanote/modules/app/report")
         val remoteSpecUrl = "http://127.0.0.1:18080/specs/simple.yaml"
 
@@ -81,7 +83,7 @@ class YanoteRemoteSpecContractTest {
         task.defaultProfile.set("local")
         task.specPath.set(remoteSpecUrl)
         task.eventsPath.set(eventsFile.toString())
-        task.analyzerPath.set(analyzerFile.toString())
+        task.analyzerPath.set(analyzerLauncher.toString())
         task.outputDir.set(outputDir)
 
         assertDoesNotThrow { task.runReport() }
@@ -89,6 +91,8 @@ class YanoteRemoteSpecContractTest {
         val argsPath = outputDir.get().asFile.toPath().resolve("yanote-report-command.args")
         val argsSurface = argsPath.readText()
         assertTrue(argsSurface.contains("report --spec <remote-url>"))
+        assertTrue(argsSurface.contains("analyzer_path=${analyzerLauncher.toAbsolutePath()}"))
+        assertTrue(argsSurface.contains("analyzer_contract=standalone-launcher"))
         assertTrue(argsSurface.contains("spec_source_kind=remote-url"))
         assertTrue(argsSurface.contains("spec_source_ref=$remoteSpecUrl"))
         assertFalse(argsSurface.contains("--spec $remoteSpecUrl"))
@@ -109,9 +113,9 @@ class YanoteRemoteSpecContractTest {
     }
 
     private fun writeAnalyzerFixture(): Path {
-        val analyzerFile = tempDir.resolve("fake-yanote-analyzer.cjs")
-        analyzerFile.parent.createDirectories()
-        analyzerFile.writeText(
+        val runtimeFile = tempDir.resolve("fake-analyzer-runtime.cjs")
+        runtimeFile.parent.createDirectories()
+        runtimeFile.writeText(
             """
             const fs = require('node:fs');
             const path = require('node:path');
@@ -137,6 +141,17 @@ class YanoteRemoteSpecContractTest {
             process.exit(0);
             """.trimIndent()
         )
-        return analyzerFile
+
+        val launcherFile = tempDir.resolve("yanote")
+        launcherFile.writeText(
+            """
+            #!/usr/bin/env bash
+            set -euo pipefail
+            SCRIPT_DIR="$(cd -- "$(dirname -- "${'$'}{BASH_SOURCE[0]}")" && pwd)"
+            exec node "${'$'}{SCRIPT_DIR}/fake-analyzer-runtime.cjs" "${'$'}@"
+            """.trimIndent() + "\n"
+        )
+        launcherFile.toFile().setExecutable(true)
+        return launcherFile
     }
 }

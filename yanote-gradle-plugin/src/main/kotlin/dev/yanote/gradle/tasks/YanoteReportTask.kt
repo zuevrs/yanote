@@ -161,20 +161,44 @@ abstract class YanoteReportTask : DefaultTask() {
         }
 
         val args = buildAnalyzerArguments(resolvedSpec.executionValue)
-        writeText(outputDirectory.resolve("yanote-report-command.args"), renderAnalyzerArgsSurface(args, resolvedSpec))
+        val analyzerInvocation = try {
+            resolveAnalyzerInvocation("yanoteReport", analyzerPath.orNull) { project.file(it) }
+        } catch (error: GradleException) {
+            writeDiagnostics(outputDirectory, error.message ?: "yanoteReport rejected the provided analyzerPath.")
+            writeReportStub(outputDirectory, "invalid analyzerPath")
+            return
+        }
 
-        val analyzer = analyzerFileOrNull()
-        if (analyzer == null || !analyzer.exists()) {
+        if (analyzerInvocation == null) {
             writeDiagnostics(
                 outputDirectory,
-                "yanoteReport analyzer runtime not found at ${analyzer?.absolutePath ?: "<unset>"}; run ./gradlew distNodeAnalyzer for full execution."
+                "yanoteReport requires analyzerPath. Default to dist/standalone-analyzer/bin/yanote by running ./gradlew distStandaloneAnalyzer, or set analyzerPath to a standalone launcher override for full execution."
             )
-            writeReportStub(outputDirectory, "analyzer runtime missing")
+            writeReportStub(outputDirectory, "analyzer launcher missing")
+            return
+        }
+
+        writeText(
+            outputDirectory.resolve("yanote-report-command.args"),
+            renderAnalyzerArgsSurface(
+                command = analyzerInvocation.commandPrefix + args,
+                specInput = resolvedSpec,
+                analyzerPath = analyzerInvocation.file.absolutePath,
+                analyzerContract = analyzerInvocation.contract
+            )
+        )
+
+        if (!analyzerInvocation.file.exists()) {
+            writeDiagnostics(
+                outputDirectory,
+                "yanoteReport analyzer launcher not found at ${analyzerInvocation.file.absolutePath}; run ./gradlew distStandaloneAnalyzer or set analyzerPath to a standalone launcher override for full execution."
+            )
+            writeReportStub(outputDirectory, "analyzer launcher missing")
             return
         }
 
         val result = project.exec {
-            commandLine(listOf("node", analyzer.absolutePath) + args)
+            commandLine(analyzerInvocation.commandPrefix + args)
             isIgnoreExitValue = true
         }
 
@@ -184,11 +208,6 @@ abstract class YanoteReportTask : DefaultTask() {
                 "yanoteReport analyzer exited with code ${result.exitValue}; diagnostics captured without failing the task."
             )
         }
-    }
-
-    private fun analyzerFileOrNull(): File? {
-        val configured = analyzerPath.orNull?.trim()?.takeIf { it.isNotEmpty() } ?: return null
-        return project.file(configured)
     }
 
     private fun parsePolicyOverrides(path: String?): ReportPolicyOverrides {

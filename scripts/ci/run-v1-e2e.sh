@@ -99,7 +99,8 @@ prepare_demo_assets() {
   ./gradlew --no-daemon -g "${HOST_GRADLE_HOME}" \
     :examples:springmvc-service:bootJar \
     :examples:tests-restassured:testClasses \
-    :examples:tests-restassured:resolveTestRuntimeClasspath
+    :examples:tests-restassured:resolveTestRuntimeClasspath \
+    distStandaloneAnalyzer
   npm -C yanote-js ci
   npm -C yanote-js run build
 }

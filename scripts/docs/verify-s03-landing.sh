@@ -5,30 +5,97 @@ ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
 
 ROOT_README="README.md"
 DOCS_README="docs/README.md"
+QUICKSTART="docs/guides/getting-started.md"
 EXAMPLES_README="examples/README.md"
 SERVICE_EXAMPLE="examples/springmvc-service/README.md"
 TESTS_EXAMPLE="examples/tests-restassured/README.md"
 
-fail() {
-  echo "ERROR: $1" >&2
-  exit 1
+failures=0
+link_failures=0
+navigation_failures=0
+backlink_failures=0
+
+record_failure() {
+  local domain="$1"
+  local message="$2"
+
+  echo "ERROR[${domain}]: ${message}" >&2
+  failures=$((failures + 1))
+  case "${domain}" in
+    link) link_failures=$((link_failures + 1)) ;;
+    navigation) navigation_failures=$((navigation_failures + 1)) ;;
+    backlink) backlink_failures=$((backlink_failures + 1)) ;;
+  esac
 }
 
 require_file() {
   local path="$1"
-  [[ -f "${ROOT_DIR}/${path}" ]] || fail "Missing required doc: ${path}"
+  if [[ ! -f "${ROOT_DIR}/${path}" ]]; then
+    record_failure link "missing required doc: ${path}"
+  fi
 }
 
 require_contains() {
   local path="$1"
   local needle="$2"
   local label="$3"
+  local domain="$4"
 
-  grep -Fq -- "$needle" "${ROOT_DIR}/${path}" || fail "${path} is missing ${label}: ${needle}"
+  if [[ -f "${ROOT_DIR}/${path}" ]] && ! grep -Fq -- "$needle" "${ROOT_DIR}/${path}"; then
+    record_failure "${domain}" "${path} is missing ${label}: ${needle}"
+  fi
 }
 
-check_local_markdown_links() {
-  python3 - "${ROOT_DIR}" "$@" <<'PY'
+first_line_of() {
+  local path="$1"
+  local needle="$2"
+
+  if [[ ! -f "${ROOT_DIR}/${path}" ]]; then
+    return 1
+  fi
+
+  grep -Fnm1 -- "$needle" "${ROOT_DIR}/${path}" | cut -d: -f1
+}
+
+require_before() {
+  local path="$1"
+  local earlier="$2"
+  local later="$3"
+  local label="$4"
+  local domain="$5"
+  local earlier_line
+  local later_line
+
+  earlier_line="$(first_line_of "$path" "$earlier" || true)"
+  later_line="$(first_line_of "$path" "$later" || true)"
+
+  if [[ -z "$earlier_line" ]]; then
+    record_failure "$domain" "${path} is missing ${label}: ${earlier}"
+    return
+  fi
+
+  if [[ -z "$later_line" ]]; then
+    record_failure "$domain" "${path} is missing ${label}: ${later}"
+    return
+  fi
+
+  if (( earlier_line > later_line )); then
+    record_failure "$domain" "${path} places ${label} after a secondary surface: ${earlier}"
+  fi
+}
+
+for path in \
+  "$ROOT_README" \
+  "$DOCS_README" \
+  "$QUICKSTART" \
+  "$EXAMPLES_README" \
+  "$SERVICE_EXAMPLE" \
+  "$TESTS_EXAMPLE"
+do
+  require_file "$path"
+done
+
+if ! python3 - "${ROOT_DIR}" "$ROOT_README" "$DOCS_README" "$QUICKSTART" "$EXAMPLES_README" "$SERVICE_EXAMPLE" "$TESTS_EXAMPLE" <<'PY'
 import pathlib
 import re
 import sys
@@ -40,6 +107,8 @@ errors = []
 
 for rel_path in paths:
     doc = (root / rel_path).resolve()
+    if not doc.exists():
+        continue
     text = doc.read_text(encoding='utf-8')
     for target in pattern.findall(text):
         target = target.strip().strip('<>')
@@ -50,93 +119,76 @@ for rel_path in paths:
             continue
         resolved = (doc.parent / path_part).resolve()
         if not resolved.exists():
-            errors.append(f"{rel_path}: broken link target {target}")
+            errors.append(f"ERROR[link]: {rel_path} has broken local markdown link: {target}")
 
 if errors:
     for item in errors:
         print(item, file=sys.stderr)
     raise SystemExit(1)
 PY
-}
+then
+  link_failures=$((link_failures + 1))
+  failures=$((failures + 1))
+fi
 
-for path in \
-  "$ROOT_README" \
-  "$DOCS_README" \
-  "$EXAMPLES_README" \
-  "$SERVICE_EXAMPLE" \
-  "$TESTS_EXAMPLE"
-do
-  require_file "$path"
-done
+if ! python3 - "${ROOT_DIR}" <<'PY'
+import pathlib
+import re
+import sys
 
-check_local_markdown_links \
-  "$ROOT_README" \
-  "$DOCS_README" \
-  "$EXAMPLES_README" \
-  "$SERVICE_EXAMPLE" \
-  "$TESTS_EXAMPLE"
+root = pathlib.Path(sys.argv[1]).resolve()
+checks = [
+    (pathlib.Path('README.md'), 'docs/guides/getting-started.md'),
+    (pathlib.Path('docs/README.md'), 'guides/getting-started.md'),
+]
+pattern = re.compile(r'\[[^\]]+\]\(([^)]+)\)')
+errors = []
 
-require_contains "$ROOT_README" "HTTP Security Conformance" "security CLI surface"
-require_contains "$ROOT_README" "security-semantics.stdout" "security sidecar"
-require_contains "$ROOT_README" "security-semantics.stderr" "security sidecar"
-require_contains "$ROOT_README" "security-semantics-yanote-report.json" "security sidecar"
-require_contains "$ROOT_README" "bash scripts/ci/verify-m012-s02-security-semantics.sh" "focused security proof command"
-require_contains "$ROOT_README" "fixture-backed proof" "security provenance wording"
-require_contains "$ROOT_README" "security: []" "security clear wording"
-require_contains "$ROOT_README" "OR между объектами Security Requirement" "security OR wording"
-require_contains "$ROOT_README" "AND внутри одного объекта" "security AND wording"
-require_contains "$ROOT_README" "httpSecurityConformance" "additive security report surface"
-require_contains "$ROOT_README" "coverage.operations/status/parameters/aggregate" "legacy numerator wording"
-require_contains "$ROOT_README" 'Broader OpenAPI objects `examples`, `links`, `callbacks`, `webhooks`' "deferred broader-object wording"
-require_contains "$ROOT_README" 'raw fixture JSONL не попадает в `.yanote-ci/v1-e2e/`' "fixture redaction wording"
-require_contains "$ROOT_README" 'single-document `http(s)` URL поддерживается только как узкий opt-in remote path' "remote opt-in wording"
-require_contains "$ROOT_README" 'sanitized `specSource`' "sanitized spec-source wording"
-require_contains "$ROOT_README" "yanote-report.html" "HTTP HTML artifact wording"
-require_contains "$ROOT_README" "yanote-validation-artifacts" "HTTP CI artifact bundle wording"
-require_contains "$ROOT_README" "deprecated-operation counts" "deprecated summary wording"
-require_contains "$ROOT_README" "yanote-async-report.html" "async HTML artifact wording"
-require_contains "$ROOT_README" "combined HTTP+async report surface" "no-combined boundary wording"
-require_contains "$ROOT_README" "hosted dashboard" "no-dashboard boundary wording"
+for rel_path, expected in checks:
+    text = (root / rel_path).read_text(encoding='utf-8')
+    links = []
+    for target in pattern.findall(text):
+        target = target.strip().strip('<>')
+        if not target or target.startswith(('http://', 'https://', 'mailto:', '#')):
+            continue
+        path_part = target.split('#', 1)[0]
+        if path_part:
+            links.append(path_part)
+    first = links[0] if links else None
+    if first != expected:
+        errors.append(
+            f"ERROR[navigation]: {rel_path} first local markdown link should be {expected}, found {first!r}"
+        )
 
-require_contains "$DOCS_README" "HTTP Security Conformance" "security CLI surface"
-require_contains "$DOCS_README" "security-semantics.stdout" "security sidecar"
-require_contains "$DOCS_README" "security-semantics-yanote-report.json" "security sidecar"
-require_contains "$DOCS_README" "bash scripts/ci/verify-m012-s02-security-semantics.sh" "focused security proof command"
-require_contains "$DOCS_README" "httpSecurityConformance" "additive security report surface"
-require_contains "$DOCS_README" "coverage.operations/status/parameters/aggregate" "legacy numerator wording"
-require_contains "$DOCS_README" '`examples`, `links`, `callbacks`, `webhooks`' "deferred broader-object wording"
-require_contains "$DOCS_README" "fixture-backed proof" "security provenance wording"
-require_contains "$DOCS_README" 'remote single-document `http(s)` `--spec` путь с sanitized provenance' "remote opt-in wording"
-require_contains "$DOCS_README" 'persisted surfaces сохраняют для него лишь sanitized `specSource`' "sanitized spec-source wording"
-require_contains "$DOCS_README" "yanote-report.html" "HTTP HTML artifact wording"
-require_contains "$DOCS_README" "yanote-async-report.html" "async HTML artifact wording"
-require_contains "$DOCS_README" "summary.deprecatedOperations" "deprecated additive wording"
-require_contains "$DOCS_README" "yanote-validation-artifacts" "HTTP CI artifact bundle wording"
-require_contains "$DOCS_README" "build-and-test-artifacts" "async CI artifact bundle wording"
-require_contains "$DOCS_README" "combined/dashboard claims" "no-combined boundary wording"
+if errors:
+    for item in errors:
+        print(item, file=sys.stderr)
+    raise SystemExit(1)
+PY
+then
+  navigation_failures=$((navigation_failures + 1))
+  failures=$((failures + 1))
+fi
 
-require_contains "$EXAMPLES_README" "HTTP Security Conformance" "security CLI surface"
-require_contains "$EXAMPLES_README" "security-semantics.stdout" "security sidecar"
-require_contains "$EXAMPLES_README" "security-semantics.stderr" "security sidecar"
-require_contains "$EXAMPLES_README" "security-semantics-yanote-report.json" "security sidecar"
-require_contains "$EXAMPLES_README" "bash scripts/ci/verify-m012-s02-security-semantics.sh" "focused security proof command"
-require_contains "$EXAMPLES_README" "fixture-backed proof" "security provenance wording"
-require_contains "$EXAMPLES_README" "security: []" "security clear wording"
-require_contains "$EXAMPLES_README" "OR между объектами Security Requirement" "security OR wording"
-require_contains "$EXAMPLES_README" "AND внутри одного объекта" "security AND wording"
-require_contains "$EXAMPLES_README" "httpSecurityConformance" "additive security report surface"
-require_contains "$EXAMPLES_README" "coverage.operations/status/parameters/aggregate" "legacy numerator wording"
-require_contains "$EXAMPLES_README" '`examples`, `links`, `callbacks`, `webhooks`' "deferred broader-object wording"
-require_contains "$EXAMPLES_README" "raw fixture JSONL" "fixture redaction wording"
-require_contains "$EXAMPLES_README" "yanote-report.html" "HTTP HTML artifact wording"
-require_contains "$EXAMPLES_README" "yanote-validation-artifacts" "HTTP CI artifact bundle wording"
-require_contains "$EXAMPLES_README" "build-and-test-artifacts" "async CI artifact bundle wording"
-require_contains "$EXAMPLES_README" 'single-document `http(s)` URL — только узкий opt-in remote path' "remote opt-in wording"
-require_contains "$EXAMPLES_README" "sanitized provenance" "sanitized provenance wording"
-require_contains "$EXAMPLES_README" "combined HTTP+async report surface" "no-combined boundary wording"
-require_contains "$EXAMPLES_README" "hosted dashboard" "no-dashboard boundary wording"
+require_contains "$ROOT_README" "docs/guides/getting-started.md" "quickstart link" navigation
+require_contains "$ROOT_README" "docs/README.md" "docs landing link" navigation
+require_contains "$ROOT_README" "docs/release-and-support.md" "release/support boundary link" navigation
+require_before "$ROOT_README" "docs/guides/getting-started.md" "docs/README.md" "root newcomer ordering" navigation
+require_before "$ROOT_README" "docs/README.md" "docs/release-and-support.md" "root newcomer ordering" navigation
+require_contains "$DOCS_README" "guides/getting-started.md" "quickstart link" navigation
+require_contains "$DOCS_README" "../README.md" "root README backlink" backlink
+require_contains "$DOCS_README" "release-and-support.md" "release/support boundary link" navigation
+require_before "$DOCS_README" "guides/getting-started.md" "../examples/README.md" "docs newcomer ordering" navigation
+require_before "$DOCS_README" "../examples/README.md" "release-and-support.md" "docs newcomer ordering" navigation
+require_contains "$QUICKSTART" "../../README.md" "root README backlink" backlink
+require_contains "$QUICKSTART" "../README.md" "docs landing backlink" backlink
+require_contains "$QUICKSTART" "../../examples/README.md" "examples landing link" navigation
+require_contains "$SERVICE_EXAMPLE" "../README.md" "examples landing backlink" backlink
+require_contains "$TESTS_EXAMPLE" "../README.md" "examples landing backlink" backlink
 
-require_contains "$SERVICE_EXAMPLE" "../README.md" "examples landing backlink"
-require_contains "$TESTS_EXAMPLE" "../README.md" "examples landing backlink"
+if (( failures > 0 )); then
+  echo "S03 landing verification failed: links=${link_failures} navigation=${navigation_failures} backlinks=${backlink_failures}." >&2
+  exit 1
+fi
 
-echo "Landing contract verification passed: root/docs/examples surfaces publish the retained security proof, additive numerators, and deferred broader OpenAPI boundary."
+echo "S03 landing verification passed: root/docs newcomer links and example backlinks agree."

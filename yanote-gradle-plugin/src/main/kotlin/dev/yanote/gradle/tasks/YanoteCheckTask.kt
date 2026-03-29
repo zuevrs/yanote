@@ -141,15 +141,16 @@ abstract class YanoteCheckTask : DefaultTask() {
             )
         }
 
-        val analyzer = analyzerFileOrNull()
+        val analyzerInvocation = resolveAnalyzerInvocation("yanoteCheck", analyzerPath.orNull) { project.file(it) }
             ?: throw GradleException(
-                "yanoteCheck requires analyzer runtime path. " +
-                    "Run ./gradlew distNodeAnalyzer and set analyzerPath if non-standard."
+                "yanoteCheck requires analyzerPath. " +
+                    "Default to dist/standalone-analyzer/bin/yanote by running ./gradlew distStandaloneAnalyzer, " +
+                    "or set analyzerPath to a standalone launcher override."
             )
-        if (!analyzer.exists()) {
+        if (!analyzerInvocation.file.exists()) {
             throw GradleException(
-                "yanoteCheck analyzer runtime not found at ${analyzer.absolutePath}. " +
-                    "Run ./gradlew distNodeAnalyzer before invoking yanoteCheck."
+                "yanoteCheck analyzer launcher not found at ${analyzerInvocation.file.absolutePath}. " +
+                    "Run ./gradlew distStandaloneAnalyzer before invoking yanoteCheck or set analyzerPath to a standalone launcher override."
             )
         }
 
@@ -157,10 +158,18 @@ abstract class YanoteCheckTask : DefaultTask() {
         outputDirectory.mkdirs()
 
         val args = buildAnalyzerArguments(resolvedSpec.executionValue)
-        writeText(outputDirectory.resolve("yanote-check-command.args"), renderAnalyzerArgsSurface(args, resolvedSpec))
+        writeText(
+            outputDirectory.resolve("yanote-check-command.args"),
+            renderAnalyzerArgsSurface(
+                command = analyzerInvocation.commandPrefix + args,
+                specInput = resolvedSpec,
+                analyzerPath = analyzerInvocation.file.absolutePath,
+                analyzerContract = analyzerInvocation.contract
+            )
+        )
 
         val result = project.exec {
-            commandLine(listOf("node", analyzer.absolutePath) + args)
+            commandLine(analyzerInvocation.commandPrefix + args)
             isIgnoreExitValue = true
         }
         if (result.exitValue != 0) {
@@ -169,11 +178,6 @@ abstract class YanoteCheckTask : DefaultTask() {
                     "Review ${outputDirectory.resolve("yanote-check-command.args").absolutePath} for invocation details."
             )
         }
-    }
-
-    private fun analyzerFileOrNull(): File? {
-        val configured = analyzerPath.orNull?.trim()?.takeIf { it.isNotEmpty() } ?: return null
-        return project.file(configured)
     }
 
     private fun parsePolicyOverrides(path: String?): CheckPolicyOverrides {

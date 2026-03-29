@@ -171,6 +171,25 @@ test("gradle parity helper executes rooted yanoteCheck invocation", async () => 
   assert.match(source, /\.\/gradlew\b[\s\S]*\byanoteCheck\b/);
 });
 
+test("gradle parity helper builds and validates the standalone launcher contract", async () => {
+  const source = await loadGradleHelperSource();
+  assert.match(source, /GRADLE_DIST_CMD=\(\.\/gradlew distStandaloneAnalyzer --stacktrace\)/);
+  assert.match(source, /DEFAULT_ANALYZER_PATH=.*dist\/standalone-analyzer\/bin\/yanote/);
+  assert.match(source, /YANOTE_ANALYZER_PATH=\"\$\{YANOTE_ANALYZER_PATH:-\}\"/);
+  assert.match(source, /YANOTE_ANALYZER_SOURCE=\$\{ANALYZER_SOURCE\}/);
+  assert.match(source, /YANOTE_ANALYZER_PATH=\$\{ANALYZER_PATH_RESOLVED\}/);
+  assert.match(source, /YANOTE_SKIP_DIST_STANDALONE_ANALYZER/);
+  assert.doesNotMatch(source, /dist\/node-analyzer\/bin\/yanote\.cjs/);
+});
+
+test("gradle parity helper fails closed on malformed analyzer overrides", async () => {
+  const source = await loadGradleHelperSource();
+  assert.match(source, /YANOTE_ANALYZER_PATH must point to a launcher file, not a directory/);
+  assert.match(source, /YANOTE_ANALYZER_PATH must point to the standalone launcher contract, not the raw yanote\.cjs runtime/);
+  assert.match(source, /YANOTE_ANALYZER_PATH does not exist/);
+  assert.match(source, /Standalone analyzer launcher not found at .*distStandaloneAnalyzer/);
+});
+
 test("workflow no longer runs direct CLI report command as primary validation path", async () => {
   const source = await loadWorkflowSource();
   assert.doesNotMatch(source, /node\s+yanote-js\/dist\/yanote\.cjs\s+report/);

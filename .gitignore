@@ -19,10 +19,12 @@ dist/
 # default recorder output (if generated during local runs)
 /events.jsonl
 
-# local proof/runtime artifacts
+# clone-local planning/proof/runtime roots removed from the public repo face
 .yanote-ci/
-
-# local planning caches
+.gsd/
+.tmp/
+.tmp-*
+.vite/
 .planning/
 Thumbs.db
 *.swp
@@ -46,22 +48,3 @@ coverage/
 !yanote-js/src/coverage/**
 .cache/
 tmp/
-
-# ── GSD: shared docs vs local runtime (gsd-2 recommended model) ────────────
-# Commit durable project docs and milestone artifacts. Keep runtime/session
-# state local-only.
-.gsd/auto.lock
-.gsd/completed-units.json
-.gsd/STATE.md
-.gsd/metrics.json
-.gsd/gsd.db
-.gsd/gsd.db-shm
-.gsd/gsd.db-wal
-.gsd/activity/
-.gsd/runtime/
-.gsd/worktrees/
-.gsd/forensics/
-.gsd/parallel/
-.gsd/DISCUSSION-MANIFEST.json
-.gsd/milestones/**/continue.md
-.gsd/milestones/**/*-CONTINUE.md

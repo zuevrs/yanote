@@ -63,4 +63,12 @@ git ls-files | rg '(^|/)AGENTS\.md$'
 - Compose — secondary/optional demo, который имеет смысл только когда Docker daemon доступен;
 - отсутствие Docker daemon не делает S08 verifier invalid, потому что канонический путь для продукта остаётся guide-first: concept → recorder → `events.jsonl` → analyzer → interpretation → repo boundaries.
 
+## Clone-local rerun breadcrumbs for example surfaces
+
+Эти пути и артефакты intentionally maintainer-only и не должны возвращаться на публичный examples landing:
+
+- `bash scripts/ci/run-v1-e2e.sh` удерживает clone-local rerun bundle в `.yanote-ci/v1-e2e/`; публичные docs/examples должны ссылаться только на bundle names `yanote-validation-artifacts` и `build-and-test-artifacts/*`.
+- `examples/docker-compose.yml` использует repo-local standalone launcher `dist/standalone-analyzer/bin/yanote`; если demo-report step жалуется на missing launcher, регенерируйте тот же contract командой `./gradlew distStandaloneAnalyzer`.
+- archive-equivalent proof для этого launcher остаётся `build/distributions/yanote-analyzer.zip`; это maintainer breadcrumb для локального rerun, а не public navigation surface.
+
 Если нужен именно runnable demo через Compose, возвращайтесь в пользовательские карты: [`../../README.md`](../../README.md) для product landing, затем [`../README.md`](../README.md) и [`../../examples/README.md`](../../examples/README.md) для demo routing. Но финальная acceptance-команда slice-а остаётся одна: `bash scripts/docs/verify-s08-entry-paths.sh`.

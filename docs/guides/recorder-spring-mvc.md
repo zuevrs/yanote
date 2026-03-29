@@ -1,10 +1,10 @@
-# Канонический путь: Spring MVC рекордер через зависимость
+# Канонический путь: Spring MVC recorder в одном коротком цикле
 
-Это основной и проверенный путь для Spring Boot 3.x сервиса: подключайте `yanote-recorder-spring-mvc` как обычную зависимость из `mavenLocal()` или внутреннего Maven-репозитория. Если нормальная публикация артефактов недоступна и нужен только временный smoke/offline-вариант, используйте release assets из GitHub Releases; текущие границы этого fallback описаны в [`docs/release-and-support.md`](../release-and-support.md).
+Назад: [быстрый старт](getting-started.md) · [карта docs](../README.md)
 
-## 1. Подключите модуль как зависимость
+Этот guide держит один product-first loop: подключить `yanote-recorder-spring-mvc`, явно включить запись, сделать один HTTP-запрос и доказать, что `events.jsonl` появился.
 
-Для локальной smoke-проверки можно взять артефакт из `mavenLocal()`; в команде вместо этого обычно указывают Nexus/Artifactory.
+## 1. Подключите зависимость
 
 ```kotlin
 repositories {
@@ -17,7 +17,11 @@ dependencies {
 }
 ```
 
-Дальше включите рекордер **явно**. Канонические свойства такие:
+Если нужен только runnable companion из этого репозитория, используйте [examples/springmvc-service/README.md](../../examples/springmvc-service/README.md). Release/support boundaries вынесены в [../release-and-support.md](../release-and-support.md).
+
+## 2. Явно задайте recorder contract
+
+Для Spring Boot держите recorder включённым и задайте writable путь к файлу:
 
 ```properties
 yanote.recorder.enabled=true
@@ -25,119 +29,72 @@ yanote.recorder.events-path=/data/yanote/events.jsonl
 yanote.recorder.service-name=orders-service
 ```
 
-- `yanote.recorder.enabled` — обязателен; без него стартер ничего не пишет.
-- `yanote.recorder.events-path` — обязателен на практике; можно оставить дефолт `events.jsonl`, но для локалки, контейнера и CI лучше задавать явный writable/exportable путь.
-- `yanote.recorder.service-name` — опционален; помогает понять, какой сервис записал событие.
+Что важно:
 
-Эквивалент через env для Spring Boot relaxed binding:
+- `yanote.recorder.enabled=true` — без этого starter ничего не пишет;
+- `yanote.recorder.events-path` — путь к реальному `events.jsonl`, который вы потом прочитаете или заберёте как артефакт;
+- `yanote.recorder.service-name` — рекомендуемый label для источника события.
+
+Эквивалент через Spring Boot env binding:
 
 ```bash
 export YANOTE_RECORDER_ENABLED=true
-export YANOTE_RECORDER_EVENTS_PATH=/data/yanote/events.jsonl
+export YANOTE_RECORDER_EVENTS_PATH="${PWD}/.yanote/events.jsonl"
 export YANOTE_RECORDER_SERVICE_NAME=orders-service
+mkdir -p "$(dirname "$YANOTE_RECORDER_EVENTS_PATH")"
 ```
 
-## 2. Сразу выберите writable/exportable путь для `events.jsonl`
+## 3. Сделайте один реальный HTTP-запрос
 
-Рекордер пишет туда, куда указывает `yanote.recorder.events-path`, поэтому путь должен быть одновременно:
-
-- writable для процесса сервиса;
-- удобным для чтения после прогона;
-- экспортируемым как артефакт в контейнере или CI.
-
-Практичные варианты:
-
-- **Локально:** `${PWD}/.yanote/events.jsonl` или `/tmp/yanote/events.jsonl`
-- **Контейнер / docker compose:** `/data/yanote/events.jsonl` внутри volume/bind mount
-- **CI:** `${CI_PROJECT_DIR}/artifacts/yanote/events.jsonl` или другой каталог, который вы потом сохраняете как артефакт
-
-Перед стартом создайте директорию и экспортируйте путь:
+Запустите свой сервис или пример из `examples/springmvc-service`, затем отправьте обычный запрос:
 
 ```bash
-export YANOTE_EVENTS_PATH="${PWD}/.yanote/events.jsonl"
-mkdir -p "$(dirname "$YANOTE_EVENTS_PATH")"
+curl --fail --silent --show-error "http://localhost:8080/users/123" >/tmp/yanote-response.json
 ```
 
-Потом подставьте его в конфиг сервиса, например:
-
-```properties
-yanote.recorder.enabled=true
-yanote.recorder.events-path=${YANOTE_EVENTS_PATH}
-yanote.recorder.service-name=orders-service
-```
-
-## 3. Доказательство записи: запрос → `test -s` → просмотр JSONL
-
-Не переходите к анализатору, пока не доказали базовый контракт записи.
-
-1. Запустите сервис с включённым рекордером.
-2. Сделайте реальный HTTP-запрос.
-3. Проверьте, что `events.jsonl` создан и не пустой.
-4. Посмотрите первую JSONL-строку и убедитесь, что в ней есть нужные поля.
-
-Пример:
+Базовый proof loop должен закончиться двумя командами:
 
 ```bash
-curl --fail --silent --show-error "http://localhost:8080/orders/42?expand=true" >/tmp/yanote-response.json
-
-test -s "$YANOTE_EVENTS_PATH" && echo "OK: events.jsonl is not empty"
-head -n 1 "$YANOTE_EVENTS_PATH"
+test -s "$YANOTE_RECORDER_EVENTS_PATH" && echo "OK: events.jsonl is not empty"
+head -n 1 "$YANOTE_RECORDER_EVENTS_PATH"
 ```
 
-Ожидайте JSONL-строку такого вида:
+Если файл не появился или пустой, интеграция ещё не готова.
 
-```json
-{"kind":"http","method":"GET","route":"/orders/{orderId}","status":200,"service":"orders-service","instance":null,"error":false,"test.run_id":null,"test.suite":null}
-```
+## 4. Что вы должны увидеть в первой JSONL-строке
 
-Быстрый осмотр только ключевых полей:
+Recorder пишет HTTP event c теми полями, которые потом читает analyzer. Для базового smoke check достаточно убедиться, что первая строка содержит правдоподобные значения для:
 
-```bash
-python3 - <<'PY'
-import json, os, pathlib
-path = pathlib.Path(os.environ["YANOTE_EVENTS_PATH"])
-line = next(raw for raw in path.read_text(encoding="utf-8").splitlines() if raw.strip())
-record = json.loads(line)
-print({key: record.get(key) for key in ("method", "route", "status", "service", "test.run_id", "test.suite")})
-PY
-```
+- `method`
+- `route`
+- `status`
+- `service`
+- `test.run_id`
+- `test.suite`
 
-Перед анализом убедитесь, что значения выглядят правдоподобно для вашего прогона:
+Если запрос пришёл без тестовых заголовков, `test.run_id` и `test.suite` всё равно останутся в JSONL как ключи со значением `null`.
 
-- `method` — фактический HTTP-метод
-- `route` — шаблон маршрута, а не конкретный `/orders/42`
-- `status` — HTTP-статус ответа
-- `service` — ваш `yanote.recorder.service-name` или `null`
-- `test.run_id` и `test.suite` — либо фактические метаданные теста, либо `null`, если заголовков не было
+## 5. Где появляются test headers
 
-Если хотите прогнать ровно тот путь, который уже проверен в репозитории, используйте:
+Recorder читает два HTTP заголовка:
+
+- `X-Test-Run-Id` → `test.run_id`
+- `X-Test-Suite` → `test.suite`
+
+Полный handoff до report-level `coverage.perOperation[].suites` описан в [test-tagging.md](test-tagging.md). Здесь достаточно доказать, что ваш сервис вообще пишет `events.jsonl`.
+
+## 6. Репозиторный verifier
+
+Для того же loop, но на уже подготовленном smoke fixture из репозитория, запустите:
 
 ```bash
 bash scripts/docs/verify-s01-recorder-path.sh
 ```
 
-## 4. Коротко о метаданных тестов
-
-Рекордер читает два HTTP-заголовка:
-
-- `X-Test-Run-Id` → поле `test.run_id`
-- `X-Test-Suite` → поле `test.suite`
-
-Если заголовки не пришли, рекордер всё равно пишет ключи `test.run_id` и `test.suite`, но со значением `null`. Это нормальный базовый сценарий для ручного `curl` или сервиса без тестовых тегов.
-
-Полный текущий contract RestAssured/Cucumber, различие между demo/env bridge `YANOTE_SUITE` и общей suite surface `yanote.suite`, а также путь от `test.run_id`/`test.suite` до `coverage.perOperation[].suites` описаны в [`docs/guides/test-tagging.md`](test-tagging.md).
-
-Для базового recorder proof здесь достаточно помнить:
-
-- `X-Test-Run-Id` → `test.run_id`
-- `X-Test-Suite` → `test.suite`
-- если заголовки не пришли, оба поля останутся `null`
-
-Этого достаточно, чтобы увидеть заполненные `test.run_id`/`test.suite` в `events.jsonl`; более глубокая интерпретация handoff и report-level suites вынесена в канонический tagging guide.
+Этот verifier публикует recorder в `mavenLocal()`, поднимает минимальный Spring Boot fixture, делает HTTP-запрос и проверяет реальный `events.jsonl`.
 
 ## Связанные поверхности
 
-- Канонический test-tagging contract: [`docs/guides/test-tagging.md`](test-tagging.md)
-- Runnable пример сервиса: [`examples/springmvc-service/README.md`](../../examples/springmvc-service/README.md)
-- Пример текущего RestAssured handoff: [`examples/tests-restassured/README.md`](../../examples/tests-restassured/README.md)
-- Smoke/offline fallback через release assets: [`docs/release-and-support.md`](../release-and-support.md)
+- Runnable service companion: [../../examples/springmvc-service/README.md](../../examples/springmvc-service/README.md)
+- Test metadata handoff: [test-tagging.md](test-tagging.md)
+- Quickstart path: [getting-started.md](getting-started.md)

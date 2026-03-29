@@ -20,9 +20,9 @@
 
 - GitHub Releases: https://github.com/zuevrs/yanote/releases
 
-`yanote --version` и `yanote-js/package.json` сейчас показывают `0.0.0`. Это технические version markers для source-built analyzer CLI и локального repository `HEAD`, а не публичная release truth.
+Опубликованный analyzer surface этого релиза — asset `yanote-analyzer.zip`. После распаковки `./yanote-analyzer/bin/yanote --version` должен совпадать с release tag и именно этот standalone bundle задаёт публичную version truth для analyzer-а.
 
-Поэтому `yanote --version`, `yanote-js/package.json` и текущий `0.0.0` — не авторитетный источник стабильного релиза.
+`yanote-js/package.json` и внутренние source-built markers в текущем repository `HEAD` по-прежнему могут показывать `0.0.0`, но это технические implementation markers, а не авторитетный источник стабильного релиза.
 
 ## Текущее состояние репозитория относительно релиза
 
@@ -39,9 +39,9 @@
 - Gradle plugin surface: plugin id `io.github.zuevrs.yanote.gradle`, задачи `yanoteReport` и `yanoteCheck`, плюс ограниченная extension surface вместо произвольного API;
 - report contract: файл `yanote-report.json` со schema version `1.0.0` (`schemaVersion = 1.0.0`);
 - проверенные recorder paths: dependency-based `yanote-recorder-spring-mvc` для Spring Boot 3.x / Spring MVC с записью HTTP evidence в `events.jsonl`, и `yanote-recorder-spring-kafka` как release-published Spring Kafka recorder adapter для Kafka evidence capture;
-- analyzer delivery surface: основной путь — source-built CLI из `yanote-js`, где stable baseline для `--spec` — локальный файл или директория, а narrow opt-in remote path ограничен single-document `http(s)` `--spec`; offline fallback распространяется как release asset через GitHub Releases, а не как tracked documentation surface default branch;
+- analyzer delivery surface: основной путь — standalone CLI bundle `yanote-analyzer.zip` с launcher-ом `bin/yanote`; published release asset и repo-local `./gradlew distStandaloneAnalyzer` ведут к одному и тому же user-facing launcher contract, а repo-local archive contract фиксирован как `build/distributions/yanote-analyzer.zip`; stable baseline для `--spec` — локальный файл или директория, а narrow opt-in remote path ограничен single-document `http(s)` `--spec`; raw `node yanote-js/dist/yanote.cjs` seam остаётся внутренней реализацией bundle, а не tracked public entrypoint;
 - CI/public summary surface: `yanote-validation-artifacts` и `build-and-test-artifacts` публикуют отдельные HTTP-vs-async owner bundles; внутри `build-and-test-artifacts` widened async/combined surface идёт тремя proof families — `live-kafka-proof/`, `live-rabbitmq-proof/`, `combined-proof/`. Они удерживают deterministic `artifact-manifest.txt` / `artifact-source-paths.txt`, sanitized `specSource`, additive deprecated-operation counts в GitHub step summaries и для async/combined path — redaction-safe строки `binding support`, `declared semantics`, `runtime semantics`, RabbitMQ `protocols=amqp`, явные report/companion filenames и combined child-report paths без raw retained-header leakage, без hosted dashboard и без blended denominator wording;
-- публичный HTTP proof surface: `bash scripts/ci/run-v1-e2e.sh`, который удерживает `.yanote-ci/v1-e2e/out/yanote-report.json` как happy-path machine artifact и `.yanote-ci/v1-e2e/out/yanote-report.html` как sibling human artifact, рядом сохраняет additive request sidecar `.yanote-ci/v1-e2e/request-semantics.events.jsonl`, `.yanote-ci/v1-e2e/request-semantics.stdout`, `.yanote-ci/v1-e2e/request-semantics.stderr`, `.yanote-ci/v1-e2e/request-semantics-yanote-report.json`, payload sidecars `semantic-red.stdout`, `semantic-red.stderr`, `semantic-red-yanote-report.json` и fixture-backed security sidecars `security-semantics.stdout`, `security-semantics.stderr`, `security-semantics-yanote-report.json`, плюс provenance в `artifact-manifest.txt` и `artifact-source-paths.txt`;
+- публичный HTTP proof surface: `bash scripts/ci/run-v1-e2e.sh`, GitHub step summary и bundle `yanote-validation-artifacts`; они публикуют sibling-артефакты `yanote-report.json` / `yanote-report.html`, sanitized `specSource`, additive deprecated-operation counts, request/payload/security companion outputs и provenance `artifact-manifest.txt` / `artifact-source-paths.txt`, а clone-local rerun roots intentionally remain discoverable only через [`docs/maintainers/README.md`](maintainers/README.md);
 - focused retained proofs `bash scripts/ci/verify-m011-s02-request-semantics.sh`, `bash scripts/ci/verify-m011-s03-format-media.sh` и `bash scripts/ci/verify-m012-s02-security-semantics.sh` остаются deep-proof surfaces за публичным summary bundle и support wording;
 - observation coverage, `HTTP Payload Conformance`, `HTTP Request Conformance`, `HTTP Security Conformance`, `summary.deprecatedOperations` и HTML sibling `yanote-report.html` — разные truth surfaces: happy path на Spring MVC demo сейчас показывает `coverage.operations/status/parameters/aggregate = 100.00%`, deprecated counts и request/payload/security sidecars отдельно публикуют additive fail-closed boundaries и supported subsets;
 - поддерживаемый request serialization subset публикуется буквально: `path=simple`, `query=form`, `header=simple`, `cookie=form`; повторяющиеся массивы поддерживаются только для `query=form` + `explode=true` + scalar `items`, а `content`-parameters, неподдерживаемые styles и cookie arrays не считаются supported public surface;
@@ -70,11 +70,11 @@ Widened user-facing async surface уже есть в текущем репози
 
 Поддерживаемые proof/support артефакты для этой widened surface тоже фиксированы:
 
-- Kafka bundle: `.yanote-ci/live-kafka-proof/`, `build-and-test-artifacts/live-kafka-proof/`, `yanote-async-report.json`, `yanote-async-report.html`, retained `runtime-selected-*` и `schema-failure-*` companions;
-- RabbitMQ bundle: `.yanote-ci/live-rabbitmq-proof/`, `build-and-test-artifacts/live-rabbitmq-proof/`, `yanote-async-report.json`, `yanote-async-report.html`, `artifact-manifest.txt`, `artifact-source-paths.txt`, `async-report.stdout`, `async-report.stderr`, `protocols=amqp`;
-- combined bundle: `.tmp/m015-s03-combined-proof/`, `build-and-test-artifacts/combined-proof/`, `yanote-combined-report.json`, `yanote-combined-report.html`, `combined-report.stdout`, `combined-report.stderr`, `artifact-manifest.txt`, `artifact-source-paths.txt`, explicit HTTP/async child report paths.
+- Kafka bundle: `build-and-test-artifacts/live-kafka-proof/`, `yanote-async-report.json`, `yanote-async-report.html`, retained `runtime-selected-*` и `schema-failure-*` companions;
+- RabbitMQ bundle: `build-and-test-artifacts/live-rabbitmq-proof/`, `yanote-async-report.json`, `yanote-async-report.html`, `artifact-manifest.txt`, `artifact-source-paths.txt`, `async-report.stdout`, `async-report.stderr`, `protocols=amqp`;
+- combined bundle: `build-and-test-artifacts/combined-proof/`, `yanote-combined-report.json`, `yanote-combined-report.html`, `combined-report.stdout`, `combined-report.stderr`, `artifact-manifest.txt`, `artifact-source-paths.txt`, explicit HTTP/async child report paths.
 
-Практически это означает отдельные маршруты `node yanote-js/dist/yanote.cjs async-report` по Kafka или RabbitMQ evidence и отдельный маршрут `node yanote-js/dist/yanote.cjs combined-report` по уже-retained child reports. В CI widened family публикуется как `build-and-test-artifacts/live-kafka-proof/`, `build-and-test-artifacts/live-rabbitmq-proof/` и `build-and-test-artifacts/combined-proof/`; GitHub step summary и collected summaries показывают `binding support`, `declared semantics`, `runtime semantics`, RabbitMQ `protocols=amqp` и combined child refs. Это дополняет стабильную линию `v1.0.x`, но не переопределяет release truth, не обещает broker-agnostic coverage, не делает raw retained headers публично проверяемыми и не превращает combined-report в hosted dashboard или blended denominator.
+Практически это означает отдельные маршруты `./yanote-analyzer/bin/yanote async-report` по Kafka или RabbitMQ evidence и отдельный маршрут `./yanote-analyzer/bin/yanote combined-report` по уже-retained child reports. В published release asset и в repo-local bundle из `./gradlew distStandaloneAnalyzer` этот launcher contract одинаков. В CI widened family публикуется как `build-and-test-artifacts/live-kafka-proof/`, `build-and-test-artifacts/live-rabbitmq-proof/` и `build-and-test-artifacts/combined-proof/`; GitHub step summary и collected summaries показывают `binding support`, `declared semantics`, `runtime semantics`, RabbitMQ `protocols=amqp` и combined child refs. Это дополняет стабильную линию `v1.0.x`, но не переопределяет release truth, не обещает broker-agnostic coverage, не делает raw retained headers публично проверяемыми и не превращает combined-report в hosted dashboard или blended denominator.
 
 Demo/example модули полезны для доказательства пути, но не входят в опубликованную Java release surface.
 
@@ -106,11 +106,8 @@ Yanote сейчас нужно воспринимать как Java-first пут
 
 ## Fallback-границы
 
-Offline fallback для recorder/analyzer не публикуется как tracked `dist/` поверхность default branch. Если dependency-based или source-built путь недоступен, используйте release assets из GitHub Releases как вторичный smoke/offline канал.
+Offline fallback для recorder по-прежнему не публикуется как tracked `dist/` поверхность default branch: если dependency-based путь недоступен, используйте release assets из GitHub Releases как вторичный smoke/offline канал.
 
-Их стоит использовать, когда обычный dependency/source-built путь недоступен в вашем контуре:
+Для analyzer ситуация другая: published release asset `yanote-analyzer.zip` — это официальный public install/run artifact, а не вторичный fallback. Если нужно проверить текущий `HEAD`, соберите тот же bundle локально через `./gradlew distStandaloneAnalyzer`; user-facing launcher contract при этом остаётся тем же `./yanote-analyzer/bin/yanote`.
 
-- release asset для recorder — временный fallback для закрытых сетей и быстрых smoke/offline proof;
-- release asset для analyzer — вторичный offline bundle, когда нельзя выполнить `npm -C yanote-js ci && npm -C yanote-js run build`.
-
-Эти fallback-поверхности не переопределяют публичную release version, не заменяют GitHub Releases и не подменяют основной пользовательский маршрут через опубликованные зависимости, канонические guide-level docs и обычный recorder/analyzer цикл.
+Эти границы не переопределяют публичную release version, не заменяют GitHub Releases и не возвращают raw `node yanote-js/dist/yanote.cjs` seam в роль пользовательского entrypoint.
