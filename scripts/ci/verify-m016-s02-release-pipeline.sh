@@ -15,12 +15,14 @@ PREVIOUS_RELEASE_TAG="${YANOTE_RELEASE_PROOF_PREVIOUS_TAG:-v1.2.2}"
 
 FIXTURE_ARCHIVE_PATH="${ROOT_DIR}/scripts/release/fixtures/preflight-runtime/preflight-signed-main.tar.gz.base64"
 FIXTURE_PUBLIC_KEY_PATH="${ROOT_DIR}/scripts/release/fixtures/test-release-signing-public.asc"
-FIXTURE_PRIVATE_KEY_PATH="${ROOT_DIR}/scripts/release/fixtures/test-release-signing-private.asc"
 FIXTURE_ROOT="${ARTIFACT_ROOT}/preflight-fixture"
 FIXTURE_TARBALL_PATH="${FIXTURE_ROOT}/fixture.tar.gz"
 PREFLIGHT_WORKTREE="${FIXTURE_ROOT}/fixture/worktree"
 FIXTURE_ORIGIN_DIR="${FIXTURE_ROOT}/fixture/origin.git"
 GPG_WRAPPER_PATH="${FIXTURE_ROOT}/gpg-loopback.sh"
+GENERATED_SIGNING_HOME="${FIXTURE_ROOT}/generated-signing-home"
+GENERATED_PRIVATE_KEY_PATH="${FIXTURE_ROOT}/generated-signing-private.asc"
+GENERATED_PUBLIC_KEY_PATH="${FIXTURE_ROOT}/generated-signing-public.asc"
 
 COMPAT_ROOT="${ARTIFACT_ROOT}/git-compatible-root"
 
@@ -170,7 +172,9 @@ write_source_paths_note() {
     printf 'fixture_root=%s\n' "${FIXTURE_ROOT}"
     printf 'fixture_archive=%s\n' "${FIXTURE_ARCHIVE_PATH}"
     printf 'fixture_public_key=%s\n' "${FIXTURE_PUBLIC_KEY_PATH}"
-    printf 'fixture_private_key=%s\n' "${FIXTURE_PRIVATE_KEY_PATH}"
+    printf 'generated_signing_home=%s\n' "${GENERATED_SIGNING_HOME}"
+    printf 'generated_public_key=%s\n' "${GENERATED_PUBLIC_KEY_PATH}"
+    printf 'generated_private_key=%s\n' "${GENERATED_PRIVATE_KEY_PATH}"
     printf 'preflight_worktree=%s\n' "${PREFLIGHT_WORKTREE}"
     printf 'staging_root=%s\n' "${STAGING_ROOT}"
     printf 'analyzer_archive=%s\n' "${ANALYZER_ARCHIVE_PATH}"
@@ -316,6 +320,41 @@ EOF
   git -C "${PREFLIGHT_WORKTREE}" remote set-url origin "${FIXTURE_ORIGIN_DIR}"
   git -C "${PREFLIGHT_WORKTREE}" config gpg.format openpgp
   git -C "${PREFLIGHT_WORKTREE}" config gpg.program "${GPG_WRAPPER_PATH}"
+}
+
+generate_release_signing_fixture() {
+  rm -rf "${GENERATED_SIGNING_HOME}"
+  mkdir -p "${GENERATED_SIGNING_HOME}"
+  chmod 700 "${GENERATED_SIGNING_HOME}"
+
+  command -v gpg >/dev/null 2>&1 || fail "gpg is required to generate the temporary release-signing fixture."
+
+  cat > "${GENERATED_SIGNING_HOME}/keygen.batch" <<'EOF'
+%no-protection
+Key-Type: RSA
+Key-Length: 3072
+Subkey-Type: RSA
+Subkey-Length: 3072
+Subkey-Usage: sign
+Name-Real: Yanote Release Proof
+Name-Email: release-proof@yanote.invalid
+Expire-Date: 0
+%commit
+EOF
+
+  GNUPGHOME="${GENERATED_SIGNING_HOME}" gpg --batch --generate-key "${GENERATED_SIGNING_HOME}/keygen.batch" >/dev/null 2>&1 \
+    || fail "Failed to generate the temporary release-signing fixture keypair."
+
+  local fingerprint
+  fingerprint="$(GNUPGHOME="${GENERATED_SIGNING_HOME}" gpg --batch --with-colons --list-secret-keys | awk -F: '/^fpr:/{print $10; exit}')"
+  [[ -n "${fingerprint}" ]] || fail "Temporary release-signing fixture keypair did not expose a secret-key fingerprint."
+
+  GNUPGHOME="${GENERATED_SIGNING_HOME}" gpg --batch --armor --export-secret-keys "${fingerprint}" > "${GENERATED_PRIVATE_KEY_PATH}" \
+    || fail "Failed to export the temporary release-signing private key fixture."
+  GNUPGHOME="${GENERATED_SIGNING_HOME}" gpg --batch --armor --export "${fingerprint}" > "${GENERATED_PUBLIC_KEY_PATH}" \
+    || fail "Failed to export the temporary release-signing public key fixture."
+
+  chmod 600 "${GENERATED_PRIVATE_KEY_PATH}" "${GENERATED_PUBLIC_KEY_PATH}"
 }
 
 create_git_compatible_root() {
@@ -520,8 +559,8 @@ run_publish_phase() {
   publish_command=$(cat <<EOF
 export JRELEASER_MAVENCENTRAL_USERNAME='fixture-user'
 export JRELEASER_MAVENCENTRAL_PASSWORD='fixture-password'
-export JRELEASER_GPG_SECRET_KEY='${FIXTURE_PRIVATE_KEY_PATH}'
-export JRELEASER_GPG_PUBLIC_KEY='${FIXTURE_PUBLIC_KEY_PATH}'
+export JRELEASER_GPG_SECRET_KEY='${GENERATED_PRIVATE_KEY_PATH}'
+export JRELEASER_GPG_PUBLIC_KEY='${GENERATED_PUBLIC_KEY_PATH}'
 export JRELEASER_GPG_PASSPHRASE=''
 export JRELEASER_GITHUB_TOKEN='fixture-github-token'
 ./gradlew -Pversion='${RELEASE_VERSION}' publish distStandaloneAnalyzer cyclonedxBom jreleaserConfig --stacktrace
@@ -709,13 +748,13 @@ write_manifest
 
 require_file "${FIXTURE_ARCHIVE_PATH}" "Missing signed preflight fixture archive at ${FIXTURE_ARCHIVE_PATH}."
 require_file "${FIXTURE_PUBLIC_KEY_PATH}" "Missing fixture public signing key at ${FIXTURE_PUBLIC_KEY_PATH}."
-require_file "${FIXTURE_PRIVATE_KEY_PATH}" "Missing fixture private signing key at ${FIXTURE_PRIVATE_KEY_PATH}."
 require_file "${TRACEABILITY_JSON_PATH}" "Missing traceability JSON at ${TRACEABILITY_JSON_PATH}."
 require_file "${TRACEABILITY_MARKDOWN_PATH}" "Missing traceability markdown at ${TRACEABILITY_MARKDOWN_PATH}."
 
 capture_traceability_snapshot
 reset_release_outputs
 restore_preflight_fixture
+generate_release_signing_fixture
 create_git_compatible_root
 write_tag_context
 write_source_paths_note
