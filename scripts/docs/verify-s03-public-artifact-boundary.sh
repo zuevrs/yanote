@@ -62,6 +62,8 @@ check_ignore_contract() {
   require_gitignore_rule ".tmp/"
   require_gitignore_rule ".tmp-*"
   require_gitignore_rule ".vite/"
+  require_gitignore_rule ".mcp.json"
+  require_gitignore_rule ".nvmrc"
   require_gitignore_rule "dist/"
 }
 
@@ -78,14 +80,14 @@ check_tracked_inventory() {
     [[ -n "${path}" ]] || continue
 
     case "${path}" in
-      .bg-shell|.bg-shell/*|.gsd|.gsd/*|.tmp|.tmp/*|.tmp-*|.tmp-*/*|.vite|.vite/*|dist|dist/*)
+      .bg-shell|.bg-shell/*|.gsd|.gsd/*|.mcp.json|.nvmrc|.tmp|.tmp/*|.tmp-*|.tmp-*/*|.vite|.vite/*|dist|dist/*)
         tracked_count=$((tracked_count + 1))
         error "Tracked clone-local root remains in git inventory: ${path}"
         ;;
     esac
   done <<< "${inventory}"
 
-  note "Tracked public-boundary inventory entries under .bg-shell/.gsd/.tmp/.tmp-*/.vite/dist: ${tracked_count}"
+  note "Tracked public-boundary inventory entries under .bg-shell/.gsd/.mcp.json/.nvmrc/.tmp/.tmp-*/.vite/dist: ${tracked_count}"
 }
 
 check_public_surface_boundary() {
@@ -113,6 +115,15 @@ check_public_surface_boundary() {
   require_not_contains "docs/release-and-support.md" ".vite/" "clone-local .vite reference"
   require_not_contains "docs/release-and-support.md" ".bg-shell/" "clone-local .bg-shell reference"
   require_not_contains "docs/release-and-support.md" ".yanote-ci/" "clone-local proof bundle reference"
+  require_not_contains "docs/release-and-support.md" ".nvmrc" "repo/dev-only Node pin reference"
+
+  require_not_contains "docs/guides/asyncapi-kafka.md" ".gsd/" "clone-local .gsd reference"
+  require_not_contains "docs/guides/asyncapi-kafka.md" ".tmp/" "clone-local .tmp reference"
+  require_not_contains "docs/guides/asyncapi-kafka.md" ".tmp-" "clone-local .tmp-* reference"
+  require_not_contains "docs/guides/asyncapi-kafka.md" ".vite/" "clone-local .vite reference"
+  require_not_contains "docs/guides/asyncapi-kafka.md" ".bg-shell/" "clone-local .bg-shell reference"
+  require_not_contains "docs/guides/asyncapi-kafka.md" ".yanote-ci/" "clone-local proof bundle reference"
+  require_not_contains "docs/guides/asyncapi-kafka.md" ".nvmrc" "repo/dev-only Node pin reference"
 
   require_not_contains "SUPPORT.md" ".gsd/" "clone-local .gsd reference"
   require_not_contains "SUPPORT.md" ".tmp/" "clone-local .tmp reference"

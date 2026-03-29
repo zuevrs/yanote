@@ -78,7 +78,7 @@ Fail-closed сигналы для чтения отчёта: `SEMANTIC_HTTP_MISS
 bash scripts/ci/verify-m012-s02-security-semantics.sh
 ```
 
-Этот fixture-backed proof публикует provenance через `artifact-manifest.txt` и `artifact-source-paths.txt`; security matrix описывает fixture-backed proof, а raw `http-security-api-key.fixture.jsonl` в `.yanote-ci/v1-e2e/` не копируется в public-facing path. Более широкие OpenAPI-объекты пока deferred: `examples`, `links`, `callbacks` и `webhooks`.
+Этот fixture-backed proof публикует provenance через `artifact-manifest.txt` и `artifact-source-paths.txt`; security matrix описывает fixture-backed proof, а raw `http-security-api-key.fixture.jsonl` в `build-and-test-artifacts/v1-e2e/` не копируется в public-facing path. Более широкие OpenAPI-объекты пока deferred: `examples`, `links`, `callbacks` и `webhooks`.
 
 ## Когда идти дальше по документации
 

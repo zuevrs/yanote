@@ -25,6 +25,8 @@ dist/
 .tmp/
 .tmp-*
 .vite/
+.mcp.json
+.nvmrc
 .planning/
 Thumbs.db
 *.swp
