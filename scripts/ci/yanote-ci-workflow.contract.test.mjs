@@ -68,9 +68,15 @@ test("build-and-test checks out full history for path-sensitive proof decisions"
   assert.match(buildJob, /uses:\s*actions\/checkout@v5[\s\S]*?fetch-depth:\s*0/);
 });
 
-test("workflow runs script and release contract suites in CI", async () => {
+test("workflow runs script and release contract suites in CI after materializing the standalone bundle", async () => {
   const source = await loadWorkflowSource();
   const buildJob = extractJobBlock(source, "build-and-test", "yanote-validation");
+  assert.match(buildJob, /- name:\s*Build standalone analyzer bundle for release\/script contract suites/);
+  assert.match(buildJob, /\.\/gradlew distStandaloneAnalyzer --stacktrace/);
+  assert.match(
+    buildJob,
+    /- name:\s*Run analyzer tests[\s\S]*?- name:\s*Build standalone analyzer bundle for release\/script contract suites[\s\S]*?- name:\s*Run script and release contract suites/
+  );
   assert.match(buildJob, /- name:\s*Run script and release contract suites/);
   assert.match(buildJob, /node --test scripts\/ci\/\*\.test\.mjs scripts\/release\/\*\.test\.mjs/);
 });
@@ -92,6 +98,7 @@ test("workflow runs delivery-sensitive v1 e2e proof inside build-and-test withou
   const buildJob = extractJobBlock(source, "build-and-test", "yanote-validation");
   assert.match(buildJob, /- name:\s*Run delivery-sensitive v1 e2e proof/);
   assert.match(buildJob, /id:\s*run-delivery-proof/);
+  assert.match(buildJob, /env:\s*[\s\S]*?YANOTE_GRADLE_HOME:\s*\$\{\{ runner\.temp \}\}\/yanote-v1-e2e-gradle/);
   assert.match(buildJob, /bash scripts\/ci\/run-v1-e2e\.sh/);
   assert.match(buildJob, /delivery-proof-exit-code\.txt/);
   assert.doesNotMatch(source, /^\s*delivery-sensitive-v1-e2e:\s*$/m);

@@ -1,7 +1,0 @@
-{
-  "mcpServers": {
-    "context-mode": {
-      "command": "/opt/homebrew/bin/context-mode"
-    }
-  }
-}

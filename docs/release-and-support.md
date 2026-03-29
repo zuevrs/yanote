@@ -84,7 +84,6 @@ Demo/example модули полезны для доказательства п�
 
 - Java 21 — verified baseline для Gradle build, CI и публично описанного Java-пути;
 - Node `>=20` — минимальный runtime для analyzer-а;
-- репозиторий и dev-среда в этом репо pinned на `.nvmrc` = `22`, но это repo/dev pin, а не отдельная публичная support line;
 - Spring Boot 3.x / Spring MVC — основной и проверенный recorder path в текущей пользовательской документации;
 - Java-first delivery surfaces (Maven/Gradle + Gradle plugin) — текущий основной product path.
 

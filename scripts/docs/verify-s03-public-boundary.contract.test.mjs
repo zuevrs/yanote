@@ -9,7 +9,7 @@ import test from "node:test";
 const sourceScriptPath = path.resolve("scripts/docs/verify-s03-public-artifact-boundary.sh");
 const verifierSource = await readFile(sourceScriptPath, "utf8");
 
-const CLEAN_GITIGNORE_LINES = [".bg-shell/", ".gsd/", ".tmp/", ".tmp-*", ".vite/", "dist/"];
+const CLEAN_GITIGNORE_LINES = [".bg-shell/", ".gsd/", ".tmp/", ".tmp-*", ".vite/", ".mcp.json", ".nvmrc", "dist/"];
 
 function runCommand(command, args, { cwd } = {}) {
   return spawnSync(command, args, {
@@ -35,6 +35,7 @@ async function createFixture({
   readme = "# yanote\n\nPublic landing only.\n",
   docsReadme = "# docs\n\nCanonical docs landing only.\n",
   releaseSupport = "# release and support\n\nPublic release/support owner surface only.\n",
+  asyncGuide = "# async guide\n\nPublic async guide only.\n",
   support = "# support\n\nAttach version, minimal reproduction, and released artifacts only.\n",
   extraFiles = {},
 }) {
@@ -44,6 +45,7 @@ async function createFixture({
   await writeFixtureFile(rootDir, "README.md", readme);
   await writeFixtureFile(rootDir, "docs/README.md", docsReadme);
   await writeFixtureFile(rootDir, "docs/release-and-support.md", releaseSupport);
+  await writeFixtureFile(rootDir, "docs/guides/asyncapi-kafka.md", asyncGuide);
   await writeFixtureFile(rootDir, "SUPPORT.md", support);
   await writeFixtureFile(rootDir, "scripts/docs/verify-s03-public-artifact-boundary.sh", verifierSource);
 
@@ -66,6 +68,8 @@ test("tracked mode fails closed on tracked clone-local roots and prints the offe
   const rootDir = await createFixture({
     extraFiles: {
       ".gsd/STATE.md": "tracked gsd state\n",
+      ".mcp.json": "{\"mcpServers\":{}}\n",
+      ".nvmrc": "22\n",
       ".tmp/proof/artifact.txt": "tracked tmp proof\n",
       ".tmp-m015-s03-combined-proof/artifact-manifest.txt": "tracked tmp-star proof\n",
       ".vite/vitest/results.json": "{}\n",
@@ -77,10 +81,12 @@ test("tracked mode fails closed on tracked clone-local roots and prints the offe
 
     assert.notEqual(result.status, 0, "tracked mode should fail when clone-local roots remain tracked");
     assert.match(result.stderr, /Tracked clone-local root remains in git inventory: \.gsd\/STATE\.md/);
+    assert.match(result.stderr, /Tracked clone-local root remains in git inventory: \.mcp\.json/);
+    assert.match(result.stderr, /Tracked clone-local root remains in git inventory: \.nvmrc/);
     assert.match(result.stderr, /Tracked clone-local root remains in git inventory: \.tmp\/proof\/artifact\.txt/);
     assert.match(result.stderr, /Tracked clone-local root remains in git inventory: \.tmp-m015-s03-combined-proof\/artifact-manifest\.txt/);
     assert.match(result.stderr, /Tracked clone-local root remains in git inventory: \.vite\/vitest\/results\.json/);
-    assert.match(result.stdout, /Tracked public-boundary inventory entries under \.bg-shell\/.gsd\/.tmp\/.tmp-\*\/.vite\/dist: 4/);
+    assert.match(result.stdout, /Tracked public-boundary inventory entries under \.bg-shell\/.gsd\/.mcp\.json\/.nvmrc\/.tmp\/.tmp-\*\/.vite\/dist: 6/);
   } finally {
     await rm(rootDir, { recursive: true, force: true });
   }
@@ -89,8 +95,9 @@ test("tracked mode fails closed on tracked clone-local roots and prints the offe
 test("all mode adds public-surface wording checks while tracked mode stays green on the same clean inventory", { concurrency: false }, async () => {
   const rootDir = await createFixture({
     readme: "# yanote\n\nProof bundle lives at `.yanote-ci/v1-e2e/`.\n",
-    docsReadme: "# docs\n\nCombined retained bundle lives at `.tmp/m015-s03-combined-proof/`.\n",
-    releaseSupport: "# release and support\n\nUse published release assets and public CI bundles only.\n",
+    docsReadme: "# docs\n\nCanonical docs landing only.\n",
+    releaseSupport: "# release and support\n\nRepo is pinned by `.nvmrc` and public CI bundles only.\n",
+    asyncGuide: "# async guide\n\nCombined retained bundle lives at `.tmp/m015-s03-combined-proof/`, Kafka proof lives at `.yanote-ci/live-kafka-proof/`.\n",
     support: "# support\n\nDo not attach `.tmp/m015-s03-combined-proof/` directly to public issues.\n",
   });
 
@@ -101,7 +108,9 @@ test("all mode adds public-surface wording checks while tracked mode stays green
     const allResult = runVerifier(rootDir, "all");
     assert.notEqual(allResult.status, 0, "all mode should fail when public docs still mention private roots");
     assert.match(allResult.stderr, /README\.md still exposes clone-local proof bundle reference: \.yanote-ci\//);
-    assert.match(allResult.stderr, /docs\/README\.md still exposes clone-local \.tmp reference: \.tmp\//);
+    assert.match(allResult.stderr, /docs\/release-and-support\.md still exposes repo\/dev-only Node pin reference: \.nvmrc/);
+    assert.match(allResult.stderr, /docs\/guides\/asyncapi-kafka\.md still exposes clone-local \.tmp reference: \.tmp\//);
+    assert.match(allResult.stderr, /docs\/guides\/asyncapi-kafka\.md still exposes clone-local proof bundle reference: \.yanote-ci\//);
     assert.match(allResult.stderr, /SUPPORT\.md still exposes clone-local \.tmp reference: \.tmp\//);
   } finally {
     await rm(rootDir, { recursive: true, force: true });
