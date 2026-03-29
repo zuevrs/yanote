@@ -90,3 +90,9 @@ Future agents should inspect these surfaces first:
 - `yanote-js/src/coverage/httpOperationEvidence.test.ts` — pinned resolver matching and additive evidence aggregation behavior.
 - `yanote-js/src/coverage/coverage.ts` — migrated legacy coverage onto the shared evidence resolver.
 - `yanote-js/src/spec/openapi.test.ts` — added assertions for supported parameter schema and response-header contract extraction.
+## Must-Haves Covered
+
+- `ParameterDefinition` carries the supported schema metadata S02 needs instead of only name/location/requiredness.
+- `HttpOperationContract` exposes response-header contracts keyed by declared response status alongside the existing payload contracts.
+- One shared HTTP operation-evidence helper aggregates S01 value-bearing evidence so later analyzers do not fork the route-matching logic again.
+

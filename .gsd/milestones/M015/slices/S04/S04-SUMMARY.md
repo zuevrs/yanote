@@ -109,7 +109,7 @@ None.
 
 - `build-and-test` now enforces Kafka, RabbitMQ, and combined proof results, but it still depends on the upstream proof scripts generating their retained bundles successfully.
 - RabbitMQ remains the first concrete AMQP path only; S04 does not broaden the product to a broker-agnostic contract.
-- The combined surface stays intentionally child-attributed and does not publish a blended HTTP+async denominator or hosted dashboard.
+- The combined surface stays intentionally child-attributed and does not publish a blended HTTP plus async denominator or hosted dashboard.
 - RabbitMQ collected summaries intentionally show Kafka-only companion artifacts as explicit optional absences rather than fabricating parity files.
 
 ## Follow-ups

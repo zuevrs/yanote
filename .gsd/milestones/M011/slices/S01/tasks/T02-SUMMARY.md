@@ -72,3 +72,9 @@ I represented the new scalar/cookie semantics on an additive `requestParameters`
 - `yanote-js/src/coverage/httpRequestConformance.test.ts`
 - `.gsd/KNOWLEDGE.md`
 - `.gsd/STATE.md`
+## Must-Haves Covered
+
+- Old fixtures without request-evidence maps still load and keep the legacy coverage baseline.
+- Cookie parameters and the S01 scalar schema subset are extracted explicitly instead of being silently ignored.
+- First scalar truth distinguishes captured-valid, captured-invalid, redacted, omitted, and unsupported evidence paths without changing `coverage.parameters`.
+

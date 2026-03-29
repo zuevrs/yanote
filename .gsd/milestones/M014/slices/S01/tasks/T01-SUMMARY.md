@@ -20,3 +20,9 @@ blocker_discovered: false
 
 ## What Happened
 No summary recorded.
+## Must-Haves Covered
+
+- Supported `correlationId` and `reply` declarations survive AsyncAPI normalization as additive contract metadata instead of parser-only residue.
+- Trait-applied declarations normalize to the same retained fields as inline declarations for the supported fixture cases.
+- `serializeOperationKey()` continues to emit `kafka <action> <channel>` with no semantic-field leakage.
+

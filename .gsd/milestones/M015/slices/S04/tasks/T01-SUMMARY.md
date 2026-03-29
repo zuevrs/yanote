@@ -79,3 +79,9 @@ Stopped in wrap-up mode under context/time-budget pressure after leaving the tas
 
 ## Known Issues
 scripts/ci/render-yanote-summary.test.mjs still has three failing async expectation snapshots, and dedicated renderer coverage for RabbitMQ optional-companion behavior plus combined-report markdown shape is still missing.
+
+## Must-Haves Covered
+
+- `build-and-test-artifacts/` retains `live-kafka-proof/`, `live-rabbitmq-proof/`, and `combined-proof/` without fabricating missing AMQP companions or losing existing HTTP bundle collection.
+- Collected markdown summaries stay redaction-safe while surfacing `protocols=amqp`, combined child report paths, and fail-closed bundle drift.
+

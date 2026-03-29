@@ -8,7 +8,7 @@ skills_used:
 
 # T02: Wire the `combined-report` CLI with fail-closed child-report loading and attributed summary output
 
-**Slice:** S03 — Combined HTTP+async report/gate from canonical subreports
+**Slice:** S03 — Combined HTTP plus async report and gate from canonical subreports
 **Milestone:** M015
 
 ## Description

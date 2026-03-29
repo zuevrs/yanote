@@ -20,3 +20,8 @@ blocker_discovered: false
 
 ## What Happened
 No summary recorded.
+## Must-Haves Covered
+
+- Real Spring AMQP sends and receives can emit `kind: "amqp"` JSONL without mutating the S01 analyzer contract.
+- Recorder hooks remain opt-in and do not clobber existing application `RabbitTemplate` or listener customization.
+

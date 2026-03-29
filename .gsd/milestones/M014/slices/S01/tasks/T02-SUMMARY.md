@@ -20,3 +20,9 @@ blocker_discovered: false
 
 ## What Happened
 No summary recorded.
+## Must-Haves Covered
+
+- `yanote-async-report.json` adds a schema-valid declared semantics section derived from canonical async truth.
+- `yanote-async-report.html` renders the same declared semantics additively and stays async-only, self-contained, and provenance-aware.
+- Existing channel/operation/message coverage numerators and diagnostic counts remain stable outside the new additive section.
+

@@ -32,7 +32,7 @@
 
 ## Integration Closure
 
-- Upstream surfaces consumed: request evidence maps from `yanote-js/src/model/httpEvent.ts` and `yanote-js/src/events/readJsonl.ts`, OpenAPI extraction in `yanote-js/src/spec/openapi.ts` / `yanote-js/src/spec/semantics.ts`, and the existing report/gates/CLI summary pipelines.
+- Upstream surfaces consumed: request evidence maps from `yanote-js/src/model/httpEvent.ts` and `yanote-js/src/events/readJsonl.ts`, OpenAPI extraction in `yanote-js/src/spec/openapi.ts` / `yanote-js/src/spec/semantics.ts`, and the existing report and gates/CLI summary pipelines.
 - New wiring introduced in this slice: effective security extraction → `httpSecurityConformance` evaluator → additive `httpSecurityConformance` report section → `httpSecuritySemantics` governance failures → CLI `HTTP Security Conformance` block + security `YANOTE_SUMMARY` tokens + GitHub summary primary-failure handling.
 - What remains before the milestone is truly usable end-to-end: S02 still needs the public docs, retained proof scripts, and support-boundary closeout for supported vs deferred security semantics.
 

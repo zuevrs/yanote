@@ -2,7 +2,7 @@
 depends_on: [M011]
 ---
 
-# M012: OpenAPI Surface Expansion Beyond Request/Response Core
+# M012: OpenAPI Surface Expansion Beyond Request and Response Core
 
 **Gathered:** 2026-03-23
 **Status:** Queued — pending auto-mode execution.
@@ -26,11 +26,11 @@ There is a natural boundary between “core HTTP contract completeness” and �
 
 - Entry point: `node yanote-js/dist/yanote.cjs report`, `yanote-report.json`, OpenAPI fixtures, and HTTP docs/proof surfaces
 - Environment: local development, CI, and retained HTTP proof/report paths
-- Live dependencies involved: OpenAPI specs, HTTP analyzer/report/gate surfaces, and any expanded proof fixtures/scripts needed for new OpenAPI objects
+- Live dependencies involved: OpenAPI specs, HTTP analyzer/report and gate surfaces, and any expanded proof fixtures/scripts needed for new OpenAPI objects
 
 ## Completion Class
 
-- Contract complete means: selected broader OpenAPI objects have explicit supported semantics and deterministic report/gate treatment.
+- Contract complete means: selected broader OpenAPI objects have explicit supported semantics and deterministic report and gate treatment.
 - Integration complete means: the analyzer/report path can consume those spec objects without regressing current HTTP request/response truth.
 - Operational complete means: docs and proof surfaces explain the broadened OpenAPI boundary honestly and rerunnably.
 
@@ -68,7 +68,7 @@ To call this milestone complete, we must prove:
 ### In Scope
 
 - selecting and implementing the first broader OpenAPI constructs worth supporting after the request/response core
-- deterministic report/gate semantics for those selected constructs
+- deterministic report and gate semantics for those selected constructs
 - guide/proof updates that explain the broader supported OpenAPI boundary
 
 ### Out of Scope / Non-Goals

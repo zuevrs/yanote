@@ -103,3 +103,10 @@ None - no external service configuration required.
 ---
 *Phase: 04-java-build-and-ci-delivery-surfaces*
 *Completed: 2026-03-04*
+## Must-Haves Covered
+
+- "GitHub `yanote-validation` executes an aggregate Gradle `yanoteCheck` delivery path (or equivalent rooted Gradle wrapper path), not only plugin tests plus direct Node CLI."
+- "Failure triage remains always-on: summary rendering and artifact upload still run under `if: ${{ always() }}` after validation execution."
+- "Parity intent is explicit and test-locked: workflow contract tests fail if `yanoteCheck` invocation disappears or direct CLI-only validation returns."
+- "Java 21 baseline enforcement remains present in required checks while gap wiring is corrected."
+

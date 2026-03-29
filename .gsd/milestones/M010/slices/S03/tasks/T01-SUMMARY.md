@@ -78,3 +78,9 @@ The next executor should use the focused command above as the first feedback loo
 ## Files Created/Modified
 
 - `.gsd/milestones/M010/slices/S03/tasks/T01-SUMMARY.md` — durable wrap-up summary with failing verification evidence and resume notes.
+## Must-Haves Covered
+
+- `loadAsyncApiSemanticsBundle()` can derive real fixture-backed header validation capabilities for both supported and unverifiable header schemas.
+- `missing-header`, `invalid-header`, `unavailable-header`, and `unverifiable-headers` are all proven through authored AsyncAPI fixtures plus retained JSONL evidence in analyzer/report/CLI tests.
+- Updated diagnostics tests still prove that retained payload/header values are redacted from error messages and serialized snapshots.
+

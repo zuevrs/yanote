@@ -110,3 +110,9 @@ Future agents can inspect the live proof stack via:
 - `.gsd/milestones/M004/slices/S03/S03-PLAN.md` — marked T02 complete.
 - `.gsd/milestones/M004/slices/S03/tasks/T02-SUMMARY.md` — recorded the task handoff, verification, and diagnostics.
 - `.gsd/STATE.md` — advanced the repo state to T03 as the next action.
+## Must-Haves Covered
+
+- The two-service proof uses separate service names and separate events files, and raw assertions prove each service only records its own truthful evidence with preserved `test.*` attribution.
+- The single-service republish proof remains part of the final verifier stack rather than being replaced by the new two-service path.
+- The merged two-service file reaches `yanote async-report` unchanged apart from deterministic concatenation and produces the expected async coverage with no hidden translation layer.
+

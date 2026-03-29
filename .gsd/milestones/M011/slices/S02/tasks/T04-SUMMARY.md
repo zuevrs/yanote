@@ -52,3 +52,9 @@ Adjusted to local reality by recording the slice-level verifier command failure 
 - `yanote-js/src/cli.requestEvidence.test.ts`
 - `yanote-js/src/cli.summary.contract.test.ts`
 - `yanote-js/src/cli.failclosed.contract.test.ts`
+## Must-Haves Covered
+
+- `yanote report` exit 5 / stderr / summary surfaces all show typed request semantic failures through existing public entrypoints.
+- Top Issues prefers one semantic primary issue over duplicate medium request diagnostics for the same drift.
+- `YANOTE_SUMMARY` and human-readable request sections stay stable and secret-safe on green runs.
+

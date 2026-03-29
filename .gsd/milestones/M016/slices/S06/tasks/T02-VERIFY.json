@@ -1,0 +1,36 @@
+{
+  "schemaVersion": 1,
+  "taskId": "T02",
+  "unitId": "M016/S06/T02",
+  "timestamp": 1774758539555,
+  "passed": false,
+  "discoverySource": "task-plan",
+  "checks": [
+    {
+      "command": "bash scripts/docs/verify-s01-recorder-path.sh",
+      "exitCode": 1,
+      "durationMs": 10600,
+      "verdict": "fail"
+    },
+    {
+      "command": "node --test scripts/docs/verify-s01-recorder-path.contract.test.mjs scripts/docs/verify-m016-s05-public-surface.contract.test.mjs",
+      "exitCode": 0,
+      "durationMs": 3066,
+      "verdict": "pass"
+    },
+    {
+      "command": "bash scripts/docs/verify-m016-s05-public-surface.sh",
+      "exitCode": 0,
+      "durationMs": 76565,
+      "verdict": "pass"
+    },
+    {
+      "command": "bash scripts/docs/verify-m016-s05-public-surface.sh",
+      "exitCode": 0,
+      "durationMs": 70186,
+      "verdict": "pass"
+    }
+  ],
+  "retryAttempt": 1,
+  "maxRetries": 2
+}

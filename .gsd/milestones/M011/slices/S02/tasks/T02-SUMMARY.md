@@ -49,3 +49,9 @@ None.
 - `yanote-js/src/coverage/httpRequestConformance.ts`
 - `yanote-js/src/coverage/httpRequestConformance.test.ts`
 - `yanote-js/src/report/report.requestEvidence.contract.test.ts`
+## Must-Haves Covered
+
+- Supported repeated query arrays can pass or fail based on item-schema validation against the retained ordered `values[]`.
+- Unsupported request contracts still produce deterministic unsupported diagnostics with retained values only in `yanote-report.json`.
+- Summary counts remain additive and deterministic across the existing `httpRequestConformance` surface.
+

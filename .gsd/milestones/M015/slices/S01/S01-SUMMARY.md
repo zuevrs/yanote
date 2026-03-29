@@ -136,7 +136,7 @@ None.
 - Supported widened protocol scope in this slice is intentionally narrow: only single-protocol AsyncAPI documents whose protocol is exactly `kafka` or `amqp` are accepted.
 - AMQP support currently covers protocol-aware parsing, evidence ingestion, routing/message/payload truth, and report/CLI rendering only.
 - Kafka runtime semantics and Kafka binding support remain explicitly protocol-scoped; AMQP reports show those sections as zero/none rather than attempting RabbitMQ parity.
-- Live RabbitMQ recorder proof, combined HTTP+async aggregation, CI artifact closure, and public docs/support closure are not part of S01.
+- Live RabbitMQ recorder proof, combined HTTP plus async aggregation, CI artifact closure, and public docs/support closure are not part of S01.
 
 ## Follow-ups
 

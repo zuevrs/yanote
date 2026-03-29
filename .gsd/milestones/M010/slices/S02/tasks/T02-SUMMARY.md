@@ -86,3 +86,9 @@ Resume from these files first:
 - `yanote-js/src/coverage/httpCoreConformance.ts` — drafted HTTP core aggregation surface.
 - `yanote-js/src/coverage/httpPayloadConformance.ts` — exported the response-contract selector for potential reuse.
 - `yanote-js/src/coverage/statusCoverage.test.ts` — updated status coverage expectations for additive undeclared drift.
+## Must-Haves Covered
+
+- Declared-status coverage math stays intact while observed undeclared statuses become first-class drift output for `R031`.
+- Supported path/query/header value validation consumes retained evidence maps plus capture states instead of falling back to `queryKeys` / `headerKeys`.
+- Response-header validation uses selected response contracts and fails closed as unsupported or unverifiable when evidence or schema semantics fall outside the supported subset.
+

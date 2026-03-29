@@ -82,3 +82,9 @@ The failure state exposed by this task is now explicit in summary markdown: asyn
 - `.gsd/milestones/M010/slices/S03/S03-PLAN.md` — marked T03 complete.
 - `.gsd/STATE.md` — advanced the next action to T04.
 - `.gsd/milestones/M010/slices/S03/tasks/T03-SUMMARY.md` — recorded the durable implementation and verification snapshot for this task.
+## Must-Haves Covered
+
+- No supported async header diagnostic kind is omitted from `ASYNC_DIAGNOSTIC_CODE_BY_KIND` or precedence ordering.
+- The summary renderer can select a header diagnostic as the primary async failure when its precedence demands it.
+- Tests pin the rendered issue text and class counts so future regressions are obvious.
+

@@ -93,7 +93,7 @@
      - `combined-report/out/yanote-combined-report.json (present)` and `combined-report/out/yanote-combined-report.html (present)`
      - explicit `http child reports:` paths back to `.tmp/m015-s03-combined-proof/http-report/out/yanote-report.json` / `.html`
      - explicit `async child reports:` paths back to `.yanote-ci/live-rabbitmq-proof/yanote-async-report.json` / `.html`
-   - The summary remains child-attributed; it does **not** invent a blended HTTP+async denominator.
+   - The summary remains child-attributed; it does **not** invent a blended HTTP plus async denominator.
 
 ## Test Case 5 — Workflow contracts pin the stable required job and widened proof stack
 1. Run:
@@ -126,6 +126,8 @@
 
 ## Tasks
 - [x] **T01: Extended artifact collection and summary rendering toward RabbitMQ and combined proof support, but renderer tests still need follow-up expectation updates.** — Why: The current collector and summary renderer only know how to publish the Kafka proof family, so CI cannot expose the RabbitMQ/AMQP or combined proof surfaces that S02 and S03 already shipped.
+- [x] **T02: Extended `build-and-test` to enforce Kafka, RabbitMQ, and combined proof stacks while publishing widened CI summaries.** — Historical completed task retained in tasks/T02-SUMMARY.md.
+- [x] **T03: Aligned public docs and support intake to the Kafka, RabbitMQ, and combined proof bundles.** — Historical completed task retained in tasks/T03-SUMMARY.md.
 Do: extend the artifact collector to retain `live-rabbitmq-proof/` and `combined-proof/` beside the existing Kafka and HTTP bundles, teach the summary renderer to produce redaction-safe markdown for the RabbitMQ async and combined report families, and pin the new inventories plus failure diagnostics in Node tests.
 Done when: `build-and-test-artifacts/` can retain Kafka, RabbitMQ, and combined proof families without fabricating absent AMQP companions, and the targeted collector/summary tests pass with explicit `protocols=amqp`, child-path, and fail-closed error assertions.
 

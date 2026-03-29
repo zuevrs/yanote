@@ -1,7 +1,7 @@
-# S04: HTTP/OpenAPI Recorder-Policy And Schema Fidelity Hardening
+# S04: HTTP and OpenAPI Recorder-Policy And Schema Fidelity Hardening
 
 **Goal:** Deepen the existing HTTP/OpenAPI path so it can distinguish recorder-policy omission from semantic payload drift more cleanly and validate a broader set of real OpenAPI schema/media-type shapes without weakening the observation-versus-conformance split established in M008.
-**Demo:** Running the HTTP payload/report/gate suites plus the retained live Spring MVC analyzer proof shows explicit recorder-policy diagnostics beside semantic drift, improved media-type/schema handling for realistic OpenAPI shapes, and no regression of the current green HTTP payload-conformance path.
+**Demo:** Running the HTTP payload/report and gate suites plus the retained live Spring MVC analyzer proof shows explicit recorder-policy diagnostics beside semantic drift, improved media-type/schema handling for realistic OpenAPI shapes, and no regression of the current green HTTP payload-conformance path.
 
 ## Must-Haves
 
@@ -30,8 +30,8 @@
 
 ## Integration Closure
 
-- Upstream surfaces consumed: S01 HTTP provenance fields, `HttpPayloadCapture`, OpenAPI loading, HTTP payload conformance semantics, report/gate/CLI surfaces, and the retained live Spring MVC proof stack.
-- New wiring introduced in this slice: recorder-policy-aware semantics flow from HTTP JSONL evidence into report/gate truth without changing observation coverage math.
+- Upstream surfaces consumed: S01 HTTP provenance fields, `HttpPayloadCapture`, OpenAPI loading, HTTP payload conformance semantics, report and gate/CLI surfaces, and the retained live Spring MVC proof stack.
+- New wiring introduced in this slice: recorder-policy-aware semantics flow from HTTP JSONL evidence into report and gate truth without changing observation coverage math.
 - What remains before the milestone is truly usable end-to-end: S05 still needs to re-prove the strengthened HTTP and async boundaries together through retained artifacts/docs and version-sensitive recorder hardening.
 
 ## Tasks
@@ -45,7 +45,7 @@
 - [ ] **T02: Surface provenance-aware HTTP truth in report, gates, CLI, and retained proof** `est:1h15m`
   - Why: users only benefit if the richer provenance actually changes the public truth surfaces instead of remaining buried in raw event JSON.
   - Files: `yanote-js/src/gates/httpPayloadSemantics.ts`, `yanote-js/src/gates/httpPayloadSemantics.test.ts`, `yanote-js/src/report/report.ts`, `yanote-js/src/report/report.test.ts`, `yanote-js/src/report/report.contract.test.ts`, `yanote-js/src/cli.ts`, `yanote-js/src/cli.report.test.ts`, `yanote-js/src/cli.failclosed.contract.test.ts`, `yanote-js/src/cli.summary.contract.test.ts`, `scripts/docs/verify-s02-analysis-path.sh`
-  - Do: Make report/gate/CLI surfaces explain recorder-policy omission distinctly from semantic mismatch, keep observation coverage numerators untouched, and refresh the retained live verifier so the stronger truth appears in the same proof path users already trust.
+  - Do: Make report and gate/CLI surfaces explain recorder-policy omission distinctly from semantic mismatch, keep observation coverage numerators untouched, and refresh the retained live verifier so the stronger truth appears in the same proof path users already trust.
   - Verify: `npm -C yanote-js test -- src/gates/httpPayloadSemantics.test.ts src/report/report.test.ts src/report/report.contract.test.ts src/cli.report.test.ts src/cli.failclosed.contract.test.ts src/cli.summary.contract.test.ts && bash scripts/docs/verify-s02-analysis-path.sh`
   - Done when: public HTTP truth surfaces remain fail-closed, provenance-driven omission is no longer mislabeled as plain missing-body drift, and the live Spring MVC proof still passes.
 

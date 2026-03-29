@@ -23,7 +23,7 @@
 ## Observability / Diagnostics
 
 - Runtime signals: selected-message metadata, typed ambiguity diagnostics, and fail-closed async semantic failures when one operation key maps to more than one viable message contract.
-- Inspection surfaces: multi-message AsyncAPI fixtures, parser/conformance/report/gate tests, and the async boundary verifier.
+- Inspection surfaces: multi-message AsyncAPI fixtures, parser/conformance/report and gate tests, and the async boundary verifier.
 - Failure visibility: unsupported multi-message contracts, ambiguous message selection, and mismatched hints/headers surface as explicit diagnostics instead of generic invalid-parser failures.
 - Redaction constraints: diagnostics should name contract identities and reasons, not echo raw payloads or sensitive header values.
 
@@ -44,9 +44,9 @@
 - [ ] **T02: Flow multi-message selection and ambiguity into async coverage, reports, and gates** `est:1h25m`
   - Why: parsing support alone is not enough; users need the rest of the async analyzer stack to explain which message contract matched or why the analyzer refused to choose one.
   - Files: `yanote-js/src/coverage/asyncCoverage.ts`, `yanote-js/src/coverage/asyncSchemaConformance.ts`, `yanote-js/src/coverage/asyncCoverage.test.ts`, `yanote-js/src/coverage/asyncSchemaConformance.test.ts`, `yanote-js/src/coverage/asyncSchemaConformance.diagnostics.test.ts`, `yanote-js/src/gates/asyncEvaluator.ts`, `yanote-js/src/gates/asyncEvaluator.test.ts`, `yanote-js/src/gates/failureOrder.test.ts`, `yanote-js/src/report/asyncReport.ts`, `yanote-js/src/report/asyncReport.test.ts`, `yanote-js/src/report/asyncReport.contract.test.ts`, `yanote-js/src/cli.async-report.test.ts`, `yanote-js/src/cli.async-report.contract.test.ts`, `scripts/docs/verify-m005-s01-async-boundaries.sh`
-  - Do: Teach async coverage/conformance/report/gate layers how to consume selected-message metadata or ambiguity failures, keep deterministic operation/message counts, and refresh the async boundary verifier to show the supported-vs-ambiguous story clearly.
+  - Do: Teach async coverage/conformance/report and gate layers how to consume selected-message metadata or ambiguity failures, keep deterministic operation/message counts, and refresh the async boundary verifier to show the supported-vs-ambiguous story clearly.
   - Verify: `npm -C yanote-js test -- src/coverage/asyncCoverage.test.ts src/coverage/asyncSchemaConformance.test.ts src/coverage/asyncSchemaConformance.diagnostics.test.ts src/gates/asyncEvaluator.test.ts src/gates/failureOrder.test.ts src/report/asyncReport.test.ts src/report/asyncReport.contract.test.ts src/cli.async-report.test.ts src/cli.async-report.contract.test.ts && bash scripts/docs/verify-m005-s01-async-boundaries.sh`
-  - Done when: async report/gate surfaces stay truthful on multi-message contracts, ambiguity is fail-closed and typed, and no existing single-message Kafka path regresses.
+  - Done when: async report and gate surfaces stay truthful on multi-message contracts, ambiguity is fail-closed and typed, and no existing single-message Kafka path regresses.
 
 ## Files Likely Touched
 

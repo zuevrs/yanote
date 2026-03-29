@@ -54,3 +54,9 @@ None.
 - `scripts/ci/collect-yanote-artifacts.test.mjs`
 - `examples/tests-restassured/src/test/java/dev/yanote/examples/tests/HttpRequestEvidenceE2eTest.java`
 - `.gsd/STATE.md`
+## Must-Haves Covered
+
+- `bash scripts/ci/run-v1-e2e.sh` exports additive request-semantics artifacts without regressing the existing happy-path and semantic-red bundle.
+- The request sidecar is derived from the existing live `events.jsonl` plus `examples/openapi/request-evidence-openapi.yaml`, not from a new runtime harness.
+- Contract tests pin the new artifact names, manifest/source-path notes, and expected `SEMANTIC_HTTP_UNSUPPORTED_REQUEST_PARAMETER` proof outcome.
+

@@ -9,7 +9,7 @@ depends_on: [M014]
 
 ## Project Description
 
-Even after richer Kafka-first semantics land, Yanote’s async product boundary will still be intentionally narrow: Kafka-only, Spring Kafka-first, and reported separately from HTTP. M015 is the late expansion milestone for the work that the current requirements/docs already defer explicitly: non-Kafka or broker-agnostic async support and any future combined HTTP+async reporting surface.
+Even after richer Kafka-first semantics land, Yanote’s async product boundary will still be intentionally narrow: Kafka-only, Spring Kafka-first, and reported separately from HTTP. M015 is the late expansion milestone for the work that the current requirements/docs already defer explicitly: non-Kafka or broker-agnostic async support and any future combined HTTP plus async reporting surface.
 
 ## Why This Milestone
 
@@ -20,7 +20,7 @@ This work belongs late in the sequence because it is not a depth hardening step;
 ### When this milestone is complete, the user can:
 
 - use Yanote beyond the current Kafka-only async boundary or through a broker-agnostic async contract surface if the product proves that expansion honestly
-- consume one intentional combined HTTP+async reporting surface if the split report contract is deliberately superseded
+- consume one intentional combined HTTP plus async reporting surface if the split report contract is deliberately superseded
 
 ### Entry point / environment
 
@@ -39,7 +39,7 @@ This work belongs late in the sequence because it is not a depth hardening step;
 To call this milestone complete, we must prove:
 
 - the widened async platform path works end to end on a real runtime that is outside today’s Kafka-only promise
-- any combined HTTP+async report surface is intentional, deterministic, and does not silently distort the current split truth surfaces
+- any combined HTTP plus async report surface is intentional, deterministic, and does not silently distort the current split truth surfaces
 - public docs, requirements, and release boundaries explicitly supersede the old deferred state rather than leaving both stories half-alive
 
 ## Risks and Unknowns
@@ -50,7 +50,7 @@ To call this milestone complete, we must prove:
 
 ## Existing Codebase / Prior Art
 
-- `docs/requirements.md` — verified current deferred items already call out combined HTTP+async reporting (`ASYNC-02`) and broker-agnostic/non-Kafka async support (`ASYNC-03`) as future scope.
+- `docs/requirements.md` — verified current deferred items already call out combined HTTP plus async reporting (`ASYNC-02`) and broker-agnostic/non-Kafka async support (`ASYNC-03`) as future scope.
 - `docs/release-and-support.md` and `docs/guides/asyncapi-kafka.md` — verified current public boundary is intentionally Kafka-only and split from HTTP reporting.
 - `yanote-js` current report/CLI surfaces and `yanote-core` event models — current architecture to revisit only after narrower async depth work is complete.
 
@@ -58,7 +58,7 @@ To call this milestone complete, we must prove:
 
 ## Relevant Requirements
 
-- `R020` — combined HTTP + async report/gate surface remains deferred until this milestone
+- `R020` — combined HTTP + async report and gate surface remains deferred until this milestone
 - `R021` — broker-agnostic or non-Kafka async coverage remains deferred until this milestone
 - `R003` and `R005` — any widened platform surface must preserve trustworthy delivery/report semantics
 
@@ -67,7 +67,7 @@ To call this milestone complete, we must prove:
 ### In Scope
 
 - explicit evaluation and, if justified, implementation of non-Kafka or broker-agnostic async support
-- explicit evaluation and, if justified, implementation of a combined HTTP+async report/gate surface
+- explicit evaluation and, if justified, implementation of a combined HTTP plus async report and gate surface
 - requirements/docs/release-boundary updates required by a real platform-boundary change
 
 ### Out of Scope / Non-Goals

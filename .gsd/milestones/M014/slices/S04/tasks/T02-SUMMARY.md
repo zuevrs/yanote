@@ -93,3 +93,9 @@ None.
 
 ## Known Issues
 None.
+## Must-Haves Covered
+
+- Exported and collected `live-kafka-proof/` artifacts retain the widened happy-path report pair plus focused companions without inventing stale files.
+- The async summary renderer explains the richer semantics from the live bundle, stays redaction-safe, and preserves `report=.../yanote-async-report.json` plus counts-only machine tokens.
+- Workflow contract tests keep build-and-test tied to the same deterministic async artifact family and summary path.
+

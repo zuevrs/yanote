@@ -12,7 +12,7 @@ The safest milestone shape is:
 
 1. generalize the async analyzer/evidence contract enough to admit one real non-Kafka protocol,
 2. prove that path on a real runtime,
-3. build a combined HTTP+async report/gate surface as an aggregation of canonical subreports rather than a replacement for them,
+3. build a combined HTTP plus async report and gate surface as an aggregation of canonical subreports rather than a replacement for them,
 4. then close CI/docs/support boundaries.
 
 ## Codebase findings
@@ -136,7 +136,7 @@ The combined surface should:
 ### Requirements this milestone should actively advance
 
 - `R021` — move from deferred to active via one concrete non-Kafka path, recommended as RabbitMQ/AMQP.
-- `R020` — move from deferred to active via one intentional combined report/gate artifact that preserves split truth.
+- `R020` — move from deferred to active via one intentional combined report and gate artifact that preserves split truth.
 
 ### Continuity constraints that must shape planning
 
@@ -148,7 +148,7 @@ The combined surface should:
 These are not sufficiently safe to leave implicit:
 
 - live non-Kafka runtime proof, not fixture-only proof;
-- explicit per-surface attribution in the combined report/gate;
+- explicit per-surface attribution in the combined report and gate;
 - public docs/support wording that says exactly what is widened and what remains Kafka-only or deferred;
 - compatibility preservation for existing Kafka operation keys and existing split report consumers.
 
@@ -158,7 +158,7 @@ Avoid these in M015:
 
 - full broker-agnostic recorder abstraction for every future broker,
 - forcing RabbitMQ to support every Kafka-only semantic family before shipping any non-Kafka path,
-- inventing a single merged HTTP+async denominator that weakens failure visibility,
+- inventing a single merged HTTP plus async denominator that weakens failure visibility,
 - introducing a dashboard/UI surface.
 
 ## Skills discovered
@@ -185,7 +185,7 @@ Why first: this retires the deepest codebase assumption — that async means Kaf
 
 Why second: the milestone is not credible until the widened async contract works through a real runtime, not just fixtures.
 
-### S03 — Combined HTTP+async report/gate built from canonical subreports
+### S03 — Combined HTTP plus async report and gate built from canonical subreports
 
 Why third: once the widened async path exists, the combined surface can compose stable HTTP and async truths without guessing at hidden semantics.
 

@@ -31,7 +31,7 @@
 
 ## Integration Closure
 
-- Upstream surfaces consumed: S01 additive event-model provenance, `YanoteKafkaHeaders`, Kafka producer/listener interceptors, `AsyncEvent`, AsyncAPI message-contract loading, and async conformance/report/gate surfaces.
+- Upstream surfaces consumed: S01 additive event-model provenance, `YanoteKafkaHeaders`, Kafka producer/listener interceptors, `AsyncEvent`, AsyncAPI message-contract loading, and async conformance/report and gate surfaces.
 - New wiring introduced in this slice: retained header evidence crosses the Spring Kafka recorder → JSONL → async analyzer path and becomes part of typed async drift reporting.
 - What remains before the milestone is truly usable end-to-end: S03 still needs multi-message AsyncAPI resolution, and S05 still needs retained proof/docs/compatibility hardening around the stronger async boundary.
 

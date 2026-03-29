@@ -1,0 +1,28 @@
+{
+  "schemaVersion": 1,
+  "taskId": "T01",
+  "unitId": "M016/S04/T01",
+  "timestamp": 1774749136196,
+  "passed": true,
+  "discoverySource": "task-plan",
+  "checks": [
+    {
+      "command": "bash scripts/docs/verify-m016-s04-short-docs.sh",
+      "exitCode": 0,
+      "durationMs": 331,
+      "verdict": "pass"
+    },
+    {
+      "command": "node --test scripts/docs/verify-m016-s04-short-docs.contract.test.mjs",
+      "exitCode": 0,
+      "durationMs": 1525,
+      "verdict": "pass"
+    },
+    {
+      "command": "bash scripts/docs/verify-s03-landing.sh",
+      "exitCode": 0,
+      "durationMs": 146,
+      "verdict": "pass"
+    }
+  ]
+}

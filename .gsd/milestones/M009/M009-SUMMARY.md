@@ -8,7 +8,7 @@ key_decisions:
   - Keep the async surface Kafka-only and separate from HTTP reporting while deepening truth inside that boundary
 patterns_established:
   - Treat milestone summary as the terminal durable closeout artifact even when earlier state files are lost
-  - Preserve recorder-policy omission and semantic-drift as separate report/gate concepts instead of overloading one failure channel
+  - Preserve recorder-policy omission and semantic-drift as separate report and gate concepts instead of overloading one failure channel
 observability_surfaces:
   - scripts/ci/verify-m004-s02-metadata-propagation.sh
   - scripts/ci/verify-m004-s03-live-kafka-proof.sh

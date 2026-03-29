@@ -69,3 +69,10 @@ None, aside from one verification-only adaptation: I reran the live Kafka proof 
 - `.gsd/STATE.md`
 - `.gsd/KNOWLEDGE.md`
 - `.gsd/DECISIONS.md`
+## Must-Haves Covered
+
+- A successful `.yanote-ci/live-kafka-proof/` export retains the header-drift sidecars and records them in `artifact-manifest.txt`.
+- The live Kafka proof script fails if the header sidecars or their typed semantic codes are missing or wrong.
+- Public async docs/support/requirements no longer claim that retained Kafka headers are unverifiable.
+- The async public boundary remains Kafka-only, Spring-Kafka-first, and separate from HTTP reporting.
+

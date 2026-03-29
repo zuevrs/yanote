@@ -5,7 +5,7 @@
 
 ## Project Description
 
-Yanote already has a credible HTTP/OpenAPI path and a credible Kafka/AsyncAPI first-wave path. M007 and M008 proved schema and payload conformance depth, separate report/gate surfaces, and retained green/red proof bundles. The next highest-value improvement inside the current product boundary is not new transports or a combined report; it is making the existing recorder → JSONL → analyzer path more truthful about what was actually observed, what was intentionally omitted, and what genuinely drifted from the declared contract.
+Yanote already has a credible HTTP/OpenAPI path and a credible Kafka/AsyncAPI first-wave path. M007 and M008 proved schema and payload conformance depth, separate report and gate surfaces, and retained green/red proof bundles. The next highest-value improvement inside the current product boundary is not new transports or a combined report; it is making the existing recorder → JSONL → analyzer path more truthful about what was actually observed, what was intentionally omitted, and what genuinely drifted from the declared contract.
 
 ## Why This Milestone
 
@@ -14,7 +14,7 @@ The current implementation still blurs a few important edges:
 - Kafka payload capture is narrower than common Spring Kafka usage because ordinary POJO/record payloads still fall into the unsupported/omitted path.
 - Kafka headers are known to the runtime path but do not survive into first-class analyzer evidence, so AsyncAPI header contracts remain mostly diagnostic-only instead of truly verifiable.
 - AsyncAPI v3 multi-message operations are still outside the supported semantic surface even though they remain within the current Kafka-only scope.
-- HTTP and Kafka report/gate surfaces can still benefit from an explicit distinction between recorder-policy omission and real semantic drift.
+- HTTP and Kafka report and gate surfaces can still benefit from an explicit distinction between recorder-policy omission and real semantic drift.
 
 That makes this the logical follow-on to M007/M008: deepen truth inside the shipped technologies before widening scope.
 
@@ -33,7 +33,7 @@ That makes this the logical follow-on to M007/M008: deepen truth inside the ship
 
 ## Completion Class
 
-- Contract complete means: additive event-model fields, parser/normalizer behavior, AsyncAPI/OpenAPI semantics, and report/gate outputs are pinned by focused unit/contract suites with explicit recorder-omission vs semantic-drift expectations.
+- Contract complete means: additive event-model fields, parser/normalizer behavior, AsyncAPI/OpenAPI semantics, and report and gate outputs are pinned by focused unit/contract suites with explicit recorder-omission vs semantic-drift expectations.
 - Integration complete means: the real Spring MVC and Spring Kafka recorder paths emit the richer evidence into JSONL and the analyzer/report paths consume it without regressing existing green proofs.
 - Operational complete means: retained green/red proof artifacts and version-sensitive recorder seams remain inspectable through the existing verification scripts and, where needed, a version-matrix smoke boundary.
 
@@ -43,7 +43,7 @@ To call this milestone complete, we must prove:
 
 - a live Spring MVC recorder → JSONL → OpenAPI analyzer pass exposes recorder provenance for captured vs omitted payload evidence without regressing the current green HTTP proof;
 - a live Spring Kafka recorder → JSONL → AsyncAPI analyzer pass retains POJO payloads and verifiable headers while keeping suite/run attribution and fail-closed async semantics truthful;
-- the retained proof bundles and docs describe the stronger truth boundary without implying new brokers, schema registries, or a mandatory combined HTTP+async report.
+- the retained proof bundles and docs describe the stronger truth boundary without implying new brokers, schema registries, or a mandatory combined HTTP plus async report.
 
 ## Risks and Unknowns
 
@@ -81,7 +81,7 @@ Proposed additions for `REQUIREMENTS.md` if this milestone is accepted:
 - **Proposed R068** — Yanote retains payload capture provenance across HTTP and Kafka recorder → JSONL → analyzer boundaries so omitted evidence is distinguishable from absent or invalid contract data.
 - **Proposed R069** — Yanote retains redaction-safe Kafka header evidence and validates it against AsyncAPI header contracts instead of reporting headers as broadly unverifiable.
 - **Proposed R070** — Yanote supports Kafka-only AsyncAPI v3 operations with multiple declared messages and resolves message contracts deterministically or fails closed with typed ambiguity diagnostics.
-- **Proposed R071** — Yanote’s HTTP and async report/gate surfaces distinguish recorder-policy omission from semantic contract drift so users can trust fail-closed results.
+- **Proposed R071** — Yanote’s HTTP and async report and gate surfaces distinguish recorder-policy omission from semantic contract drift so users can trust fail-closed results.
 
 Proposed status change if this milestone is accepted:
 
@@ -105,14 +105,14 @@ Explicitly not activated here:
 ### Out of Scope / Non-Goals
 
 - RabbitMQ, ActiveMQ, or any broker expansion beyond the current Kafka-only async scope;
-- a mandatory combined HTTP+async report or gate surface;
+- a mandatory combined HTTP plus async report or gate surface;
 - schema registry integration, Avro/Protobuf rollout, or schema-evolution policy as a milestone deliverable;
 - DLT, lag, retry, partition-awareness, or broader operational Kafka analytics.
 
 ## Technical Constraints
 
 - Keep the async product boundary Kafka-only and Spring Kafka-first.
-- Keep HTTP and async report/gate surfaces separate.
+- Keep HTTP and async report and gate surfaces separate.
 - Preserve additive compatibility in JSONL event formats where practical; widening evidence must not silently break existing readers.
 - Never retain raw sensitive headers without a redaction/allowlist boundary.
 - Preserve stable public proof artifact names unless a rename is itself part of the contract change.
@@ -122,7 +122,7 @@ Explicitly not activated here:
 - Spring MVC recorder — source of HTTP payload evidence and omission reasons.
 - Spring Kafka recorder — source of Kafka payload/header evidence and attribution metadata.
 - `yanote-core` event records — canonical JSONL contract boundary between JVM recorders and Node analyzer.
-- Node analyzer/report/gate path — semantic normalization, drift classification, and user-visible truth surfaces.
+- Node analyzer/report and gate path — semantic normalization, drift classification, and user-visible truth surfaces.
 - Existing proof scripts/docs — retained green/red runtime evidence and public wording boundary.
 
 ## Open Questions

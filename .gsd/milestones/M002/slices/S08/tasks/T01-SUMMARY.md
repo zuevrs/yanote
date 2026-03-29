@@ -74,3 +74,8 @@ None.
 - `docs/maintainers/README.md` — added navigation to the new proof leaf and named the final rerun command.
 - `.gsd/milestones/M002/slices/S08/S08-PLAN.md` — marked T01 complete.
 - `.gsd/STATE.md` — advanced the next action to T02.
+## Must-Haves Covered
+
+- The new script delegates to `scripts/docs/verify-s01-*` through `scripts/docs/verify-s07-local-agent.sh` and the clone-local Git commands instead of copying their assertions.
+- The new maintainer doc stays Russian-first, keeps Docker Compose secondary, and does not publish `AGENTS.md` contents or any private prompt material.
+

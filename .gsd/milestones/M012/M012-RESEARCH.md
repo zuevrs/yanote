@@ -1,4 +1,4 @@
-# M012 Research: OpenAPI Surface Expansion Beyond Request/Response Core
+# M012 Research: OpenAPI Surface Expansion Beyond Request and Response Core
 
 _Gathered: 2026-03-25_
 
@@ -141,7 +141,7 @@ Goal: choose the supported broader surface explicitly and wire the spec model.
 - Add fixtures/tests for root inheritance, operation override, OR/AND semantics, and explicit clear/optional cases.
 - In the same slice, document explicit defers for examples/links/callbacks/webhooks so the milestone closes the product-boundary question.
 
-### Recommended Slice 2 — Security conformance + report/gate surface
+### Recommended Slice 2 — Security conformance + report and gate surface
 
 Goal: turn selected security semantics into truthful analyzer output.
 

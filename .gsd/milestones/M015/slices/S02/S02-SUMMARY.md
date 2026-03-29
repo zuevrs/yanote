@@ -90,7 +90,7 @@ The retained proof bundle now shows the exact delivered boundary:
 - **Health signal:** `bash scripts/ci/verify-m015-s02-live-rabbitmq-proof.sh` exits 0, exports `.yanote-ci/live-rabbitmq-proof/`, and `async-report.stdout` shows `status: ok`, `protocols: amqp`, `channels: 1/1`, `operations: 2/2`, `messages: 2/2`, and `YANOTE_ASYNC_SUMMARY ... protocols=amqp ... report=.../yanote-async-report.json`.
 - **Failure signal:** the slice now fails loudly on missing AMQP recorder hooks, broker-down send/receive drift, missing report HTML siblings, or malformed bundle contents. The verifier keeps high-signal logs (`two-service-test.log`, `merge.log`, `async-report.stdout`, `async-report.stderr`) and the exporter fails closed if required happy-path artifacts are absent.
 - **Recovery procedure:** rerun `npm -C yanote-js run build && bash scripts/ci/verify-m015-s02-live-rabbitmq-proof.sh`; if it fails, inspect `.yanote-ci/live-rabbitmq-proof/` and retained temp-path notes, then narrow with `./gradlew :yanote-recorder-spring-amqp:test --tests ...` for recorder seams or `./gradlew :examples:springmvc-service:test --tests ...RabbitMqRecorderTwoServiceIntegrationTest` for the live producer/consumer path.
-- **Monitoring gaps:** AMQP runtime-semantic evaluation is still intentionally absent (`runtimeSemantics` stays `0/0`), the first live broker proof is RabbitMQ via Spring AMQP only, and combined HTTP+async aggregation plus public CI/docs closure remain for S03/S04.
+- **Monitoring gaps:** AMQP runtime-semantic evaluation is still intentionally absent (`runtimeSemantics` stays `0/0`), the first live broker proof is RabbitMQ via Spring AMQP only, and combined HTTP plus async aggregation plus public CI/docs closure remain for S03/S04.
 
 
 ## Verification
@@ -142,7 +142,7 @@ None.
 - AMQP support in this slice proves the first live RabbitMQ path only; it is not a broad broker-agnostic runtime promise yet.
 - `runtimeSemantics` remains intentionally empty on AMQP (`0/0` and `N/A`) because the header-backed runtime semantic evaluator is still Kafka-only.
 - The retained RabbitMQ bundle exports explicit `none` markers for Kafka-only companion artifacts rather than parallel AMQP versions of `runtime-selected-*` or `schema-failure-*` outputs.
-- Combined HTTP+async aggregation and public CI/docs/support closure are still downstream work in S03/S04.
+- Combined HTTP plus async aggregation and public CI/docs/support closure are still downstream work in S03/S04.
 
 ## Follow-ups
 

@@ -69,3 +69,9 @@ None.
 - `examples/springmvc-service/README.md` — aligned service example doc that now defers setup to the guide and documents truthful null-metadata behavior.
 - `examples/tests-restassured/README.md` — aligned metadata example doc that now explains the current `yanote.suite` handoff without restating recorder setup.
 - `.gsd/milestones/M002/slices/S01/S01-PLAN.md` — marked T02 complete.
+## Must-Haves Covered
+
+- The guide leads with the dependency-based path and the exact property names `yanote.recorder.enabled`, `yanote.recorder.events-path`, and optional `yanote.recorder.service-name`.
+- The guide tells users how to prove `events.jsonl` is non-empty and inspect the captured JSONL fields before moving to analysis.
+- The example docs describe metadata/header behavior truthfully, including `null` when headers are absent and the `yanote.suite` handoff used by current test-tagging surfaces.
+

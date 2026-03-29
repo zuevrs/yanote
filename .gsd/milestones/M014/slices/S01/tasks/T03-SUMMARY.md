@@ -20,3 +20,9 @@ blocker_discovered: false
 
 ## What Happened
 No summary recorded.
+## Must-Haves Covered
+
+- `yanote async-report` exposes declared `correlationId` / `reply` counts or fields additively in stdout and `YANOTE_ASYNC_SUMMARY`.
+- `Report Path` and `report=` continue to point at `yanote-async-report.json`, not HTML or any combined surface.
+- Supported local and remote spec inputs stay green with the widened summary and no raw header-value leakage.
+

@@ -90,7 +90,7 @@
      - `combined-report/out/yanote-combined-report.json (present)` and `combined-report/out/yanote-combined-report.html (present)`
      - explicit `http child reports:` paths back to `.tmp/m015-s03-combined-proof/http-report/out/yanote-report.json` / `.html`
      - explicit `async child reports:` paths back to `.yanote-ci/live-rabbitmq-proof/yanote-async-report.json` / `.html`
-   - The summary remains child-attributed; it does **not** invent a blended HTTP+async denominator.
+   - The summary remains child-attributed; it does **not** invent a blended HTTP plus async denominator.
 
 ## Test Case 5 — Workflow contracts pin the stable required job and widened proof stack
 1. Run:

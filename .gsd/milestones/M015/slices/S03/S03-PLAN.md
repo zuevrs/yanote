@@ -1,16 +1,16 @@
-# S03: Combined HTTP+async report/gate from canonical subreports
+# S03: Combined HTTP plus async report and gate from canonical subreports
 
-**Goal:** Add one combined HTTP+async aggregation surface that consumes canonical `yanote-report.json` and `yanote-async-report.json` inputs, emits `yanote-combined-report.json`/`.html` plus a combined CLI summary, and keeps child attribution plus drill-down paths explicit instead of inventing a blended denominator.
-**Demo:** After this: # S03: Combined HTTP+async report/gate from canonical subreports — UAT
+**Goal:** Add one combined HTTP plus async aggregation surface that consumes canonical `yanote-report.json` and `yanote-async-report.json` inputs, emits `yanote-combined-report.json`/`.html` plus a combined CLI summary, and keeps child attribution plus drill-down paths explicit instead of inventing a blended denominator.
+**Demo:** After this: # S03: Combined HTTP plus async report and gate from canonical subreports — UAT
 
 **Milestone:** M015
 **Written:** 2026-03-26T22:02:39.518Z
 
-# S03: Combined HTTP+async report/gate from canonical subreports — UAT
+# S03: Combined HTTP plus async report and gate from canonical subreports — UAT
 
 **Milestone:** M015
 
-# S03 UAT — Combined HTTP+async report/gate from canonical subreports
+# S03 UAT — Combined HTTP plus async report and gate from canonical subreports
 
 ## Preconditions
 - `npm -C yanote-js run build` succeeds.
@@ -109,4 +109,6 @@
 
 
 ## Tasks
-- [x] **T01: Added the combined HTTP+async report contract, normalizer, HTML renderer, and deterministic writer.** — 
+- [x] **T01: Added the combined HTTP plus async report contract, normalizer, HTML renderer, and deterministic writer.** — 
+- [x] **T02: Added the combined-report CLI summary and typed child-attributed failure contract.** — Historical completed task retained in tasks/T02-SUMMARY.md.
+- [x] **T03: Closed the combined-report slice on retained proof, JSON/HTML artifacts, and child attribution.** — Historical completed task retained in tasks/T03-SUMMARY.md.

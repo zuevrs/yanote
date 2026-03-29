@@ -89,3 +89,9 @@ None.
 
 ## Known Issues
 None.
+## Must-Haves Covered
+
+- `yanote-async-report.json` exposes runtime semantics separately from coverage and declared truth.
+- `yanote-async-report.html` mirrors the same runtime states/counts while staying async-only and self-contained.
+- The async report schema keeps `additionalProperties: false` discipline on the widened contract.
+

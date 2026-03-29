@@ -1,4 +1,4 @@
-# M012: M012: OpenAPI Surface Expansion Beyond Request/Response Core
+# M012: M012: OpenAPI Surface Expansion Beyond Request and Response Core
 
 **Vision:** Expand Yanote beyond the request/response core by supporting one broader OpenAPI family well: effective HTTP security requirements. The milestone should let users point Yanote at richer OpenAPI documents and see deterministic, user-visible truth for selected security semantics without changing existing coverage numerators, while the docs and support surfaces state clearly which broader OpenAPI objects remain deferred.
 

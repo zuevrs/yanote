@@ -7,16 +7,16 @@ skills_used:
 
 # T02: Surface provenance-aware HTTP truth in report, gates, CLI, and retained proof
 
-**Slice:** S04 — HTTP/OpenAPI Recorder-Policy And Schema Fidelity Hardening
+**Slice:** S04 — HTTP and OpenAPI Recorder-Policy And Schema Fidelity Hardening
 **Milestone:** M009
 
 ## Description
 
-Expose the stronger HTTP provenance truth in user-facing report/gate/CLI surfaces and in the retained live Spring MVC proof so recorder-policy omission is reported distinctly from semantic payload mismatch.
+Expose the stronger HTTP provenance truth in user-facing report and gate/CLI surfaces and in the retained live Spring MVC proof so recorder-policy omission is reported distinctly from semantic payload mismatch.
 
 ## Steps
 
-1. Decide how recorder-policy omission appears in report/gate/CLI without weakening fail-closed semantics.
+1. Decide how recorder-policy omission appears in report and gate/CLI without weakening fail-closed semantics.
 2. Extend `httpPayloadSemantics` to interpret provenance states explicitly.
 3. Update report and CLI surfaces to surface the new distinction.
 4. Refresh retained live proof expectations in `verify-s02-analysis-path.sh`.

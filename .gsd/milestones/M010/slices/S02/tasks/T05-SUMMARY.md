@@ -115,3 +115,9 @@ Resume from these exact points, in this order:
 - `.gsd/milestones/M010/slices/S02/tasks/T05-SUMMARY.md` — recorded the verified proof-stack mismatch and the precise resume path.
 - `.gsd/milestones/M010/slices/S02/S02-PLAN.md` — marked T05 as `[x]` per the required handoff flow.
 - `.gsd/STATE.md` — refreshed the next-action note so the next unit starts from the confirmed HTTP core wiring gap.
+## Must-Haves Covered
+
+- The happy-path verifier still proves a green supported HTTP baseline even though the shared demo spec contains an intentionally red evidence route.
+- The retained red path asserts undeclared-status, parameter-value, and response-header drift through real `yanote report` output and CLI stderr.
+- Verifier artifacts clearly distinguish denominator contamination from real semantic drift failures.
+

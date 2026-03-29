@@ -69,3 +69,9 @@ Slice-level Gradle and retained-proof verification remain incomplete until T03 a
 - `yanote-js/src/cli.remote-spec.contract.test.ts`
 - `yanote-js/src/report/report.remote-spec.contract.test.ts`
 - `yanote-js/src/report/asyncReport.remote-spec.contract.test.ts`
+## Must-Haves Covered
+
+- `yanote-report.json` and `yanote-async-report.json` disclose source kind and sanitized origin from the same canonical truth used by the CLI.
+- `YANOTE_SUMMARY` and `YANOTE_ASYNC_SUMMARY` never echo credential-bearing URL parts.
+- Provenance stays additive and must not change legacy coverage numerators or unrelated diagnostics ordering.
+

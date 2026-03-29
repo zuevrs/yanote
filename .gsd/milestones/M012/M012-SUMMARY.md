@@ -1,6 +1,6 @@
 ---
 id: M012
-title: "OpenAPI Surface Expansion Beyond Request/Response Core"
+title: "OpenAPI Surface Expansion Beyond Request and Response Core"
 status: complete
 completed_at: 2026-03-25T22:51:23.042Z
 key_decisions:
@@ -29,7 +29,7 @@ lessons_learned:
   - Focused broader-object proof should prefer retained derived sidecars plus provenance notes over raw fixture evidence so the public bundle stays truthful and secret-safe.
 ---
 
-# M012: OpenAPI Surface Expansion Beyond Request/Response Core
+# M012: OpenAPI Surface Expansion Beyond Request and Response Core
 
 **M012 completed Yanote’s first broader OpenAPI family by shipping truthful additive HTTP security semantics for OpenAPI security requirements across analyzer, report, CLI, CI, and public support surfaces without changing legacy HTTP coverage numerators.**
 

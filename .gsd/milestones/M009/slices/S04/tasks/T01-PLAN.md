@@ -7,7 +7,7 @@ skills_used:
 
 # T01: Normalize OpenAPI payload schema/media handling and recorder-policy inputs
 
-**Slice:** S04 — HTTP/OpenAPI Recorder-Policy And Schema Fidelity Hardening
+**Slice:** S04 — HTTP and OpenAPI Recorder-Policy And Schema Fidelity Hardening
 **Milestone:** M009
 
 ## Description

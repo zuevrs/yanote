@@ -6,7 +6,7 @@ provides: []
 requires: []
 affects: []
 key_files: ["README.md", "docs/README.md", "examples/README.md", "docs/guides/asyncapi-kafka.md", "docs/release-and-support.md", "docs/requirements.md", "SUPPORT.md", "scripts/docs/verify-m015-s04-delivery-surfaces.sh"]
-key_decisions: ["Document the combined-report surface as a child-attributed additive proof family instead of a blended HTTP+async denominator or dashboard.", "Keep support intake surface-specific by asking for Kafka, RabbitMQ, or combined retained bundles according to the failing proof path."]
+key_decisions: ["Document the combined-report surface as a child-attributed additive proof family instead of a blended HTTP plus async denominator or dashboard.", "Keep support intake surface-specific by asking for Kafka, RabbitMQ, or combined retained bundles according to the failing proof path."]
 patterns_established: []
 drill_down_paths: []
 observability_surfaces: []
@@ -35,7 +35,7 @@ key_files:
   - SUPPORT.md
   - scripts/docs/verify-m015-s04-delivery-surfaces.sh
 key_decisions:
-  - Document the combined-report surface as a child-attributed additive proof family instead of a blended HTTP+async denominator or dashboard.
+  - Document the combined-report surface as a child-attributed additive proof family instead of a blended HTTP plus async denominator or dashboard.
   - Keep support intake surface-specific by asking for Kafka, RabbitMQ, or combined retained bundles according to the failing proof path.
 duration: ""
 verification_result: passed
@@ -88,3 +88,9 @@ None.
 
 ## Known Issues
 None.
+
+## Must-Haves Covered
+
+- Public docs describe RabbitMQ/AMQP and combined-report support as additive current proof families, not deferred follow-ons, while preserving explicit no-dashboard, no blended denominator, and no broker-agnostic clauses.
+- Support intake points operators to `live-kafka-proof/`, `live-rabbitmq-proof/`, and `combined-proof/` artifacts according to the failing surface and never asks for raw retained headers or payload bodies.
+

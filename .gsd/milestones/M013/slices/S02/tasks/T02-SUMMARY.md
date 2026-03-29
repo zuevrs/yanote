@@ -58,3 +58,9 @@ The slice-level retained proof commands `bash scripts/ci/verify-m013-s02-depreca
 - `yanote-js/src/report/report.contract.test.ts`
 - `yanote-js/src/report/report.test.ts`
 - `yanote-js/src/report/writeReport.determinism.test.ts`
+## Must-Haves Covered
+
+- `yanote-report.json` carries explicit deprecated totals/covered/uncovered percent plus per-operation booleans on the HTTP path.
+- Existing legacy summary and coverage numerators stay unchanged by default.
+- Schema validation, normalization, and writer determinism stay green with the new additive fields.
+

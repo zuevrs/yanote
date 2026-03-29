@@ -91,3 +91,9 @@ Nested the new runtime-semantic diagnostics under `runtimeSemantics` instead of 
 
 ## Known Issues
 Async gates, JSON/HTML report artifacts, and CLI output do not consume `runtimeSemantics` yet; those planned promotions remain for T03-T05. Type-aware LSP diagnostics were unavailable in this worktree because no language server was running.
+## Must-Haves Covered
+
+- Only the header-backed subset is supported; no broker metadata or cross-event request/reply proof is inferred.
+- Coverage gains additive runtime truth and redaction-safe diagnostics for missing/unavailable/unsupported/mismatched states.
+- Runtime fixtures use `{ state, value | reason }` header evidence objects instead of raw string header maps.
+

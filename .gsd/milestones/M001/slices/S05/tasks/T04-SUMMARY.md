@@ -89,3 +89,10 @@ Manual GitHub environment verification is still required:
 ---
 *Phase: 05-oss-release-and-traceable-verification*
 *Completed: 2026-03-04*
+## Must-Haves Covered
+
+- "Release workflow tag trigger uses GitHub glob semantics and allows stable release tag entry while strict semver remains enforced in preflight."
+- "Release notes changelog scope is wired to resolved previous release tag output, not `${{ github.event.before }}`."
+- "Release workflow contract tests fail if tag trigger syntax regresses to regex-like patterns or previous-tag wiring regresses."
+- "Manual approval remains explicit human verification through `production-release` required reviewers; no fake automation is introduced."
+

@@ -1,13 +1,13 @@
-# S03: Combined HTTP+async report/gate from canonical subreports — UAT
+# S03: Combined HTTP plus async report and gate from canonical subreports — UAT
 
 **Milestone:** M015
 **Written:** 2026-03-26T22:02:39.518Z
 
-# S03: Combined HTTP+async report/gate from canonical subreports — UAT
+# S03: Combined HTTP plus async report and gate from canonical subreports — UAT
 
 **Milestone:** M015
 
-# S03 UAT — Combined HTTP+async report/gate from canonical subreports
+# S03 UAT — Combined HTTP plus async report and gate from canonical subreports
 
 ## Preconditions
 - `npm -C yanote-js run build` succeeds.

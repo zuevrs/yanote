@@ -56,9 +56,9 @@ completed_at: 2026-03-26T22:02:39.518Z
 blocker_discovered: false
 ---
 
-# S03: Combined HTTP+async report/gate from canonical subreports
+# S03: Combined HTTP plus async report and gate from canonical subreports
 
-**Delivered the combined HTTP+async JSON/HTML/CLI surface on top of canonical child reports, with explicit child attribution, fail-closed typed errors, and a retained dist proof that points back to the generated HTTP child and retained RabbitMQ async child.**
+**Delivered the combined HTTP plus async JSON/HTML/CLI surface on top of canonical child reports, with explicit child attribution, fail-closed typed errors, and a retained dist proof that points back to the generated HTTP child and retained RabbitMQ async child.**
 
 ## What Happened
 

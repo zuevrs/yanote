@@ -21,7 +21,7 @@ Carry selected-message metadata and ambiguity failures through async coverage, s
 3. Add typed diagnostics and failure-order expectations for ambiguity.
 4. Reflect the result in async report and CLI surfaces.
 5. Add fixture-backed tests for resolvable vs ambiguous multi-message cases.
-6. Re-run current async coverage/conformance/report/gate suites.
+6. Re-run current async coverage/conformance/report and gate suites.
 7. Confirm single-message and header-validation behavior from earlier slices does not regress.
 8. Keep counts and deterministic ordering stable for retained artifacts.
 
@@ -39,7 +39,7 @@ Carry selected-message metadata and ambiguity failures through async coverage, s
 ## Observability Impact
 
 - Signals added/changed: typed ambiguity diagnostics, selected-message report fields, and async semantic failure ordering.
-- How a future agent inspects this: async coverage/conformance/report/gate tests and the async boundary verifier.
+- How a future agent inspects this: async coverage/conformance/report and gate tests and the async boundary verifier.
 - Failure state exposed: message-selection ambiguity becomes visible at the same level as other async semantic failures.
 
 ## Inputs
