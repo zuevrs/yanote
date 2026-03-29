@@ -104,6 +104,8 @@ jobs:
 
       - name: Run delivery-sensitive v1 e2e proof
         id: run-delivery-proof
+        env:
+          YANOTE_GRADLE_HOME: ${{ runner.temp }}/yanote-v1-e2e-gradle
         run: |
           mkdir -p .yanote-ci
           should_run="${{ steps.detect-delivery-proof.outputs.should_run }}"

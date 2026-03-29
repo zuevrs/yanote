@@ -98,6 +98,7 @@ test("workflow runs delivery-sensitive v1 e2e proof inside build-and-test withou
   const buildJob = extractJobBlock(source, "build-and-test", "yanote-validation");
   assert.match(buildJob, /- name:\s*Run delivery-sensitive v1 e2e proof/);
   assert.match(buildJob, /id:\s*run-delivery-proof/);
+  assert.match(buildJob, /env:\s*[\s\S]*?YANOTE_GRADLE_HOME:\s*\$\{\{ runner\.temp \}\}\/yanote-v1-e2e-gradle/);
   assert.match(buildJob, /bash scripts\/ci\/run-v1-e2e\.sh/);
   assert.match(buildJob, /delivery-proof-exit-code\.txt/);
   assert.doesNotMatch(source, /^\s*delivery-sensitive-v1-e2e:\s*$/m);
