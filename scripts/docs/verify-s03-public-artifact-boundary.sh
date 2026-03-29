@@ -58,7 +58,7 @@ check_mode() {
 
 check_ignore_contract() {
   require_gitignore_rule ".bg-shell/"
-  require_gitignore_rule ".gsd/"
+  require_gitignore_rule ".gsd"
   require_gitignore_rule ".tmp/"
   require_gitignore_rule ".tmp-*"
   require_gitignore_rule ".vite/"

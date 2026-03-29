@@ -9,7 +9,7 @@ import test from "node:test";
 const sourceScriptPath = path.resolve("scripts/docs/verify-s03-public-artifact-boundary.sh");
 const verifierSource = await readFile(sourceScriptPath, "utf8");
 
-const CLEAN_GITIGNORE_LINES = [".bg-shell/", ".gsd/", ".tmp/", ".tmp-*", ".vite/", ".mcp.json", ".nvmrc", "dist/"];
+const CLEAN_GITIGNORE_LINES = [".bg-shell/", ".gsd", ".tmp/", ".tmp-*", ".vite/", ".mcp.json", ".nvmrc", "dist/"];
 
 function runCommand(command, args, { cwd } = {}) {
   return spawnSync(command, args, {

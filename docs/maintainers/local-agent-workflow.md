@@ -4,7 +4,7 @@
 
 Этот leaf описывает только правила обращения с локальным `AGENTS.md` в текущем clone. Он не публикует содержимое самого файла и не заменяет maintainer map в `docs/maintainers/README.md`.
 
-Рядом с `AGENTS.md` этот же maintainer-only leaf фиксирует clone-local boundary для `.gsd/`, `.tmp/`, `.tmp-*` и `.vite/`: после S03 эти roots могут существовать и использоваться в текущем clone, но больше не считаются частью публичного git inventory.
+Рядом с `AGENTS.md` этот же maintainer-only leaf фиксирует clone-local boundary для `.gsd`, `.tmp/`, `.tmp-*` и `.vite/`: после S03 эти roots могут существовать и использоваться в текущем clone, но больше не считаются частью публичного git inventory. Для Yanote root `.gsd` может быть repo-root symlink в per-project store под `~/.gsd/projects/` — это всё равно local-only maintainer state, а не tracked repo content.
 
 ## Где должен жить файл
 
