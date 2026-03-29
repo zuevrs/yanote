@@ -48,7 +48,7 @@ Public branch больше не должен трекать private maintainer s
 Проверяйте эту границу двумя шагами: boundary guard должен показать чистый public inventory, а representative local files должны остаться на месте в working tree.
 
 ```bash
-bash scripts/docs/verify-s03-public-artifact-boundary.sh tracked
+bash scripts/docs/verify-public-artifact-boundary.sh tracked
 test -f .tmp-m012-research-out/yanote-report.json
 test -f .tmp/m015-s03-combined-proof/artifact-manifest.txt
 test -f .vite/vitest/results.json

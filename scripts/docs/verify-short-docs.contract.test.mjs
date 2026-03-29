@@ -6,7 +6,7 @@ import path from "node:path";
 import process from "node:process";
 import test from "node:test";
 
-const sourceScriptPath = path.resolve("scripts/docs/verify-m016-s04-short-docs.sh");
+const sourceScriptPath = path.resolve("scripts/docs/verify-short-docs.sh");
 const verifierSource = await readFile(sourceScriptPath, "utf8");
 
 function runCommand(command, args, { cwd } = {}) {
@@ -110,7 +110,7 @@ async function createFixture(overrides = {}) {
   const rootDir = await mkdtemp(path.join(os.tmpdir(), "yanote-m016-s04-short-docs-"));
   const files = { ...createBaseFixture(), ...overrides };
 
-  await writeFixtureFile(rootDir, "scripts/docs/verify-m016-s04-short-docs.sh", verifierSource);
+  await writeFixtureFile(rootDir, "scripts/docs/verify-short-docs.sh", verifierSource);
   for (const [relativePath, content] of Object.entries(files)) {
     await writeFixtureFile(rootDir, relativePath, content);
   }
@@ -119,7 +119,7 @@ async function createFixture(overrides = {}) {
 }
 
 function runVerifier(rootDir) {
-  return runCommand("bash", [path.join(rootDir, "scripts/docs/verify-m016-s04-short-docs.sh")], { cwd: rootDir });
+  return runCommand("bash", [path.join(rootDir, "scripts/docs/verify-short-docs.sh")], { cwd: rootDir });
 }
 
 test("clean newcomer/analyzer/example fixtures pass", { concurrency: false }, async () => {
@@ -128,7 +128,7 @@ test("clean newcomer/analyzer/example fixtures pass", { concurrency: false }, as
   try {
     const result = runVerifier(rootDir);
     assert.equal(result.status, 0, result.stderr || result.stdout);
-    assert.match(result.stdout, /M016 S04 short-doc verification passed/);
+    assert.match(result.stdout, /Short-doc verification passed:/);
   } finally {
     await rm(rootDir, { recursive: true, force: true });
   }
@@ -168,7 +168,7 @@ test("allows secondary analyzer proof wording after the newcomer section", { con
   try {
     const result = runVerifier(rootDir);
     assert.equal(result.status, 0, result.stderr || result.stdout);
-    assert.match(result.stdout, /M016 S04 short-doc verification passed/);
+    assert.match(result.stdout, /Short-doc verification passed:/);
   } finally {
     await rm(rootDir, { recursive: true, force: true });
   }

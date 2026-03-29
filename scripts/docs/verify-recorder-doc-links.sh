@@ -162,7 +162,7 @@ require_contains "${RECORDER_GUIDE}" 'X-Test-Run-Id' "run-id header mapping"
 require_contains "${RECORDER_GUIDE}" 'X-Test-Suite' "suite header mapping"
 require_contains "${RECORDER_GUIDE}" 'test.run_id' "recorded run id field"
 require_contains "${RECORDER_GUIDE}" 'test.suite' "recorded suite field"
-require_contains "${RECORDER_GUIDE}" 'bash scripts/docs/verify-s01-recorder-path.sh' "repo proof command"
+require_contains "${RECORDER_GUIDE}" 'bash scripts/docs/verify-recorder-path.sh' "repo proof command"
 require_contains "${RECORDER_GUIDE}" '../../examples/springmvc-service/README.md' "service example backlink"
 require_contains "${RECORDER_GUIDE}" 'test-tagging.md' "tagging guide link"
 

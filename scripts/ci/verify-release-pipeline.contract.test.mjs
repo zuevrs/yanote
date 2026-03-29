@@ -12,17 +12,18 @@ async function loadScriptSource() {
 test("release pipeline verifier keeps a stable retained proof root and signed-tag fixture inputs", async () => {
   const source = await loadScriptSource();
 
-  assert.match(source, /ARTIFACT_DIR="\$\{YANOTE_RELEASE_PIPELINE_PROOF_DIR:-\.yanote-ci\/m016-s02-release-pipeline-proof\}"/);
+  assert.match(source, /ARTIFACT_DIR="\$\{YANOTE_RELEASE_PIPELINE_PROOF_DIR:-\.yanote-ci\/release-pipeline-proof\}"/);
   assert.match(source, /RELEASE_TAG="\$\{YANOTE_RELEASE_PROOF_TAG:-v1\.2\.3\}"/);
   assert.match(source, /PREVIOUS_RELEASE_TAG="\$\{YANOTE_RELEASE_PROOF_PREVIOUS_TAG:-v1\.2\.2\}"/);
   assert.match(source, /FIXTURE_ARCHIVE_PATH="\$\{ROOT_DIR\}\/scripts\/release\/fixtures\/preflight-runtime\/preflight-signed-main\.tar\.gz\.base64"/);
   assert.match(source, /FIXTURE_PUBLIC_KEY_PATH="\$\{ROOT_DIR\}\/scripts\/release\/fixtures\/test-release-signing-public\.asc"/);
-  assert.match(source, /GENERATED_SIGNING_HOME="\$\{FIXTURE_ROOT\}\/generated-signing-home"/);
+  assert.match(source, /GENERATED_SIGNING_HOME=""/);
   assert.match(source, /GENERATED_PRIVATE_KEY_PATH="\$\{FIXTURE_ROOT\}\/generated-signing-private\.asc"/);
   assert.match(source, /GENERATED_PUBLIC_KEY_PATH="\$\{FIXTURE_ROOT\}\/generated-signing-public\.asc"/);
   assert.match(source, /git -C "\$\{PREFLIGHT_WORKTREE\}" remote set-url origin "\$\{FIXTURE_ORIGIN_DIR\}"/);
   assert.match(source, /git -C "\$\{PREFLIGHT_WORKTREE\}" config gpg\.program "\$\{GPG_WRAPPER_PATH\}"/);
   assert.match(source, /generate_release_signing_fixture\(\) \{/);
+  assert.match(source, /GENERATED_SIGNING_HOME="\$\(mktemp -d "\$\{TMPDIR:-\/tmp\}\/yanote-release-proof-gpg\.XXXXXX"\)"/);
   assert.match(source, /GNUPGHOME="\$\{GENERATED_SIGNING_HOME\}" gpg --batch --generate-key/);
   assert.match(source, /GNUPGHOME="\$\{GENERATED_SIGNING_HOME\}" gpg --batch --armor --export-secret-keys/);
   assert.match(source, /export RELEASE_TAG_SIGNING_PUBLIC_KEY="\$\{release_tag_signing_public_key\}"/);

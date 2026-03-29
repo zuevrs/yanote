@@ -8,6 +8,8 @@ ARCHIVE_PATH="${ROOT_DIR}/build/distributions/yanote-analyzer.zip"
 EXTRACT_DIR="${TMP_DIR}/extract"
 BUNDLE_DIR="${EXTRACT_DIR}/yanote-analyzer"
 LAUNCHER_PATH="${BUNDLE_DIR}/bin/yanote"
+BUILD_STDOUT_PATH="${TMP_DIR}/build.stdout"
+BUILD_STDERR_PATH="${TMP_DIR}/build.stderr"
 VERSION_STDOUT_PATH="${TMP_DIR}/version.stdout"
 VERSION_STDERR_PATH="${TMP_DIR}/version.stderr"
 REPORT_STDOUT_PATH="${TMP_DIR}/report.stdout"
@@ -22,6 +24,10 @@ KEEP_TEMP="false"
 fail() {
   echo "ERROR: $1" >&2
   KEEP_TEMP="true"
+  if [[ -s "${BUILD_STDERR_PATH}" ]]; then
+    echo "--- build.stderr (tail) ---" >&2
+    tail -n 60 "${BUILD_STDERR_PATH}" >&2 || true
+  fi
   if [[ -s "${VERSION_STDERR_PATH}" ]]; then
     echo "--- version.stderr (tail) ---" >&2
     tail -n 40 "${VERSION_STDERR_PATH}" >&2 || true
@@ -65,7 +71,6 @@ reject_contains() {
 }
 
 require_file "${ANALYZER_GUIDE_PATH}"
-require_file "${ARCHIVE_PATH}"
 require_file "${SPEC_PATH}"
 require_file "${EVENTS_PATH}"
 
@@ -81,6 +86,11 @@ reject_contains "${ANALYZER_GUIDE_PATH}" 'npm -C yanote-js run build' "source-bu
 
 rm -rf "${EXTRACT_DIR}"
 mkdir -p "${EXTRACT_DIR}" "${REPORT_OUT_DIR}"
+if ! (cd "${ROOT_DIR}" && ./gradlew distStandaloneAnalyzer --stacktrace >"${BUILD_STDOUT_PATH}" 2>"${BUILD_STDERR_PATH}"); then
+  fail "Failed to build standalone analyzer archive with ./gradlew distStandaloneAnalyzer --stacktrace."
+fi
+
+require_file "${ARCHIVE_PATH}"
 if ! unzip -q "${ARCHIVE_PATH}" -d "${EXTRACT_DIR}"; then
   fail "Failed to extract standalone analyzer archive from ${ARCHIVE_PATH}."
 fi
@@ -118,7 +128,6 @@ fi
 grep -q '^Summary$' "${REPORT_STDOUT_PATH}" || fail "Report stdout is missing the Summary section."
 grep -q '^HTTP Payload Conformance$' "${REPORT_STDOUT_PATH}" || fail "Report stdout is missing the HTTP Payload Conformance section."
 grep -q '^YANOTE_SUMMARY ' "${REPORT_STDOUT_PATH}" || fail "Report stdout is missing the final YANOTE_SUMMARY line."
-
 grep -Fq 'payload_diagnostics=covered:0,uncovered:0,skipped:0' "${REPORT_STDOUT_PATH}" || fail "Report stdout is missing the expected payload diagnostic summary for the stable fixture path."
 
 python3 - "${REPORT_JSON_PATH}" "${REPORT_HTML_PATH}" "${VERSION_OUTPUT}" "${SPEC_PATH}" <<'PY'

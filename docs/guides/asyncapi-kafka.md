@@ -45,7 +45,7 @@ GitHub step summary и collected summaries публикуют redaction-safe с�
 
 Widened surface честно поддерживает **`raw` или `merged` async JSONL**, если в нём есть Kafka evidence (`kind: "kafka"`) или первый RabbitMQ/AMQP evidence (`kind: "amqp"`). Практически это означает три допустимых варианта входа:
 
-1. **Raw single-service `events.jsonl`** — один файл с прогоном, где рядом могут лежать HTTP- и async-события. Для Kafka такой mixed raw surface использует `verify-m004-s02-metadata-propagation.sh`; для RabbitMQ авторитетным live proof остаётся two-service bundle из `verify-m015-s02-live-rabbitmq-proof.sh`.
+1. **Raw single-service `events.jsonl`** — один файл с прогоном, где рядом могут лежать HTTP- и async-события. Для Kafka такой mixed raw surface использует `verify-kafka-metadata-propagation.sh`; для RabbitMQ авторитетным live proof остаётся two-service bundle из `verify-rabbitmq-live-proof.sh`.
 2. **Raw per-service async JSONL** — отдельные файлы сервиса-производителя и сервиса-потребителя, например `01-producer.events.jsonl` и `02-consumer.events.jsonl`.
 3. **Merged async JSONL** — детерминированно объединённый файл для multi-service анализа, например `merged-two-service.events.jsonl`.
 

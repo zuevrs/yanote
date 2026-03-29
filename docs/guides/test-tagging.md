@@ -107,7 +107,7 @@ rg -n 'test\.run_id|test\.suite' "$YANOTE_EVENTS_PATH"
 Если меняете wording или boundary surfaces, перепроверьте и docs, и library modules:
 
 ```bash
-bash scripts/docs/verify-s02-doc-links.sh
+bash scripts/docs/verify-analysis-doc-links.sh
 ./gradlew --no-daemon :yanote-test-tags-restassured:test :yanote-test-tags-cucumber:test
 ```
 

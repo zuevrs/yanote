@@ -259,8 +259,8 @@ done
 reject_contains "$ANALYZER_GUIDE" 'node yanote-js/dist/yanote.cjs' "proof-first wording"
 
 if (( failures > 0 )); then
-  echo "M016 S04 short-doc verification failed: file=${file_failures} link=${link_failures} size=${size_failures} content=${content_failures} order=${order_failures}." >&2
+  echo "Short-doc verification failed: file=${file_failures} link=${link_failures} size=${size_failures} content=${content_failures} order=${order_failures}." >&2
   exit 1
 fi
 
-echo "M016 S04 short-doc verification passed: newcomer, analyzer, and repo-demo docs stay short and product-first."
+echo "Short-doc verification passed: newcomer, analyzer, and repo-demo docs stay short and product-first."

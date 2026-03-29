@@ -6,7 +6,7 @@ import path from "node:path";
 import process from "node:process";
 import test from "node:test";
 
-const sourceScriptPath = path.resolve("scripts/docs/verify-s03-public-artifact-boundary.sh");
+const sourceScriptPath = path.resolve("scripts/docs/verify-public-artifact-boundary.sh");
 const verifierSource = await readFile(sourceScriptPath, "utf8");
 
 const CLEAN_GITIGNORE_LINES = [".bg-shell/", ".tmp/", ".tmp-*", ".vite/", ".mcp.json", ".nvmrc", "dist/"];
@@ -47,7 +47,7 @@ async function createFixture({
   await writeFixtureFile(rootDir, "docs/release-and-support.md", releaseSupport);
   await writeFixtureFile(rootDir, "docs/guides/asyncapi-kafka.md", asyncGuide);
   await writeFixtureFile(rootDir, "SUPPORT.md", support);
-  await writeFixtureFile(rootDir, "scripts/docs/verify-s03-public-artifact-boundary.sh", verifierSource);
+  await writeFixtureFile(rootDir, "scripts/docs/verify-public-artifact-boundary.sh", verifierSource);
 
   for (const [relativePath, content] of Object.entries(extraFiles)) {
     await writeFixtureFile(rootDir, relativePath, content);
@@ -60,7 +60,7 @@ async function createFixture({
 }
 
 function runVerifier(rootDir, mode) {
-  const fixtureScriptPath = path.join(rootDir, "scripts/docs/verify-s03-public-artifact-boundary.sh");
+  const fixtureScriptPath = path.join(rootDir, "scripts/docs/verify-public-artifact-boundary.sh");
   return runCommand("bash", [fixtureScriptPath, mode], { cwd: rootDir });
 }
 

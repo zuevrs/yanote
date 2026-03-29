@@ -12,8 +12,8 @@
 ## Что владеет эта директория
 
 - [`release-signing.md`](release-signing.md) — release-signing policy, tag-driven publication flow и требования к подписи коммитов/тегов.
-- [`public-surface-proof.md`](public-surface-proof.md) — каноническая rerun-команда `bash scripts/docs/verify-m016-s05-public-surface.sh`, stage order S05 и retained diagnostics для финальной public-surface acceptance path.
-- [`proofed-entry-paths.md`](proofed-entry-paths.md) — финальная rerun-команда `bash scripts/docs/verify-s08-entry-paths.sh` для guide-first acceptance path, stage order S08 и clone-local `AGENTS.md` diagnostics без публикации содержимого локального файла.
+- [`public-surface-proof.md`](public-surface-proof.md) — каноническая rerun-команда `bash scripts/docs/verify-public-surface.sh`, stage order PUBLIC и retained diagnostics для финальной public-surface acceptance path.
+- [`proofed-entry-paths.md`](proofed-entry-paths.md) — финальная rerun-команда `bash scripts/docs/verify-entry-paths.sh` для guide-first acceptance path, stage order ENTRY и clone-local `AGENTS.md` diagnostics без публикации содержимого локального файла.
 - [`local-agent-workflow.md`](local-agent-workflow.md) — локальный root `AGENTS.md`, clone-local private maintainer state / `.tmp/` / `.tmp-*` / `.vite/` boundary, repo-local `info/exclude` bootstrap и граница содержимого для maintainer-only workflow.
 
 ## Когда оставаться здесь

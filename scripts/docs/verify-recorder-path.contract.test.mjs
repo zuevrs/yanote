@@ -7,7 +7,7 @@ import test from "node:test";
 import { promisify } from "node:util";
 
 const execFileAsync = promisify(execFile);
-const verifierSourcePath = path.resolve("scripts/docs/verify-s01-recorder-path.sh");
+const verifierSourcePath = path.resolve("scripts/docs/verify-recorder-path.sh");
 const fixtureSettingsPath = path.resolve("test/fixtures/recorder-spring-smoke/settings.gradle.kts");
 
 async function writeExecutable(filePath, content) {
@@ -157,14 +157,14 @@ PY
 `);
 
   await writeFile(path.join(rootDir, "gradle.properties"), "group=io.github.zuevrs\nversion=0.1.0-SNAPSHOT\n", "utf8");
-  await writeFile(path.join(scriptsDir, "verify-s01-recorder-path.sh"), verifierSource, "utf8");
-  await chmod(path.join(scriptsDir, "verify-s01-recorder-path.sh"), 0o755);
+  await writeFile(path.join(scriptsDir, "verify-recorder-path.sh"), verifierSource, "utf8");
+  await chmod(path.join(scriptsDir, "verify-recorder-path.sh"), 0o755);
 
   return { rootDir, binDir };
 }
 
 async function runVerifier(rootDir, binDir, extraEnv = {}) {
-  return execFileAsync("bash", ["scripts/docs/verify-s01-recorder-path.sh"], {
+  return execFileAsync("bash", ["scripts/docs/verify-recorder-path.sh"], {
     cwd: rootDir,
     env: {
       ...process.env,

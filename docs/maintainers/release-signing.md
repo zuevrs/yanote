@@ -101,21 +101,21 @@ Run both local proof gates before pushing the real tag:
 2. Final public-surface acceptance proof:
 
    ```bash
-   bash scripts/docs/verify-m016-s05-public-surface.sh
+   bash scripts/docs/verify-public-surface.sh
    ```
 
-The first proof stays local: it reuses the repository's signed-tag fixture, stages publications under `build/staging-deploy/`, assembles `build/release-bundle/v1.2.3/`, renders `build/release-notes.md`, and retains a diagnostic bundle at `.yanote-ci/m016-s02-release-pipeline-proof/` with phase logs, staged-publication inventory, copied release notes, traceability snapshots, and the release manifest.
+The first proof stays local: it reuses the repository's signed-tag fixture, stages publications under `build/staging-deploy/`, assembles `build/release-bundle/v1.2.3/`, renders `build/release-notes.md`, and retains a diagnostic bundle at `.yanote-ci/release-pipeline-proof/` with phase logs, staged-publication inventory, copied release notes, traceability snapshots, and the release manifest.
 
 The second proof confirms the full public product story still holds after those retained release surfaces are in place: clean public boundary, short docs path, live recorder/analyzer/demo path, maintainer navigation, and tag-driven release truth. For the stage map and retained diagnostics, use [`public-surface-proof.md`](public-surface-proof.md).
 
 If either proof fails, inspect these surfaces before retrying:
 
-- `.yanote-ci/m016-s02-release-pipeline-proof/artifact-manifest.txt`
-- `.yanote-ci/m016-s02-release-pipeline-proof/phase-status.txt`
-- `.yanote-ci/m016-s02-release-pipeline-proof/preflight.stderr.log`
-- `.yanote-ci/m016-s02-release-pipeline-proof/publish.stderr.log`
-- `.yanote-ci/m016-s02-release-pipeline-proof/bundle.stderr.log`
-- `.yanote-ci/m016-s02-release-pipeline-proof/notes.stderr.log`
+- `.yanote-ci/release-pipeline-proof/artifact-manifest.txt`
+- `.yanote-ci/release-pipeline-proof/phase-status.txt`
+- `.yanote-ci/release-pipeline-proof/preflight.stderr.log`
+- `.yanote-ci/release-pipeline-proof/publish.stderr.log`
+- `.yanote-ci/release-pipeline-proof/bundle.stderr.log`
+- `.yanote-ci/release-pipeline-proof/notes.stderr.log`
 - `build/staging-deploy/`
 - `build/release-bundle/v1.2.3/`
 - `build/release-notes.md`

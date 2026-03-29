@@ -3,7 +3,7 @@ set -euo pipefail
 
 ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
 
-ARTIFACT_DIR="${YANOTE_RELEASE_PIPELINE_PROOF_DIR:-.yanote-ci/m016-s02-release-pipeline-proof}"
+ARTIFACT_DIR="${YANOTE_RELEASE_PIPELINE_PROOF_DIR:-.yanote-ci/release-pipeline-proof}"
 ARTIFACT_ROOT="${ARTIFACT_DIR}"
 if [[ "${ARTIFACT_ROOT}" != /* ]]; then
   ARTIFACT_ROOT="${ROOT_DIR}/${ARTIFACT_ROOT}"
@@ -20,7 +20,7 @@ FIXTURE_TARBALL_PATH="${FIXTURE_ROOT}/fixture.tar.gz"
 PREFLIGHT_WORKTREE="${FIXTURE_ROOT}/fixture/worktree"
 FIXTURE_ORIGIN_DIR="${FIXTURE_ROOT}/fixture/origin.git"
 GPG_WRAPPER_PATH="${FIXTURE_ROOT}/gpg-loopback.sh"
-GENERATED_SIGNING_HOME="${FIXTURE_ROOT}/generated-signing-home"
+GENERATED_SIGNING_HOME=""
 GENERATED_PRIVATE_KEY_PATH="${FIXTURE_ROOT}/generated-signing-private.asc"
 GENERATED_PUBLIC_KEY_PATH="${FIXTURE_ROOT}/generated-signing-public.asc"
 
@@ -323,8 +323,10 @@ EOF
 }
 
 generate_release_signing_fixture() {
-  rm -rf "${GENERATED_SIGNING_HOME}"
-  mkdir -p "${GENERATED_SIGNING_HOME}"
+  if [[ -n "${GENERATED_SIGNING_HOME:-}" ]]; then
+    rm -rf "${GENERATED_SIGNING_HOME}"
+  fi
+  GENERATED_SIGNING_HOME="$(mktemp -d "${TMPDIR:-/tmp}/yanote-release-proof-gpg.XXXXXX")"
   chmod 700 "${GENERATED_SIGNING_HOME}"
 
   command -v gpg >/dev/null 2>&1 || fail "gpg is required to generate the temporary release-signing fixture."

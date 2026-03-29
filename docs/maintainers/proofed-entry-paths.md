@@ -7,32 +7,32 @@
 ## Каноническая команда
 
 ```bash
-bash scripts/docs/verify-s08-entry-paths.sh
+bash scripts/docs/verify-entry-paths.sh
 ```
 
 Команда идёт в guide-first порядке и fail-closed останавливается на первом сломанном слое. В выводе у каждого stage есть стабильная метка `S08-0N` и точный delegated command, поэтому следующий maintainer или агент может сразу rerun-ить нужный proof surface отдельно.
 
 ## Порядок stage-ов
 
-1. `S08-01` — `scripts/docs/verify-s03-landing.sh`  
+1. `ENTRY-01` — `scripts/docs/verify-landing.sh`
    Проверяет concept-first landing contract между `README.md`, `docs/README.md`, `examples/README.md` и example backlinks.
-2. `S08-02` — `scripts/docs/verify-s01-doc-links.sh`  
+2. `ENTRY-02` — `scripts/docs/verify-recorder-doc-links.sh`
    Проверяет, что канонический recorder guide остаётся первичным surface-ом.
-3. `S08-03` — `scripts/docs/verify-s01-recorder-path.sh`  
+3. `ENTRY-03` — `scripts/docs/verify-recorder-path.sh`
    Даёт живой recorder proof: writable `events.jsonl`, реальный HTTP call и inspectable event fields.
-4. `S08-04` — `scripts/docs/verify-s02-doc-links.sh`  
+4. `ENTRY-04` — `scripts/docs/verify-analysis-doc-links.sh`
    Проверяет tagging/analyzer guide wiring и vocabulary.
-5. `S08-05` — `scripts/docs/verify-s02-analysis-path.sh`  
+5. `ENTRY-05` — `scripts/docs/verify-analysis-path.sh`
    Даёт живой analyzer proof, `yanote-report.json`, `YANOTE_SUMMARY` и ожидаемый gate-failure surface.
-6. `S08-06` — `scripts/docs/verify-s04-boundaries.sh`  
+6. `ENTRY-06` — `scripts/docs/verify-release-support-boundaries.sh`
    Проверяет release/support truth against the latest stable tag.
-7. `S08-07` — `scripts/docs/verify-s05-navigation.sh`  
+7. `ENTRY-07` — `scripts/docs/verify-navigation.sh`
    Проверяет owner maps, secondary leaves и fallback recovery path.
-8. `S08-08` — `scripts/docs/verify-s06-trust-surfaces.sh`  
+8. `ENTRY-08` — `scripts/docs/verify-trust-surfaces.sh`
    Проверяет identity, policy и GitHub trust/intake surfaces.
-9. `S08-09` — `scripts/docs/verify-s07-local-agent.sh`  
+9. `ENTRY-09` — `scripts/docs/verify-local-agent-boundary.sh`
    Проверяет tracked/public boundary вокруг local-agent workflow.
-10. `S08-10` — clone-local Git diagnostics из [`local-agent-workflow.md`](local-agent-workflow.md)  
+10. `ENTRY-10` — clone-local Git diagnostics из [`local-agent-workflow.md`](local-agent-workflow.md)
     Проверяет, что root `AGENTS.md` остаётся local-only и ignored именно через repo-local Git admin state.
 
 ## Обязательные clone-local diagnostics для `AGENTS.md`
@@ -59,7 +59,7 @@ git ls-files | rg '(^|/)AGENTS\.md$'
 
 `examples/docker-compose.yml` остаётся полезным demo surface-ом, но не является обязательной частью финальной acceptance-проверки. Truthful status для S08 такой:
 
-- primary acceptance path: `bash scripts/docs/verify-s08-entry-paths.sh`;
+- primary acceptance path: `bash scripts/docs/verify-entry-paths.sh`;
 - Compose — secondary/optional demo, который имеет смысл только когда Docker daemon доступен;
 - отсутствие Docker daemon не делает S08 verifier invalid, потому что канонический путь для продукта остаётся guide-first: concept → recorder → `events.jsonl` → analyzer → interpretation → repo boundaries.
 
@@ -71,4 +71,4 @@ git ls-files | rg '(^|/)AGENTS\.md$'
 - `examples/docker-compose.yml` использует repo-local standalone launcher `dist/standalone-analyzer/bin/yanote`; если demo-report step жалуется на missing launcher, регенерируйте тот же contract командой `./gradlew distStandaloneAnalyzer`.
 - archive-equivalent proof для этого launcher остаётся `build/distributions/yanote-analyzer.zip`; это maintainer breadcrumb для локального rerun, а не public navigation surface.
 
-Если нужен именно runnable demo через Compose, возвращайтесь в пользовательские карты: [`../../README.md`](../../README.md) для product landing, затем [`../README.md`](../README.md) и [`../../examples/README.md`](../../examples/README.md) для demo routing. Но финальная acceptance-команда slice-а остаётся одна: `bash scripts/docs/verify-s08-entry-paths.sh`.
+Если нужен именно runnable demo через Compose, возвращайтесь в пользовательские карты: [`../../README.md`](../../README.md) для product landing, затем [`../README.md`](../README.md) и [`../../examples/README.md`](../../examples/README.md) для demo routing. Но финальная acceptance-команда slice-а остаётся одна: `bash scripts/docs/verify-entry-paths.sh`.

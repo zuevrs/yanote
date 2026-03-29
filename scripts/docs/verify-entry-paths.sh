@@ -53,19 +53,19 @@ run_clone_local_agents_checks() {
   echo "[${label}] git ls-files | rg '(^|/)AGENTS\\.md$' || true => clean"
 }
 
-echo "S08 final proof: guide-first acceptance path plus clone-local AGENTS.md diagnostics."
-echo "NOTE [S08]: Docker Compose remains optional/secondary; this verifier does not require a Docker daemon."
+echo "Entry-path proof: guide-first acceptance path plus clone-local AGENTS.md diagnostics."
+echo "NOTE [ENTRY]: Docker Compose remains optional/secondary; this verifier does not require a Docker daemon."
 echo
 
-run_stage "S08-01" "Landing contract across root/docs/examples" "${ROOT_DIR}/scripts/docs/verify-s03-landing.sh"
-run_stage "S08-02" "Recorder guide wiring" "${ROOT_DIR}/scripts/docs/verify-s01-doc-links.sh"
-run_stage "S08-03" "Recorder runtime proof" "${ROOT_DIR}/scripts/docs/verify-s01-recorder-path.sh"
-run_stage "S08-04" "Tagging and analyzer guide wiring" "${ROOT_DIR}/scripts/docs/verify-s02-doc-links.sh"
-run_stage "S08-05" "Analyzer runtime and gate proof" "${ROOT_DIR}/scripts/docs/verify-s02-analysis-path.sh"
-run_stage "S08-06" "Release and support boundaries" "${ROOT_DIR}/scripts/docs/verify-s04-boundaries.sh"
-run_stage "S08-07" "Secondary navigation surfaces" "${ROOT_DIR}/scripts/docs/verify-s05-navigation.sh"
-run_stage "S08-08" "Trust and intake surfaces" "${ROOT_DIR}/scripts/docs/verify-s06-trust-surfaces.sh"
-run_stage "S08-09" "Tracked local-agent boundary" "${ROOT_DIR}/scripts/docs/verify-s07-local-agent.sh"
-run_stage "S08-10" "Clone-local AGENTS.md Git diagnostics" run_clone_local_agents_checks "S08-10"
+run_stage "ENTRY-01" "Landing contract across root/docs/examples" "${ROOT_DIR}/scripts/docs/verify-landing.sh"
+run_stage "ENTRY-02" "Recorder guide wiring" "${ROOT_DIR}/scripts/docs/verify-recorder-doc-links.sh"
+run_stage "ENTRY-03" "Recorder runtime proof" "${ROOT_DIR}/scripts/docs/verify-recorder-path.sh"
+run_stage "ENTRY-04" "Tagging and analyzer guide wiring" "${ROOT_DIR}/scripts/docs/verify-analysis-doc-links.sh"
+run_stage "ENTRY-05" "Analyzer runtime and gate proof" "${ROOT_DIR}/scripts/docs/verify-analysis-path.sh"
+run_stage "ENTRY-06" "Release and support boundaries" "${ROOT_DIR}/scripts/docs/verify-release-support-boundaries.sh"
+run_stage "ENTRY-07" "Secondary navigation surfaces" "${ROOT_DIR}/scripts/docs/verify-navigation.sh"
+run_stage "ENTRY-08" "Trust and intake surfaces" "${ROOT_DIR}/scripts/docs/verify-trust-surfaces.sh"
+run_stage "ENTRY-09" "Tracked local-agent boundary" "${ROOT_DIR}/scripts/docs/verify-local-agent-boundary.sh"
+run_stage "ENTRY-10" "Clone-local AGENTS.md Git diagnostics" run_clone_local_agents_checks "ENTRY-10"
 
-echo "S08 final proof passed: guide-first docs, runtime proofs, repo boundaries, and clone-local AGENTS.md diagnostics are aligned."
+echo "Entry-path proof passed: guide-first docs, runtime proofs, repo boundaries, and clone-local AGENTS.md diagnostics are aligned."

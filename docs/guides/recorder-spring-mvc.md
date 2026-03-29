@@ -88,7 +88,7 @@ Recorder читает два HTTP заголовка:
 Для того же loop, но на уже подготовленном smoke fixture из репозитория, запустите:
 
 ```bash
-bash scripts/docs/verify-s01-recorder-path.sh
+bash scripts/docs/verify-recorder-path.sh
 ```
 
 Этот verifier публикует recorder в `mavenLocal()`, поднимает минимальный Spring Boot fixture, делает HTTP-запрос и проверяет реальный `events.jsonl`.

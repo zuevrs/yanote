@@ -3,8 +3,8 @@ import { readFile } from "node:fs/promises";
 import path from "node:path";
 import test from "node:test";
 
-const verifierScriptPath = path.resolve("scripts/docs/verify-m016-s05-public-surface.sh");
-const navigationScriptPath = path.resolve("scripts/docs/verify-s05-navigation.sh");
+const verifierScriptPath = path.resolve("scripts/docs/verify-public-surface.sh");
+const navigationScriptPath = path.resolve("scripts/docs/verify-navigation.sh");
 const maintainersReadmePath = path.resolve("docs/maintainers/README.md");
 const maintainerLeafPath = path.resolve("docs/maintainers/public-surface-proof.md");
 const releaseSigningPath = path.resolve("docs/maintainers/release-signing.md");
@@ -16,62 +16,62 @@ const releaseSupportPath = path.resolve("docs/release-and-support.md");
 
 const expectedStages = [
   {
-    label: "S05-01",
+    label: "PUBLIC-01",
     title: "Tracked inventory and public-boundary silence",
-    command: "bash scripts/docs/verify-s03-public-artifact-boundary.sh all",
+    command: "bash scripts/docs/verify-public-artifact-boundary.sh all",
   },
   {
-    label: "S05-02",
+    label: "PUBLIC-02",
     title: "Landing contract across root/docs/examples",
-    command: "bash scripts/docs/verify-s03-landing.sh",
+    command: "bash scripts/docs/verify-landing.sh",
   },
   {
-    label: "S05-03",
+    label: "PUBLIC-03",
     title: "Short newcomer and analyzer docs contract",
-    command: "bash scripts/docs/verify-m016-s04-short-docs.sh",
+    command: "bash scripts/docs/verify-short-docs.sh",
   },
   {
-    label: "S05-04",
+    label: "PUBLIC-04",
     title: "Recorder doc wiring",
-    command: "bash scripts/docs/verify-s01-doc-links.sh",
+    command: "bash scripts/docs/verify-recorder-doc-links.sh",
   },
   {
-    label: "S05-05",
+    label: "PUBLIC-05",
     title: "Tagging and analyzer doc wiring",
-    command: "bash scripts/docs/verify-s02-doc-links.sh",
+    command: "bash scripts/docs/verify-analysis-doc-links.sh",
   },
   {
-    label: "S05-06",
+    label: "PUBLIC-06",
     title: "Recorder runtime proof",
-    command: "bash scripts/docs/verify-s01-recorder-path.sh",
+    command: "bash scripts/docs/verify-recorder-path.sh",
   },
   {
-    label: "S05-07",
+    label: "PUBLIC-07",
     title: "Analyzer runtime and archive proof",
-    command: "bash scripts/docs/verify-s02-analysis-path.sh",
+    command: "bash scripts/docs/verify-analysis-path.sh",
   },
   {
-    label: "S05-08",
+    label: "PUBLIC-08",
     title: "Repo demo and example boundary",
-    command: "bash scripts/docs/verify-s03-example-boundary.sh",
+    command: "bash scripts/docs/verify-example-boundary.sh",
   },
   {
-    label: "S05-09",
+    label: "PUBLIC-09",
     title: "Release/support public boundary",
-    command: "bash scripts/docs/verify-s04-boundaries.sh",
+    command: "bash scripts/docs/verify-release-support-boundaries.sh",
   },
   {
-    label: "S05-10",
+    label: "PUBLIC-10",
     title: "Maintainer navigation and rerun leaf",
-    command: "bash scripts/docs/verify-s05-navigation.sh",
+    command: "bash scripts/docs/verify-navigation.sh",
   },
   {
-    label: "S05-11",
+    label: "PUBLIC-11",
     title: "Repo demo contract test",
     command: "node --test scripts/ci/run-v1-e2e.contract.test.mjs",
   },
   {
-    label: "S05-12",
+    label: "PUBLIC-12",
     title: "Tag-driven release pipeline proof",
     command: "bash scripts/ci/verify-release-pipeline.sh",
   },
@@ -86,7 +86,7 @@ test("S05 verifier pins the delegated stage order and exact rerun commands", asy
 
   assert.match(
     source,
-    /NOTE \[S05\]: The verifier delegates to existing proof owners and stops on the first failing stage\./,
+    /NOTE \[PUBLIC\]: The verifier delegates to existing proof owners and stops on the first failing stage\./,
   );
 
   let lastIndex = -1;
@@ -100,7 +100,7 @@ test("S05 verifier pins the delegated stage order and exact rerun commands", asy
 
   assert.match(
     source,
-    /M016 S05 public-surface proof passed: boundary, docs, recorder\/analyzer\/demo path, maintainer navigation, and release diagnostics stay aligned\./,
+    /Public-surface proof passed: boundary, docs, recorder\/analyzer\/demo path, maintainer navigation, and release diagnostics stay aligned\./,
   );
 });
 
@@ -113,16 +113,16 @@ test("maintainer navigation knows about the public-surface proof leaf and its ca
   ]);
 
   assert.match(readmeSource, /public-surface-proof\.md/);
-  assert.match(readmeSource, /verify-m016-s05-public-surface\.sh/);
+  assert.match(readmeSource, /verify-public-surface\.sh/);
   assert.match(leafSource, /> Audience: \*\*maintainer-only leaf\*\*/);
   assert.match(leafSource, /\[`docs\/maintainers\/README\.md`\]\(README\.md\)/);
-  assert.match(leafSource, /bash scripts\/docs\/verify-m016-s05-public-surface\.sh/);
+  assert.match(leafSource, /bash scripts\/docs\/verify-public-surface\.sh/);
   assert.match(leafSource, /`mavenLocal\(\)` \+ `mavenCentral\(\)`/);
   assert.match(leafSource, /Gradle Plugin Portal/);
   assert.match(leafSource, /--refresh-dependencies/);
   assert.match(leafSource, /bounded publish retry/);
   assert.match(leafSource, /deterministic localhost port-open readiness probe/);
-  assert.match(leafSource, /bash scripts\/docs\/verify-s01-recorder-path\.sh/);
+  assert.match(leafSource, /bash scripts\/docs\/verify-recorder-path\.sh/);
   assert.match(leafSource, /readiness_port/);
   assert.match(leafSource, /temp_dir/);
   assert.match(leafSource, /gradle_home/);
@@ -137,11 +137,11 @@ test("maintainer navigation knows about the public-surface proof leaf and its ca
   assert.match(leafSource, /artifact-manifest\.txt/);
   assert.match(leafSource, /tag-context\.txt/);
   assert.match(releaseSigningSource, /public-surface-proof\.md/);
-  assert.match(releaseSigningSource, /bash scripts\/ci\/verify-m016-s02-release-pipeline\.sh/);
-  assert.match(releaseSigningSource, /bash scripts\/docs\/verify-m016-s05-public-surface\.sh/);
+  assert.match(releaseSigningSource, /bash scripts\/ci\/verify-release-pipeline\.sh/);
+  assert.match(releaseSigningSource, /bash scripts\/docs\/verify-public-surface\.sh/);
   assert.ok(
     releaseSigningSource.indexOf("bash scripts/ci/verify-release-pipeline.sh") <
-      releaseSigningSource.indexOf("bash scripts/docs/verify-m016-s05-public-surface.sh"),
+      releaseSigningSource.indexOf("bash scripts/docs/verify-public-surface.sh"),
     "release-signing workflow should mention the release-candidate proof before the final public-surface gate",
   );
 
@@ -151,10 +151,10 @@ test("maintainer navigation knows about the public-surface proof leaf and its ca
 
   assert.match(navigationSource, /PUBLIC_SURFACE_PROOF_DOC="docs\/maintainers\/public-surface-proof\.md"/);
   assert.match(navigationSource, /public-surface-proof\.md/);
-  assert.match(navigationSource, /verify-m016-s05-public-surface\.sh/);
+  assert.match(navigationSource, /verify-public-surface\.sh/);
 });
 
-test("the final S05 rerun surface stays out of public onboarding docs", async () => {
+test("the final public-surface rerun surface stays out of public onboarding docs", async () => {
   const publicSources = await Promise.all([
     loadUtf8(rootReadmePath),
     loadUtf8(docsReadmePath),
@@ -165,6 +165,6 @@ test("the final S05 rerun surface stays out of public onboarding docs", async ()
 
   for (const source of publicSources) {
     assert.doesNotMatch(source, /public-surface-proof\.md/);
-    assert.doesNotMatch(source, /verify-m016-s05-public-surface\.sh/);
+    assert.doesNotMatch(source, /verify-public-surface\.sh/);
   }
 });
