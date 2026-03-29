@@ -4,7 +4,7 @@
 
 Этот leaf описывает только правила обращения с локальным `AGENTS.md` в текущем clone. Он не публикует содержимое самого файла и не заменяет maintainer map в `docs/maintainers/README.md`.
 
-Рядом с `AGENTS.md` этот же maintainer-only leaf фиксирует clone-local boundary для `.gsd/`, `.tmp/`, `.tmp-*` и `.vite/`: после S03 эти roots могут существовать и использоваться в текущем clone, но больше не считаются частью публичного git inventory.
+Рядом с `AGENTS.md` этот же maintainer-only leaf фиксирует clone-local boundary для private maintainer state, `.tmp/`, `.tmp-*` и `.vite/`: после S03 эти roots могут существовать и использоваться в текущем clone, но больше не считаются частью публичного git inventory.
 
 ## Где должен жить файл
 
@@ -39,9 +39,9 @@ git ls-files | rg '(^|/)AGENTS\.md$'
 
 ## Соседние clone-local roots после S03
 
-Public branch больше не должен трекать `.gsd/`, `.tmp/`, `.tmp-*` и `.vite/`. Для текущего clone это остаются локальные planning/proof/runtime roots:
+Public branch больше не должен трекать private maintainer state, `.tmp/`, `.tmp-*` и `.vite/`. Для текущего clone это остаются локальные planning/proof/runtime roots:
 
-- `.gsd/` — local planning, decisions, summaries, reports и другая maintainer state.
+- private maintainer state — planning, decisions, summaries, reports и другая локальная maintainer state.
 - `.tmp/` и `.tmp-*` — proof bundles, scratch artifacts и rerun residue, которые могут понадобиться для локальной диагностики.
 - `.vite/` — tool-cache/result residue локальных JS/Vitest запусков.
 
@@ -49,7 +49,6 @@ Public branch больше не должен трекать `.gsd/`, `.tmp/`, `.
 
 ```bash
 bash scripts/docs/verify-s03-public-artifact-boundary.sh tracked
-test -f .gsd/PROJECT.md
 test -f .tmp-m012-research-out/yanote-report.json
 test -f .tmp/m015-s03-combined-proof/artifact-manifest.txt
 test -f .vite/vitest/results.json

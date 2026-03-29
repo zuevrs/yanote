@@ -17,9 +17,14 @@ test("release pipeline verifier keeps a stable retained proof root and signed-ta
   assert.match(source, /PREVIOUS_RELEASE_TAG="\$\{YANOTE_RELEASE_PROOF_PREVIOUS_TAG:-v1\.2\.2\}"/);
   assert.match(source, /FIXTURE_ARCHIVE_PATH="\$\{ROOT_DIR\}\/scripts\/release\/fixtures\/preflight-runtime\/preflight-signed-main\.tar\.gz\.base64"/);
   assert.match(source, /FIXTURE_PUBLIC_KEY_PATH="\$\{ROOT_DIR\}\/scripts\/release\/fixtures\/test-release-signing-public\.asc"/);
-  assert.match(source, /FIXTURE_PRIVATE_KEY_PATH="\$\{ROOT_DIR\}\/scripts\/release\/fixtures\/test-release-signing-private\.asc"/);
+  assert.match(source, /GENERATED_SIGNING_HOME="\$\{FIXTURE_ROOT\}\/generated-signing-home"/);
+  assert.match(source, /GENERATED_PRIVATE_KEY_PATH="\$\{FIXTURE_ROOT\}\/generated-signing-private\.asc"/);
+  assert.match(source, /GENERATED_PUBLIC_KEY_PATH="\$\{FIXTURE_ROOT\}\/generated-signing-public\.asc"/);
   assert.match(source, /git -C "\$\{PREFLIGHT_WORKTREE\}" remote set-url origin "\$\{FIXTURE_ORIGIN_DIR\}"/);
   assert.match(source, /git -C "\$\{PREFLIGHT_WORKTREE\}" config gpg\.program "\$\{GPG_WRAPPER_PATH\}"/);
+  assert.match(source, /generate_release_signing_fixture\(\) \{/);
+  assert.match(source, /GNUPGHOME="\$\{GENERATED_SIGNING_HOME\}" gpg --batch --generate-key/);
+  assert.match(source, /GNUPGHOME="\$\{GENERATED_SIGNING_HOME\}" gpg --batch --armor --export-secret-keys/);
   assert.match(source, /export RELEASE_TAG_SIGNING_PUBLIC_KEY="\$\{release_tag_signing_public_key\}"/);
 });
 
@@ -41,6 +46,8 @@ test("release pipeline verifier mirrors the workflow's local release-candidate t
 
   assert.match(source, /\.\/gradlew -Pversion='\$\{RELEASE_VERSION\}' publish distStandaloneAnalyzer cyclonedxBom jreleaserConfig --stacktrace/);
   assert.doesNotMatch(source, /jreleaserFullRelease/);
+  assert.match(source, /export JRELEASER_GPG_SECRET_KEY='\$\{GENERATED_PRIVATE_KEY_PATH\}'/);
+  assert.match(source, /export JRELEASER_GPG_PUBLIC_KEY='\$\{GENERATED_PUBLIC_KEY_PATH\}'/);
   assert.match(source, /require_file "\$\{ANALYZER_ARCHIVE_PATH\}" "Publish phase did not produce the official analyzer archive at build\/distributions\/yanote-analyzer\.zip\."/);
   assert.match(source, /require_file "\$\{SBOM_PATH\}" "Publish phase did not produce build\/reports\/cyclonedx\/bom\.json\."/);
   assert.match(source, /require_file "\$\{JRELEASER_OUTPUT_PATH\}" "Publish phase did not retain build\/jreleaser\/output\.properties\."/);
@@ -68,7 +75,7 @@ test("release pipeline verifier pins the analyzer asset, traceability, and notes
   assert.match(source, /require_file "\$\{BUNDLE_ASSETS_DIR\}\/\$\{RELEASE_TAG\}-traceability-summary\.md"/);
   assert.match(source, /notes_command=node scripts\/release\/render-release-notes\.mjs --output build\/release-notes\.md --version %s --previous-tag %s/);
   assert.match(source, /if ! grep -Fq "# Release \$\{RELEASE_TAG\}" "\$\{RELEASE_NOTES_PATH\}"; then/);
-  assert.match(source, /if ! grep -Fq "since previous release tag \\`\$\{PREVIOUS_RELEASE_TAG\}\\`\." "\$\{RELEASE_NOTES_PATH\}"; then/);
+  assert.match(source, /if ! grep -Fq "since previous release tag \\\`\$\{PREVIOUS_RELEASE_TAG\}\\\`\." "\$\{RELEASE_NOTES_PATH\}"; then/);
 });
 
 test("release pipeline verifier retains inspectable phase logs, inventories, and copied proof artifacts", async () => {
