@@ -3,6 +3,9 @@ contact_links:
   - name: Поддержка / Support routing
     url: https://github.com/zuevrs/yanote/blob/main/SUPPORT.md
     about: Проверьте границы поддержки, публичный bug-маршрут и ожидаемые evidence-артефакты перед открытием issue.
-  - name: Безопасность / Security reporting
+  - name: Security reporting
     url: https://github.com/zuevrs/yanote/blob/main/SECURITY.md
     about: Для нераскрытых уязвимостей используйте только приватный security-канал, а не публичный issue.
+  - name: Contributor guide
+    url: https://github.com/zuevrs/yanote/blob/main/CONTRIBUTING.md
+    about: Если вы готовите PR или boundary-changing proposal, сначала проверьте правила вклада и ожидания к verification.

@@ -16,7 +16,7 @@ paste commands and results here
 ## Влияние на документацию и публичные границы
 - [ ] Изменение не меняет публичные docs/support/release boundaries.
 - [ ] Обновил документацию: `...`
-- [ ] Если меняется поддерживаемая поверхность или release boundary, синхронизировал это с [docs/release-and-support.md](https://github.com/zuevrs/yanote/blob/main/docs/release-and-support.md) и [CONTRIBUTING.md](https://github.com/zuevrs/yanote/blob/main/CONTRIBUTING.md).
+- [ ] Если меняется поддерживаемая поверхность или release boundary, синхронизировал это с [docs/release-and-support.md](https://github.com/zuevrs/yanote/blob/main/docs/release-and-support.md), [SUPPORT.md](https://github.com/zuevrs/yanote/blob/main/SUPPORT.md) и [CONTRIBUTING.md](https://github.com/zuevrs/yanote/blob/main/CONTRIBUTING.md).
 
 ## Контекст для ревью
 - затронутые модули / workflow / docs surface:

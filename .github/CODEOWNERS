@@ -4,5 +4,12 @@
 /SECURITY.md @zuevrs
 /SUPPORT.md @zuevrs
 /CONTRIBUTING.md @zuevrs
+/CHANGELOG.md @zuevrs
+/CODE_OF_CONDUCT.md @zuevrs
 /docs/release-and-support.md @zuevrs
+/docs/support-matrix.md @zuevrs
+/docs/compatibility.md @zuevrs
+/docs/artifact-contracts.md @zuevrs
+/docs/upgrading.md @zuevrs
+/docs/deprecations.md @zuevrs
 * @zuevrs

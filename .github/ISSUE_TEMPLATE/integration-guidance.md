@@ -10,7 +10,7 @@ assignees:
 ---
 
 ## Проверка маршрута
-Используйте этот шаблон для вопросов по recorder/analyzer интеграции, guide-level документации и текущим границам поддерживаемой поверхности. Для воспроизводимого дефекта откройте `Bug report`. Публичные границы поддержки остаются в [SUPPORT.md](https://github.com/zuevrs/yanote/blob/main/SUPPORT.md), private security-маршрут — в [SECURITY.md](https://github.com/zuevrs/yanote/blob/main/SECURITY.md), а карта пользовательской документации — в [docs/README.md](https://github.com/zuevrs/yanote/blob/main/docs/README.md).
+Используйте этот шаблон для вопросов по recorder/analyzer интеграции, guide-level документации и текущим границам поддерживаемой поверхности. Для воспроизводимого дефекта откройте `Bug report`. Для предложений по новой поверхности или расширению scope откройте `Feature request`. Публичные границы поддержки остаются в [SUPPORT.md](https://github.com/zuevrs/yanote/blob/main/SUPPORT.md), private security-маршрут — в [SECURITY.md](https://github.com/zuevrs/yanote/blob/main/SECURITY.md), а карта пользовательской документации — в [docs/README.md](https://github.com/zuevrs/yanote/blob/main/docs/README.md).
 
 ## Какая поверхность или путь документации задействованы?
 - guide / path:

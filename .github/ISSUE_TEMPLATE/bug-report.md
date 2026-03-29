@@ -9,7 +9,7 @@ assignees:
 ---
 
 ## Проверка маршрута
-Используйте этот шаблон только для воспроизводимого дефекта. Если вам нужна помощь по интеграции или навигации по документации, откройте шаблон `Integration guidance`. Границы поддержки и публичный bug-маршрут описаны в [SUPPORT.md](https://github.com/zuevrs/yanote/blob/main/SUPPORT.md). Нераскрытые уязвимости отправляйте только через [SECURITY.md](https://github.com/zuevrs/yanote/blob/main/SECURITY.md).
+Используйте этот шаблон только для воспроизводимого дефекта. Если вам нужна помощь по интеграции или навигации по документации, откройте `Integration guidance`. Если вы предлагаете новую возможность или расширение поддерживаемой поверхности, откройте `Feature request`. Границы поддержки и публичный bug-маршрут описаны в [SUPPORT.md](https://github.com/zuevrs/yanote/blob/main/SUPPORT.md). Нераскрытые уязвимости отправляйте только через [SECURITY.md](https://github.com/zuevrs/yanote/blob/main/SECURITY.md).
 
 ## Версия / коммит
 - версия релиза или dependency version:
