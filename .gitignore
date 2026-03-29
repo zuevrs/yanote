@@ -21,7 +21,6 @@ dist/
 
 # clone-local planning/proof/runtime roots removed from the public repo face
 .yanote-ci/
-.gsd
 .tmp/
 .tmp-*
 .vite/

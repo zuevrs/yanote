@@ -2,7 +2,7 @@
 
 > Audience: **maintainer-only surface**. If you are here for product onboarding, release boundaries, recorder setup, or analyzer usage, return to [`docs/README.md`](../README.md).
 
-Эта директория собирает maintainer workflow-и и repo policy surfaces. Здесь лежат документы, которые помогают выпускать и сопровождать Yanote, но не заменяют пользовательскую карту документации. Clone-local planning/proof/runtime roots (`.gsd/`, `.tmp/`, `.tmp-*`, `.vite/`) тоже объясняются только здесь, а не на публичных landing/support surfaces.
+Эта директория собирает maintainer workflow-и и repo policy surfaces. Здесь лежат документы, которые помогают выпускать и сопровождать Yanote, но не заменяют пользовательскую карту документации. Clone-local planning/proof/runtime roots (private maintainer state, `.tmp/`, `.tmp-*`, `.vite/`) тоже объясняются только здесь, а не на публичных landing/support surfaces.
 
 ## Куда вернуться за канонической картой
 
@@ -14,9 +14,8 @@
 - [`release-signing.md`](release-signing.md) — release-signing policy, tag-driven publication flow и требования к подписи коммитов/тегов.
 - [`public-surface-proof.md`](public-surface-proof.md) — каноническая rerun-команда `bash scripts/docs/verify-m016-s05-public-surface.sh`, stage order S05 и retained diagnostics для финальной public-surface acceptance path.
 - [`proofed-entry-paths.md`](proofed-entry-paths.md) — финальная rerun-команда `bash scripts/docs/verify-s08-entry-paths.sh` для guide-first acceptance path, stage order S08 и clone-local `AGENTS.md` diagnostics без публикации содержимого локального файла.
-- [`local-agent-workflow.md`](local-agent-workflow.md) — локальный root `AGENTS.md`, clone-local `.gsd` / `.tmp/` / `.tmp-*` / `.vite/` boundary, repo-local `info/exclude` bootstrap, symlink-backed GSD storage note и граница содержимого для maintainer-only workflow.
+- [`local-agent-workflow.md`](local-agent-workflow.md) — локальный root `AGENTS.md`, clone-local private maintainer state / `.tmp/` / `.tmp-*` / `.vite/` boundary, repo-local `info/exclude` bootstrap и граница содержимого для maintainer-only workflow.
 
 ## Когда оставаться здесь
 
 Оставайтесь в `docs/maintainers/`, если вы меняете release workflow, перепроверяете финальный proof command или готовите публикацию. Для user-facing setup и canonical guides возвращайтесь в [`docs/README.md`](../README.md).
-cal guides возвращайтесь в [`docs/README.md`](../README.md).

@@ -9,7 +9,7 @@ import test from "node:test";
 const sourceScriptPath = path.resolve("scripts/docs/verify-s03-public-artifact-boundary.sh");
 const verifierSource = await readFile(sourceScriptPath, "utf8");
 
-const CLEAN_GITIGNORE_LINES = [".bg-shell/", ".gsd", ".tmp/", ".tmp-*", ".vite/", ".mcp.json", ".nvmrc", "dist/"];
+const CLEAN_GITIGNORE_LINES = [".bg-shell/", ".tmp/", ".tmp-*", ".vite/", ".mcp.json", ".nvmrc", "dist/"];
 
 function runCommand(command, args, { cwd } = {}) {
   return spawnSync(command, args, {
@@ -67,7 +67,6 @@ function runVerifier(rootDir, mode) {
 test("tracked mode fails closed on tracked clone-local roots and prints the offending paths", { concurrency: false }, async () => {
   const rootDir = await createFixture({
     extraFiles: {
-      ".gsd/STATE.md": "tracked gsd state\n",
       ".mcp.json": "{\"mcpServers\":{}}\n",
       ".nvmrc": "22\n",
       ".tmp/proof/artifact.txt": "tracked tmp proof\n",
@@ -80,13 +79,12 @@ test("tracked mode fails closed on tracked clone-local roots and prints the offe
     const result = runVerifier(rootDir, "tracked");
 
     assert.notEqual(result.status, 0, "tracked mode should fail when clone-local roots remain tracked");
-    assert.match(result.stderr, /Tracked clone-local root remains in git inventory: \.gsd\/STATE\.md/);
     assert.match(result.stderr, /Tracked clone-local root remains in git inventory: \.mcp\.json/);
     assert.match(result.stderr, /Tracked clone-local root remains in git inventory: \.nvmrc/);
     assert.match(result.stderr, /Tracked clone-local root remains in git inventory: \.tmp\/proof\/artifact\.txt/);
     assert.match(result.stderr, /Tracked clone-local root remains in git inventory: \.tmp-m015-s03-combined-proof\/artifact-manifest\.txt/);
     assert.match(result.stderr, /Tracked clone-local root remains in git inventory: \.vite\/vitest\/results\.json/);
-    assert.match(result.stdout, /Tracked public-boundary inventory entries under \.bg-shell\/.gsd\/.mcp\.json\/.nvmrc\/.tmp\/.tmp-\*\/.vite\/dist: 6/);
+    assert.match(result.stdout, /Tracked public-boundary inventory entries under \.bg-shell\/.mcp\.json\/.nvmrc\/.tmp\/.tmp-\*\/.vite\/dist: 5/);
   } finally {
     await rm(rootDir, { recursive: true, force: true });
   }
@@ -140,7 +138,7 @@ test("clean fixtures pass in both tracked and full-public modes", { concurrency:
 
 test("missing ignore rules and unsupported modes fail closed with actionable diagnostics", { concurrency: false }, async () => {
   const rootDir = await createFixture({
-    gitignoreLines: [".bg-shell/", ".gsd/", ".tmp/", ".tmp-*", "dist/"],
+    gitignoreLines: [".bg-shell/", ".tmp/", ".tmp-*", "dist/"],
   });
 
   try {
