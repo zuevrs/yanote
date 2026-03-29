@@ -7,6 +7,7 @@ Yanote показывает не абстрактное «тесты прошл�
 1. [Пройдите короткий быстрый старт](docs/guides/getting-started.md) — один путь для recorder → tagging → analyzer → repo demo.
 2. [Откройте карту документации](docs/README.md) — когда после быстрого старта нужны отдельные guide-level детали.
 3. [Проверьте release/support boundary](docs/release-and-support.md) — если нужен текущий стабильный релиз `v1.0.x`, published bundle `yanote-analyzer.zip` или ограничения поддержки.
+4. [Откройте короткую матрицу поддержки](docs/support-matrix.md) — если нужно быстро понять, что поддержано, что intentionally narrow, а что остаётся internal/deferred.
 
 ## Что вы пройдёте в продукте
 

@@ -4,6 +4,14 @@
 
 Этот документ — единая публичная точка ответа на четыре вопроса: какая стабильная линия Yanote актуальна сейчас, где смотреть последний опубликованный релиз, чем текущее состояние репозитория отличается от опубликованной версии, и какие поверхности/ограничения сегодня действительно считаются поддерживаемыми.
 
+Если нужен более короткий companion stack без длинного boundary narrative, используйте:
+
+- [support-matrix.md](support-matrix.md) — короткая матрица поддерживаемых и deferred surfaces;
+- [compatibility.md](compatibility.md) — baseline compatibility expectations;
+- [artifact-contracts.md](artifact-contracts.md) — какие артефакты являются public contract;
+- [upgrading.md](upgrading.md) — upgrade rail;
+- [deprecations.md](deprecations.md) — deprecation handling policy.
+
 Короткое правило: публичную версию Yanote определяют подписанные Git-теги формата `vMAJOR.MINOR.PATCH` и соответствующая страница GitHub Releases. Рабочее дерево репозитория, snapshot-маркеры и текущие analyzer version markers не являются авторитетным публичным источником версии.
 
 ## Текущая стабильная линия

@@ -2,6 +2,8 @@
 
 Yanote остаётся **maintainer-led** проектом с узким продуктовым фокусом. Мы приветствуем вклад, который делает поддерживаемую поверхность яснее, надёжнее и проще в использовании, но не расширяет scope случайно.
 
+Исправления документации и узкие bugfix PR приветствуются.
+
 ## С чего начать
 
 Перед предложением изменений сверяйтесь с:
@@ -9,6 +11,7 @@ Yanote остаётся **maintainer-led** проектом с узким про
 - [README.md](README.md) — product-first вход в проект;
 - [docs/README.md](docs/README.md) — карта пользовательской документации;
 - [docs/release-and-support.md](docs/release-and-support.md) — текущие release/support boundaries;
+- [docs/requirements.md](docs/requirements.md) — канонический inventory требований и текущих scope boundaries;
 - [SUPPORT.md](SUPPORT.md) — публичный intake для bug/integration/docs вопросов;
 - [SECURITY.md](SECURITY.md) — private security-маршрут;
 - [CODE_OF_CONDUCT.md](CODE_OF_CONDUCT.md) — ожидания по взаимодействию.
@@ -20,7 +23,9 @@ Yanote остаётся **maintainer-led** проектом с узким про
 - **Новая возможность или расширение product surface** → `Feature request`
 - **Нераскрытая уязвимость** → только [SECURITY.md](SECURITY.md)
 
-Если изменение затрагивает продуктовые границы, новые поверхности, release/CI контракт или заметно расширяет scope, сначала откройте обсуждение в issue, а не начинайте с крупного PR.
+Если изменение затрагивает продуктовые границы, новые поверхности, release/CI контракт или заметно расширяет scope, сначала откройте обсуждение в issue: https://github.com/zuevrs/yanote/issues
+
+Большие изменения начинайте с обсуждения до подготовки крупного PR.
 
 ## Какие вклады обычно уместны
 

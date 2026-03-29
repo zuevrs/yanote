@@ -98,3 +98,4 @@ bash scripts/docs/verify-recorder-path.sh
 - Runnable service companion: [../../examples/springmvc-service/README.md](../../examples/springmvc-service/README.md)
 - Test metadata handoff: [test-tagging.md](test-tagging.md)
 - Quickstart path: [getting-started.md](getting-started.md)
+- Support matrix и compatibility baseline: [../support-matrix.md](../support-matrix.md), [../compatibility.md](../compatibility.md)

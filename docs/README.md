@@ -14,7 +14,9 @@ Yanote уже собран вокруг одного короткого product-
 
 - Вернуться к продуктовой витрине: [../README.md](../README.md)
 - Проверить release/support boundary: [release-and-support.md](release-and-support.md) — если нужны текущая стабильная линия `v1.0.x`, published bundle `yanote-analyzer.zip` и ограничения поддержки
-- Посмотреть актуальные требования: [requirements.md](requirements.md)
+- Открыть короткую матрицу поддержки: [support-matrix.md](support-matrix.md)
+- Проверить baseline-совместимость: [compatibility.md](compatibility.md)
+- Если нужен reference stack целиком, открыть [reference/README.md](reference/README.md)
 - Если нужен async path, открыть [guides/asyncapi-kafka.md](guides/asyncapi-kafka.md)
 
 Если нужен один newcomer path без лишней археологии, держитесь связки [guides/getting-started.md](guides/getting-started.md) → guide-level docs → [../examples/README.md](../examples/README.md).

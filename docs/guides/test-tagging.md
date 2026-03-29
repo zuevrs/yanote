@@ -116,3 +116,4 @@ bash scripts/docs/verify-analysis-doc-links.sh
 - Runnable RestAssured companion: [../../examples/tests-restassured/README.md](../../examples/tests-restassured/README.md)
 - Runnable service companion: [../../examples/springmvc-service/README.md](../../examples/springmvc-service/README.md)
 - Recorder proof loop: [recorder-spring-mvc.md](recorder-spring-mvc.md)
+- Термины и supported boundary wording: [../terminology.md](../terminology.md), [../support-matrix.md](../support-matrix.md)

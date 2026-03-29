@@ -7,6 +7,7 @@
 ## Куда вернуться за owner map
 
 - [`../README.md`](../README.md) — карта пользовательской документации и точка возврата для secondary reference surfaces.
+- [`../reference/README.md`](../reference/README.md) — reference stack по поддержке, совместимости, артефактам и upgrade rail.
 - [`../requirements.md`](../requirements.md) — канонический inventory требований, к которому привязаны traceability snapshots.
 
 ## Что владеет эта директория

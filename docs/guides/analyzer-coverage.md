@@ -85,4 +85,6 @@ bash scripts/ci/verify-security-semantics.sh
 - Нужен tagging handoff для `test.run_id` / `test.suite`: [test-tagging.md](test-tagging.md)
 - Нужен runnable repo demo через Compose: [../../examples/README.md](../../examples/README.md)
 - Нужен release/support контекст и published assets: [../release-and-support.md](../release-and-support.md)
+- Нужны machine-vs-support artifact rules: [../artifact-contracts.md](../artifact-contracts.md)
+- Нужна короткая support matrix и compatibility baseline: [../support-matrix.md](../support-matrix.md), [../compatibility.md](../compatibility.md)
 - Нужен AsyncAPI/Kafka path, а не HTTP/OpenAPI: [asyncapi-kafka.md](asyncapi-kafka.md)

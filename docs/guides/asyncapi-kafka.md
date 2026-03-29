@@ -169,6 +169,7 @@ Payload-schema drift surfaced on the proven Kafka path, но только в т�
 - HTTP/OpenAPI guide: [`docs/guides/analyzer-coverage.md`](analyzer-coverage.md)
 - Recorder guide для HTTP-first evidence path: [`docs/guides/recorder-spring-mvc.md`](recorder-spring-mvc.md)
 - Test-tagging contract: [`docs/guides/test-tagging.md`](test-tagging.md)
+- Support matrix, compatibility и artifact contracts: [../support-matrix.md](../support-matrix.md), [../compatibility.md](../compatibility.md), [../artifact-contracts.md](../artifact-contracts.md)
 - Single-service live proof: [`scripts/ci/verify-kafka-metadata-propagation.sh`](../../scripts/ci/verify-kafka-metadata-propagation.sh)
 - Two-service live proof: [`scripts/ci/verify-kafka-live-proof.sh`](../../scripts/ci/verify-kafka-live-proof.sh)
 - Deterministic merge helper: [`scripts/ci/merge-async-events-jsonl.mjs`](../../scripts/ci/merge-async-events-jsonl.mjs)

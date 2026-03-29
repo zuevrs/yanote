@@ -4,6 +4,6 @@
 
 Не открывайте публичный issue для нераскрытых уязвимостей.
 
-Этот канал нужен только для security-вопросов. Для обычных багов, интеграционных вопросов и навигации по документации используйте [SUPPORT.md](SUPPORT.md) и карту [docs/README.md](docs/README.md).
+Этот канал нужен только для security-вопросов. Для обычных багов, интеграционных вопросов и навигации по документации используйте [SUPPORT.md](SUPPORT.md), карту [docs/README.md](docs/README.md) и при необходимости [docs/support-matrix.md](docs/support-matrix.md).
 
-Текущие публичные границы поддержки, совместимости и ограничений остаются в [docs/release-and-support.md](docs/release-and-support.md).
+Текущие публичные границы поддержки, совместимости и ограничений остаются в [docs/release-and-support.md](docs/release-and-support.md) и [docs/compatibility.md](docs/compatibility.md).

@@ -4,6 +4,12 @@
 
 Ответы даются по возможности и без SLA.
 
+Перед открытием issue удобно быстро свериться с:
+
+- [docs/support-matrix.md](docs/support-matrix.md) — короткая матрица supported / narrow / deferred / internal surfaces;
+- [docs/compatibility.md](docs/compatibility.md) — baseline-совместимость;
+- [docs/artifact-contracts.md](docs/artifact-contracts.md) — какие артефакты считаются machine contract, а какие diagnostic/support surface.
+
 Если у вас воспроизводимый баг в текущей поддерживаемой поверхности, откройте issue: https://github.com/zuevrs/yanote/issues
 
 Для HTTP/OpenAPI path приложите версию или коммит, минимальное воспроизведение и, если применимо, bundle `yanote-validation-artifacts` (или ссылку на CI job/artifact), `events.jsonl`, `yanote-report.json`, `yanote-report.html` или логи analyzer/Gradle.

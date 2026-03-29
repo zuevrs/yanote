@@ -7,6 +7,7 @@
 ## Куда вернуться за текущим owner map
 
 - [`../README.md`](../README.md) — актуальная карта документации и точка возврата из historical surfaces.
+- [`../reference/README.md`](../reference/README.md) — reference stack по поддержке, совместимости, артефактам и upgrade rail.
 - [`../requirements.md`](../requirements.md) — текущий inventory требований, если нужно сверить историю с нынешними границами.
 
 ## Что лежит в директории

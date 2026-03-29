@@ -79,4 +79,6 @@ Runnable example этого handoff: [../../examples/tests-restassured/README.md
 - Нужны отдельные детали по recorder path: [recorder-spring-mvc.md](recorder-spring-mvc.md)
 - Нужны детали по tagging contract: [test-tagging.md](test-tagging.md)
 - Нужны детали по analyzer/report: [analyzer-coverage.md](analyzer-coverage.md)
+- Нужна короткая матрица поддержки: [../support-matrix.md](../support-matrix.md)
+- Нужна baseline-совместимость и reference docs: [../compatibility.md](../compatibility.md), [../reference/README.md](../reference/README.md)
 - Нужна вся карта docs: [../README.md](../README.md)
