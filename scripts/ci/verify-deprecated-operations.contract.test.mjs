@@ -3,7 +3,7 @@ import { readFile } from "node:fs/promises";
 import path from "node:path";
 import test from "node:test";
 
-const scriptPath = path.resolve("scripts/ci/verify-m013-s02-deprecated-operations.sh");
+const scriptPath = path.resolve("scripts/ci/verify-deprecated-operations.sh");
 
 async function loadScriptSource() {
   return readFile(scriptPath, "utf8");

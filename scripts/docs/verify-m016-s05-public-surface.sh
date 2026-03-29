@@ -45,7 +45,7 @@ run_stage "S05-10" "Maintainer navigation and rerun leaf" "bash scripts/docs/ver
   bash "${ROOT_DIR}/scripts/docs/verify-s05-navigation.sh"
 run_stage "S05-11" "Repo demo contract test" "node --test scripts/ci/run-v1-e2e.contract.test.mjs" \
   node --test "${ROOT_DIR}/scripts/ci/run-v1-e2e.contract.test.mjs"
-run_stage "S05-12" "Tag-driven release pipeline proof" "bash scripts/ci/verify-m016-s02-release-pipeline.sh" \
-  bash "${ROOT_DIR}/scripts/ci/verify-m016-s02-release-pipeline.sh"
+run_stage "S05-12" "Tag-driven release pipeline proof" "bash scripts/ci/verify-release-pipeline.sh" \
+  bash "${ROOT_DIR}/scripts/ci/verify-release-pipeline.sh"
 
 echo "M016 S05 public-surface proof passed: boundary, docs, recorder/analyzer/demo path, maintainer navigation, and release diagnostics stay aligned."

@@ -152,7 +152,7 @@ test("allows secondary analyzer proof wording after the newcomer section", { con
     "../../examples/README.md",
     ...Array.from({ length: 45 }, (_, index) => `body line ${index + 1}`),
     "HTTP Security Conformance",
-    "bash scripts/ci/verify-m012-s02-security-semantics.sh",
+    "bash scripts/ci/verify-security-semantics.sh",
     "security-semantics.stdout",
     "security-semantics.stderr",
     "security-semantics-yanote-report.json",

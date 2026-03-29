@@ -36,7 +36,7 @@ bash scripts/docs/verify-m016-s05-public-surface.sh
     Проверяет owner maps, maintainer leaves и discoverability этого rerun surface.
 11. `S05-11` — `node --test scripts/ci/run-v1-e2e.contract.test.mjs`  
     Проверяет repo demo contract и retained example/report sidecars без запуска ad hoc ручных шагов.
-12. `S05-12` — `bash scripts/ci/verify-m016-s02-release-pipeline.sh`  
+12. `S05-12` — `bash scripts/ci/verify-release-pipeline.sh`
     Даёт tag-driven release proof с retained publication, bundle и notes diagnostics.
 
 ## Что смотреть при падении

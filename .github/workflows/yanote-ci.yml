@@ -131,7 +131,7 @@ jobs:
         run: |
           mkdir -p .yanote-ci
           set +e
-          bash scripts/ci/verify-m004-s03-live-kafka-proof.sh
+          bash scripts/ci/verify-kafka-live-proof.sh
           exit_code=$?
           set -e
           printf '%s\n' "${exit_code}" > .yanote-ci/live-kafka-proof-exit-code.txt
@@ -143,7 +143,7 @@ jobs:
         run: |
           mkdir -p .yanote-ci
           set +e
-          bash scripts/ci/verify-m015-s02-live-rabbitmq-proof.sh
+          bash scripts/ci/verify-rabbitmq-live-proof.sh
           exit_code=$?
           set -e
           printf '%s\n' "${exit_code}" > .yanote-ci/live-rabbitmq-proof-exit-code.txt
@@ -155,7 +155,7 @@ jobs:
         run: |
           mkdir -p .yanote-ci
           set +e
-          bash scripts/ci/verify-m015-s03-combined-report.sh
+          bash scripts/ci/verify-combined-report.sh
           exit_code=$?
           set -e
           printf '%s\n' "${exit_code}" > .yanote-ci/combined-proof-exit-code.txt

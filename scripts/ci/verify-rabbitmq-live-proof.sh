@@ -38,7 +38,7 @@ OPTIONAL_EXPORT_ARTIFACTS="single-service-proof.log,runtime-selected-async-repor
 
 usage() {
   cat <<'EOF'
-Usage: bash scripts/ci/verify-m015-s02-live-rabbitmq-proof.sh [--retain-temp-on-failure]
+Usage: bash scripts/ci/verify-rabbitmq-live-proof.sh [--retain-temp-on-failure]
 EOF
 }
 

@@ -3,7 +3,7 @@ import { readFile } from "node:fs/promises";
 import path from "node:path";
 import test from "node:test";
 
-const scriptPath = path.resolve("scripts/ci/verify-m016-s02-release-pipeline.sh");
+const scriptPath = path.resolve("scripts/ci/verify-release-pipeline.sh");
 
 async function loadScriptSource() {
   return readFile(scriptPath, "utf8");

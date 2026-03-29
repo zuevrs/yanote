@@ -73,7 +73,7 @@ const expectedStages = [
   {
     label: "S05-12",
     title: "Tag-driven release pipeline proof",
-    command: "bash scripts/ci/verify-m016-s02-release-pipeline.sh",
+    command: "bash scripts/ci/verify-release-pipeline.sh",
   },
 ];
 
@@ -140,7 +140,7 @@ test("maintainer navigation knows about the public-surface proof leaf and its ca
   assert.match(releaseSigningSource, /bash scripts\/ci\/verify-m016-s02-release-pipeline\.sh/);
   assert.match(releaseSigningSource, /bash scripts\/docs\/verify-m016-s05-public-surface\.sh/);
   assert.ok(
-    releaseSigningSource.indexOf("bash scripts/ci/verify-m016-s02-release-pipeline.sh") <
+    releaseSigningSource.indexOf("bash scripts/ci/verify-release-pipeline.sh") <
       releaseSigningSource.indexOf("bash scripts/docs/verify-m016-s05-public-surface.sh"),
     "release-signing workflow should mention the release-candidate proof before the final public-surface gate",
   );

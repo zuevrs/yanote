@@ -154,10 +154,10 @@ require_before "$REQUIREMENTS_DOC" '[`docs/README.md`](README.md)' "## v1 Requir
 require_contains "$RELEASE_SIGNING_DOC" "maintainer-only leaf" "release-signing audience label"
 require_contains "$RELEASE_SIGNING_DOC" '[`docs/maintainers/README.md`](README.md)' "maintainer owner-map backlink"
 require_contains "$RELEASE_SIGNING_DOC" "public-surface-proof.md" "public-surface proof leaf link"
-require_contains "$RELEASE_SIGNING_DOC" "bash scripts/ci/verify-m016-s02-release-pipeline.sh" "local release-candidate proof command"
+require_contains "$RELEASE_SIGNING_DOC" "bash scripts/ci/verify-release-pipeline.sh" "local release-candidate proof command"
 require_contains "$RELEASE_SIGNING_DOC" "bash scripts/docs/verify-m016-s05-public-surface.sh" "final public-surface proof command"
 require_before "$RELEASE_SIGNING_DOC" '[`docs/maintainers/README.md`](README.md)' "## Current policy" "maintainer owner-map backlink ordering"
-require_before "$RELEASE_SIGNING_DOC" "bash scripts/ci/verify-m016-s02-release-pipeline.sh" "bash scripts/docs/verify-m016-s05-public-surface.sh" "release proof ordering"
+require_before "$RELEASE_SIGNING_DOC" "bash scripts/ci/verify-release-pipeline.sh" "bash scripts/docs/verify-m016-s05-public-surface.sh" "release proof ordering"
 
 require_contains "$TRACEABILITY_MATRIX_DOC" "reference-only leaf" "traceability leaf audience label"
 require_contains "$TRACEABILITY_MATRIX_DOC" '[`docs/traceability/README.md`](README.md)' "traceability owner-map backlink"

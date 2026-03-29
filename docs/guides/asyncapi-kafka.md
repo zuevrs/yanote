@@ -22,16 +22,16 @@
 Перед тем как переносить путь в свой сервис или спорить о границах поддержки, перепроверьте три авторитетные proof-команды widened surface:
 
 ```bash
-bash scripts/ci/verify-m004-s03-live-kafka-proof.sh
-bash scripts/ci/verify-m015-s02-live-rabbitmq-proof.sh
-bash scripts/ci/verify-m015-s03-combined-report.sh
+bash scripts/ci/verify-kafka-live-proof.sh
+bash scripts/ci/verify-rabbitmq-live-proof.sh
+bash scripts/ci/verify-combined-report.sh
 ```
 
 Что именно они доказывают:
 
-- [`scripts/ci/verify-m004-s03-live-kafka-proof.sh`](../../scripts/ci/verify-m004-s03-live-kafka-proof.sh) — two-service live Kafka proof: producer/consumer raw JSONL, deterministic merge, happy-path `async-report`, retained runtime-selection companion и retained schema-failure companion для proven Kafka path.
-- [`scripts/ci/verify-m015-s02-live-rabbitmq-proof.sh`](../../scripts/ci/verify-m015-s02-live-rabbitmq-proof.sh) — first live RabbitMQ/AMQP proof: producer/consumer raw JSONL с `kind: "amqp"`, deterministic merge, happy-path `async-report`, `protocols=amqp`, declared semantics и явное отсутствие fabricated Kafka-only companion artifacts.
-- [`scripts/ci/verify-m015-s03-combined-report.sh`](../../scripts/ci/verify-m015-s03-combined-report.sh) — retained combined proof: генерирует отдельный HTTP child report, берёт retained RabbitMQ async child report и собирает `yanote-combined-report.json` / `yanote-combined-report.html` с явными child-path ссылками вместо blended denominator.
+- [`scripts/ci/verify-kafka-live-proof.sh`](../../scripts/ci/verify-kafka-live-proof.sh) — two-service live Kafka proof: producer/consumer raw JSONL, deterministic merge, happy-path `async-report`, retained runtime-selection companion и retained schema-failure companion для proven Kafka path.
+- [`scripts/ci/verify-rabbitmq-live-proof.sh`](../../scripts/ci/verify-rabbitmq-live-proof.sh) — first live RabbitMQ/AMQP proof: producer/consumer raw JSONL с `kind: "amqp"`, deterministic merge, happy-path `async-report`, `protocols=amqp`, declared semantics и явное отсутствие fabricated Kafka-only companion artifacts.
+- [`scripts/ci/verify-combined-report.sh`](../../scripts/ci/verify-combined-report.sh) — retained combined proof: генерирует отдельный HTTP child report, берёт retained RabbitMQ async child report и собирает `yanote-combined-report.json` / `yanote-combined-report.html` с явными child-path ссылками вместо blended denominator.
 
 После T02 эти proof-скрипты экспортируют три правдивые поверхности:
 
@@ -169,6 +169,6 @@ Payload-schema drift surfaced on the proven Kafka path, но только в т�
 - HTTP/OpenAPI guide: [`docs/guides/analyzer-coverage.md`](analyzer-coverage.md)
 - Recorder guide для HTTP-first evidence path: [`docs/guides/recorder-spring-mvc.md`](recorder-spring-mvc.md)
 - Test-tagging contract: [`docs/guides/test-tagging.md`](test-tagging.md)
-- Single-service live proof: [`scripts/ci/verify-m004-s02-metadata-propagation.sh`](../../scripts/ci/verify-m004-s02-metadata-propagation.sh)
-- Two-service live proof: [`scripts/ci/verify-m004-s03-live-kafka-proof.sh`](../../scripts/ci/verify-m004-s03-live-kafka-proof.sh)
+- Single-service live proof: [`scripts/ci/verify-kafka-metadata-propagation.sh`](../../scripts/ci/verify-kafka-metadata-propagation.sh)
+- Two-service live proof: [`scripts/ci/verify-kafka-live-proof.sh`](../../scripts/ci/verify-kafka-live-proof.sh)
 - Deterministic merge helper: [`scripts/ci/merge-async-events-jsonl.mjs`](../../scripts/ci/merge-async-events-jsonl.mjs)

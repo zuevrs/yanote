@@ -115,9 +115,9 @@ test("workflow keeps widened async and combined triage in build-and-test before 
   assert.match(buildJob, /id:\s*run-live-kafka-proof/);
   assert.match(buildJob, /id:\s*run-live-rabbitmq-proof/);
   assert.match(buildJob, /id:\s*run-combined-proof/);
-  assert.match(buildJob, /bash scripts\/ci\/verify-m004-s03-live-kafka-proof\.sh/);
-  assert.match(buildJob, /bash scripts\/ci\/verify-m015-s02-live-rabbitmq-proof\.sh/);
-  assert.match(buildJob, /bash scripts\/ci\/verify-m015-s03-combined-report\.sh/);
+  assert.match(buildJob, /bash scripts\/ci\/verify-kafka-live-proof\.sh/);
+  assert.match(buildJob, /bash scripts\/ci\/verify-rabbitmq-live-proof\.sh/);
+  assert.match(buildJob, /bash scripts\/ci\/verify-combined-report\.sh/);
   assert.match(buildJob, /- name:\s*Collect build-and-test artifacts[\s\S]*?if:\s*\$\{\{\s*always\(\)\s*\}\}/);
   assert.match(buildJob, /- name:\s*Render Kafka GitHub summary[\s\S]*?if:\s*\$\{\{\s*always\(\)\s*\}\}/);
   assert.match(buildJob, /- name:\s*Render Kafka GitHub summary[\s\S]*?--report "\$\{YANOTE_ARTIFACT_DIR\}\/live-kafka-proof\/yanote-async-report\.json"/);

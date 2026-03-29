@@ -105,7 +105,7 @@ require_contains "$ANALYZER_GUIDE" "security-semantics.stderr" "security sidecar
 require_contains "$ANALYZER_GUIDE" "security-semantics-yanote-report.json" "security sidecar"
 require_contains "$ANALYZER_GUIDE" "artifact-manifest.txt" "security provenance note"
 require_contains "$ANALYZER_GUIDE" "artifact-source-paths.txt" "security provenance note"
-require_contains "$ANALYZER_GUIDE" "bash scripts/ci/verify-m012-s02-security-semantics.sh" "focused security proof command"
+require_contains "$ANALYZER_GUIDE" "bash scripts/ci/verify-security-semantics.sh" "focused security proof command"
 require_contains "$ANALYZER_GUIDE" "fixture-backed proof" "security provenance wording"
 require_contains "$ANALYZER_GUIDE" 'raw `http-security-api-key.fixture.jsonl` в `build-and-test-artifacts/v1-e2e/` не копируется' "raw fixture exclusion wording"
 require_contains "$ANALYZER_GUIDE" "security: []" "security clear wording"
@@ -132,7 +132,7 @@ require_contains "$ROOT_README" "docs/guides/test-tagging.md" "canonical tagging
 require_contains "$RECORDER_GUIDE" "test-tagging.md" "canonical tagging guide link"
 require_contains "$TAG_GUIDE" "coverage.perOperation[].suites" "report suite wording"
 require_contains "$RESTASSURED_EXAMPLE" "../../docs/guides/test-tagging.md" "canonical tagging guide link"
-require_contains "$RELEASE_DOC" "bash scripts/ci/verify-m012-s02-security-semantics.sh" "release/support security proof command"
+require_contains "$RELEASE_DOC" "bash scripts/ci/verify-security-semantics.sh" "release/support security proof command"
 
 require_max_lines "$TAG_GUIDE" 140
 require_max_lines "$RESTASSURED_EXAMPLE" 70

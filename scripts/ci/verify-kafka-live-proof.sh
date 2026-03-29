@@ -49,7 +49,7 @@ SCHEMA_FAILURE_ASYNC_SPEC_PATH="yanote-js/test/fixtures/asyncapi/spring-kafka-tw
 
 usage() {
   cat <<'EOF'
-Usage: bash scripts/ci/verify-m004-s03-live-kafka-proof.sh [--retain-temp-on-failure] [--simulate-analyzer-failure]
+Usage: bash scripts/ci/verify-kafka-live-proof.sh [--retain-temp-on-failure] [--simulate-analyzer-failure]
 EOF
 }
 
@@ -182,7 +182,7 @@ if ! (
   cd "${ROOT_DIR}" && \
   YANOTE_EXPECTED_RUN_ID="${SINGLE_SERVICE_RUN_ID}" \
   YANOTE_EXPECTED_SUITE="${SINGLE_SERVICE_SUITE}" \
-  bash scripts/ci/verify-m004-s02-metadata-propagation.sh
+  bash scripts/ci/verify-kafka-metadata-propagation.sh
 ) >"${SINGLE_SERVICE_LOG_PATH}" 2>&1; then
   fail "Single-service republish proof failed."
 fi

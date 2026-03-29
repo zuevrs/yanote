@@ -75,7 +75,7 @@ Fail-closed сигналы для чтения отчёта: `SEMANTIC_HTTP_MISS
 Если нужно быстро перепроверить эту boundary локально, используйте focused fixture-backed proof:
 
 ```bash
-bash scripts/ci/verify-m012-s02-security-semantics.sh
+bash scripts/ci/verify-security-semantics.sh
 ```
 
 Этот fixture-backed proof публикует provenance через `artifact-manifest.txt` и `artifact-source-paths.txt`; security matrix описывает fixture-backed proof, а raw `http-security-api-key.fixture.jsonl` в `build-and-test-artifacts/v1-e2e/` не копируется в public-facing path. Более широкие OpenAPI-объекты пока deferred: `examples`, `links`, `callbacks` и `webhooks`.

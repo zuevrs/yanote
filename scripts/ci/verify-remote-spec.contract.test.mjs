@@ -3,7 +3,7 @@ import { readFile } from "node:fs/promises";
 import path from "node:path";
 import test from "node:test";
 
-const scriptPath = path.resolve("scripts/ci/verify-m013-s01-remote-spec.sh");
+const scriptPath = path.resolve("scripts/ci/verify-remote-spec.sh");
 
 async function loadScriptSource() {
   return readFile(scriptPath, "utf8");

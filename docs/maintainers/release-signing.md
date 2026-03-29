@@ -95,7 +95,7 @@ Run both local proof gates before pushing the real tag:
 1. Local release-candidate proof:
 
    ```bash
-   bash scripts/ci/verify-m016-s02-release-pipeline.sh
+   bash scripts/ci/verify-release-pipeline.sh
    ```
 
 2. Final public-surface acceptance proof:

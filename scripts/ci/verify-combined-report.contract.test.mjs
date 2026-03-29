@@ -3,7 +3,7 @@ import { readFile } from "node:fs/promises";
 import path from "node:path";
 import test from "node:test";
 
-const scriptPath = path.resolve("scripts/ci/verify-m015-s03-combined-report.sh");
+const scriptPath = path.resolve("scripts/ci/verify-combined-report.sh");
 
 async function loadScriptSource() {
   return readFile(scriptPath, "utf8");
@@ -36,7 +36,7 @@ test("combined-report verifier runs the dist report and combined-report entrypoi
   assert.match(source, /HTTP_STDERR_PATH="\$\{HTTP_REPORT_DIR\}\/http-report\.stderr"/);
   assert.match(source, /COMBINED_STDOUT_PATH="\$\{COMBINED_REPORT_DIR\}\/combined-report\.stdout"/);
   assert.match(source, /COMBINED_STDERR_PATH="\$\{COMBINED_REPORT_DIR\}\/combined-report\.stderr"/);
-  assert.match(source, /Missing retained async child report at \$\{RETAINED_ASYNC_REPORT_PATH\}\. Rerun bash scripts\/ci\/verify-m015-s02-live-rabbitmq-proof\.sh to regenerate the canonical S02 async proof\./);
+  assert.match(source, /Missing retained async child report at \$\{RETAINED_ASYNC_REPORT_PATH\}\. Rerun bash scripts\/ci\/verify-rabbitmq-live-proof\.sh to regenerate the canonical S02 async proof\./);
 });
 
 test("combined-report verifier pins the happy-path summary, AMQP attribution, and child drill-down paths", async () => {
