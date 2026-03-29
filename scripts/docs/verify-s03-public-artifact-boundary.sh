@@ -5,6 +5,7 @@ ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
 MODE="${1:-tracked}"
 
 failures=0
+tracked_count=0
 
 error() {
   echo "ERROR: $1" >&2
@@ -15,56 +16,129 @@ note() {
   echo "INFO: $1"
 }
 
+require_file() {
+  local path="$1"
+
+  if [[ ! -f "${ROOT_DIR}/${path}" ]]; then
+    error "Missing required file: ${path}"
+    return 1
+  fi
+}
+
+require_gitignore_rule() {
+  local rule="$1"
+
+  require_file ".gitignore" || return
+
+  if ! grep -Fqx -- "$rule" "${ROOT_DIR}/.gitignore"; then
+    error ".gitignore is missing clone-local boundary rule: ${rule}"
+  fi
+}
+
 require_not_contains() {
   local path="$1"
   local needle="$2"
   local label="$3"
 
-  if [[ ! -f "${ROOT_DIR}/${path}" ]]; then
-    error "Missing required doc for ${label}: ${path}"
-    return
-  fi
+  require_file "$path" || return
 
   if grep -Fq -- "$needle" "${ROOT_DIR}/${path}"; then
     error "${path} still exposes ${label}: ${needle}"
   fi
 }
 
-tracked_inventory="$(git -C "${ROOT_DIR}" ls-files .bg-shell .gsd dist)"
-tracked_count="$(printf '%s' "${tracked_inventory}" | awk 'NF{count++} END{print count+0}')"
-note "Tracked public-boundary inventory entries under .bg-shell/.gsd/dist: ${tracked_count}"
+check_mode() {
+  case "${MODE}" in
+    tracked|all) ;;
+    *)
+      error "Unsupported verification mode '${MODE}'. Supported modes: tracked, all."
+      ;;
+  esac
+}
 
-if [[ -n "${tracked_inventory}" ]]; then
-  printf '%s
-' "${tracked_inventory}" >&2
-  error "Expected no tracked public-boundary entries under .bg-shell/.gsd/dist."
-fi
+check_ignore_contract() {
+  require_gitignore_rule ".bg-shell/"
+  require_gitignore_rule ".gsd/"
+  require_gitignore_rule ".tmp/"
+  require_gitignore_rule ".tmp-*"
+  require_gitignore_rule ".vite/"
+  require_gitignore_rule "dist/"
+}
 
-if ! grep -Fq '.gsd/' "${ROOT_DIR}/.gitignore"; then
-  error ".gitignore does not ignore .gsd/."
-fi
+check_tracked_inventory() {
+  local inventory
+  local path
 
-if ! grep -Fq 'dist/' "${ROOT_DIR}/.gitignore"; then
-  error ".gitignore does not ignore dist/."
-fi
+  if ! inventory="$(git -C "${ROOT_DIR}" ls-files 2>&1)"; then
+    error "git ls-files failed while collecting tracked public-boundary inventory: ${inventory}"
+    return
+  fi
 
-if [[ "${MODE}" == "all" ]]; then
-  require_not_contains "README.md" ".gsd/PROJECT.md" "public .gsd surface"
-  require_not_contains "README.md" ".gsd/REQUIREMENTS.md" "public .gsd surface"
-  require_not_contains "README.md" ".gsd/DECISIONS.md" "public .gsd surface"
+  while IFS= read -r path; do
+    [[ -n "${path}" ]] || continue
+
+    case "${path}" in
+      .bg-shell|.bg-shell/*|.gsd|.gsd/*|.tmp|.tmp/*|.tmp-*|.tmp-*/*|.vite|.vite/*|dist|dist/*)
+        tracked_count=$((tracked_count + 1))
+        error "Tracked clone-local root remains in git inventory: ${path}"
+        ;;
+    esac
+  done <<< "${inventory}"
+
+  note "Tracked public-boundary inventory entries under .bg-shell/.gsd/.tmp/.tmp-*/.vite/dist: ${tracked_count}"
+}
+
+check_public_surface_boundary() {
+  require_not_contains "README.md" ".gsd/" "clone-local .gsd reference"
+  require_not_contains "README.md" ".tmp/" "clone-local .tmp reference"
+  require_not_contains "README.md" ".tmp-" "clone-local .tmp-* reference"
+  require_not_contains "README.md" ".vite/" "clone-local .vite reference"
+  require_not_contains "README.md" ".bg-shell/" "clone-local .bg-shell reference"
+  require_not_contains "README.md" ".yanote-ci/" "clone-local proof bundle reference"
   require_not_contains "README.md" "dist/README.md" "tracked dist owner map"
   require_not_contains "README.md" "dist/flatdir-recorder/README.md" "tracked fallback doc"
   require_not_contains "README.md" "dist/node-analyzer/README.md" "tracked fallback doc"
 
+  require_not_contains "docs/README.md" ".gsd/" "clone-local .gsd reference"
+  require_not_contains "docs/README.md" ".tmp/" "clone-local .tmp reference"
+  require_not_contains "docs/README.md" ".tmp-" "clone-local .tmp-* reference"
+  require_not_contains "docs/README.md" ".vite/" "clone-local .vite reference"
+  require_not_contains "docs/README.md" ".bg-shell/" "clone-local .bg-shell reference"
+  require_not_contains "docs/README.md" ".yanote-ci/" "clone-local proof bundle reference"
   require_not_contains "docs/README.md" "../dist/README.md" "tracked dist owner map"
-  require_not_contains "examples/README.md" "../dist/README.md" "tracked dist owner map"
-  require_not_contains "docs/guides/recorder-spring-mvc.md" "../../dist/flatdir-recorder/README.md" "tracked fallback doc"
-  require_not_contains "docs/guides/analyzer-coverage.md" "../../dist/node-analyzer/README.md" "tracked fallback doc"
+
+  require_not_contains "docs/release-and-support.md" ".gsd/" "clone-local .gsd reference"
+  require_not_contains "docs/release-and-support.md" ".tmp/" "clone-local .tmp reference"
+  require_not_contains "docs/release-and-support.md" ".tmp-" "clone-local .tmp-* reference"
+  require_not_contains "docs/release-and-support.md" ".vite/" "clone-local .vite reference"
+  require_not_contains "docs/release-and-support.md" ".bg-shell/" "clone-local .bg-shell reference"
+  require_not_contains "docs/release-and-support.md" ".yanote-ci/" "clone-local proof bundle reference"
+
+  require_not_contains "SUPPORT.md" ".gsd/" "clone-local .gsd reference"
+  require_not_contains "SUPPORT.md" ".tmp/" "clone-local .tmp reference"
+  require_not_contains "SUPPORT.md" ".tmp-" "clone-local .tmp-* reference"
+  require_not_contains "SUPPORT.md" ".vite/" "clone-local .vite reference"
+  require_not_contains "SUPPORT.md" ".bg-shell/" "clone-local .bg-shell reference"
+  require_not_contains "SUPPORT.md" ".yanote-ci/" "clone-local proof bundle reference"
+}
+
+check_mode
+if (( failures == 0 )); then
+  check_ignore_contract
+  check_tracked_inventory
+
+  if [[ "${MODE}" == "all" ]]; then
+    check_public_surface_boundary
+  fi
 fi
 
 if (( failures > 0 )); then
-  echo "S03 public artifact boundary verification failed with ${failures} issue(s)." >&2
+  echo "S03 public artifact boundary verification failed in mode '${MODE}' with ${failures} issue(s)." >&2
   exit 1
 fi
 
-echo "S03 public artifact boundary verification passed in mode '${MODE}': tracked .bg-shell/.gsd/dist residue is gone and public docs no longer point at private boundary files."
+if [[ "${MODE}" == "all" ]]; then
+  echo "S03 public artifact boundary verification passed in mode '${MODE}': clone-local roots are untracked and the public landing/support surfaces stay silent about private paths."
+else
+  echo "S03 public artifact boundary verification passed in mode '${MODE}': clone-local ignore rules are present and tracked inventory is clean."
+fi

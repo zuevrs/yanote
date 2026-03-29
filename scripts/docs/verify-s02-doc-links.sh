@@ -7,6 +7,7 @@ ROOT_README="README.md"
 TAG_GUIDE="docs/guides/test-tagging.md"
 RECORDER_GUIDE="docs/guides/recorder-spring-mvc.md"
 ANALYZER_GUIDE="docs/guides/analyzer-coverage.md"
+SERVICE_EXAMPLE="examples/springmvc-service/README.md"
 RESTASSURED_EXAMPLE="examples/tests-restassured/README.md"
 RELEASE_DOC="docs/release-and-support.md"
 
@@ -26,6 +27,23 @@ require_contains() {
   local label="$3"
 
   grep -Fq -- "$needle" "${ROOT_DIR}/${path}" || fail "${path} is missing ${label}: ${needle}"
+}
+
+require_max_lines() {
+  local path="$1"
+  local max_lines="$2"
+
+  local line_count
+  line_count="$(python3 - <<'PY' "${ROOT_DIR}/${path}"
+from pathlib import Path
+import sys
+print(len(Path(sys.argv[1]).read_text(encoding='utf-8').splitlines()))
+PY
+)"
+
+  if (( line_count > max_lines )); then
+    fail "${path} is too long: ${line_count} lines (max ${max_lines})"
+  fi
 }
 
 check_local_markdown_links() {
@@ -65,6 +83,7 @@ for path in \
   "$TAG_GUIDE" \
   "$RECORDER_GUIDE" \
   "$ANALYZER_GUIDE" \
+  "$SERVICE_EXAMPLE" \
   "$RESTASSURED_EXAMPLE" \
   "$RELEASE_DOC"
 do
@@ -76,6 +95,7 @@ check_local_markdown_links \
   "$TAG_GUIDE" \
   "$RECORDER_GUIDE" \
   "$ANALYZER_GUIDE" \
+  "$SERVICE_EXAMPLE" \
   "$RESTASSURED_EXAMPLE" \
   "$RELEASE_DOC"
 
@@ -114,4 +134,33 @@ require_contains "$TAG_GUIDE" "coverage.perOperation[].suites" "report suite wor
 require_contains "$RESTASSURED_EXAMPLE" "../../docs/guides/test-tagging.md" "canonical tagging guide link"
 require_contains "$RELEASE_DOC" "bash scripts/ci/verify-m012-s02-security-semantics.sh" "release/support security proof command"
 
-echo "Doc link verification passed: analyzer guide, security boundary wording, and local markdown links are wired correctly."
+require_max_lines "$TAG_GUIDE" 140
+require_max_lines "$RESTASSURED_EXAMPLE" 70
+require_contains "$TAG_GUIDE" 'X-Test-Run-Id' "run-id header"
+require_contains "$TAG_GUIDE" 'X-Test-Suite' "suite header"
+require_contains "$TAG_GUIDE" 'test.run_id' "event run-id field"
+require_contains "$TAG_GUIDE" 'test.suite' "event suite field"
+require_contains "$TAG_GUIDE" 'coverage.perOperation[].suites' "report suites field"
+require_contains "$TAG_GUIDE" 'YanoteRestAssuredFilter.fromEnv()' "RestAssured convenience path"
+require_contains "$TAG_GUIDE" 'YANOTE_RUN_ID' "run-id env surface"
+require_contains "$TAG_GUIDE" 'yanote.suite' "shared suite property"
+require_contains "$TAG_GUIDE" 'YANOTE_SUITE' "demo suite env bridge"
+require_contains "$TAG_GUIDE" 'demo/env bridge' "demo-only boundary wording"
+require_contains "$TAG_GUIDE" 'YanoteSuiteNamePlugin' "Cucumber plugin surface"
+require_contains "$TAG_GUIDE" './gradlew --no-daemon :yanote-test-tags-restassured:test :yanote-test-tags-cucumber:test' "library verifier command"
+require_contains "$TAG_GUIDE" '../../examples/tests-restassured/README.md' "RestAssured example backlink"
+require_contains "$TAG_GUIDE" '../../examples/springmvc-service/README.md' "service example backlink"
+
+require_contains "$RESTASSURED_EXAMPLE" '../README.md' "examples landing link"
+require_contains "$RESTASSURED_EXAMPLE" '../../docs/guides/test-tagging.md' "canonical tagging guide link"
+require_contains "$RESTASSURED_EXAMPLE" '../../docs/guides/recorder-spring-mvc.md' "canonical recorder guide link"
+require_contains "$RESTASSURED_EXAMPLE" 'YANOTE_RUN_ID' "demo run-id env"
+require_contains "$RESTASSURED_EXAMPLE" 'YANOTE_SUITE' "demo suite env"
+require_contains "$RESTASSURED_EXAMPLE" 'System.setProperty("yanote.suite", ...)' "suite bridge wording"
+require_contains "$RESTASSURED_EXAMPLE" 'X-Test-Run-Id' "request header wording"
+require_contains "$RESTASSURED_EXAMPLE" 'X-Test-Suite' "request header wording"
+require_contains "$RESTASSURED_EXAMPLE" 'coverage.perOperation[].suites' "report suites wording"
+require_contains "$RESTASSURED_EXAMPLE" '../springmvc-service/README.md' "service example backlink"
+require_contains "$RESTASSURED_EXAMPLE" 'demo/env bridge' "demo-only boundary wording"
+
+echo "Doc link verification passed: analyzer guide, tagging contract wording, and example backlinks all match the short shared contract surfaces."

@@ -54,7 +54,7 @@ import {
   type ResolvedSpecSource,
   type SpecSourceError
 } from "./spec/specSource.js";
-import { TOOL_VERSION } from "./version.js";
+import { resolveToolVersion } from "./version.js";
 
 export type CliResult = {
   code: number;
@@ -99,8 +99,9 @@ function createProgram(io?: { out?: (chunk: string) => void; err?: (chunk: strin
   const writeErr = io?.err ?? (() => {});
 
   const program = new Command();
+  const toolVersion = resolveToolVersion();
   program.name("yanote");
-  program.version(TOOL_VERSION);
+  program.version(toolVersion);
 
   program.exitOverride();
   program.configureOutput({
@@ -266,7 +267,7 @@ async function executeReportCommand(opts: any, writeOut: (chunk: string) => void
       }
 
       report = buildReport(coverage, {
-        toolVersion: TOOL_VERSION,
+        toolVersion: resolveToolVersion(),
         specSource: specSource.provenance,
         eventTimestamps: events.items
           .map((event) => event.ts)
@@ -413,7 +414,7 @@ async function executeAsyncReportCommand(
       }
 
       report = buildAsyncReport(coverage, {
-        toolVersion: TOOL_VERSION,
+        toolVersion: resolveToolVersion(),
         specSource: specSource.provenance,
         eventTimestamps: events.items
           .map((event) => event.ts)
@@ -486,7 +487,7 @@ async function executeCombinedReportCommand(
   if (httpChildResult.ok && asyncChildResult.ok) {
     try {
       report = buildCombinedReport({
-        toolVersion: TOOL_VERSION,
+        toolVersion: resolveToolVersion(),
         http: {
           report: httpChildResult.report,
           reportPath: httpReportPath

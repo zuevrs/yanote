@@ -56,7 +56,8 @@ read_project_version() {
 
 classify_retry_eligibility() {
   local failure_message="${1:-}"
-  local normalized="${failure_message,,}"
+  local normalized=""
+  normalized="$(printf '%s' "$failure_message" | tr '[:upper:]' '[:lower:]')"
   case "$normalized" in
     *timeout*|*"timed out"*|*"connection reset"*|*"connection refused"*|*"temporary unavailable"*|*429*|*502*|*503*|*504*)
       echo "true|transient-network"
@@ -66,6 +67,20 @@ classify_retry_eligibility() {
       ;;
     *)
       echo "false|non-transient"
+      ;;
+  esac
+}
+
+is_missing_signature_output() {
+  local verify_output="${1:-}"
+  local normalized=""
+  normalized="$(printf '%s' "$verify_output" | tr '[:upper:]' '[:lower:]')"
+  case "$normalized" in
+    *"no signature"*|*"no signed tag"*)
+      return 0
+      ;;
+    *)
+      return 1
       ;;
   esac
 }
@@ -92,10 +107,26 @@ render_diagnostics() {
   local class_name
   for class_name in "${DIAGNOSTIC_CLASS_ORDER[@]}"; do
     case "$class_name" in
-      input) render_group "$class_name" "${INPUT_DIAGNOSTICS[@]}" ;;
-      policy) render_group "$class_name" "${POLICY_DIAGNOSTICS[@]}" ;;
-      auth) render_group "$class_name" "${AUTH_DIAGNOSTICS[@]}" ;;
-      transient) render_group "$class_name" "${TRANSIENT_DIAGNOSTICS[@]}" ;;
+      input)
+        if [[ "${#INPUT_DIAGNOSTICS[@]}" -gt 0 ]]; then
+          render_group "$class_name" "${INPUT_DIAGNOSTICS[@]}"
+        fi
+        ;;
+      policy)
+        if [[ "${#POLICY_DIAGNOSTICS[@]}" -gt 0 ]]; then
+          render_group "$class_name" "${POLICY_DIAGNOSTICS[@]}"
+        fi
+        ;;
+      auth)
+        if [[ "${#AUTH_DIAGNOSTICS[@]}" -gt 0 ]]; then
+          render_group "$class_name" "${AUTH_DIAGNOSTICS[@]}"
+        fi
+        ;;
+      transient)
+        if [[ "${#TRANSIENT_DIAGNOSTICS[@]}" -gt 0 ]]; then
+          render_group "$class_name" "${TRANSIENT_DIAGNOSTICS[@]}"
+        fi
+        ;;
       *)
         echo "Unexpected diagnostic class ordering entry: ${class_name}" >&2
         exit 2
@@ -127,6 +158,11 @@ verify_release_tag_signature() {
     return 0
   fi
 
+  if is_missing_signature_output "$verify_output"; then
+    fail_with_diagnostic "policy" "unsigned-tag" "Release tag '${release_tag}' must be a signed git tag." "false" "tag-not-signed"
+    return 1
+  fi
+
   local signing_public_key="${RELEASE_TAG_SIGNING_PUBLIC_KEY:-}"
   if [[ -n "$signing_public_key" ]]; then
     local imported_fingerprint=""
@@ -155,6 +191,11 @@ verify_release_tag_signature() {
 
     if verify_output="$(git verify-tag "$release_tag" 2>&1)"; then
       return 0
+    fi
+
+    if is_missing_signature_output "$verify_output"; then
+      fail_with_diagnostic "policy" "unsigned-tag" "Release tag '${release_tag}' must be a signed git tag." "false" "tag-not-signed"
+      return 1
     fi
 
     local compact_verify_output
@@ -269,17 +310,17 @@ main() {
       tag_object_type="$(git cat-file -t "refs/tags/${release_tag}" 2>/dev/null || true)"
       if [[ "$tag_object_type" != "tag" ]]; then
         fail_with_diagnostic "policy" "non-annotated-tag" "Release tag '${release_tag}' must resolve to an annotated tag object (got '${tag_object_type:-missing}')." "false" "tag-object-required"
-      fi
+      else
+        if ! verify_release_tag_signature "$release_tag"; then
+          :
+        fi
 
-      if ! verify_release_tag_signature "$release_tag"; then
-        :
-      fi
-
-      if [[ -n "$main_ref" ]]; then
-        local tag_commit
-        tag_commit="$(git rev-list -n 1 "$release_tag")"
-        if ! git merge-base --is-ancestor "$tag_commit" "$main_ref"; then
-          fail_with_diagnostic "policy" "main-lineage" "Release tag '${release_tag}' is not reachable from ${main_ref}." "false" "not-on-main"
+        if [[ -n "$main_ref" ]]; then
+          local tag_commit
+          tag_commit="$(git rev-list -n 1 "$release_tag")"
+          if ! git merge-base --is-ancestor "$tag_commit" "$main_ref"; then
+            fail_with_diagnostic "policy" "main-lineage" "Release tag '${release_tag}' is not reachable from ${main_ref}." "false" "not-on-main"
+          fi
         fi
       fi
     else

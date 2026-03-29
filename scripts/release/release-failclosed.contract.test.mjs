@@ -14,19 +14,40 @@ async function loadJreleaserConfig() {
   return readFile(jreleaserConfigPath, "utf8");
 }
 
-test("fail-closed diagnostics encode deterministic class ordering", async () => {
+test("fail-closed diagnostics keep deterministic class ordering and grouped rendering", async () => {
   const source = await loadPreflightSource();
-  assert.match(source, /DIAGNOSTIC_CLASS_ORDER/);
-  assert.match(source, /input/);
-  assert.match(source, /policy/);
-  assert.match(source, /auth/);
-  assert.match(source, /transient/);
+  assert.match(source, /DIAGNOSTIC_CLASS_ORDER=\(input policy auth transient\)/);
+  assert.match(source, /render_diagnostics\(\)/);
+  assert.match(source, /render_group/);
+  assert.match(source, /LC_ALL=C sort/);
+  assert.match(source, /diagnostic-class=\$\{class_name\} code=\$\{code\}/);
 });
 
-test("preflight emits deterministic retry-eligibility diagnostics", async () => {
+test("preflight source preserves exact fail-closed codes for runtime-tested rejection paths", async () => {
   const source = await loadPreflightSource();
-  assert.match(source, /retry-eligible/);
-  assert.match(source, /retry_reason|retry-reason/);
+  for (const code of [
+    "missing-tag",
+    "invalid-tag-format",
+    "prerelease-tag",
+    "non-annotated-tag",
+    "unsigned-tag",
+    "main-lineage",
+    "snapshot-version",
+    "release-freeze",
+    "missing-credentials",
+    "retry-eligibility",
+  ]) {
+    assert.match(source, new RegExp(code));
+  }
+});
+
+test("preflight source preserves deterministic retry-eligibility outputs", async () => {
+  const source = await loadPreflightSource();
+  assert.match(source, /retry-eligible=/);
+  assert.match(source, /retry_reason=/);
+  assert.match(source, /retry-reason=/);
+  assert.match(source, /transient-network/);
+  assert.match(source, /non-transient/);
 });
 
 test("jreleaser contract targets Maven Central and enforces signing rules", async () => {

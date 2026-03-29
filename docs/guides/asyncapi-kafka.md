@@ -1,6 +1,6 @@
 # Канонический путь: AsyncAPI через Kafka, RabbitMQ и `combined-report`
 
-Это отдельный guide-level путь для widened async и combined coverage в Yanote. Он не заменяет HTTP/OpenAPI guide: для HTTP используйте [`docs/guides/analyzer-coverage.md`](analyzer-coverage.md), а здесь описана связка **Kafka или RabbitMQ/AMQP evidence → `node yanote-js/dist/yanote.cjs async-report` → `yanote-async-report.json` + `yanote-async-report.html`**, а также **child-attributed `combined-report` → `yanote-combined-report.json` + `yanote-combined-report.html`**.
+Это отдельный guide-level путь для widened async и combined coverage в Yanote. Он не заменяет HTTP/OpenAPI guide: для HTTP используйте [`docs/guides/analyzer-coverage.md`](analyzer-coverage.md), а здесь описана связка **Kafka или RabbitMQ/AMQP evidence → `./yanote-analyzer/bin/yanote async-report` → `yanote-async-report.json` + `yanote-async-report.html`**, а также **child-attributed `./yanote-analyzer/bin/yanote combined-report` → `yanote-combined-report.json` + `yanote-combined-report.html`**.
 
 Главное правило этого guide простое: не смешивайте HTTP `report` / `yanote-report.json` / `yanote-report.html` и async `async-report` / `yanote-async-report.json` / `yanote-async-report.html` в один размытый onboarding. Combined surface теперь поддержан, но он additive и child-attributed: он не превращает HTTP и async в один blended denominator, не заменяет отдельные proof bundles и не создаёт hosted dashboard.
 
@@ -9,7 +9,7 @@
 Сегодняшний проверенный async path в репозитории такой:
 
 - AsyncAPI как источник объявленного async-контракта;
-- source-built CLI из `yanote-js` с командами `async-report` и `combined-report`;
+- standalone analyzer bundle `yanote-analyzer.zip` с launcher-ом `bin/yanote`, который публикует команды `async-report` и `combined-report`;
 - отдельный proven Kafka path через retained bundle `.yanote-ci/live-kafka-proof/` и collected bundle `build-and-test-artifacts/live-kafka-proof/`;
 - отдельный proven RabbitMQ/AMQP path через retained bundle `.yanote-ci/live-rabbitmq-proof/` и collected bundle `build-and-test-artifacts/live-rabbitmq-proof/`;
 - child-attributed combined path через retained bundle `.tmp/m015-s03-combined-proof/` и collected bundle `build-and-test-artifacts/combined-proof/`, где `yanote-combined-report.json` / `yanote-combined-report.html` ссылаются на отдельные HTTP и async child reports;
@@ -49,7 +49,7 @@ Widened surface честно поддерживает **`raw` или `merged` as
 2. **Raw per-service async JSONL** — отдельные файлы сервиса-производителя и сервиса-потребителя, например `01-producer.events.jsonl` и `02-consumer.events.jsonl`.
 3. **Merged async JSONL** — детерминированно объединённый файл для multi-service анализа, например `merged-two-service.events.jsonl`.
 
-Для combined surface вход отдельный: `combined-report` не читает raw events напрямую, а берёт уже-retained HTTP child report плюс retained async child report.
+Для combined surface вход отдельный: `combined-report` не читает raw events напрямую, а берёт уже-retained HTTP child report плюс retained async child report. Командная форма при этом остаётся тем же launcher contract: `"${YANOTE}" combined-report ...`.
 
 Repo helper для merge уже есть:
 
@@ -62,25 +62,25 @@ node scripts/ci/merge-async-events-jsonl.mjs \
 
 Скрипт [`scripts/ci/merge-async-events-jsonl.mjs`](../../scripts/ci/merge-async-events-jsonl.mjs) сортирует входы по пути, детерминированно конкатенирует их и пишет один merged JSONL surface для `async-report`.
 
-## 4. Соберите CLI из исходников
+## 4. Подготовьте standalone CLI bundle
 
-Из корня репозитория:
+Канонический launcher surface один и тот же для published release asset и repo-local сборки текущего `HEAD`:
 
 ```bash
-npm -C yanote-js ci
-npm -C yanote-js run build
+./gradlew distStandaloneAnalyzer
+unzip -q build/distributions/yanote-analyzer.zip -d .
+YANOTE="$PWD/yanote-analyzer/bin/yanote"
+"${YANOTE}" --version
 ```
 
-После этого основной бинарь лежит здесь:
-
-- `yanote-js/dist/yanote.cjs`
+Если вы работаете не с текущим `HEAD`, а с опубликованным релизом, замените `build/distributions/yanote-analyzer.zip` на скачанный asset `yanote-analyzer.zip` из GitHub Releases. После распаковки launcher path остаётся тем же: `./yanote-analyzer/bin/yanote`.
 
 ## 5. Запустите `async-report`
 
 Минимальная команда:
 
 ```bash
-node yanote-js/dist/yanote.cjs async-report \
+"${YANOTE}" async-report \
   --spec /path/to/asyncapi.yaml \
   --events /path/to/async-events.jsonl \
   --out ./out
@@ -89,7 +89,7 @@ node yanote-js/dist/yanote.cjs async-report \
 Проверенный repo-пример для two-service merged evidence:
 
 ```bash
-node yanote-js/dist/yanote.cjs async-report \
+"${YANOTE}" async-report \
   --spec yanote-js/test/fixtures/asyncapi/spring-kafka-two-service.yaml \
   --events ./out/merged-two-service.events.jsonl \
   --out ./out \

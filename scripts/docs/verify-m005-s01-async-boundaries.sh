@@ -4,14 +4,18 @@ set -euo pipefail
 ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
 
 BOUNDARY_DOC="docs/release-and-support.md"
-REQUIREMENTS_DOC="docs/requirements.md"
-SUPPORT_DOC="SUPPORT.md"
+ROOT_README="README.md"
+DOCS_README="docs/README.md"
+ASYNC_GUIDE="docs/guides/asyncapi-kafka.md"
 
-failures=0
-
-error() {
+fail() {
   echo "ERROR: $1" >&2
-  failures=$((failures + 1))
+  exit 1
+}
+
+require_file() {
+  local path="$1"
+  [[ -f "${ROOT_DIR}/${path}" ]] || fail "Missing required surface: ${path}"
 }
 
 require_contains() {
@@ -19,12 +23,7 @@ require_contains() {
   local needle="$2"
   local label="$3"
 
-  if [[ ! -f "${ROOT_DIR}/${path}" ]]; then
-    error "Missing required surface for ${label}: ${path}"
-    return
-  fi
-
-  grep -Fq -- "$needle" "${ROOT_DIR}/${path}" || error "${path} is missing ${label}: ${needle}"
+  grep -Fq -- "$needle" "${ROOT_DIR}/${path}" || fail "${path} is missing ${label}: ${needle}"
 }
 
 reject_contains() {
@@ -32,76 +31,52 @@ reject_contains() {
   local needle="$2"
   local label="$3"
 
-  if [[ ! -f "${ROOT_DIR}/${path}" ]]; then
-    error "Missing required surface for ${label}: ${path}"
-    return
-  fi
-
   if grep -Fq -- "$needle" "${ROOT_DIR}/${path}"; then
-    error "${path} still contains stale ${label}: ${needle}"
+    fail "${path} still contains stale ${label}: ${needle}"
   fi
 }
 
-common_boundary_clauses=(
-  "Kafka-only"
-  "Spring Kafka-first"
-  "separate async report/gate"
-  "payload-schema drift surfaced on the proven Kafka path"
-  "routing percentages remain routing-first"
-  "retained Kafka headers remain unverifiable"
-  "broker-agnostic promise нет"
-)
-
-common_artifact_clauses=(
-  "raw или merged async JSONL"
-  "yanote-async-report.json"
-  "runtime-selected-async-report.stderr"
-  "runtime-selected-yanote-async-report.json"
-  "stderr"
-  "schema-failure-async-report.stderr"
-  "schema-failure-yanote-async-report.json"
-)
-
 for path in \
   "${BOUNDARY_DOC}" \
-  "${REQUIREMENTS_DOC}" \
-  "${SUPPORT_DOC}"
+  "${ROOT_README}" \
+  "${DOCS_README}" \
+  "${ASYNC_GUIDE}"
 do
-  for needle in "${common_boundary_clauses[@]}"; do
-    require_contains "${path}" "${needle}" "first-wave async boundary clause"
-  done
-
-  for needle in "${common_artifact_clauses[@]}"; do
-    require_contains "${path}" "${needle}" "async intake artifact wording"
-  done
-
-  reject_contains "${path}" "payload-schema enforcement пока нет" "payload-schema underclaim wording"
+  require_file "$path"
 done
 
-require_contains "${BOUNDARY_DOC}" "source-built async path" "release-vs-HEAD async wording"
-require_contains "${BOUNDARY_DOC}" 'repository `HEAD`' "release-vs-HEAD async wording"
-require_contains "${BOUNDARY_DOC}" '`v1.0.x`' "stable-line async relation"
-require_contains "${BOUNDARY_DOC}" "Первая волна async относительно релиза и `HEAD`" "named async release boundary section"
-require_contains "${BOUNDARY_DOC}" 'redaction-safe строки `binding support`, `declared semantics`, `runtime semantics`' "async CI summary semantics wording"
-require_contains "${BOUNDARY_DOC}" "raw retained-header leakage" "no raw retained-header leakage wording"
-require_contains "${BOUNDARY_DOC}" "async-summary.md" "collected async summary artifact wording"
+require_contains "${BOUNDARY_DOC}" 'yanote-analyzer.zip' "official standalone bundle wording"
+require_contains "${BOUNDARY_DOC}" './yanote-analyzer/bin/yanote --version' "standalone version truth wording"
+require_contains "${BOUNDARY_DOC}" './yanote-analyzer/bin/yanote async-report' "standalone async launcher wording"
+require_contains "${BOUNDARY_DOC}" './yanote-analyzer/bin/yanote combined-report' "standalone combined launcher wording"
+require_contains "${BOUNDARY_DOC}" './gradlew distStandaloneAnalyzer' "repo-local bundle build wording"
+require_contains "${BOUNDARY_DOC}" 'raw `node yanote-js/dist/yanote.cjs` seam остаётся внутренней реализацией bundle' "raw seam internal boundary wording"
+require_contains "${BOUNDARY_DOC}" 'RabbitMQ/AMQP — первый конкретный второй broker path' "async broker boundary wording"
+require_contains "${BOUNDARY_DOC}" 'separate async report/gate + retained combined-report surface' "separate async boundary wording"
+require_contains "${BOUNDARY_DOC}" 'payload-schema drift surfaced on the proven Kafka path' "Kafka payload drift wording"
+require_contains "${BOUNDARY_DOC}" 'routing percentages remain routing-first' "routing-first wording"
+require_contains "${BOUNDARY_DOC}" 'broker-agnostic promise нет' "broker-agnostic boundary wording"
+require_contains "${BOUNDARY_DOC}" 'build-and-test-artifacts/live-kafka-proof/' "Kafka proof bundle wording"
+require_contains "${BOUNDARY_DOC}" 'build-and-test-artifacts/live-rabbitmq-proof/' "RabbitMQ proof bundle wording"
+require_contains "${BOUNDARY_DOC}" 'build-and-test-artifacts/combined-proof/' "combined proof bundle wording"
+require_contains "${BOUNDARY_DOC}" 'binding support' "widened async summary wording"
+require_contains "${BOUNDARY_DOC}" 'declared semantics' "widened async summary wording"
+require_contains "${BOUNDARY_DOC}" 'runtime semantics' "widened async summary wording"
+require_contains "${BOUNDARY_DOC}" 'hosted dashboard' "no-dashboard wording"
 
-reject_contains "${REQUIREMENTS_DOC}" "AsyncAPI coverage (Kafka, RabbitMQ) | Explicitly deferred by project owner to keep v1 focused on Java HTTP/OpenAPI |" "broad deferred AsyncAPI row"
-require_contains "${REQUIREMENTS_DOC}" "### AsyncAPI / Kafka — первая волна" "current async scope section"
-require_contains "${REQUIREMENTS_DOC}" "### Async Follow-ons" "deferred async follow-ons section"
-require_contains "${REQUIREMENTS_DOC}" "deeper AsyncAPI schema-keyword coverage and retained header validation" "deferred async follow-on"
-require_contains "${REQUIREMENTS_DOC}" "combined HTTP + async report/gate" "deferred async follow-on"
-require_contains "${REQUIREMENTS_DOC}" "non-Kafka brokers" "deferred async follow-on"
-require_contains "${REQUIREMENTS_DOC}" "current public async surface proves payload drift only for the retained Kafka path and still treats headers as unverifiable" "out-of-scope async boundary wording"
+require_contains "${ASYNC_GUIDE}" 'yanote-analyzer.zip' "async guide standalone bundle wording"
+require_contains "${ASYNC_GUIDE}" './yanote-analyzer/bin/yanote' "async guide launcher path"
+require_contains "${ASYNC_GUIDE}" '"${YANOTE}" async-report' "async guide launcher command"
+require_contains "${ASYNC_GUIDE}" '"${YANOTE}" combined-report' "async guide combined command"
+require_contains "${ASYNC_GUIDE}" 'broker-agnostic promise нет' "async guide boundary wording"
+reject_contains "${ASYNC_GUIDE}" 'node yanote-js/dist/yanote.cjs async-report' "async guide raw command"
 
-require_contains "${SUPPORT_DOC}" "какая команда или proof-script упала" "async repro guidance"
-require_contains "${SUPPORT_DOC}" "live-proof path" "async support scope trigger"
-require_contains "${SUPPORT_DOC}" ".yanote-ci/live-kafka-proof/" "retained sidecar intake location"
-require_contains "${SUPPORT_DOC}" "operation keys, schema ids, счётчиков и redacted reason text" "support redaction guidance"
+require_contains "${ROOT_README}" 'yanote-analyzer.zip' "root standalone bundle wording"
+require_contains "${ROOT_README}" 'docs/guides/asyncapi-kafka.md' "root async guide link"
+reject_contains "${ROOT_README}" 'node yanote-js/dist/yanote.cjs' "root raw analyzer command"
 
-if (( failures > 0 )); then
-  echo "M005 S01 async boundary verification failed with ${failures} issue(s)." >&2
-  exit 1
-fi
+require_contains "${DOCS_README}" 'yanote-analyzer.zip' "docs landing standalone bundle wording"
+require_contains "${DOCS_README}" 'guides/asyncapi-kafka.md' "docs landing async guide link"
+reject_contains "${DOCS_README}" 'node yanote-js/dist/yanote.cjs' "docs landing raw analyzer command"
 
-echo "M005 S01 async boundary verification passed: owner/support surfaces agree on first-wave async scope, release-vs-HEAD wording, and intake artifacts."
+echo "M005 S01 async boundary verification passed: async boundary docs agree on the standalone analyzer bundle and launcher contract."

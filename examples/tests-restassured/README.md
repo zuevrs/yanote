@@ -1,42 +1,38 @@
-# RestAssured E2E тесты для примера
+# RestAssured demo tests
 
-Этот пример показывает текущий runnable handoff для RestAssured. Полный contract RestAssured/Cucumber, различие между `YANOTE_SUITE` и `yanote.suite`, а также путь до report-level `coverage.perOperation[].suites` живут в [`docs/guides/test-tagging.md`](../../docs/guides/test-tagging.md). За настройкой рекордера и путём к `events.jsonl` идите в [`docs/guides/recorder-spring-mvc.md`](../../docs/guides/recorder-spring-mvc.md). Вернуться к карте примеров и общему demo-маршруту можно через [`examples/README.md`](../README.md).
+Назад: [examples/README.md](../README.md) · [канонический tagging guide](../../docs/guides/test-tagging.md)
 
-Текущий handoff в репозитории выглядит так:
+Это runnable companion к tagging guide: пример показывает repo demo bridge для RestAssured, а shared contract живёт в [../../docs/guides/test-tagging.md](../../docs/guides/test-tagging.md).
 
-- demo-тест читает run id из env `YANOTE_RUN_ID`
-- demo-тест читает suite из env `YANOTE_SUITE`
-- это же значение suite копируется в `System.setProperty("yanote.suite", ...)`, чтобы сохранить текущую общую `yanote.suite` surface для test-tagging интеграций
-- после этого demo-тест передаёт оба значения в `YanoteRestAssuredFilter`, и запрос получает заголовки `X-Test-Run-Id` и `X-Test-Suite`
+## Текущий demo bridge
 
-`YANOTE_SUITE` здесь только demo/env bridge; общей surface для suite остаётся `yanote.suite`.
+- `YANOTE_RUN_ID` задаёт run id;
+- `YANOTE_SUITE` задаёт demo suite value;
+- тест копирует suite в `System.setProperty("yanote.suite", ...)`;
+- `YanoteRestAssuredFilter` отправляет `X-Test-Run-Id` и `X-Test-Suite`.
 
-Итог для рекордера:
+`YANOTE_SUITE` здесь только demo/env bridge. Shared surface для suite остаётся `yanote.suite`.
 
-- `X-Test-Run-Id` → `test.run_id`
-- `X-Test-Suite` → `test.suite`
-- если заголовки не были отправлены, `events.jsonl` всё равно содержит ключи `test.run_id` и `test.suite`, но со значением `null`
+## Быстрый запуск
 
-Запуск из корня репозитория:
-
-```bash
-./gradlew --no-daemon :examples:tests-restassured:test --rerun-tasks
-```
-
-Полезные переменные для демо-прогона:
+Сначала поднимите сервис из [../springmvc-service/README.md](../springmvc-service/README.md), затем из корня репозитория:
 
 ```bash
 export YANOTE_RUN_ID=manual-run-1
 export YANOTE_SUITE=restassured-suite
 export YANOTE_BASE_URI=http://localhost:8080
 export YANOTE_EVENTS_PATH="${PWD}/.yanote/events.jsonl"
+
+./gradlew --no-daemon :examples:tests-restassured:test --rerun-tasks
 ```
 
-После прогона проверьте, что сервис действительно записал файл и что в JSONL появились ожидаемые метаданные:
+После прогона проверьте handoff в `events.jsonl`:
 
 ```bash
 test -s "$YANOTE_EVENTS_PATH" && echo "OK: events.jsonl is not empty"
 rg -n 'test\.run_id|test\.suite' "$YANOTE_EVENTS_PATH"
 ```
 
-Если вам нужен runnable сервис для этого тестового клиента, смотрите [`examples/springmvc-service/README.md`](../springmvc-service/README.md). Если нужен канонический разбор contract и того, как suite потом попадает в analyzer report, возвращайтесь к [`docs/guides/test-tagging.md`](../../docs/guides/test-tagging.md). Если нужен только временный smoke/offline путь без публикации зависимостей, смотрите текущие release/support границы и release assets в [`docs/release-and-support.md`](../../docs/release-and-support.md).
+Дальше прогоните analyzer и убедитесь, что suite names поднялись в `coverage.perOperation[].suites`.
+
+За настройкой recorder path идите в [../../docs/guides/recorder-spring-mvc.md](../../docs/guides/recorder-spring-mvc.md).

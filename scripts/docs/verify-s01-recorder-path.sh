@@ -20,8 +20,11 @@ HOST_GRADLE_HOME="${TMP_DIR}/gradle-home"
 FALLBACK_GRADLE_DIST_HOME="${HOME}/.gradle/wrapper/dists"
 FALLBACK_GRADLE_MODULES_CACHE="${HOME}/.gradle/caches/modules-2"
 FALLBACK_GRADLE_JARS_CACHE="${HOME}/.gradle/caches/jars-9"
+STARTUP_TIMEOUT_SECONDS="${YANOTE_STARTUP_TIMEOUT_SECONDS:-90}"
+PUBLISH_RETRY_MAX_ATTEMPTS="${YANOTE_PUBLISH_RETRY_MAX_ATTEMPTS:-2}"
 KEEP_TEMP="false"
 APP_PID=""
+BOOTSTRAP_PHASE="init"
 
 mkdir -p "${HOST_GRADLE_HOME}"
 if [[ -d "${FALLBACK_GRADLE_DIST_HOME}" ]]; then
@@ -53,9 +56,48 @@ PORT="${YANOTE_PORT:-$(reserve_port)}"
 BASE_URL="http://127.0.0.1:${PORT}"
 REQUEST_PATH="/orders/42?expand=true"
 
+is_port_open() {
+  python3 - "${PORT}" <<'PY'
+import socket
+import sys
+
+port = int(sys.argv[1])
+sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+sock.settimeout(0.2)
+try:
+    sock.connect(("127.0.0.1", port))
+except OSError:
+    raise SystemExit(1)
+finally:
+    sock.close()
+PY
+}
+
+wait_for_port_readiness() {
+  local attempt
+
+  BOOTSTRAP_PHASE="readiness"
+  for attempt in $(seq 1 "${STARTUP_TIMEOUT_SECONDS}"); do
+    if is_port_open; then
+      return 0
+    fi
+
+    if ! kill -0 "${APP_PID}" >/dev/null 2>&1; then
+      fail "Spring smoke fixture exited before opening port ${PORT}."
+    fi
+
+    sleep 1
+  done
+
+  fail "Spring smoke fixture did not open port ${PORT} within ${STARTUP_TIMEOUT_SECONDS} seconds."
+}
+
 print_failure_artifacts() {
   echo "Verification failed. Retained failure artifacts:" >&2
+  echo "  phase: ${BOOTSTRAP_PHASE}" >&2
+  echo "  readiness_port: ${PORT}" >&2
   echo "  temp_dir: ${TMP_DIR}" >&2
+  echo "  gradle_home: ${HOST_GRADLE_HOME}" >&2
   echo "  publish_log: ${PUBLISH_LOG_PATH}" >&2
   echo "  app_log: ${APP_LOG_PATH}" >&2
   echo "  events_file: ${EVENTS_PATH}" >&2
@@ -75,7 +117,7 @@ show_failure_tail() {
 
 fail() {
   local message="$1"
-  echo "ERROR: ${message}" >&2
+  echo "ERROR [${BOOTSTRAP_PHASE}]: ${message}" >&2
   KEEP_TEMP="true"
   show_failure_tail
   print_failure_artifacts
@@ -94,6 +136,30 @@ cleanup() {
 }
 trap cleanup EXIT
 
+run_publish_with_retry() {
+  local attempt
+
+  : >"${PUBLISH_LOG_PATH}"
+  BOOTSTRAP_PHASE="publish"
+
+  for attempt in $(seq 1 "${PUBLISH_RETRY_MAX_ATTEMPTS}"); do
+    echo "[publish attempt ${attempt}/${PUBLISH_RETRY_MAX_ATTEMPTS}] Publishing ${YANOTE_GROUP}:yanote-core:${YANOTE_VERSION} and recorder module to mavenLocal..." | tee -a "${PUBLISH_LOG_PATH}"
+
+    if "${ROOT_DIR}/gradlew" --no-daemon -g "${HOST_GRADLE_HOME}" :yanote-core:publishToMavenLocal :yanote-recorder-spring-mvc:publishToMavenLocal >>"${PUBLISH_LOG_PATH}" 2>&1; then
+      if (( attempt > 1 )); then
+        echo "Publish recovered on retry ${attempt}/${PUBLISH_RETRY_MAX_ATTEMPTS}." >&2
+      fi
+      return 0
+    fi
+
+    if (( attempt >= PUBLISH_RETRY_MAX_ATTEMPTS )); then
+      fail "Gradle publishToMavenLocal failed after ${attempt} attempt(s)."
+    fi
+
+    echo "Publish attempt ${attempt}/${PUBLISH_RETRY_MAX_ATTEMPTS} failed; retrying once with retained publish log ${PUBLISH_LOG_PATH}." >&2
+  done
+}
+
 if [[ -z "${YANOTE_GROUP}" || -z "${YANOTE_VERSION}" ]]; then
   fail "Unable to resolve group/version from gradle.properties."
 fi
@@ -102,40 +168,29 @@ if [[ ! -d "${FIXTURE_DIR}" ]]; then
   fail "Fixture directory is missing: ${FIXTURE_DIR}"
 fi
 
-echo "Publishing ${YANOTE_GROUP}:yanote-core:${YANOTE_VERSION} and recorder module to mavenLocal..."
-if ! "${ROOT_DIR}/gradlew" --no-daemon -g "${HOST_GRADLE_HOME}" :yanote-core:publishToMavenLocal :yanote-recorder-spring-mvc:publishToMavenLocal >"${PUBLISH_LOG_PATH}" 2>&1; then
-  fail "Gradle publishToMavenLocal failed."
-fi
+run_publish_with_retry
 
 echo "Starting Spring smoke fixture from published local artifacts..."
+BOOTSTRAP_PHASE="bootRun"
 (
   cd "${ROOT_DIR}"
   SERVER_PORT="${PORT}" \
   YANOTE_EVENTS_PATH="${EVENTS_PATH}" \
   YANOTE_SERVICE_NAME="${ACTUAL_SERVICE_NAME}" \
-  "${ROOT_DIR}/gradlew" --no-daemon -g "${HOST_GRADLE_HOME}" -p "${FIXTURE_DIR}" --refresh-dependencies -PyanoteVersion="${YANOTE_VERSION}" bootRun
+  "${ROOT_DIR}/gradlew" --no-daemon -g "${HOST_GRADLE_HOME}" -p "${FIXTURE_DIR}" -PyanoteVersion="${YANOTE_VERSION}" bootRun
 ) >"${APP_LOG_PATH}" 2>&1 &
 APP_PID=$!
 
-for _ in $(seq 1 90); do
-  if grep -q "Started RecorderSmokeApplication" "${APP_LOG_PATH}"; then
-    break
-  fi
-  if ! kill -0 "${APP_PID}" >/dev/null 2>&1; then
-    fail "Spring smoke fixture exited before becoming ready."
-  fi
-  sleep 1
-done
-
-if ! grep -q "Started RecorderSmokeApplication" "${APP_LOG_PATH}"; then
-  fail "Spring smoke fixture did not report readiness within 90 seconds."
-fi
+echo "Waiting for Spring smoke fixture to open port ${PORT}..."
+wait_for_port_readiness
 
 echo "Sending proof request to ${BASE_URL}${REQUEST_PATH}..."
+BOOTSTRAP_PHASE="request"
 if ! curl --noproxy '*' --fail --silent --show-error "${BASE_URL}${REQUEST_PATH}" >"${RESPONSE_PATH}"; then
   fail "HTTP proof request failed."
 fi
 
+BOOTSTRAP_PHASE="validation"
 if [[ ! -f "${EVENTS_PATH}" ]]; then
   fail "Recorder did not create events.jsonl."
 fi

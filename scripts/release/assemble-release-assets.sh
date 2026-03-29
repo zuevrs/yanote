@@ -136,6 +136,9 @@ echo "traceability-snapshot=${TRACEABILITY_SNAPSHOT_JSON}" >> "${MANIFEST_PATH}"
 
 LC_ALL=C sort "${ASSET_INDEX_PATH}" > "${SORTED_INDEX}"
 
+seen_asset_types=""
+analyzer_asset_seen=false
+
 while IFS= read -r line; do
   [[ -z "${line}" || "${line}" =~ ^# ]] && continue
   artifact_type="${line%%|*}"
@@ -144,12 +147,38 @@ while IFS= read -r line; do
     echo "Invalid asset index entry '${line}'. Expected format artifact-type|path." >&2
     exit 1
   fi
+  if printf '%s\n' "${seen_asset_types}" | grep -Fxq "${artifact_type}"; then
+    echo "Duplicate release asset type '${artifact_type}' in '${ASSET_INDEX_PATH}'." >&2
+    exit 1
+  fi
+  if [[ -n "${seen_asset_types}" ]]; then
+    seen_asset_types+=$'\n'
+  fi
+  seen_asset_types+="${artifact_type}"
+  if [[ "${artifact_type}" == "core-dist" || "$(basename "${source_path}")" == "yanote-dist-all.zip" ]]; then
+    echo "Legacy generic dist assets are no longer valid release surfaces; use analyzer|build/distributions/yanote-analyzer.zip." >&2
+    exit 1
+  fi
+  if [[ "${artifact_type}" == "analyzer" ]]; then
+    analyzer_asset_seen=true
+    if [[ "$(basename "${source_path}")" != "yanote-analyzer.zip" ]]; then
+      echo "Analyzer asset must point to build/distributions/yanote-analyzer.zip (got '${source_path}')." >&2
+      exit 1
+    fi
+  fi
   copy_with_deterministic_name "${artifact_type}" "${source_path}"
 done < "${SORTED_INDEX}"
+
+if [[ "${analyzer_asset_seen}" != "true" ]]; then
+  echo "Release asset index must include analyzer|build/distributions/yanote-analyzer.zip." >&2
+  exit 1
+fi
 
 copy_with_deterministic_name "sbom" "${SBOM_SOURCE_PATH}"
 copy_with_deterministic_name "traceability-json" "${TRACEABILITY_JSON_PATH}"
 copy_with_deterministic_name "traceability-summary" "${TRACEABILITY_MARKDOWN_PATH}"
 
+release_asset_types="$(printf '%s\n' "${seen_asset_types}" | LC_ALL=C sort | paste -sd, -)"
+echo "release-asset-types=${release_asset_types}" >> "${MANIFEST_PATH}"
 echo "release-asset-count=$(ls -1 "${ASSETS_DIR}" | wc -l | tr -d ' ')" >> "${MANIFEST_PATH}"
 echo "manifest=${MANIFEST_PATH}"

@@ -49,9 +49,16 @@ internal fun resolveGradleSpecInput(
     )
 }
 
-internal fun renderAnalyzerArgsSurface(args: List<String>, specInput: GradleSpecInput?): String {
-    val displayArgs = sanitizeSpecArgumentForDisplay(args, specInput)
+internal fun renderAnalyzerArgsSurface(
+    command: List<String>,
+    specInput: GradleSpecInput?,
+    analyzerPath: String,
+    analyzerContract: String
+): String {
+    val displayArgs = sanitizeSpecArgumentForDisplay(command, specInput)
     val lines = mutableListOf(displayArgs.joinToString(" "))
+    lines += "analyzer_path=$analyzerPath"
+    lines += "analyzer_contract=$analyzerContract"
     if (specInput != null) {
         lines += "spec_source_kind=${specInput.kind}"
         lines += "spec_source_ref=${specInput.provenanceReference}"

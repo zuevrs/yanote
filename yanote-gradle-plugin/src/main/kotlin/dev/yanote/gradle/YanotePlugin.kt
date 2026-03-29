@@ -72,7 +72,7 @@ class YanotePlugin : Plugin<Project> {
                 outputDir.convention(project.layout.buildDirectory.dir("yanote/$outputSegment/report"))
                 analyzerPath.convention(
                     project.rootProject.layout.projectDirectory
-                        .file("dist/node-analyzer/bin/yanote.cjs")
+                        .file("dist/standalone-analyzer/bin/yanote")
                         .asFile
                         .absolutePath
                 )
@@ -93,7 +93,7 @@ class YanotePlugin : Plugin<Project> {
                 outputDir.convention(project.layout.buildDirectory.dir("yanote/$outputSegment/check"))
                 analyzerPath.convention(
                     project.rootProject.layout.projectDirectory
-                        .file("dist/node-analyzer/bin/yanote.cjs")
+                        .file("dist/standalone-analyzer/bin/yanote")
                         .asFile
                         .absolutePath
                 )

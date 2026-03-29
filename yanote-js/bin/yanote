@@ -1,0 +1,37 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+SCRIPT_DIR="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)"
+BUNDLE_ROOT="$(cd -- "${SCRIPT_DIR}/.." && pwd)"
+STANDALONE_RUNTIME_PATH="${BUNDLE_ROOT}/lib/yanote.cjs"
+SOURCE_RUNTIME_PATH="${BUNDLE_ROOT}/dist/yanote.cjs"
+STANDALONE_VERSION_PATH="${BUNDLE_ROOT}/VERSION"
+
+fail() {
+  printf '%s\n' "$1" >&2
+  exit 1
+}
+
+if ! command -v node >/dev/null 2>&1; then
+  fail "yanote launcher requires 'node' on PATH."
+fi
+
+if [[ -f "${STANDALONE_RUNTIME_PATH}" ]]; then
+  if [[ ! -f "${STANDALONE_VERSION_PATH}" ]]; then
+    fail "yanote standalone version metadata missing: ${STANDALONE_VERSION_PATH}"
+  fi
+
+  YANOTE_TOOL_VERSION="$(tr -d '\r\n' < "${STANDALONE_VERSION_PATH}")"
+  if [[ -z "${YANOTE_TOOL_VERSION}" || "${YANOTE_TOOL_VERSION}" == "0.0.0" ]]; then
+    fail "yanote standalone version metadata invalid: ${STANDALONE_VERSION_PATH}"
+  fi
+  export YANOTE_TOOL_VERSION
+
+  exec node "${STANDALONE_RUNTIME_PATH}" "$@"
+fi
+
+if [[ -f "${SOURCE_RUNTIME_PATH}" ]]; then
+  exec node "${SOURCE_RUNTIME_PATH}" "$@"
+fi
+
+fail "yanote runtime not found relative to launcher: expected ${STANDALONE_RUNTIME_PATH} or ${SOURCE_RUNTIME_PATH}"

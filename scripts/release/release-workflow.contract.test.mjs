@@ -27,6 +27,10 @@ test("release workflow runs preflight before publish and requires approval gate"
   assert.match(source, /RELEASE_TAG_SIGNING_PUBLIC_KEY:\s*\$\{\{\s*secrets\.RELEASE_TAG_SIGNING_PUBLIC_KEY\s*\}\}/);
   assert.match(source, /set \+e/);
   assert.match(source, /PREFLIGHT_EXIT_CODE=\$\?/);
+  assert.match(source, /RELEASE_TAG_FROM_PREFLIGHT=.*release-tag=/s);
+  assert.match(source, /echo "release_tag=\$\{RELEASE_TAG_FROM_PREFLIGHT\}" >> "\$\{GITHUB_OUTPUT\}"/);
+  assert.doesNotMatch(source, /echo "release_tag=\$\{GITHUB_REF_NAME\}" >> "\$\{GITHUB_OUTPUT\}"/);
+  assert.match(source, /if \[\[ -z "\$\{RELEASE_TAG_FROM_PREFLIGHT\}" \]\]/);
   assert.match(source, /if \[\[ "\$\{PREFLIGHT_EXIT_CODE\}" -ne 0 \]\]/);
   assert.match(source, /verify-traceability\.mjs/);
   assert.match(source, /^\s*publish:\s*$/m);
@@ -34,20 +38,24 @@ test("release workflow runs preflight before publish and requires approval gate"
   assert.match(source, /environment:\s*production-release/);
 });
 
-test("release workflow wires deterministic publish sequence", async () => {
+test("release workflow wires deterministic publish sequence around the standalone analyzer archive", async () => {
   const source = await loadReleaseWorkflowSource();
   assert.match(source, /RELEASE_VERSION="\$\{\{\s*needs\.preflight\.outputs\.release_tag\s*\}\}"/);
   assert.match(source, /RELEASE_VERSION="\$\{RELEASE_VERSION#v\}"/);
   assert.match(source, /Materialize in-runner signing key files/);
   assert.match(source, /JRELEASER_GPG_PUBLIC_KEY=\$\{PUBLIC_KEY_FILE\}/);
   assert.match(source, /JRELEASER_GPG_SECRET_KEY=\$\{SECRET_KEY_FILE\}/);
-  assert.match(source, /\.\/gradlew\s+-Pversion="\$\{RELEASE_VERSION\}"\s+publish\s+distAll\s+cyclonedxBom\s+jreleaserConfig/);
+  assert.match(source, /\.\/gradlew\s+-Pversion="\$\{RELEASE_VERSION\}"\s+publish\s+distStandaloneAnalyzer\s+cyclonedxBom\s+jreleaserConfig/);
+  assert.doesNotMatch(source, /\.\/gradlew\s+-Pversion="\$\{RELEASE_VERSION\}"\s+publish\s+distAll\s+cyclonedxBom\s+jreleaserConfig/);
   assert.match(
     source,
     /Build deterministic release outputs[\s\S]*JRELEASER_MAVENCENTRAL_USERNAME:\s*\$\{\{\s*secrets\.JRELEASER_MAVENCENTRAL_USERNAME\s*\}\}/,
   );
-  assert.match(source, /yanote-dist-all\.zip/);
-  assert.match(source, /zip -rq/);
+  assert.match(source, /build\/distributions\/yanote-analyzer\.zip/);
+  assert.match(source, /Expected standalone analyzer archive from \.\/gradlew distStandaloneAnalyzer at build\/distributions\/yanote-analyzer\.zip/);
+  assert.match(source, /analyzer\|build\/distributions\/yanote-analyzer\.zip/);
+  assert.doesNotMatch(source, /yanote-dist-all\.zip/);
+  assert.doesNotMatch(source, /core-dist\|build\/distributions\/yanote-dist-all\.zip/);
   assert.match(source, /cyclonedxBom|sbom/i);
   assert.match(source, /assemble-release-assets\.sh/);
   assert.match(source, /render-release-notes\.mjs/);

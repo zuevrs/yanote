@@ -65,9 +65,14 @@ jobs:
           PREFLIGHT_EXIT_CODE=$?
           set -e
           printf '%s\n' "${OUTPUT}"
+          RELEASE_TAG_FROM_PREFLIGHT="$(printf '%s\n' "${OUTPUT}" | awk -F= '/^release-tag=/{print $2}' | tail -n 1)"
           RETRY_ELIGIBLE="$(printf '%s\n' "${OUTPUT}" | awk -F= '/^retry-eligible=/{print $2}' | tail -n 1)"
           RETRY_REASON="$(printf '%s\n' "${OUTPUT}" | awk -F= '/^retry_reason=/{print $2}' | tail -n 1)"
-          echo "release_tag=${GITHUB_REF_NAME}" >> "${GITHUB_OUTPUT}"
+          if [[ -z "${RELEASE_TAG_FROM_PREFLIGHT}" ]]; then
+            echo "Preflight did not emit release-tag output." >&2
+            exit 1
+          fi
+          echo "release_tag=${RELEASE_TAG_FROM_PREFLIGHT}" >> "${GITHUB_OUTPUT}"
           echo "retry_eligible=${RETRY_ELIGIBLE:-false}" >> "${GITHUB_OUTPUT}"
           echo "retry_reason=${RETRY_REASON:-no-failure}" >> "${GITHUB_OUTPUT}"
           if [[ "${PREFLIGHT_EXIT_CODE}" -ne 0 ]]; then
@@ -141,17 +146,18 @@ jobs:
           set -euo pipefail
           RELEASE_VERSION="${{ needs.preflight.outputs.release_tag }}"
           RELEASE_VERSION="${RELEASE_VERSION#v}"
-          ./gradlew -Pversion="${RELEASE_VERSION}" publish distAll cyclonedxBom jreleaserConfig
+          ./gradlew -Pversion="${RELEASE_VERSION}" publish distStandaloneAnalyzer cyclonedxBom jreleaserConfig
 
       - name: Prepare deterministic release asset index
         run: |
           set -euo pipefail
           mkdir -p build/release-assets
-          mkdir -p build/distributions
-          rm -f build/distributions/yanote-dist-all.zip
-          (cd dist && zip -rq ../build/distributions/yanote-dist-all.zip .)
+          if [[ ! -f build/distributions/yanote-analyzer.zip ]]; then
+            echo "Expected standalone analyzer archive from ./gradlew distStandaloneAnalyzer at build/distributions/yanote-analyzer.zip." >&2
+            exit 1
+          fi
           cat > build/release-assets/index.txt <<'EOF'
-          core-dist|build/distributions/yanote-dist-all.zip
+          analyzer|build/distributions/yanote-analyzer.zip
           EOF
 
       - name: Assemble deterministic release bundle
