@@ -107,7 +107,7 @@ require_contains "$ANALYZER_GUIDE" "artifact-manifest.txt" "security provenance 
 require_contains "$ANALYZER_GUIDE" "artifact-source-paths.txt" "security provenance note"
 require_contains "$ANALYZER_GUIDE" "bash scripts/ci/verify-m012-s02-security-semantics.sh" "focused security proof command"
 require_contains "$ANALYZER_GUIDE" "fixture-backed proof" "security provenance wording"
-require_contains "$ANALYZER_GUIDE" 'raw `http-security-api-key.fixture.jsonl` в `.yanote-ci/v1-e2e/` не копируется' "raw fixture exclusion wording"
+require_contains "$ANALYZER_GUIDE" 'raw `http-security-api-key.fixture.jsonl` в `build-and-test-artifacts/v1-e2e/` не копируется' "raw fixture exclusion wording"
 require_contains "$ANALYZER_GUIDE" "security: []" "security clear wording"
 require_contains "$ANALYZER_GUIDE" '`{}` внутри массива означает optional branch' "security optional wording"
 require_contains "$ANALYZER_GUIDE" "действует OR между объектами Security Requirement" "security OR wording"

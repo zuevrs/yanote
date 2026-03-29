@@ -65,6 +65,9 @@ jobs:
       - name: Run analyzer tests
         run: npm -C yanote-js ci && npm -C yanote-js test
 
+      - name: Build standalone analyzer bundle for release/script contract suites
+        run: ./gradlew distStandaloneAnalyzer --stacktrace
+
       - name: Run script and release contract suites
         run: node --test scripts/ci/*.test.mjs scripts/release/*.test.mjs
 

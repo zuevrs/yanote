@@ -38,6 +38,9 @@ One short intro.
 1. [Quickstart](guides/getting-started.md)
 2. [Root](../README.md)
 3. [Release](release-and-support.md)
+
+Current stable line: \`v1.0.x\`
+Official analyzer asset: yanote-analyzer.zip
 `,
     "docs/guides/getting-started.md": `# Getting started
 
@@ -155,7 +158,7 @@ test("allows secondary analyzer proof wording after the newcomer section", { con
     "security-semantics-yanote-report.json",
     "artifact-manifest.txt",
     "artifact-source-paths.txt",
-    "raw `http-security-api-key.fixture.jsonl` в `.yanote-ci/v1-e2e/` не копируется",
+    "raw `http-security-api-key.fixture.jsonl` в `build-and-test-artifacts/v1-e2e/` не копируется",
   ].join("\n");
 
   const rootDir = await createFixture({

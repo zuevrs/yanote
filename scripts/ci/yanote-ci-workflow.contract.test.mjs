@@ -68,9 +68,15 @@ test("build-and-test checks out full history for path-sensitive proof decisions"
   assert.match(buildJob, /uses:\s*actions\/checkout@v5[\s\S]*?fetch-depth:\s*0/);
 });
 
-test("workflow runs script and release contract suites in CI", async () => {
+test("workflow runs script and release contract suites in CI after materializing the standalone bundle", async () => {
   const source = await loadWorkflowSource();
   const buildJob = extractJobBlock(source, "build-and-test", "yanote-validation");
+  assert.match(buildJob, /- name:\s*Build standalone analyzer bundle for release\/script contract suites/);
+  assert.match(buildJob, /\.\/gradlew distStandaloneAnalyzer --stacktrace/);
+  assert.match(
+    buildJob,
+    /- name:\s*Run analyzer tests[\s\S]*?- name:\s*Build standalone analyzer bundle for release\/script contract suites[\s\S]*?- name:\s*Run script and release contract suites/
+  );
   assert.match(buildJob, /- name:\s*Run script and release contract suites/);
   assert.match(buildJob, /node --test scripts\/ci\/\*\.test\.mjs scripts\/release\/\*\.test\.mjs/);
 });

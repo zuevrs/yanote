@@ -1,1 +1,0 @@
-{"ts":"2026-03-29T05:19:41.397Z","severity":"warn","component":"reconcile","message":"Removing stale worktree directory (no .git file): /Users/zuevrs/Projects/yanote/.gsd/worktrees/M016","context":{"worktree":"M016"}}
