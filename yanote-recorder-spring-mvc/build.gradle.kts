@@ -3,6 +3,10 @@ plugins {
     signing
 }
 
+val springBootVersion = "3.2.2"
+val springFrameworkVersion = "6.1.3"
+val servletApiVersion = "6.0.0"
+
 java {
     withSourcesJar()
     withJavadocJar()
@@ -10,9 +14,15 @@ java {
 
 dependencies {
     implementation(project(":yanote-core"))
-    implementation("org.springframework.boot:spring-boot-autoconfigure:3.2.2")
-    implementation("org.springframework.boot:spring-boot-starter-web:3.2.2")
-    testImplementation("org.springframework.boot:spring-boot-starter-test:3.2.2")
+
+    // This module must not drag a full servlet web stack into consumers.
+    // It only needs Spring MVC / servlet APIs at compile time; the host app supplies the runtime.
+    compileOnly("org.springframework.boot:spring-boot-autoconfigure:$springBootVersion")
+    compileOnly("org.springframework:spring-webmvc:$springFrameworkVersion")
+    compileOnly("jakarta.servlet:jakarta.servlet-api:$servletApiVersion")
+
+    testImplementation("org.springframework.boot:spring-boot-starter-web:$springBootVersion")
+    testImplementation("org.springframework.boot:spring-boot-starter-test:$springBootVersion")
 }
 
 publishing {
