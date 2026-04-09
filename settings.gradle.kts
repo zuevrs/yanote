@@ -21,6 +21,7 @@ rootProject.name = "yanote"
 include(
     "yanote-core",
     "yanote-recorder-spring-mvc",
+    "yanote-recorder-spring-webflux",
     "yanote-recorder-spring-kafka",
     "yanote-recorder-spring-amqp",
     "yanote-test-tags-restassured",
