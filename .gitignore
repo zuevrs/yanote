@@ -49,3 +49,7 @@ coverage/
 !yanote-js/src/coverage/**
 .cache/
 tmp/
+
+# ── GSD baseline (auto-generated) ──
+.gsd
+.gsd-id
