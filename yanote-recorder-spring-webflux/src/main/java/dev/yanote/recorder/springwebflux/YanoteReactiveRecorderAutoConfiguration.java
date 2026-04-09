@@ -8,7 +8,7 @@ import org.springframework.boot.context.properties.EnableConfigurationProperties
 import org.springframework.context.annotation.Bean;
 
 /**
- * Reactive-only auto-configuration skeleton for the future WebFlux recorder path.
+ * Reactive-only auto-configuration for the metadata-only WebFlux recorder path.
  */
 @AutoConfiguration(afterName = "org.springframework.boot.autoconfigure.web.reactive.WebFluxAutoConfiguration")
 @EnableConfigurationProperties(YanoteReactiveRecorderProperties.class)
@@ -22,19 +22,45 @@ import org.springframework.context.annotation.Bean;
 public class YanoteReactiveRecorderAutoConfiguration {
 
     /**
-     * Creates the reactive auto-configuration skeleton.
+     * Creates the reactive recorder auto-configuration.
      */
     public YanoteReactiveRecorderAutoConfiguration() {
     }
 
+    @Bean
+    public ReactiveRouteTemplateResolver yanoteReactiveRouteTemplateResolver() {
+        return new ReactiveRouteTemplateResolver();
+    }
+
     /**
-     * Registers a minimal internal marker bean so activation/back-off can be tested safely.
+     * Registers the reactive request-evidence capture helper.
      *
-     * @param properties bound reactive recorder properties
-     * @return internal marker bean proving activation
+     * @return reactive request-evidence capture helper
      */
     @Bean
-    public YanoteReactiveRecorderMarker yanoteReactiveRecorderMarker(YanoteReactiveRecorderProperties properties) {
-        return new YanoteReactiveRecorderMarker(properties.getEventsPath(), properties.getServiceName());
+    public ReactiveHttpRequestEvidenceCapture yanoteReactiveHttpRequestEvidenceCapture() {
+        return new ReactiveHttpRequestEvidenceCapture();
+    }
+
+    /**
+     * Registers the metadata-only WebFlux recorder filter.
+     *
+     * @param properties bound recorder properties
+     * @param routeTemplateResolver route-template resolver
+     * @param requestEvidenceCapture request-evidence capture helper
+     * @return metadata-only WebFlux recorder filter
+     */
+    @Bean
+    public HttpEventRecordingWebFilter yanoteHttpEventRecordingWebFilter(
+            YanoteReactiveRecorderProperties properties,
+            ReactiveRouteTemplateResolver routeTemplateResolver,
+            ReactiveHttpRequestEvidenceCapture requestEvidenceCapture
+    ) {
+        return new HttpEventRecordingWebFilter(
+                properties.getEventsPath(),
+                properties.getServiceName(),
+                routeTemplateResolver,
+                requestEvidenceCapture
+        );
     }
 }

@@ -6,6 +6,7 @@ import org.junit.jupiter.api.Test;
 import org.springframework.boot.autoconfigure.AutoConfigurations;
 import org.springframework.boot.test.context.FilteredClassLoader;
 import org.springframework.boot.test.context.runner.ReactiveWebApplicationContextRunner;
+import org.springframework.web.server.WebFilter;
 
 class RecorderReactiveAutoConfigurationTest {
 
@@ -15,23 +16,25 @@ class RecorderReactiveAutoConfigurationTest {
     @Test
     void shouldStayDisabledByDefault() {
         contextRunner.run(context -> {
-            assertThat(context).doesNotHaveBean(YanoteReactiveRecorderMarker.class);
-            assertThat(context).doesNotHaveBean("yanoteReactiveRecorderMarker");
+            assertThat(context).doesNotHaveBean(HttpEventRecordingWebFilter.class);
+            assertThat(context).doesNotHaveBean("yanoteHttpEventRecordingWebFilter");
+            assertThat(context).doesNotHaveBean(ReactiveRouteTemplateResolver.class);
+            assertThat(context).doesNotHaveBean(ReactiveHttpRequestEvidenceCapture.class);
         });
     }
 
     @Test
-    void shouldRegisterMarkerBeanWhenEnabledInReactiveApp() {
+    void shouldRegisterRecorderBeansWhenEnabledInReactiveApp() {
         contextRunner.withPropertyValues(
                         "yanote.recorder.enabled=true",
                         "yanote.recorder.events-path=build/test-webflux-events.jsonl",
                         "yanote.recorder.service-name=reactive-service"
                 )
                 .run(context -> {
-                    assertThat(context).hasSingleBean(YanoteReactiveRecorderMarker.class);
-                    YanoteReactiveRecorderMarker marker = context.getBean(YanoteReactiveRecorderMarker.class);
-                    assertThat(marker.getEventsPath()).isEqualTo("build/test-webflux-events.jsonl");
-                    assertThat(marker.getServiceName()).isEqualTo("reactive-service");
+                    assertThat(context).hasSingleBean(HttpEventRecordingWebFilter.class);
+                    assertThat(context).hasSingleBean(ReactiveRouteTemplateResolver.class);
+                    assertThat(context).hasSingleBean(ReactiveHttpRequestEvidenceCapture.class);
+                    assertThat(context).hasSingleBean(WebFilter.class);
                 });
     }
 
@@ -44,8 +47,10 @@ class RecorderReactiveAutoConfigurationTest {
                 .withClassLoader(new FilteredClassLoader("org.springframework.web.server.WebFilter"))
                 .run(context -> {
                     assertThat(context).hasNotFailed();
-                    assertThat(context).doesNotHaveBean(YanoteReactiveRecorderMarker.class);
-                    assertThat(context).doesNotHaveBean("yanoteReactiveRecorderMarker");
+                    assertThat(context).doesNotHaveBean(HttpEventRecordingWebFilter.class);
+                    assertThat(context).doesNotHaveBean("yanoteHttpEventRecordingWebFilter");
+                    assertThat(context).doesNotHaveBean(ReactiveRouteTemplateResolver.class);
+                    assertThat(context).doesNotHaveBean(ReactiveHttpRequestEvidenceCapture.class);
                 });
     }
 }
