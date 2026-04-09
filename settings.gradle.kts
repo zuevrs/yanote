@@ -28,5 +28,6 @@ include(
     "yanote-test-tags-cucumber",
     "yanote-gradle-plugin",
     "examples:springmvc-service",
+    "examples:webflux-service",
     "examples:tests-restassured"
 )
