@@ -1,2 +1,2 @@
-/** Spring WebFlux auto-configuration skeleton for future Yanote event recording. */
+/** Spring WebFlux auto-configuration for Yanote metadata-only HTTP event recording. */
 package dev.yanote.recorder.springwebflux;

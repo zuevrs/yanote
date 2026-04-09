@@ -27,8 +27,9 @@ class RecorderServletBackoffCompatibilityTest {
     void shouldBackOffCleanlyInServletWebApps() {
         servletContextRunner.run(context -> {
             assertThat(context).hasNotFailed();
-            assertThat(context).doesNotHaveBean(YanoteReactiveRecorderMarker.class);
-            assertThat(context).doesNotHaveBean("yanoteReactiveRecorderMarker");
+            assertThat(context).doesNotHaveBean(HttpEventRecordingWebFilter.class);
+            assertThat(context).doesNotHaveBean(ReactiveRouteTemplateResolver.class);
+            assertThat(context).doesNotHaveBean(ReactiveHttpRequestEvidenceCapture.class);
         });
     }
 
@@ -36,8 +37,9 @@ class RecorderServletBackoffCompatibilityTest {
     void shouldBackOffCleanlyInNonWebApplicationContexts() {
         nonWebContextRunner.run(context -> {
             assertThat(context).hasNotFailed();
-            assertThat(context).doesNotHaveBean(YanoteReactiveRecorderMarker.class);
-            assertThat(context).doesNotHaveBean("yanoteReactiveRecorderMarker");
+            assertThat(context).doesNotHaveBean(HttpEventRecordingWebFilter.class);
+            assertThat(context).doesNotHaveBean(ReactiveRouteTemplateResolver.class);
+            assertThat(context).doesNotHaveBean(ReactiveHttpRequestEvidenceCapture.class);
         });
     }
 }
