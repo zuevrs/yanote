@@ -14,11 +14,11 @@
 | `yanote-test-tags-restassured` / `yanote-test-tags-cucumber` | Supported | Поддерживаемая test-tagging surface для Java-first workflow. |
 | GitHub Actions / CI delivery artifacts | Supported | `yanote-validation-artifacts` и `build-and-test-artifacts` как доказуемые CI surfaces. |
 
-## Narrow supported current surface
+## Narrow supported surface
 
 | Surface | Status | Notes |
 |---|---|---|
-| `yanote-recorder-spring-webflux` | Narrow supported | Отдельный source-built WebFlux recorder path на текущем `HEAD`; finite/non-streaming exchange proof only, без generic Spring HTTP promises и без замены MVC surface. |
+| `yanote-recorder-spring-webflux` | Narrow supported | Отдельный release-published WebFlux recorder module; finite/non-streaming exchange proof only, без generic Spring HTTP promises и без замены MVC surface. |
 | `async-report` Kafka path | Narrow supported | Поддержан и сохранён как proven async path. |
 | `async-report` RabbitMQ/AMQP path | Narrow supported | Первый concrete second broker path; без broker-agnostic promises. |
 | `combined-report` | Narrow supported | Child-attributed aggregate surface, без blended denominator. |
@@ -31,7 +31,7 @@
 | HTTP payload validation | JSON-first public path; supported format allowlist сейчас intentionally `email`-only. |
 | HTTP request serialization | `path=simple`, `query=form`, `header=simple`, `cookie=form`; broader styles/content parameters не входят в supported surface. |
 | HTTP security semantics | Truthful `apiKey` query/header/cookie subset; broader security scheme coverage не обещается. |
-| Spring WebFlux recorder path | Только отдельный модуль `yanote-recorder-spring-webflux` на текущем source-built surface; текущая proof boundary — finite/non-streaming exchanges и bounded JSON payload capture, без broad WebFlux parity promise. |
+| Spring WebFlux recorder path | Только отдельный release-published модуль `yanote-recorder-spring-webflux`; текущая proof boundary — finite/non-streaming exchanges и bounded JSON payload capture, без broad WebFlux parity promise. |
 | Async semantics | Kafka + first RabbitMQ/AMQP path only; raw retained headers/payload bodies не становятся public support intake surface. |
 
 ## Deferred / not promised yet

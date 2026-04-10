@@ -25,6 +25,7 @@ Delivery-sensitive changes currently mean edits under:
 - `examples/**`
 - `scripts/ci/**`
 - `yanote-recorder-spring-mvc/**`
+- `yanote-recorder-spring-webflux/**`
 - `yanote-recorder-spring-kafka/**`
 - `yanote-gradle-plugin/**`
 
