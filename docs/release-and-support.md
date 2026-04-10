@@ -68,7 +68,9 @@
 Текущая narrow surface здесь опирается на уже существующий proof stack:
 
 - `:yanote-recorder-spring-webflux:test`
+- `bash scripts/docs/verify-recorder-spring-webflux-path.sh`
 - `bash scripts/ci/verify-recorder-spring-webflux-example.sh`
+- `bash scripts/ci/verify-recorder-spring-webflux-consumer-docker.sh`
 - `node --test scripts/ci/verify-recorder-spring-webflux-footprint.contract.test.mjs`
 - сохранённый MVC safety stack, включая `RecorderReactiveCompatibilityTest`
 
