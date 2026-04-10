@@ -55,7 +55,7 @@ class RecorderWritesJsonlWebFluxTest {
     }
 
     @Test
-    void shouldWriteOneMetadataOnlyEventForFiniteExchange() throws Exception {
+    void shouldWriteOneEventWithBoundedJsonPayloadsForFiniteExchange() throws Exception {
         Files.deleteIfExists(EVENTS_PATH);
 
         webTestClient.post()
@@ -91,14 +91,18 @@ class RecorderWritesJsonlWebFluxTest {
         assertFalse(event.requestHeaders().containsKey("x-test-suite"));
         assertEquals(List.of("dark"), event.cookies().get("theme").values());
         assertEquals(HttpRequestEvidence.State.REDACTED, event.cookies().get("SESSION").state());
-        assertNull(event.requestBody());
-        assertNull(event.requestBodyState());
+        assertEquals(OBJECT_MAPPER.readTree("""
+                {"name":"Ada"}
+                """), event.requestBody());
+        assertEquals(dev.yanote.core.events.PayloadCaptureState.CAPTURED, event.requestBodyState());
         assertNull(event.requestBodyReason());
-        assertNull(event.requestContentType());
-        assertNull(event.responseBody());
-        assertNull(event.responseBodyState());
+        assertEquals(MediaType.APPLICATION_JSON_VALUE, event.requestContentType());
+        assertEquals(OBJECT_MAPPER.readTree("""
+                {"id":"123","name":"Ada"}
+                """), event.responseBody());
+        assertEquals(dev.yanote.core.events.PayloadCaptureState.CAPTURED, event.responseBodyState());
         assertNull(event.responseBodyReason());
-        assertNull(event.responseContentType());
+        assertEquals(MediaType.APPLICATION_JSON_VALUE, event.responseContentType());
     }
 
     private static HttpEvent readSingleEvent() throws Exception {

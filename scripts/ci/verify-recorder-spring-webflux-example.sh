@@ -46,7 +46,8 @@ PY
 
 PORT="${YANOTE_PORT:-$(reserve_port)}"
 BASE_URL="http://127.0.0.1:${PORT}"
-REQUEST_PATH="/request-evidence/users/user-42?expand=true&tags=alpha&tags=bravo"
+REQUEST_PATH="/payload-evidence/users/user-42?expand=true&tags=alpha&tags=bravo"
+REQUEST_BODY='{"name":"Ada","meta":{"source":"proof"}}'
 
 is_port_open() {
   python3 - "${PORT}" <<'PY'
@@ -188,11 +189,15 @@ wait_for_port_readiness
 echo "Sending proof request to ${BASE_URL}${REQUEST_PATH}..."
 BOOTSTRAP_PHASE="request"
 if ! curl --noproxy '*' --fail --silent --show-error \
+  -X POST \
+  -H "Content-Type: application/json" \
+  -H "Accept: application/json" \
   -H "X-Test-Run-Id: ${EXPECTED_RUN_ID}" \
   -H "X-Test-Suite: ${EXPECTED_SUITE}" \
   -H "X-Request-Flavor: ${REQUEST_FLAVOR}" \
   -H "Authorization: ${AUTHORIZATION_SECRET}" \
   -b "clientMode=compact; SESSION=${SESSION_SECRET}" \
+  --data "${REQUEST_BODY}" \
   "${BASE_URL}${REQUEST_PATH}" >"${RESPONSE_PATH}"; then
   fail "HTTP proof request failed."
 fi
@@ -246,11 +251,13 @@ expect(response == {
     "clientMode": "compact",
     "authorizationProvided": True,
     "sessionProvided": True,
+    "name": "Ada",
+    "metaProvided": True,
 }, f"Unexpected response payload: {response!r}")
 
 expected_pairs = {
-    "method": "GET",
-    "route": "/request-evidence/users/{userId}",
+    "method": "POST",
+    "route": "/payload-evidence/users/{userId}",
     "status": 200,
     "service": expected_service,
     "test.run_id": expected_run_id,
@@ -273,17 +280,14 @@ expect("x-test-run-id" not in request_headers, "Recorder should not retain x-tes
 expect("x-test-suite" not in request_headers, "Recorder should not retain x-test-suite in requestHeaders")
 expect("cookie" not in request_headers, "Recorder should not retain raw Cookie header evidence")
 
-for key in (
-    "requestBody",
-    "requestBodyState",
-    "requestBodyReason",
-    "requestContentType",
-    "responseBody",
-    "responseBodyState",
-    "responseBodyReason",
-    "responseContentType",
-):
-    expect(record.get(key) is None, f"Expected {key} to stay null/absent, got {record.get(key)!r}")
+expect(record.get("requestBody") == {"name": "Ada", "meta": {"source": "proof"}}, f"Unexpected requestBody: {record.get('requestBody')!r}")
+expect(record.get("requestBodyState") == "captured", f"Expected requestBodyState='captured', got {record.get('requestBodyState')!r}")
+expect(record.get("requestBodyReason") is None, f"Expected requestBodyReason to be omitted, got {record.get('requestBodyReason')!r}")
+expect(record.get("requestContentType") == "application/json", f"Expected requestContentType='application/json', got {record.get('requestContentType')!r}")
+expect(record.get("responseBody") == response, f"Expected responseBody to match response payload, got {record.get('responseBody')!r}")
+expect(record.get("responseBodyState") == "captured", f"Expected responseBodyState='captured', got {record.get('responseBodyState')!r}")
+expect(record.get("responseBodyReason") is None, f"Expected responseBodyReason to be omitted, got {record.get('responseBodyReason')!r}")
+expect(record.get("responseContentType") == "application/json", f"Expected responseContentType='application/json', got {record.get('responseContentType')!r}")
 
 serialized = json.dumps(record, sort_keys=True)
 for secret in ("Bearer proof-secret-token", "proof-session-secret"):

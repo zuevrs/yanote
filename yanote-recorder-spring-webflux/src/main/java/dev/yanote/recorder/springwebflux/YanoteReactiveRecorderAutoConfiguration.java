@@ -8,7 +8,7 @@ import org.springframework.boot.context.properties.EnableConfigurationProperties
 import org.springframework.context.annotation.Bean;
 
 /**
- * Reactive-only auto-configuration for the metadata-only WebFlux recorder path.
+ * Reactive-only auto-configuration for the WebFlux recorder path.
  */
 @AutoConfiguration(afterName = "org.springframework.boot.autoconfigure.web.reactive.WebFluxAutoConfiguration")
 @EnableConfigurationProperties(YanoteReactiveRecorderProperties.class)
@@ -43,24 +43,37 @@ public class YanoteReactiveRecorderAutoConfiguration {
     }
 
     /**
-     * Registers the metadata-only WebFlux recorder filter.
+     * Registers the reactive payload capture helper.
+     *
+     * @return reactive payload capture helper
+     */
+    @Bean
+    public ReactiveHttpPayloadCapture yanoteReactiveHttpPayloadCapture() {
+        return new ReactiveHttpPayloadCapture();
+    }
+
+    /**
+     * Registers the WebFlux recorder filter.
      *
      * @param properties bound recorder properties
      * @param routeTemplateResolver route-template resolver
      * @param requestEvidenceCapture request-evidence capture helper
-     * @return metadata-only WebFlux recorder filter
+     * @param payloadCapture payload capture helper
+     * @return WebFlux recorder filter
      */
     @Bean
     public HttpEventRecordingWebFilter yanoteHttpEventRecordingWebFilter(
             YanoteReactiveRecorderProperties properties,
             ReactiveRouteTemplateResolver routeTemplateResolver,
-            ReactiveHttpRequestEvidenceCapture requestEvidenceCapture
+            ReactiveHttpRequestEvidenceCapture requestEvidenceCapture,
+            ReactiveHttpPayloadCapture payloadCapture
     ) {
         return new HttpEventRecordingWebFilter(
                 properties.getEventsPath(),
                 properties.getServiceName(),
                 routeTemplateResolver,
-                requestEvidenceCapture
+                requestEvidenceCapture,
+                payloadCapture
         );
     }
 }

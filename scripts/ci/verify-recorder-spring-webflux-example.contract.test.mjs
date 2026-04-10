@@ -47,10 +47,10 @@ class Handler(http.server.BaseHTTPRequestHandler):
         sys.stdout.write(f"fixture request: {format % args}\\n")
         sys.stdout.flush()
 
-    def do_GET(self):
+    def do_POST(self):
         parsed = urllib.parse.urlsplit(self.path)
         query = urllib.parse.parse_qs(parsed.query)
-        if parsed.path != "/request-evidence/users/user-42":
+        if parsed.path != "/payload-evidence/users/user-42":
             self.send_response(404)
             self.end_headers()
             return
@@ -59,9 +59,24 @@ class Handler(http.server.BaseHTTPRequestHandler):
             self.end_headers()
             return
 
+        length = int(self.headers.get("Content-Length") or "0")
+        request_body = json.loads(self.rfile.read(length).decode("utf-8")) if length else None
+
+        payload = {
+            "userId": "user-42",
+            "expand": True,
+            "tags": ["alpha", "bravo"],
+            "requestFlavor": request_flavor,
+            "clientMode": "compact",
+            "authorizationProvided": True,
+            "sessionProvided": True,
+            "name": request_body.get("name") if isinstance(request_body, dict) else None,
+            "metaProvided": bool(isinstance(request_body, dict) and request_body.get("meta")),
+        }
+
         record = {
-            "method": "GET",
-            "route": "/request-evidence/users/{userId}",
+            "method": "POST",
+            "route": "/payload-evidence/users/{userId}",
             "status": 200,
             "service": service_name,
             "test.run_id": self.headers.get("X-Test-Run-Id"),
@@ -81,28 +96,19 @@ class Handler(http.server.BaseHTTPRequestHandler):
                 "clientMode": {"state": "captured", "reason": None, "values": ["compact"]},
                 "SESSION": {"state": "redacted", "reason": "sensitive", "values": None}
             },
-            "requestBody": None,
-            "requestBodyState": None,
+            "requestBody": request_body,
+            "requestBodyState": "captured",
             "requestBodyReason": None,
-            "requestContentType": None,
-            "responseBody": None,
-            "responseBodyState": None,
+            "requestContentType": self.headers.get("Content-Type"),
+            "responseBody": payload,
+            "responseBodyState": "captured",
             "responseBodyReason": None,
-            "responseContentType": None,
+            "responseContentType": "application/json",
         }
         events_path.parent.mkdir(parents=True, exist_ok=True)
         with events_path.open("a", encoding="utf-8") as handle:
             handle.write(json.dumps(record) + "\\n")
 
-        payload = {
-            "userId": "user-42",
-            "expand": True,
-            "tags": ["alpha", "bravo"],
-            "requestFlavor": request_flavor,
-            "clientMode": "compact",
-            "authorizationProvided": True,
-            "sessionProvided": True,
-        }
         body = json.dumps(payload).encode("utf-8")
         self.send_response(200)
         self.send_header("Content-Type", "application/json")
@@ -194,8 +200,8 @@ test("webflux example verifier accepts a live port even when bootRun never print
     const combined = `${stdout}\n${stderr}`;
 
     assert.match(combined, /Waiting for WebFlux example to open port \d+/);
-    assert.match(combined, /Sending proof request to http:\/\/127\.0\.0\.1:\d+\/request-evidence\/users\/user-42\?expand=true&tags=alpha&tags=bravo/);
-    assert.match(combined, /WebFlux recorder proof passed: method=GET route=\/request-evidence\/users\/\{userId\} status=200 service=examples-webflux-service-proof/);
+    assert.match(combined, /Sending proof request to http:\/\/127\.0\.0\.1:\d+\/payload-evidence\/users\/user-42\?expand=true&tags=alpha&tags=bravo/);
+    assert.match(combined, /WebFlux recorder proof passed: method=POST route=\/payload-evidence\/users\/\{userId\} status=200 service=examples-webflux-service-proof/);
     assert.doesNotMatch(combined, /Started WebfluxExampleServiceApplication/);
   } finally {
     await rm(rootDir, { recursive: true, force: true });
