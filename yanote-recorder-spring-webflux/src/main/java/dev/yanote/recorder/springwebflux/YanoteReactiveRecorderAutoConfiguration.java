@@ -53,12 +53,23 @@ public class YanoteReactiveRecorderAutoConfiguration {
     }
 
     /**
+     * Registers the reactive-safe current test-metadata bridge.
+     *
+     * @return reactive test-metadata bridge
+     */
+    @Bean
+    public ReactiveTestMetadataBridge yanoteReactiveTestMetadataBridge() {
+        return new ReactiveTestMetadataBridge();
+    }
+
+    /**
      * Registers the WebFlux recorder filter.
      *
      * @param properties bound recorder properties
      * @param routeTemplateResolver route-template resolver
      * @param requestEvidenceCapture request-evidence capture helper
      * @param payloadCapture payload capture helper
+     * @param testMetadataBridge reactive-safe current test-metadata bridge
      * @return WebFlux recorder filter
      */
     @Bean
@@ -66,14 +77,16 @@ public class YanoteReactiveRecorderAutoConfiguration {
             YanoteReactiveRecorderProperties properties,
             ReactiveRouteTemplateResolver routeTemplateResolver,
             ReactiveHttpRequestEvidenceCapture requestEvidenceCapture,
-            ReactiveHttpPayloadCapture payloadCapture
+            ReactiveHttpPayloadCapture payloadCapture,
+            ReactiveTestMetadataBridge testMetadataBridge
     ) {
         return new HttpEventRecordingWebFilter(
                 properties.getEventsPath(),
                 properties.getServiceName(),
                 routeTemplateResolver,
                 requestEvidenceCapture,
-                payloadCapture
+                payloadCapture,
+                testMetadataBridge
         );
     }
 }

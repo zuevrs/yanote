@@ -21,6 +21,7 @@ class RecorderReactiveAutoConfigurationTest {
             assertThat(context).doesNotHaveBean(ReactiveRouteTemplateResolver.class);
             assertThat(context).doesNotHaveBean(ReactiveHttpRequestEvidenceCapture.class);
             assertThat(context).doesNotHaveBean(ReactiveHttpPayloadCapture.class);
+            assertThat(context).doesNotHaveBean(ReactiveTestMetadataBridge.class);
         });
     }
 
@@ -36,6 +37,7 @@ class RecorderReactiveAutoConfigurationTest {
                     assertThat(context).hasSingleBean(ReactiveRouteTemplateResolver.class);
                     assertThat(context).hasSingleBean(ReactiveHttpRequestEvidenceCapture.class);
                     assertThat(context).hasSingleBean(ReactiveHttpPayloadCapture.class);
+                    assertThat(context).hasSingleBean(ReactiveTestMetadataBridge.class);
                     assertThat(context).hasSingleBean(WebFilter.class);
                 });
     }
@@ -54,6 +56,7 @@ class RecorderReactiveAutoConfigurationTest {
                     assertThat(context).doesNotHaveBean(ReactiveRouteTemplateResolver.class);
                     assertThat(context).doesNotHaveBean(ReactiveHttpRequestEvidenceCapture.class);
                     assertThat(context).doesNotHaveBean(ReactiveHttpPayloadCapture.class);
+                    assertThat(context).doesNotHaveBean(ReactiveTestMetadataBridge.class);
                 });
     }
 }
