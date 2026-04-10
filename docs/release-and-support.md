@@ -61,6 +61,34 @@
 
 Именно в этих границах текущий HTTP path считается поддерживаемым: JSON-first request/response payload validation на Spring MVC path, additive request/payload/security retained proof artifacts и честное разделение между observation coverage и semantic conformance. Есть и widened combined-report surface, но он child-attributed: `yanote-combined-report.json` / `yanote-combined-report.html` ссылаются на отдельные HTTP и async child reports и не вводят blended HTTP+async denominator. Здесь **нет** обещания для произвольных media types, нет обещания для security scheme types вне `apiKey query/header/cookie`, нет обещания для broader OpenAPI objects `examples`, `links`, `callbacks`, `webhooks`, нет hosted dashboard surface и нет broker-agnostic async promise.
 
+### Source-built WebFlux recorder surface относительно релиза и `HEAD`
+
+Текущий repository `HEAD` также несёт отдельный source-built WebFlux recorder path через `yanote-recorder-spring-webflux`, но его нужно читать так же буквально: это не замена release-published Spring MVC path, не generic «Spring HTTP recorder» promise и не новая стабильная release line поверх `v1.0.x`.
+
+Текущая narrow surface здесь опирается на уже существующий proof stack:
+
+- `:yanote-recorder-spring-webflux:test`
+- `bash scripts/ci/verify-recorder-spring-webflux-example.sh`
+- `node --test scripts/ci/verify-recorder-spring-webflux-footprint.contract.test.mjs`
+- сохранённый MVC safety stack, включая `RecorderReactiveCompatibilityTest`
+
+Поддерживаемая граница этой narrow current surface сейчас такая:
+
+- отдельный модуль `yanote-recorder-spring-webflux`
+- finite/non-streaming HTTP exchanges
+- bounded JSON request/response capture only on the proved path
+- one truthful event per proved exchange with route/status/request evidence
+- явное разделение с `yanote-recorder-spring-mvc`, а не stack-neutral HTTP claim
+
+Внутри этой WebFlux surface явно остаются deferred / not promised:
+
+- `SSE`
+- `application/stream+json`
+- long-lived / infinite streams
+- multipart / file-transfer paths
+- broad WebFlux body-type parity claims
+- broad functional-route parity claims beyond the current proof
+
 ### Widened async и combined surface относительно релиза и `HEAD`
 
 Widened user-facing async surface уже есть в текущем репозитории, но её нужно читать честно: это **source-built async + combined path** через `yanote-js` на repository `HEAD`, а не отдельная новая стабильная release line поверх `v1.0.x`. Подписанные теги и GitHub Releases по-прежнему определяют публичную release truth; widened path лишь фиксирует, что текущий `HEAD` уже несёт отдельные Kafka и RabbitMQ/AMQP async proof families плюс retained combined-report surface. Это не отменяет отдельную async analyzer/report boundary, не превращает combined-report в blended release gate и не делает текущий `HEAD` опубликованным стабильным релизом.
@@ -93,6 +121,7 @@ Demo/example модули полезны для доказательства п�
 - Java 21 — verified baseline для Gradle build, CI и публично описанного Java-пути;
 - Node `>=20` — минимальный runtime для analyzer-а;
 - Spring Boot 3.x / Spring MVC — основной и проверенный recorder path в текущей пользовательской документации;
+- Spring Boot 3.x / Spring WebFlux — отдельный narrow current surface через `yanote-recorder-spring-webflux`; finite/non-streaming exchanges и bounded JSON proof only;
 - Java-first delivery surfaces (Maven/Gradle + Gradle plugin) — текущий основной product path.
 
 ## Ограничения
@@ -106,6 +135,7 @@ Yanote сейчас нужно воспринимать как Java-first пут
 - analyzer version markers (`0.0.0`) полезны только как технический build marker и не должны читаться как публичная release version;
 - локальный файл/директория остаются stable baseline для HTTP `--spec`; remote single-document `http(s)` `--spec` — только opt-in path, а persisted summaries/artifacts обязаны публиковать лишь sanitized provenance;
 - payload validation публично поддерживается как JSON-first path на Spring MVC demo/runtime surfaces, а не как обещание универсального media-type coverage; поддерживаемый payload format allowlist сейчас intentionally `email`-only, а media selection идёт по most-specific declared match;
+- текущий WebFlux recorder path на repository `HEAD` остаётся отдельной narrow current surface через `yanote-recorder-spring-webflux`: finite/non-streaming exchanges и bounded JSON proof only; `SSE`, `application/stream+json`, long-lived/infinite streams, multipart/file-transfer paths и broad body-type parity promises остаются out of scope;
 - security validation публично поддерживается как truthful `apiKey` query/header/cookie subset и additive fixture-backed proof path, а не как обещание для `http`, `oauth2`, `openIdConnect`, path `apiKey` или иного broader security coverage;
 - examples, retained proof bundle, fallback release assets и maintainer-only workflow полезны для диагностики и сопровождения, но не равны по статусу опубликованной продуктовой поверхности;
 - broader OpenAPI objects `examples`, `links`, `callbacks`, `webhooks` остаются deferred и не публикуются как поддерживаемый proof surface;
