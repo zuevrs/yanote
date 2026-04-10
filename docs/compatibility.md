@@ -9,6 +9,7 @@
 | Java | 21 | Verified baseline для Gradle build, CI и основной Java-first product path. |
 | Node.js | `>=20` | Минимальный runtime для analyzer implementation / standalone bundle build path. |
 | Spring Boot / Spring MVC | 3.x | Основной и проверенный HTTP recorder path. |
+| Spring Boot / Spring WebFlux | current narrow proven path | Отдельный `yanote-recorder-spring-webflux` surface на текущем `HEAD`; finite/non-streaming exchanges with bounded JSON proof only, без broad WebFlux parity promise. |
 | Spring Kafka | current proven path | Поддержан через `yanote-recorder-spring-kafka` в текущей release surface. |
 | RabbitMQ / AMQP | current narrow proven path | Поддержан только как first-wave async path на текущем source-built widened surface. |
 | OS | CI-verified GitHub-hosted Linux baseline | Локально проект может работать и в других окружениях, но canonical proof приходит из CI + release artifacts. |
@@ -31,6 +32,16 @@
 - `yanote-test-tags-restassured`
 - `yanote-test-tags-cucumber`
 - `yanote-gradle-plugin`
+
+### Source-built current recorder surface
+
+Текущий repository `HEAD` также несёт отдельный `yanote-recorder-spring-webflux` path, но его нужно читать буквально как narrow current surface, а не как замену release-published MVC path:
+
+- отдельный модуль `yanote-recorder-spring-webflux`
+- текущая proven boundary: finite/non-streaming exchanges
+- bounded JSON request/response capture only on the proved path
+- no broad WebFlux parity promise
+- no promise for `SSE`, `application/stream+json`, long-lived/infinite streams, multipart/file-transfer paths
 
 ### Analyzer
 

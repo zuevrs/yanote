@@ -17,6 +17,7 @@
 
 | Module / surface | Role | Status |
 |---|---|---|
+| `yanote-recorder-spring-webflux` | Separate Spring WebFlux HTTP recorder path for the current finite/non-streaming proof surface | Narrow current surface; read literally from release/support docs, distinct from MVC |
 | `yanote-recorder-spring-amqp` | RabbitMQ/AMQP-side recorder/proof path for widened async surface | Narrow current surface; read literally from release/support docs |
 | `yanote-js` | Analyzer implementation, async/combined engine, standalone bundle internals | Internal implementation behind the public analyzer bundle |
 | `yanote-analyzer.zip` / `bin/yanote` | Public analyzer delivery surface | Public standalone bundle |
@@ -26,6 +27,7 @@
 | Module | Role | Status |
 |---|---|---|
 | `examples:springmvc-service` | Runnable service example | Example / not published module |
+| `examples:webflux-service` | Runnable WebFlux recorder proof app for the narrow current surface | Example / not published module |
 | `examples:tests-restassured` | Runnable test/demo path | Example / not published module |
 
 ## Historical / non-entrypoint surfaces
