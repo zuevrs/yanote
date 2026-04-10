@@ -16,6 +16,7 @@ Yanote уже собран вокруг одного короткого product-
 - Проверить release/support boundary: [release-and-support.md](release-and-support.md) — если нужны текущая стабильная линия `v1.0.x`, published bundle `yanote-analyzer.zip` и ограничения поддержки
 - Открыть короткую матрицу поддержки: [support-matrix.md](support-matrix.md)
 - Проверить baseline-совместимость: [compatibility.md](compatibility.md)
+- Если нужен узкий отдельный WebFlux recorder path, открыть [guides/recorder-spring-webflux.md](guides/recorder-spring-webflux.md)
 - Если нужен reference stack целиком, открыть [reference/README.md](reference/README.md)
 - Если нужен async path, открыть [guides/asyncapi-kafka.md](guides/asyncapi-kafka.md)
 

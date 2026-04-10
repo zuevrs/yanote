@@ -22,6 +22,7 @@ Compose использует тот же user-facing analyzer contract, что �
 ## Что открывать рядом с Compose
 
 - [springmvc-service/README.md](springmvc-service/README.md) — как demo-service пишет `events.jsonl`
+- [webflux-service/README.md](webflux-service/README.md) — отдельный narrow WebFlux recorder companion
 - [tests-restassured/README.md](tests-restassured/README.md) — как demo-tests передают `X-Test-Run-Id` и `X-Test-Suite`
 - [../docs/guides/analyzer-coverage.md](../docs/guides/analyzer-coverage.md) — standalone analyzer path и чтение отчёта
 

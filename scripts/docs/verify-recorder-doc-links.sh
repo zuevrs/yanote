@@ -9,7 +9,9 @@ ANALYZER_GUIDE="docs/guides/analyzer-coverage.md"
 ASYNC_GUIDE="docs/guides/asyncapi-kafka.md"
 BOUNDARY_DOC="docs/release-and-support.md"
 RECORDER_GUIDE="docs/guides/recorder-spring-mvc.md"
+WEBFLUX_GUIDE="docs/guides/recorder-spring-webflux.md"
 SERVICE_EXAMPLE="examples/springmvc-service/README.md"
+WEBFLUX_EXAMPLE="examples/webflux-service/README.md"
 
 fail() {
   echo "ERROR: $1" >&2
@@ -95,7 +97,9 @@ for path in \
   "${ASYNC_GUIDE}" \
   "${BOUNDARY_DOC}" \
   "${RECORDER_GUIDE}" \
-  "${SERVICE_EXAMPLE}"
+  "${WEBFLUX_GUIDE}" \
+  "${SERVICE_EXAMPLE}" \
+  "${WEBFLUX_EXAMPLE}"
 do
   require_file "$path"
 done
@@ -107,7 +111,9 @@ check_local_markdown_links \
   "${ASYNC_GUIDE}" \
   "${BOUNDARY_DOC}" \
   "${RECORDER_GUIDE}" \
-  "${SERVICE_EXAMPLE}"
+  "${WEBFLUX_GUIDE}" \
+  "${SERVICE_EXAMPLE}" \
+  "${WEBFLUX_EXAMPLE}"
 
 require_contains "${ROOT_README}" "docs/guides/analyzer-coverage.md" "HTTP analyzer guide link"
 require_contains "${ROOT_README}" "docs/guides/asyncapi-kafka.md" "async guide link"
@@ -118,6 +124,7 @@ reject_contains "${ROOT_README}" 'node yanote-js/dist/yanote.cjs' "raw analyzer 
 
 require_contains "${DOCS_README}" 'guides/analyzer-coverage.md' "HTTP analyzer guide link"
 require_contains "${DOCS_README}" 'guides/asyncapi-kafka.md' "async guide link"
+require_contains "${DOCS_README}" 'guides/recorder-spring-webflux.md' "narrow webflux guide link"
 require_contains "${DOCS_README}" 'release-and-support.md' "release/support boundary link"
 require_contains "${DOCS_README}" 'yanote-analyzer.zip' "standalone bundle wording"
 require_contains "${DOCS_README}" 'bin/yanote' "standalone launcher wording"
@@ -151,7 +158,9 @@ require_contains "${BOUNDARY_DOC}" 'raw `node yanote-js/dist/yanote.cjs` seam о
 require_contains "${BOUNDARY_DOC}" 'tracked `dist/`' "no tracked dist clause"
 
 require_max_lines "${RECORDER_GUIDE}" 120
+require_max_lines "${WEBFLUX_GUIDE}" 130
 require_max_lines "${SERVICE_EXAMPLE}" 60
+require_max_lines "${WEBFLUX_EXAMPLE}" 60
 require_contains "${RECORDER_GUIDE}" 'io.github.zuevrs:yanote-recorder-spring-mvc' "recorder dependency"
 require_contains "${RECORDER_GUIDE}" 'yanote.recorder.enabled=true' "recorder enable property"
 require_contains "${RECORDER_GUIDE}" 'yanote.recorder.events-path' "recorder events path property"
@@ -166,6 +175,22 @@ require_contains "${RECORDER_GUIDE}" 'bash scripts/docs/verify-recorder-path.sh'
 require_contains "${RECORDER_GUIDE}" '../../examples/springmvc-service/README.md' "service example backlink"
 require_contains "${RECORDER_GUIDE}" 'test-tagging.md' "tagging guide link"
 
+require_contains "${WEBFLUX_GUIDE}" 'io.github.zuevrs:yanote-recorder-spring-webflux' "webflux recorder dependency"
+require_contains "${WEBFLUX_GUIDE}" 'yanote.recorder.enabled=true' "webflux recorder enable property"
+require_contains "${WEBFLUX_GUIDE}" 'yanote.recorder.events-path' "webflux recorder events path property"
+require_contains "${WEBFLUX_GUIDE}" 'YANOTE_RECORDER_EVENTS_PATH' "webflux Spring env binding example"
+require_contains "${WEBFLUX_GUIDE}" 'test -s "$YANOTE_RECORDER_EVENTS_PATH"' "webflux events.jsonl proof command"
+require_contains "${WEBFLUX_GUIDE}" 'head -n 1 "$YANOTE_RECORDER_EVENTS_PATH"' "webflux JSONL proof command"
+require_contains "${WEBFLUX_GUIDE}" 'X-Test-Run-Id' "webflux run-id header mapping"
+require_contains "${WEBFLUX_GUIDE}" 'X-Test-Suite' "webflux suite header mapping"
+require_contains "${WEBFLUX_GUIDE}" 'test.run_id' "webflux recorded run id field"
+require_contains "${WEBFLUX_GUIDE}" 'test.suite' "webflux recorded suite field"
+require_contains "${WEBFLUX_GUIDE}" 'requestBodyState' "webflux request body proof field"
+require_contains "${WEBFLUX_GUIDE}" 'responseBodyState' "webflux response body proof field"
+require_contains "${WEBFLUX_GUIDE}" 'bash scripts/docs/verify-recorder-spring-webflux-path.sh' "webflux repo proof command"
+require_contains "${WEBFLUX_GUIDE}" '../../examples/webflux-service/README.md' "webflux service example backlink"
+require_contains "${WEBFLUX_GUIDE}" 'test-tagging.md' "webflux tagging guide link"
+
 require_contains "${SERVICE_EXAMPLE}" '../../docs/guides/recorder-spring-mvc.md' "canonical recorder guide link"
 require_contains "${SERVICE_EXAMPLE}" '../README.md' "examples landing link"
 require_contains "${SERVICE_EXAMPLE}" 'yanote.recorder.events-path' "shared recorder property wording"
@@ -174,4 +199,17 @@ require_contains "${SERVICE_EXAMPLE}" 'X-Test-Run-Id' "header handoff wording"
 require_contains "${SERVICE_EXAMPLE}" 'X-Test-Suite' "header handoff wording"
 require_contains "${SERVICE_EXAMPLE}" '../tests-restassured/README.md' "RestAssured example backlink"
 
-echo "Doc link verification passed: public docs point to one standalone analyzer bundle and recorder path stays short, explicit, and linked to the runnable service companion."
+require_contains "examples/README.md" 'springmvc-service/README.md' "mvc companion link"
+require_contains "examples/README.md" 'webflux-service/README.md' "webflux companion link"
+require_contains "examples/README.md" 'tests-restassured/README.md' "tests companion link"
+
+require_contains "${WEBFLUX_EXAMPLE}" '../../docs/guides/recorder-spring-webflux.md' "canonical webflux recorder guide link"
+require_contains "${WEBFLUX_EXAMPLE}" '../README.md' "webflux examples landing link"
+require_contains "${WEBFLUX_EXAMPLE}" 'yanote.recorder.events-path' "webflux shared recorder property wording"
+require_contains "${WEBFLUX_EXAMPLE}" 'YANOTE_EVENTS_PATH' "webflux example env bridge wording"
+require_contains "${WEBFLUX_EXAMPLE}" 'X-Test-Run-Id' "webflux header handoff wording"
+require_contains "${WEBFLUX_EXAMPLE}" 'X-Test-Suite' "webflux suite handoff wording"
+require_contains "${WEBFLUX_EXAMPLE}" 'requestBodyState=captured' "webflux request body state wording"
+require_contains "${WEBFLUX_EXAMPLE}" 'responseBodyState=captured' "webflux response body state wording"
+
+echo "Doc link verification passed: public docs point to one standalone analyzer bundle, MVC stays the canonical recorder path, and the narrow WebFlux recorder companion stays explicit and linked."
