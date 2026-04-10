@@ -2,6 +2,7 @@ package dev.yanote.recorder.springwebflux;
 
 import dev.yanote.core.events.EventJsonlWriter;
 import dev.yanote.core.events.HttpEvent;
+import dev.yanote.core.testmetadata.TestMetadata;
 import java.io.IOException;
 import java.nio.ByteBuffer;
 import java.nio.file.Path;
@@ -32,6 +33,7 @@ public final class HttpEventRecordingWebFilter implements WebFilter, Ordered {
     private final ReactiveRouteTemplateResolver routeTemplateResolver;
     private final ReactiveHttpRequestEvidenceCapture requestEvidenceCapture;
     private final ReactiveHttpPayloadCapture payloadCapture;
+    private final ReactiveTestMetadataBridge testMetadataBridge;
 
     /**
      * Creates the WebFlux recorder filter.
@@ -41,25 +43,30 @@ public final class HttpEventRecordingWebFilter implements WebFilter, Ordered {
      * @param routeTemplateResolver route-template resolver for matched exchanges
      * @param requestEvidenceCapture request-evidence capture helper
      * @param payloadCapture payload capture helper
+     * @param testMetadataBridge reactive-safe current test-metadata bridge
      */
     public HttpEventRecordingWebFilter(
             String eventsPath,
             String serviceName,
             ReactiveRouteTemplateResolver routeTemplateResolver,
             ReactiveHttpRequestEvidenceCapture requestEvidenceCapture,
-            ReactiveHttpPayloadCapture payloadCapture
+            ReactiveHttpPayloadCapture payloadCapture,
+            ReactiveTestMetadataBridge testMetadataBridge
     ) {
         this.eventsPath = eventsPath;
         this.serviceName = serviceName;
         this.routeTemplateResolver = routeTemplateResolver;
         this.requestEvidenceCapture = requestEvidenceCapture;
         this.payloadCapture = payloadCapture;
+        this.testMetadataBridge = testMetadataBridge;
     }
 
     @Override
     public Mono<Void> filter(ServerWebExchange exchange, WebFilterChain chain) {
-        String runId = exchange.getRequest().getHeaders().getFirst(RUN_ID_HEADER);
-        String suite = exchange.getRequest().getHeaders().getFirst(SUITE_HEADER);
+        TestMetadata testMetadata = new TestMetadata(
+                exchange.getRequest().getHeaders().getFirst(RUN_ID_HEADER),
+                exchange.getRequest().getHeaders().getFirst(SUITE_HEADER)
+        );
         String method = exchange.getRequest().getMethod() == null ? null : exchange.getRequest().getMethod().name();
         String path = exchange.getRequest().getURI().getRawPath();
 
@@ -77,10 +84,16 @@ public final class HttpEventRecordingWebFilter implements WebFilter, Ordered {
         );
 
         ServerWebExchange decoratedExchange = decorateExchange(exchange, method, path, requestPayload, responsePayload);
+        testMetadataBridge.seed(decoratedExchange, testMetadata);
         return chain.filter(decoratedExchange)
+                .contextWrite(context -> testMetadataBridge.writeToContext(context, testMetadata))
                 .doFinally(signalType -> {
-                    if (signalType != SignalType.CANCEL) {
-                        recordSafely(decoratedExchange, runId, suite, requestPayload.finish(), responsePayload.finish());
+                    try {
+                        if (signalType != SignalType.CANCEL) {
+                            recordSafely(decoratedExchange, testMetadata, requestPayload.finish(), responsePayload.finish());
+                        }
+                    } finally {
+                        testMetadataBridge.clear(decoratedExchange);
                     }
                 });
     }
@@ -162,16 +175,27 @@ public final class HttpEventRecordingWebFilter implements WebFilter, Ordered {
     }
 
     private byte[] copyBytes(DataBuffer dataBuffer) {
-        ByteBuffer byteBuffer = dataBuffer.toByteBuffer(dataBuffer.readPosition(), dataBuffer.readableByteCount()).asReadOnlyBuffer();
-        byte[] bytes = new byte[byteBuffer.remaining()];
-        byteBuffer.get(bytes);
+        int readableByteCount = dataBuffer.readableByteCount();
+        if (readableByteCount == 0) {
+            return new byte[0];
+        }
+
+        byte[] bytes = new byte[readableByteCount];
+        int offset = 0;
+        try (DataBuffer.ByteBufferIterator iterator = dataBuffer.readableByteBuffers()) {
+            while (iterator.hasNext()) {
+                ByteBuffer byteBuffer = iterator.next();
+                int length = byteBuffer.remaining();
+                byteBuffer.get(bytes, offset, length);
+                offset += length;
+            }
+        }
         return bytes;
     }
 
     private void recordSafely(
             ServerWebExchange exchange,
-            String runId,
-            String suite,
+            TestMetadata testMetadata,
             ReactiveHttpPayloadCapture.PayloadSnapshot requestPayload,
             ReactiveHttpPayloadCapture.PayloadSnapshot responsePayload
     ) {
@@ -182,8 +206,8 @@ public final class HttpEventRecordingWebFilter implements WebFilter, Ordered {
                     System.currentTimeMillis(),
                     exchange.getRequest().getMethod() == null ? null : exchange.getRequest().getMethod().name(),
                     routeTemplateResolver.resolve(exchange),
-                    runId,
-                    suite,
+                    testMetadata == null ? null : testMetadata.testRunId(),
+                    testMetadata == null ? null : testMetadata.testSuite(),
                     status,
                     requestPayload.body(),
                     requestPayload.state(),
