@@ -74,6 +74,7 @@ NOTES_TIMEOUT_SECONDS="${YANOTE_RELEASE_NOTES_TIMEOUT_SECONDS:-60}"
 EXPECTED_STAGING_PUBLICATIONS=(
   "build/staging-deploy/io/github/zuevrs/yanote-core/${RELEASE_VERSION}/yanote-core-${RELEASE_VERSION}.pom"
   "build/staging-deploy/io/github/zuevrs/yanote-recorder-spring-mvc/${RELEASE_VERSION}/yanote-recorder-spring-mvc-${RELEASE_VERSION}.pom"
+  "build/staging-deploy/io/github/zuevrs/yanote-recorder-spring-webflux/${RELEASE_VERSION}/yanote-recorder-spring-webflux-${RELEASE_VERSION}.pom"
   "build/staging-deploy/io/github/zuevrs/yanote-recorder-spring-kafka/${RELEASE_VERSION}/yanote-recorder-spring-kafka-${RELEASE_VERSION}.pom"
   "build/staging-deploy/io/github/zuevrs/yanote-recorder-spring-amqp/${RELEASE_VERSION}/yanote-recorder-spring-amqp-${RELEASE_VERSION}.pom"
   "build/staging-deploy/io/github/zuevrs/yanote-test-tags-restassured/${RELEASE_VERSION}/yanote-test-tags-restassured-${RELEASE_VERSION}.pom"

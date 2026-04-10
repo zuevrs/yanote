@@ -9,7 +9,7 @@
 | Java | 21 | Verified baseline для Gradle build, CI и основной Java-first product path. |
 | Node.js | `>=20` | Минимальный runtime для analyzer implementation / standalone bundle build path. |
 | Spring Boot / Spring MVC | 3.x | Основной и проверенный HTTP recorder path. |
-| Spring Boot / Spring WebFlux | current narrow proven path | Отдельный `yanote-recorder-spring-webflux` surface на текущем `HEAD`; finite/non-streaming exchanges with bounded JSON proof only, без broad WebFlux parity promise. |
+| Spring Boot / Spring WebFlux | published narrow proven path | Отдельный release-published `yanote-recorder-spring-webflux` surface; finite/non-streaming exchanges with bounded JSON proof only, без broad WebFlux parity promise. |
 | Spring Kafka | current proven path | Поддержан через `yanote-recorder-spring-kafka` в текущей release surface. |
 | RabbitMQ / AMQP | current narrow proven path | Поддержан только как first-wave async path на текущем source-built widened surface. |
 | OS | CI-verified GitHub-hosted Linux baseline | Локально проект может работать и в других окружениях, но canonical proof приходит из CI + release artifacts. |
@@ -29,13 +29,14 @@
 - `yanote-core`
 - `yanote-recorder-spring-mvc`
 - `yanote-recorder-spring-kafka`
+- `yanote-recorder-spring-webflux`
 - `yanote-test-tags-restassured`
 - `yanote-test-tags-cucumber`
 - `yanote-gradle-plugin`
 
-### Source-built current recorder surface
+### Published narrow recorder surface
 
-Текущий repository `HEAD` также несёт отдельный `yanote-recorder-spring-webflux` path, но его нужно читать буквально как narrow current surface, а не как замену release-published MVC path:
+Текущий release/pipeline path также несёт отдельный `yanote-recorder-spring-webflux` module, но его нужно читать буквально как narrow published surface, а не как замену release-published MVC path:
 
 - отдельный модуль `yanote-recorder-spring-webflux`
 - текущая proven boundary: finite/non-streaming exchanges

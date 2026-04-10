@@ -55,6 +55,7 @@ test("release pipeline verifier mirrors the workflow's local release-candidate t
   assert.match(source, /EXPECTED_STAGING_PUBLICATIONS=\(/);
   assert.match(source, /yanote-core-\$\{RELEASE_VERSION\}\.pom/);
   assert.match(source, /yanote-recorder-spring-mvc-\$\{RELEASE_VERSION\}\.pom/);
+  assert.match(source, /yanote-recorder-spring-webflux-\$\{RELEASE_VERSION\}\.pom/);
   assert.match(source, /yanote-recorder-spring-kafka-\$\{RELEASE_VERSION\}\.pom/);
   assert.match(source, /yanote-recorder-spring-amqp-\$\{RELEASE_VERSION\}\.pom/);
   assert.match(source, /yanote-test-tags-restassured-\$\{RELEASE_VERSION\}\.pom/);

@@ -9,6 +9,7 @@
 | `yanote-core` | Core semantics, coverage/report model, shared engine pieces for the Java path | Public release module |
 | `yanote-recorder-spring-mvc` | HTTP recorder for Spring Boot 3.x / Spring MVC | Public supported module |
 | `yanote-recorder-spring-kafka` | Kafka recorder adapter for evidence capture | Public supported module |
+| `yanote-recorder-spring-webflux` | Separate Spring WebFlux HTTP recorder path for the finite/non-streaming proved boundary | Public release module with narrow explicit support boundary |
 | `yanote-test-tags-restassured` | Test metadata handoff for RestAssured path | Public supported module |
 | `yanote-test-tags-cucumber` | Test metadata handoff for Cucumber path | Public supported module |
 | `yanote-gradle-plugin` | Gradle integration (`yanoteReport`, `yanoteCheck`) | Public supported module |
@@ -17,7 +18,6 @@
 
 | Module / surface | Role | Status |
 |---|---|---|
-| `yanote-recorder-spring-webflux` | Separate Spring WebFlux HTTP recorder path for the current finite/non-streaming proof surface | Narrow current surface; read literally from release/support docs, distinct from MVC |
 | `yanote-recorder-spring-amqp` | RabbitMQ/AMQP-side recorder/proof path for widened async surface | Narrow current surface; read literally from release/support docs |
 | `yanote-js` | Analyzer implementation, async/combined engine, standalone bundle internals | Internal implementation behind the public analyzer bundle |
 | `yanote-analyzer.zip` / `bin/yanote` | Public analyzer delivery surface | Public standalone bundle |
@@ -27,7 +27,7 @@
 | Module | Role | Status |
 |---|---|---|
 | `examples:springmvc-service` | Runnable service example | Example / not published module |
-| `examples:webflux-service` | Runnable WebFlux recorder proof app for the narrow current surface | Example / not published module |
+| `examples:webflux-service` | Runnable WebFlux recorder proof app for the narrow published surface | Example / not published module |
 | `examples:tests-restassured` | Runnable test/demo path | Example / not published module |
 
 ## Historical / non-entrypoint surfaces
