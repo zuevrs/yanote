@@ -2,7 +2,7 @@
 set -euo pipefail
 
 ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
-FIXTURE_DIR="${ROOT_DIR}/test/fixtures/recorder-spring-webflux-smoke"
+FIXTURE_DIR="${ROOT_DIR}/test/fixtures/recorder-spring-webflux-smoke-boot27"
 TMP_DIR="$(mktemp -d "${TMPDIR:-/tmp}/yanote-webflux-docker.XXXXXX")"
 PUBLISH_LOG_PATH="${TMP_DIR}/publish.log"
 BUILD_LOG_PATH="${TMP_DIR}/build.log"
@@ -14,7 +14,7 @@ DOCKER_CONTEXT_DIR="${TMP_DIR}/docker-context"
 
 YANOTE_GROUP="$(grep -E '^group=' "${ROOT_DIR}/gradle.properties" | head -n 1 | cut -d= -f2-)"
 YANOTE_VERSION="$(grep -E '^version=' "${ROOT_DIR}/gradle.properties" | head -n 1 | cut -d= -f2-)"
-ACTUAL_SERVICE_NAME="${YANOTE_SERVICE_NAME:-recorder-spring-webflux-consumer-docker}"
+ACTUAL_SERVICE_NAME="${YANOTE_SERVICE_NAME:-recorder-spring-webflux-consumer-docker-boot27}"
 EXPECTED_RUN_ID="${YANOTE_EXPECTED_RUN_ID:-webflux-docker-run}"
 EXPECTED_SUITE="${YANOTE_EXPECTED_SUITE:-webflux-docker-suite}"
 REQUEST_FLAVOR="${YANOTE_REQUEST_FLAVOR:-amber}"

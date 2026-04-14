@@ -1,9 +1,11 @@
 import assert from "node:assert/strict";
+import { readFile } from "node:fs/promises";
 import { spawn } from "node:child_process";
 import path from "node:path";
 import test from "node:test";
 
 const gradlewPath = path.resolve("./gradlew");
+const webFilterSourcePath = path.resolve("./yanote-recorder-spring-webflux/src/main/java/dev/yanote/recorder/springwebflux/HttpEventRecordingWebFilter.java");
 
 async function runGradle(args) {
   return await new Promise((resolve, reject) => {
@@ -28,6 +30,14 @@ async function runGradle(args) {
   });
 }
 
+test("yanote-recorder-spring-webflux avoids Spring 6-only DataBuffer iteration APIs in the recorder filter", async () => {
+  const source = await readFile(webFilterSourcePath, "utf8");
+
+  assert.doesNotMatch(source, /readableByteBuffers\s*\(/);
+  assert.doesNotMatch(source, /DataBuffer\.ByteBufferIterator/);
+  assert.match(source, /asByteBuffer\s*\(/);
+});
+
 test("yanote-recorder-spring-webflux keeps reactive APIs at compile time without exporting a web runtime at runtime", async () => {
   const [compileClasspath, runtimeClasspath] = await Promise.all([
     runGradle([":yanote-recorder-spring-webflux:dependencies", "--configuration", "compileClasspath", "--console=plain"]),
@@ -37,8 +47,8 @@ test("yanote-recorder-spring-webflux keeps reactive APIs at compile time without
   assert.equal(compileClasspath.code, 0, `compileClasspath report failed:\n${compileClasspath.stderr || compileClasspath.stdout}`);
   assert.equal(runtimeClasspath.code, 0, `runtimeClasspath report failed:\n${runtimeClasspath.stderr || runtimeClasspath.stdout}`);
 
-  assert.match(compileClasspath.stdout, /org\.springframework\.boot:spring-boot-autoconfigure:3\.2\.2/);
-  assert.match(compileClasspath.stdout, /org\.springframework:spring-webflux:6\.1\.3/);
+  assert.match(compileClasspath.stdout, /org\.springframework\.boot:spring-boot-autoconfigure:2\.7\.18/);
+  assert.match(compileClasspath.stdout, /org\.springframework:spring-webflux:5\.3\.31/);
 
   assert.doesNotMatch(runtimeClasspath.stdout, /org\.springframework\.boot:spring-boot-starter-webflux:/);
   assert.doesNotMatch(runtimeClasspath.stdout, /org\.springframework:spring-webflux:/);
