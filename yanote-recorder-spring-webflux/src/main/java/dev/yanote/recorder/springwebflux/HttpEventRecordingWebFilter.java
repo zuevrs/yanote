@@ -12,7 +12,6 @@ import org.slf4j.LoggerFactory;
 import org.springframework.core.Ordered;
 import org.springframework.core.io.buffer.DataBuffer;
 import org.springframework.http.HttpHeaders;
-import org.springframework.http.HttpStatusCode;
 import org.springframework.http.server.reactive.ServerHttpRequestDecorator;
 import org.springframework.http.server.reactive.ServerHttpResponseDecorator;
 import org.springframework.web.server.ServerWebExchange;
@@ -180,16 +179,9 @@ public final class HttpEventRecordingWebFilter implements WebFilter, Ordered {
             return new byte[0];
         }
 
+        ByteBuffer byteBuffer = dataBuffer.asByteBuffer(dataBuffer.readPosition(), readableByteCount);
         byte[] bytes = new byte[readableByteCount];
-        int offset = 0;
-        try (DataBuffer.ByteBufferIterator iterator = dataBuffer.readableByteBuffers()) {
-            while (iterator.hasNext()) {
-                ByteBuffer byteBuffer = iterator.next();
-                int length = byteBuffer.remaining();
-                byteBuffer.get(bytes, offset, length);
-                offset += length;
-            }
-        }
+        byteBuffer.get(bytes);
         return bytes;
     }
 
@@ -231,7 +223,6 @@ public final class HttpEventRecordingWebFilter implements WebFilter, Ordered {
     }
 
     private Integer status(ServerWebExchange exchange) {
-        HttpStatusCode statusCode = exchange.getResponse().getStatusCode();
-        return statusCode == null ? null : statusCode.value();
+        return exchange.getResponse().getRawStatusCode();
     }
 }

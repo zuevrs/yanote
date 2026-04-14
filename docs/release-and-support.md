@@ -46,7 +46,7 @@
 - опубликованные Java-модули из release allowlist: `yanote-core`, `yanote-recorder-spring-mvc`, `yanote-recorder-spring-webflux`, `yanote-recorder-spring-kafka`, `yanote-recorder-spring-amqp`, `yanote-test-tags-restassured`, `yanote-test-tags-cucumber`, `yanote-gradle-plugin`;
 - Gradle plugin surface: plugin id `io.github.zuevrs.yanote.gradle`, задачи `yanoteReport` и `yanoteCheck`, плюс ограниченная extension surface вместо произвольного API;
 - report contract: файл `yanote-report.json` со schema version `1.0.0` (`schemaVersion = 1.0.0`);
-- проверенные recorder paths: dependency-based `yanote-recorder-spring-mvc` для Spring Boot 3.x / Spring MVC с записью HTTP evidence в `events.jsonl`, `yanote-recorder-spring-webflux` как release-published narrow Spring WebFlux recorder module для finite/non-streaming bounded-JSON proof path, и `yanote-recorder-spring-kafka` как release-published Spring Kafka recorder adapter для Kafka evidence capture;
+- проверенные recorder paths: dependency-based `yanote-recorder-spring-mvc` для Spring Boot 3.x / Spring MVC с записью HTTP evidence в `events.jsonl`, `yanote-recorder-spring-webflux` как release-published narrow Spring WebFlux recorder module для finite/non-streaming bounded-JSON proof path с proved compatibility floor на Spring Boot 2.7.x / Spring Framework 5.3.x и Spring Boot 3.x / Spring Framework 6.x, и `yanote-recorder-spring-kafka` как release-published Spring Kafka recorder adapter для Kafka evidence capture;
 - analyzer delivery surface: основной путь — standalone CLI bundle `yanote-analyzer.zip` с launcher-ом `bin/yanote`; published release asset и repo-local `./gradlew distStandaloneAnalyzer` ведут к одному и тому же user-facing launcher contract, а repo-local archive contract фиксирован как `build/distributions/yanote-analyzer.zip`; stable baseline для `--spec` — локальный файл или директория, а narrow opt-in remote path ограничен single-document `http(s)` `--spec`; raw `node yanote-js/dist/yanote.cjs` seam остаётся внутренней реализацией bundle, а не tracked public entrypoint;
 - CI/public summary surface: `yanote-validation-artifacts` и `build-and-test-artifacts` публикуют отдельные HTTP-vs-async owner bundles; внутри `build-and-test-artifacts` widened async/combined surface идёт тремя proof families — `live-kafka-proof/`, `live-rabbitmq-proof/`, `combined-proof/`. Они удерживают deterministic `artifact-manifest.txt` / `artifact-source-paths.txt`, sanitized `specSource`, additive deprecated-operation counts в GitHub step summaries и для async/combined path — redaction-safe строки `binding support`, `declared semantics`, `runtime semantics`, RabbitMQ `protocols=amqp`, явные report/companion filenames и combined child-report paths без raw retained-header leakage, без hosted dashboard и без blended denominator wording;
 - публичный HTTP proof surface: `bash scripts/ci/run-v1-e2e.sh`, GitHub step summary и bundle `yanote-validation-artifacts`; они публикуют sibling-артефакты `yanote-report.json` / `yanote-report.html`, sanitized `specSource`, additive deprecated-operation counts, request/payload/security companion outputs и provenance `artifact-manifest.txt` / `artifact-source-paths.txt`, а clone-local rerun roots intentionally remain discoverable only через [`docs/maintainers/README.md`](maintainers/README.md);
@@ -68,15 +68,16 @@
 Текущая narrow surface здесь опирается на уже существующий proof stack:
 
 - `:yanote-recorder-spring-webflux:test`
-- `bash scripts/docs/verify-recorder-spring-webflux-path.sh`
-- `bash scripts/ci/verify-recorder-spring-webflux-example.sh`
-- `bash scripts/ci/verify-recorder-spring-webflux-consumer-docker.sh`
+- `bash scripts/docs/verify-recorder-spring-webflux-path.sh` (Boot 3 companion proof)
+- `bash scripts/ci/verify-recorder-spring-webflux-example.sh` (Boot 3 example proof)
+- `bash scripts/ci/verify-recorder-spring-webflux-consumer-docker.sh` (Boot 2.7 / Spring 5.3 consumer-style compatibility proof)
 - `node --test scripts/ci/verify-recorder-spring-webflux-footprint.contract.test.mjs`
 - сохранённый MVC safety stack, включая `RecorderReactiveCompatibilityTest`
 
 Поддерживаемая граница этой narrow published surface сейчас такая:
 
 - отдельный модуль `yanote-recorder-spring-webflux`
+- proved compatibility floor: Spring Boot 2.7.x / Spring Framework 5.3.x и Spring Boot 3.x / Spring Framework 6.x
 - finite/non-streaming HTTP exchanges
 - bounded JSON request/response capture only on the proved path
 - one truthful event per proved exchange with route/status/request evidence
@@ -123,7 +124,7 @@ Demo/example модули полезны для доказательства п�
 - Java 21 — verified baseline для Gradle build, CI и публично описанного Java-пути;
 - Node `>=20` — минимальный runtime для analyzer-а;
 - Spring Boot 3.x / Spring MVC — основной и проверенный recorder path в текущей пользовательской документации;
-- Spring Boot 3.x / Spring WebFlux — отдельный narrow published surface через `yanote-recorder-spring-webflux`; finite/non-streaming exchanges и bounded JSON proof only;
+- Spring WebFlux — отдельный narrow published surface через `yanote-recorder-spring-webflux`; proved compatibility floor: Spring Boot 2.7.x / Spring Framework 5.3.x и Spring Boot 3.x / Spring Framework 6.x, finite/non-streaming exchanges и bounded JSON proof only;
 - Java-first delivery surfaces (Maven/Gradle + Gradle plugin) — текущий основной product path.
 
 ## Ограничения
@@ -137,7 +138,7 @@ Yanote сейчас нужно воспринимать как Java-first пут
 - analyzer version markers (`0.0.0`) полезны только как технический build marker и не должны читаться как публичная release version;
 - локальный файл/директория остаются stable baseline для HTTP `--spec`; remote single-document `http(s)` `--spec` — только opt-in path, а persisted summaries/artifacts обязаны публиковать лишь sanitized provenance;
 - payload validation публично поддерживается как JSON-first path на Spring MVC demo/runtime surfaces, а не как обещание универсального media-type coverage; поддерживаемый payload format allowlist сейчас intentionally `email`-only, а media selection идёт по most-specific declared match;
-- опубликованный WebFlux recorder path остаётся отдельной narrow published surface через `yanote-recorder-spring-webflux`: finite/non-streaming exchanges и bounded JSON proof only; `SSE`, `application/stream+json`, long-lived/infinite streams, multipart/file-transfer paths и broad body-type parity promises остаются out of scope;
+- опубликованный WebFlux recorder path остаётся отдельной narrow published surface через `yanote-recorder-spring-webflux`: proved compatibility floor — Spring Boot 2.7.x / Spring Framework 5.3.x и Spring Boot 3.x / Spring Framework 6.x; finite/non-streaming exchanges и bounded JSON proof only; `SSE`, `application/stream+json`, long-lived/infinite streams, multipart/file-transfer paths и broad body-type parity promises остаются out of scope;
 - security validation публично поддерживается как truthful `apiKey` query/header/cookie subset и additive fixture-backed proof path, а не как обещание для `http`, `oauth2`, `openIdConnect`, path `apiKey` или иного broader security coverage;
 - examples, retained proof bundle, fallback release assets и maintainer-only workflow полезны для диагностики и сопровождения, но не равны по статусу опубликованной продуктовой поверхности;
 - broader OpenAPI objects `examples`, `links`, `callbacks`, `webhooks` остаются deferred и не публикуются как поддерживаемый proof surface;

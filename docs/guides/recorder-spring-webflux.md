@@ -4,6 +4,8 @@
 
 Этот guide описывает отдельный узкий путь для `yanote-recorder-spring-webflux`. Он не заменяет канонический newcomer path через Spring MVC guide и не обещает generic «Spring HTTP recorder» parity.
 
+Текущий proved compatibility floor для этого narrow path — Spring Boot 2.7.x / Spring Framework 5.3.x и Spring Boot 3.x / Spring Framework 6.x. Эта совместимость всё равно читается буквально только для finite/non-streaming bounded-JSON path ниже, а не как broad WebFlux parity promise.
+
 Product-first loop здесь один: подключить `yanote-recorder-spring-webflux`, явно включить запись, сделать один конечный JSON HTTP-запрос и доказать, что `events.jsonl` появился с route/status/request-evidence и bounded JSON payload truth.
 
 ## 1. Подключите зависимость
@@ -19,7 +21,7 @@ dependencies {
 }
 ```
 
-Если нужен runnable companion из этого репозитория, используйте [examples/webflux-service/README.md](../../examples/webflux-service/README.md). Release/support boundaries для этого narrow path описаны в [../release-and-support.md](../release-and-support.md).
+Если нужен runnable companion из этого репозитория, используйте [examples/webflux-service/README.md](../../examples/webflux-service/README.md). Этот companion example остаётся Boot 3 proof app; отдельная consumer-style compatibility proof для Boot 2.7 / Spring 5.3 идёт через repo verifier stack. Release/support boundaries для этого narrow path описаны в [../release-and-support.md](../release-and-support.md).
 
 ## 2. Явно задайте recorder contract
 
@@ -108,15 +110,14 @@ Recorder читает два HTTP заголовка:
 - broad functional-route parity
 - generic «Spring HTTP recorder» wording
 
-## 7. Репозиторный verifier
-
-Для того же loop, но на уже подготовленном узком smoke fixture из репозитория, запустите:
+## 7. Репозиторные verifiers
 
 ```bash
 bash scripts/docs/verify-recorder-spring-webflux-path.sh
+bash scripts/ci/verify-recorder-spring-webflux-consumer-docker.sh
 ```
 
-Этот verifier публикует recorder в `mavenLocal()`, поднимает минимальный Spring Boot WebFlux fixture, делает один реальный JSON request и проверяет реальный `events.jsonl`.
+Первый verifier покрывает Boot 3 companion proof. Второй — отдельную consumer-style compatibility proof на Spring Boot 2.7 / Spring 5.3. Оба публикуют recorder в `mavenLocal()` и проверяют реальный `events.jsonl` на том же narrow finite JSON loop.
 
 ## Связанные поверхности
 

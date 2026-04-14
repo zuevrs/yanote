@@ -3,8 +3,9 @@ plugins {
     signing
 }
 
-val springBootVersion = "3.2.2"
-val springFrameworkVersion = "6.1.3"
+val springBootBaselineVersion = "2.7.18"
+val springFrameworkBaselineVersion = "5.3.31"
+val springBootTestVersion = "3.2.2"
 
 java {
     withSourcesJar()
@@ -17,12 +18,12 @@ dependencies {
     // This module must not drag a reactive runtime into consumers.
     // It only needs Spring Boot autoconfigure and WebFlux APIs at compile time;
     // the host app supplies the actual runtime stack.
-    compileOnly("org.springframework.boot:spring-boot-autoconfigure:$springBootVersion")
-    compileOnly("org.springframework:spring-webflux:$springFrameworkVersion")
+    compileOnly("org.springframework.boot:spring-boot-autoconfigure:$springBootBaselineVersion")
+    compileOnly("org.springframework:spring-webflux:$springFrameworkBaselineVersion")
 
-    testImplementation("org.springframework.boot:spring-boot-starter-webflux:$springBootVersion")
-    testImplementation("org.springframework.boot:spring-boot-starter-web:$springBootVersion")
-    testImplementation("org.springframework.boot:spring-boot-starter-test:$springBootVersion")
+    testImplementation("org.springframework.boot:spring-boot-starter-webflux:$springBootTestVersion")
+    testImplementation("org.springframework.boot:spring-boot-starter-web:$springBootTestVersion")
+    testImplementation("org.springframework.boot:spring-boot-starter-test:$springBootTestVersion")
 }
 
 publishing {
