@@ -9,7 +9,7 @@
 | `yanote-core` | Core semantics, coverage/report model, shared engine pieces for the Java path | Public release module |
 | `yanote-recorder-spring-mvc` | HTTP recorder for Spring Boot 3.x / Spring MVC | Public supported module |
 | `yanote-recorder-spring-kafka` | Kafka recorder adapter for evidence capture | Public supported module |
-| `yanote-recorder-spring-webflux` | Separate Spring WebFlux HTTP recorder path for the finite/non-streaming proved boundary | Public release module with narrow explicit support boundary |
+| `yanote-recorder-spring-webflux` | Separate Spring WebFlux HTTP recorder path for the finite/non-streaming proved boundary on Spring Boot 2.7.x / Spring Framework 5.3.x and Spring Boot 3.x / Spring Framework 6.x | Public release module with narrow explicit support boundary |
 | `yanote-test-tags-restassured` | Test metadata handoff for RestAssured path | Public supported module |
 | `yanote-test-tags-cucumber` | Test metadata handoff for Cucumber path | Public supported module |
 | `yanote-gradle-plugin` | Gradle integration (`yanoteReport`, `yanoteCheck`) | Public supported module |

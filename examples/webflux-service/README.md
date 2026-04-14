@@ -4,6 +4,8 @@
 
 Это runnable companion к WebFlux recorder guide: пример уже включает `yanote-recorder-spring-webflux`, а канонический contract и proof loop живут в [../../docs/guides/recorder-spring-webflux.md](../../docs/guides/recorder-spring-webflux.md).
 
+Этот example остаётся Boot 3 companion app для narrow guide. Отдельная consumer-style compatibility proof для Boot 2.7 / Spring 5.3 идёт через `bash scripts/ci/verify-recorder-spring-webflux-consumer-docker.sh`, а не через этот example module.
+
 ## Что здесь уже настроено
 
 В `application.properties` пример держит те же свойства:
