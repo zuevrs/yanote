@@ -105,6 +105,7 @@ Widened user-facing async surface уже есть в текущем репози
 - **routing percentages remain routing-first**
 - **combined surface остаётся child-attributed**
 - **raw retained headers remain redacted support inputs, not public proof payloads**
+- **brokers beyond Kafka and the first RabbitMQ/AMQP path remain deferred; any future ActiveMQ-backed Spring JMS path must land as a separate narrow runtime module with `jms` analyzer/report truth rather than an `amqp` relabel or broker-agnostic widening**
 - **broker-agnostic promise нет**
 
 Поддерживаемые proof/support артефакты для этой widened surface тоже фиксированы:
@@ -142,7 +143,8 @@ Yanote сейчас нужно воспринимать как Java-first пут
 - security validation публично поддерживается как truthful `apiKey` query/header/cookie subset и additive fixture-backed proof path, а не как обещание для `http`, `oauth2`, `openIdConnect`, path `apiKey` или иного broader security coverage;
 - examples, retained proof bundle, fallback release assets и maintainer-only workflow полезны для диагностики и сопровождения, но не равны по статусу опубликованной продуктовой поверхности;
 - broader OpenAPI objects `examples`, `links`, `callbacks`, `webhooks` остаются deferred и не публикуются как поддерживаемый proof surface;
-- HTTP и async surfaces по-прежнему публикуются раздельно как source-of-truth child families: сегодня есть retained combined-report surface, но нет одного blended HTTP+async denominator, нет одной merge-blocking boundary-метрики поверх обоих режимов и нет отдельного hosted dashboard surface.
+- HTTP и async surfaces по-прежнему публикуются раздельно как source-of-truth child families: сегодня есть retained combined-report surface, но нет одного blended HTTP+async denominator, нет одной merge-blocking boundary-метрики поверх обоих режимов и нет отдельного hosted dashboard surface;
+- brokers beyond Kafka and the first RabbitMQ/AMQP path remain deferred; если позже появится ActiveMQ-backed Spring JMS path, он должен войти как отдельный узкий runtime/module path с `jms` analyzer/report truth, а не как расширение `yanote-recorder-spring-amqp` или broker-agnostic async promise.
 
 ## Fallback-границы
 
