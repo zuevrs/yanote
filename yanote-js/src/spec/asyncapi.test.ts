@@ -23,6 +23,16 @@ describe("asyncapi contract", () => {
     ).toBe("amqp send users.signedup");
   });
 
+  it("serializes jms identities with the protocol-scoped operation key", () => {
+    expect(
+      serializeOperationKey({
+        kind: "jms",
+        action: "send",
+        channel: "orders.queue"
+      })
+    ).toBe("jms send orders.queue");
+  });
+
   it("accepts the supported amqp subset with protocol-attributed diagnostics and identities", async () => {
     const bundle = await loadAsyncApiSemanticsBundle("test/fixtures/asyncapi/rabbitmq-amqp-basic.yaml");
 
@@ -45,6 +55,36 @@ describe("asyncapi contract", () => {
         payloadSchemaId: "<anonymous-schema-1>",
         headerValidationCapability: "none",
         selectionHints: [{ kind: "message", value: "UserSignedUp" }]
+      },
+      messageSelection: {
+        mode: "single",
+        precedence: [{ kind: "message" }]
+      }
+    });
+  });
+
+  it("accepts the supported jms subset with protocol-attributed diagnostics and identities", async () => {
+    const bundle = await loadAsyncApiSemanticsBundle("test/fixtures/asyncapi/jms-basic.yaml");
+
+    expect(bundle.hasInvalid).toBe(false);
+    expect(bundle.diagnostics).toEqual([]);
+    expect(bundle.operations.map((operation) => serializeOperationKey(operation))).toEqual(["jms send orders.queue"]);
+    expect(bundle.operationContractsByKey.get("jms send orders.queue")).toEqual({
+      operation: {
+        kind: "jms",
+        action: "send",
+        channel: "orders.queue"
+      },
+      message: {
+        name: "OrderCreated",
+        contentType: "application/json",
+        payloadSchema: {
+          type: "object",
+          "x-parser-schema-id": "<anonymous-schema-1>"
+        },
+        payloadSchemaId: "<anonymous-schema-1>",
+        headerValidationCapability: "none",
+        selectionHints: [{ kind: "message", value: "OrderCreated" }]
       },
       messageSelection: {
         mode: "single",
@@ -521,7 +561,7 @@ describe("asyncapi contract", () => {
     expect(bundle.diagnostics).toEqual([
       {
         kind: "invalid",
-        message: "Unsupported AsyncAPI protocol: rabbitmq. Supported protocols: amqp, kafka.",
+        message: "Unsupported AsyncAPI protocol: rabbitmq. Supported protocols: amqp, kafka, jms.",
         async: {
           runtime: "asyncapi",
           asyncapiVersion: "3.0.0",
@@ -539,7 +579,7 @@ describe("asyncapi contract", () => {
     expect(bundle.diagnostics).toEqual([
       {
         kind: "invalid",
-        message: "Unsupported AsyncAPI protocol: mqtt. Supported protocols: amqp, kafka.",
+        message: "Unsupported AsyncAPI protocol: mqtt. Supported protocols: amqp, kafka, jms.",
         async: {
           runtime: "asyncapi",
           asyncapiVersion: "3.0.0",
@@ -581,7 +621,7 @@ describe("asyncapi contract", () => {
       {
         kind: "invalid",
         message:
-          "Mixed AsyncAPI protocols are not supported: amqp, kafka. Declare exactly one supported protocol (amqp, kafka).",
+          "Mixed AsyncAPI protocols are not supported: amqp, kafka. Declare exactly one supported protocol (amqp, kafka, jms).",
         async: {
           runtime: "asyncapi",
           asyncapiVersion: "3.0.0",
@@ -624,12 +664,19 @@ describe("asyncapi contract", () => {
     );
   });
 
-  it("expects unsupported async protocols to be rejected while the supported amqp subset is accepted", async () => {
+  it("expects supported amqp and jms subsets to load while unsupported protocols are rejected", async () => {
     await expect(loadAsyncApiOperations("test/fixtures/asyncapi/rabbitmq-amqp-basic.yaml")).resolves.toEqual([
       {
         kind: "amqp",
         action: "send",
         channel: "users.signedup"
+      }
+    ]);
+    await expect(loadAsyncApiOperations("test/fixtures/asyncapi/jms-basic.yaml")).resolves.toEqual([
+      {
+        kind: "jms",
+        action: "send",
+        channel: "orders.queue"
       }
     ]);
     await expect(loadAsyncApiOperations("test/fixtures/asyncapi/unsupported-rabbitmq.yaml")).rejects.toThrow(

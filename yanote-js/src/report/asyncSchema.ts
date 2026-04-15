@@ -147,7 +147,7 @@ const ASYNC_REPORT_SCHEMA = {
     protocols: {
       type: "array",
       uniqueItems: true,
-      items: { enum: ["kafka", "amqp"] }
+      items: { enum: ["kafka", "amqp", "jms"] }
     },
     status: { enum: ["ok", "partial", "invalid"] },
     summary: {

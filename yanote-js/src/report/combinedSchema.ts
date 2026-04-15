@@ -240,7 +240,7 @@ const ASYNC_CHILD_SCHEMA = {
       properties: {
         protocols: {
           type: "array",
-          items: { enum: ["kafka", "amqp"] }
+          items: { enum: ["kafka", "amqp", "jms"] }
         },
         totalChannels: { type: "integer", minimum: 0 },
         coveredChannels: { type: "integer", minimum: 0 },

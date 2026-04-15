@@ -199,7 +199,7 @@ function deserializeOperationKey(serialized: string): OperationKey {
     }
   }
 
-  for (const prefix of ["kafka ", "amqp ", "asyncapi "]) {
+  for (const prefix of ["kafka ", "amqp ", "jms ", "asyncapi "]) {
     if (!serialized.startsWith(prefix)) continue;
 
     const rest = serialized.slice(prefix.length);
@@ -209,7 +209,9 @@ function deserializeOperationKey(serialized: string): OperationKey {
     const action = rest.slice(0, splitAt);
     const channel = rest.slice(splitAt + 1);
     if (action === "send" || action === "receive") {
-      return { kind: prefix === "amqp " ? "amqp" : "kafka", action, channel };
+      const kind =
+        prefix === "amqp " ? "amqp" : prefix === "jms " ? "jms" : "kafka";
+      return { kind, action, channel };
     }
   }
 

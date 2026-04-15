@@ -10,7 +10,9 @@ import {
   AMQP_ASYNC_EVENTS_FIXTURE_PATH,
   AMQP_ASYNCAPI_FIXTURE_PATH,
   HTTP_PAYLOAD_EVENTS_FIXTURE_PATH,
-  HTTP_PAYLOAD_OPENAPI_FIXTURE_PATH
+  HTTP_PAYLOAD_OPENAPI_FIXTURE_PATH,
+  JMS_ASYNC_EVENTS_FIXTURE_PATH,
+  JMS_ASYNCAPI_FIXTURE_PATH
 } from "../testFixturePaths.js";
 import {
   ASYNC_REPORT_PHASE,
@@ -27,8 +29,10 @@ import { buildReport, type YanoteReport } from "./report.js";
 
 const HTTP_SPEC_PATH = HTTP_PAYLOAD_OPENAPI_FIXTURE_PATH;
 const HTTP_EVENTS_PATH = HTTP_PAYLOAD_EVENTS_FIXTURE_PATH;
-const ASYNC_SPEC_PATH = AMQP_ASYNCAPI_FIXTURE_PATH;
-const ASYNC_EVENTS_PATH = AMQP_ASYNC_EVENTS_FIXTURE_PATH;
+const AMQP_ASYNC_SPEC_PATH = AMQP_ASYNCAPI_FIXTURE_PATH;
+const AMQP_ASYNC_EVENTS_PATH = AMQP_ASYNC_EVENTS_FIXTURE_PATH;
+const JMS_ASYNC_SPEC_PATH = JMS_ASYNCAPI_FIXTURE_PATH;
+const JMS_ASYNC_EVENTS_PATH = JMS_ASYNC_EVENTS_FIXTURE_PATH;
 
 async function buildHttpFixtureReport(): Promise<YanoteReport> {
   const model = await loadOpenApiCoverageModel(HTTP_SPEC_PATH);
@@ -52,15 +56,31 @@ async function buildHttpFixtureReport(): Promise<YanoteReport> {
 }
 
 async function buildAmqpAsyncFixtureReport(): Promise<AsyncYanoteReport> {
-  const bundle = await loadAsyncApiSemanticsBundle(ASYNC_SPEC_PATH);
-  const events = await readAsyncEventsJsonl(ASYNC_EVENTS_PATH);
+  const bundle = await loadAsyncApiSemanticsBundle(AMQP_ASYNC_SPEC_PATH);
+  const events = await readAsyncEventsJsonl(AMQP_ASYNC_EVENTS_PATH);
   const coverage = computeAsyncCoverage(bundle, events.items);
 
   return buildAsyncReport(coverage, {
     toolVersion: "test",
     specSource: {
       kind: "local-file",
-      reference: ASYNC_SPEC_PATH
+      reference: AMQP_ASYNC_SPEC_PATH
+    },
+    eventTimestamps: events.items.map((event) => event.ts).filter((timestamp): timestamp is number => typeof timestamp === "number"),
+    operationContractsByKey: bundle.operationContractsByKey
+  });
+}
+
+async function buildJmsAsyncFixtureReport(): Promise<AsyncYanoteReport> {
+  const bundle = await loadAsyncApiSemanticsBundle(JMS_ASYNC_SPEC_PATH);
+  const events = await readAsyncEventsJsonl(JMS_ASYNC_EVENTS_PATH);
+  const coverage = computeAsyncCoverage(bundle, events.items);
+
+  return buildAsyncReport(coverage, {
+    toolVersion: "test",
+    specSource: {
+      kind: "local-file",
+      reference: JMS_ASYNC_SPEC_PATH
     },
     eventTimestamps: events.items.map((event) => event.ts).filter((timestamp): timestamp is number => typeof timestamp === "number"),
     operationContractsByKey: bundle.operationContractsByKey
@@ -90,6 +110,35 @@ describe("combined report contract", () => {
     expect(Object.hasOwn(combined.children.async.summary, "aggregateCoveragePercent")).toBe(false);
     expect(combined.children.async.summary.protocols).toEqual(["amqp"]);
     expect(combined.children.async.summary.bindingSupport.totalBindings).toBe(0);
+    expect(combined.children.async.summary.runtimeSemantics).toMatchObject({
+      totalOperations: 0,
+      totalSemantics: 0,
+      semanticCoveragePercent: null
+    });
+  });
+
+  it("accepts a JMS async child without changing the combined child-attribution contract", async () => {
+    const combined = buildCombinedReport({
+      toolVersion: "test",
+      http: {
+        report: await buildHttpFixtureReport(),
+        reportPath: "proof/http/yanote-report.json"
+      },
+      async: {
+        report: await buildJmsAsyncFixtureReport(),
+        reportPath: "proof/async/yanote-async-report.json"
+      }
+    });
+
+    expect(validateCombinedReport(combined)).toEqual({ ok: true });
+    expect(combined.children.async.summary.protocols).toEqual(["jms"]);
+    expect(combined.children.async.summary.bindingSupport.totalBindings).toBe(0);
+    expect(combined.children.async.summary.declaredSemantics).toEqual({
+      totalOperations: 0,
+      operationsWithCorrelationId: 0,
+      messageCorrelationIds: 0,
+      operationsWithReply: 0
+    });
     expect(combined.children.async.summary.runtimeSemantics).toMatchObject({
       totalOperations: 0,
       totalSemantics: 0,

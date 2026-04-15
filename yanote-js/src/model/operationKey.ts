@@ -8,7 +8,7 @@ export type HttpOperationKey = {
   route: string;
 };
 
-export type AsyncProtocol = "kafka" | "amqp";
+export type AsyncProtocol = "kafka" | "amqp" | "jms";
 
 export type KafkaOperationKey = {
   kind: "kafka";
@@ -22,7 +22,13 @@ export type AmqpOperationKey = {
   channel: string;
 };
 
-export type AsyncOperationKey = KafkaOperationKey | AmqpOperationKey;
+export type JmsOperationKey = {
+  kind: "jms";
+  action: AsyncAction;
+  channel: string;
+};
+
+export type AsyncOperationKey = KafkaOperationKey | AmqpOperationKey | JmsOperationKey;
 
 export type KafkaHeaderValidationCapability = "none" | "supported" | "unverifiable";
 
@@ -177,7 +183,7 @@ function normalizeAsyncOperationKey(key: OperationKey): AsyncOperationKey | null
 }
 
 function isAsyncProtocol(value: unknown): value is AsyncProtocol {
-  return value === "kafka" || value === "amqp";
+  return value === "kafka" || value === "amqp" || value === "jms";
 }
 
 function normalizeAsyncProtocol(value: unknown): AsyncProtocol | null {

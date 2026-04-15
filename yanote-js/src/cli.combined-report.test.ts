@@ -17,14 +17,18 @@ import {
   AMQP_ASYNC_EVENTS_FIXTURE_PATH,
   AMQP_ASYNCAPI_FIXTURE_PATH,
   HTTP_PAYLOAD_EVENTS_FIXTURE_PATH,
-  HTTP_PAYLOAD_OPENAPI_FIXTURE_PATH
+  HTTP_PAYLOAD_OPENAPI_FIXTURE_PATH,
+  JMS_ASYNC_EVENTS_FIXTURE_PATH,
+  JMS_ASYNCAPI_FIXTURE_PATH
 } from "./testFixturePaths.js";
 import { runCli } from "./cli.js";
 
 const HTTP_SPEC_PATH = HTTP_PAYLOAD_OPENAPI_FIXTURE_PATH;
 const HTTP_EVENTS_PATH = HTTP_PAYLOAD_EVENTS_FIXTURE_PATH;
-const ASYNC_SPEC_PATH = AMQP_ASYNCAPI_FIXTURE_PATH;
-const ASYNC_EVENTS_PATH = AMQP_ASYNC_EVENTS_FIXTURE_PATH;
+const AMQP_ASYNC_SPEC_PATH = AMQP_ASYNCAPI_FIXTURE_PATH;
+const AMQP_ASYNC_EVENTS_PATH = AMQP_ASYNC_EVENTS_FIXTURE_PATH;
+const JMS_ASYNC_SPEC_PATH = JMS_ASYNCAPI_FIXTURE_PATH;
+const JMS_ASYNC_EVENTS_PATH = JMS_ASYNC_EVENTS_FIXTURE_PATH;
 
 async function buildHttpFixtureReport(): Promise<YanoteReport> {
   const model = await loadOpenApiCoverageModel(HTTP_SPEC_PATH);
@@ -48,15 +52,31 @@ async function buildHttpFixtureReport(): Promise<YanoteReport> {
 }
 
 async function buildAsyncFixtureReport(): Promise<AsyncYanoteReport> {
-  const bundle = await loadAsyncApiSemanticsBundle(ASYNC_SPEC_PATH);
-  const events = await readAsyncEventsJsonl(ASYNC_EVENTS_PATH);
+  const bundle = await loadAsyncApiSemanticsBundle(AMQP_ASYNC_SPEC_PATH);
+  const events = await readAsyncEventsJsonl(AMQP_ASYNC_EVENTS_PATH);
   const coverage = computeAsyncCoverage(bundle, events.items);
 
   return buildAsyncReport(coverage, {
     toolVersion: "test",
     specSource: {
       kind: "local-file",
-      reference: ASYNC_SPEC_PATH
+      reference: AMQP_ASYNC_SPEC_PATH
+    },
+    eventTimestamps: events.items.map((event) => event.ts).filter((timestamp): timestamp is number => typeof timestamp === "number"),
+    operationContractsByKey: bundle.operationContractsByKey
+  });
+}
+
+async function buildJmsAsyncFixtureReport(): Promise<AsyncYanoteReport> {
+  const bundle = await loadAsyncApiSemanticsBundle(JMS_ASYNC_SPEC_PATH);
+  const events = await readAsyncEventsJsonl(JMS_ASYNC_EVENTS_PATH);
+  const coverage = computeAsyncCoverage(bundle, events.items);
+
+  return buildAsyncReport(coverage, {
+    toolVersion: "test",
+    specSource: {
+      kind: "local-file",
+      reference: JMS_ASYNC_SPEC_PATH
     },
     eventTimestamps: events.items.map((event) => event.ts).filter((timestamp): timestamp is number => typeof timestamp === "number"),
     operationContractsByKey: bundle.operationContractsByKey
@@ -141,6 +161,45 @@ describe("cli combined-report", () => {
       expect(combined.children.http.provenance.artifacts).toContainEqual({ kind: "json", path: fixture.httpReportPath });
       expect(combined.children.async.provenance.artifacts).toContainEqual({ kind: "json", path: fixture.asyncReportPath });
       expect(combined.children.async.summary.protocols).toEqual(["amqp"]);
+    } finally {
+      await rm(fixture.dir, { recursive: true, force: true });
+    }
+  });
+
+  it("composes a JMS async child report without fabricating Kafka-only combined semantics", async () => {
+    const fixture = await createCombinedChildFixture({ asyncReport: await buildJmsAsyncFixtureReport() });
+
+    try {
+      const result = await runCli([
+        "combined-report",
+        "--report",
+        fixture.httpReportPath,
+        "--async-report",
+        fixture.asyncReportPath,
+        "--out",
+        fixture.outDir
+      ]);
+
+      expect(result.code).toBe(0);
+      expect(result.stderr).toBe("");
+      expect(result.stdout).toContain("- status: ok");
+
+      const combinedReportPath = path.join(fixture.outDir, "yanote-combined-report.json");
+      const summaryLine = result.stdout.trimEnd().split("\n").at(-1) ?? "";
+      const combined = JSON.parse(await readFile(combinedReportPath, "utf8"));
+
+      expect(summaryLine).toContain(`report=${combinedReportPath}`);
+      expect(summaryLine).toContain("protocols=jms");
+      expect(combined.children.async.summary.protocols).toEqual(["jms"]);
+      expect(combined.children.async.summary.bindingSupport).toEqual({
+        totalOperations: 0,
+        totalBindings: 0,
+        supportedBindings: 0,
+        declaredOnlyBindings: 0,
+        deferredBindings: 0,
+        invalidBindings: 0
+      });
+      expect(combined.children.async.summary.runtimeSemantics.totalOperations).toBe(0);
     } finally {
       await rm(fixture.dir, { recursive: true, force: true });
     }

@@ -23,7 +23,8 @@ import type { ResolvedSpecSource } from "./specSource.js";
 const ASYNCAPI_RUNTIME = "asyncapi";
 const KAFKA_RUNTIME: AsyncProtocol = "kafka";
 const AMQP_RUNTIME: AsyncProtocol = "amqp";
-const SUPPORTED_ASYNC_PROTOCOLS: AsyncProtocol[] = [AMQP_RUNTIME, KAFKA_RUNTIME];
+const JMS_RUNTIME: AsyncProtocol = "jms";
+const SUPPORTED_ASYNC_PROTOCOLS: AsyncProtocol[] = [AMQP_RUNTIME, KAFKA_RUNTIME, JMS_RUNTIME];
 
 export type AsyncApiSemanticsBundle = SemanticDiagnosticsBundle & {
   operations: OperationKey[];

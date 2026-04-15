@@ -1,0 +1,23 @@
+asyncapi: 3.0.0
+info:
+  title: jms basic async contract
+  version: '1.0.0'
+servers:
+  jmsLocal:
+    host: localhost:61616
+    protocol: jms
+channels:
+  ordersCreated:
+    address: orders.queue
+    messages:
+      OrderCreated:
+        contentType: application/json
+        payload:
+          type: object
+operations:
+  sendOrderCreated:
+    action: send
+    channel:
+      $ref: '#/channels/ordersCreated'
+    messages:
+      - $ref: '#/channels/ordersCreated/messages/OrderCreated'

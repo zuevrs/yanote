@@ -932,7 +932,7 @@ function matchKey(protocol: AsyncProtocol, action: AsyncAction, channel: string)
 }
 
 function isAsyncOperationKey(value: AsyncOperationKey | OperationKeyLike): value is AsyncOperationKey {
-  return value.kind === "kafka" || value.kind === "amqp";
+  return value.kind === "kafka" || value.kind === "amqp" || value.kind === "jms";
 }
 
 type OperationKeyLike = {
