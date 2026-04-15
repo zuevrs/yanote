@@ -92,7 +92,7 @@ class EventJsonlRoundTripTest {
     }
 
     @Test
-    void shouldReadMixedHttpKafkaAndAmqpEventsFromOneJsonlFile() throws Exception {
+    void shouldReadMixedHttpKafkaAmqpAndJmsEventsFromOneJsonlFile() throws Exception {
         HttpEvent httpEvent = new HttpEvent(
                 1689000000000L,
                 "POST",
@@ -156,6 +156,29 @@ class EventJsonlRoundTripTest {
                 "run-1",
                 "suite-a"
         );
+        JmsEvent jmsEvent = new JmsEvent(
+                1689000000300L,
+                JmsEvent.Action.SEND,
+                "orders.queue",
+                "OrderCreated",
+                "orders-service",
+                null,
+                OBJECT_MAPPER.readTree("""
+                        {"orderId":"ord-1"}
+                        """),
+                PayloadCaptureState.CAPTURED,
+                null,
+                Map.of(
+                        "JMSCorrelationID", new JmsEvent.HeaderEvidence(
+                                JmsEvent.HeaderCaptureState.CAPTURED,
+                                "corr-789",
+                                null
+                        )
+                ),
+                false,
+                "run-1",
+                "suite-a"
+        );
 
         Path tempFile = Files.createTempFile("yanote-events-mixed-", ".jsonl");
 
@@ -163,13 +186,15 @@ class EventJsonlRoundTripTest {
             writer.write(httpEvent);
             writer.write(kafkaEvent);
             writer.write(amqpEvent);
+            writer.write(jmsEvent);
         }
 
         List<YanoteEvent> events = new EventJsonlReader().read(tempFile);
-        assertEquals(3, events.size());
+        assertEquals(4, events.size());
         assertHttpEventRoundTrips(httpEvent, events.get(0));
         assertKafkaEventRoundTrips(kafkaEvent, events.get(1));
         assertAmqpEventRoundTrips(amqpEvent, events.get(2));
+        assertJmsEventRoundTrips(jmsEvent, events.get(3));
     }
 
     private void assertHttpEventRoundTrips(HttpEvent expected, YanoteEvent actualEvent) throws Exception {
@@ -204,6 +229,18 @@ class EventJsonlRoundTripTest {
 
     private void assertAmqpEventRoundTrips(AmqpEvent expected, YanoteEvent actualEvent) throws Exception {
         AmqpEvent actual = assertInstanceOf(AmqpEvent.class, actualEvent);
+        assertEquals(expected.action(), actual.action());
+        assertEquals(expected.channel(), actual.channel());
+        assertEquals(expected.payloadState(), actual.payloadState());
+        assertEquals(expected.payloadReason(), actual.payloadReason());
+        assertEquals(expected.headers(), actual.headers());
+        assertEquals(expected.testRunId(), actual.testRunId());
+        assertEquals(expected.testSuite(), actual.testSuite());
+        assertEquals(OBJECT_MAPPER.writeValueAsString(expected), OBJECT_MAPPER.writeValueAsString(actual));
+    }
+
+    private void assertJmsEventRoundTrips(JmsEvent expected, YanoteEvent actualEvent) throws Exception {
+        JmsEvent actual = assertInstanceOf(JmsEvent.class, actualEvent);
         assertEquals(expected.action(), actual.action());
         assertEquals(expected.channel(), actual.channel());
         assertEquals(expected.payloadState(), actual.payloadState());
