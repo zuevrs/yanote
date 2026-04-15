@@ -43,10 +43,10 @@
 Сегодня как стабильные и публично значимые поверхности Yanote нужно читать такие слои:
 
 - релизная линия `v1.0.x` и GitHub Releases как опубликованная change surface;
-- опубликованные Java-модули из release allowlist: `yanote-core`, `yanote-recorder-spring-mvc`, `yanote-recorder-spring-webflux`, `yanote-recorder-spring-kafka`, `yanote-recorder-spring-amqp`, `yanote-test-tags-restassured`, `yanote-test-tags-cucumber`, `yanote-gradle-plugin`;
+- опубликованные Java-модули из release allowlist: `yanote-core`, `yanote-recorder-spring-mvc`, `yanote-recorder-spring-webflux`, `yanote-recorder-spring-kafka`, `yanote-recorder-spring-amqp`, `yanote-recorder-spring-activemq`, `yanote-test-tags-restassured`, `yanote-test-tags-cucumber`, `yanote-gradle-plugin`;
 - Gradle plugin surface: plugin id `io.github.zuevrs.yanote.gradle`, задачи `yanoteReport` и `yanoteCheck`, плюс ограниченная extension surface вместо произвольного API;
 - report contract: файл `yanote-report.json` со schema version `1.0.0` (`schemaVersion = 1.0.0`);
-- проверенные recorder paths: dependency-based `yanote-recorder-spring-mvc` для Spring Boot 3.x / Spring MVC с записью HTTP evidence в `events.jsonl`, `yanote-recorder-spring-webflux` как release-published narrow Spring WebFlux recorder module для finite/non-streaming bounded-JSON proof path с proved compatibility floor на Spring Boot 2.7.x / Spring Framework 5.3.x и Spring Boot 3.x / Spring Framework 6.x, и `yanote-recorder-spring-kafka` как release-published Spring Kafka recorder adapter для Kafka evidence capture;
+- проверенные recorder paths: dependency-based `yanote-recorder-spring-mvc` для Spring Boot 3.x / Spring MVC с записью HTTP evidence в `events.jsonl`, `yanote-recorder-spring-webflux` как release-published narrow Spring WebFlux recorder module для finite/non-streaming bounded-JSON proof path с proved compatibility floor на Spring Boot 2.7.x / Spring Framework 5.3.x и Spring Boot 3.x / Spring Framework 6.x, `yanote-recorder-spring-kafka` как release-published Spring Kafka recorder adapter для Kafka evidence capture, и `yanote-recorder-spring-activemq` как release-published narrow ActiveMQ Artemis-backed Spring JMS recorder module для queue-only `JmsTemplate` send + `@JmsListener` receive path с truthful `jms` analyzer/report truth;
 - analyzer delivery surface: основной путь — standalone CLI bundle `yanote-analyzer.zip` с launcher-ом `bin/yanote`; published release asset и repo-local `./gradlew distStandaloneAnalyzer` ведут к одному и тому же user-facing launcher contract, а repo-local archive contract фиксирован как `build/distributions/yanote-analyzer.zip`; stable baseline для `--spec` — локальный файл или директория, а narrow opt-in remote path ограничен single-document `http(s)` `--spec`; raw `node yanote-js/dist/yanote.cjs` seam остаётся внутренней реализацией bundle, а не tracked public entrypoint;
 - CI/public summary surface: `yanote-validation-artifacts` и `build-and-test-artifacts` публикуют отдельные HTTP-vs-async owner bundles; внутри `build-and-test-artifacts` widened async/combined surface идёт тремя proof families — `live-kafka-proof/`, `live-rabbitmq-proof/`, `combined-proof/`. Они удерживают deterministic `artifact-manifest.txt` / `artifact-source-paths.txt`, sanitized `specSource`, additive deprecated-operation counts в GitHub step summaries и для async/combined path — redaction-safe строки `binding support`, `declared semantics`, `runtime semantics`, RabbitMQ `protocols=amqp`, явные report/companion filenames и combined child-report paths без raw retained-header leakage, без hosted dashboard и без blended denominator wording;
 - публичный HTTP proof surface: `bash scripts/ci/run-v1-e2e.sh`, GitHub step summary и bundle `yanote-validation-artifacts`; они публикуют sibling-артефакты `yanote-report.json` / `yanote-report.html`, sanitized `specSource`, additive deprecated-operation counts, request/payload/security companion outputs и provenance `artifact-manifest.txt` / `artifact-source-paths.txt`, а clone-local rerun roots intentionally remain discoverable only через [`docs/maintainers/README.md`](maintainers/README.md);
@@ -100,12 +100,13 @@ Widened user-facing async surface уже есть в текущем репози
 
 - **Kafka path поддержан и сохранён**
 - **RabbitMQ/AMQP — первый конкретный второй broker path**
+- **ActiveMQ Artemis / Spring JMS — первый узкий `jms` path**
 - **separate async report/gate + retained combined-report surface**
 - **payload-schema drift surfaced on the proven Kafka path**
 - **routing percentages remain routing-first**
 - **combined surface остаётся child-attributed**
 - **raw retained headers remain redacted support inputs, not public proof payloads**
-- **brokers beyond Kafka and the first RabbitMQ/AMQP path remain deferred; any future ActiveMQ-backed Spring JMS path must land as a separate narrow runtime module with `jms` analyzer/report truth rather than an `amqp` relabel or broker-agnostic widening**
+- **brokers beyond Kafka, RabbitMQ/AMQP, and the first narrow ActiveMQ Artemis-backed Spring JMS path remain deferred; the proved JMS surface stays a separate runtime module with `jms` analyzer/report truth rather than an `amqp` relabel or broker-agnostic widening**
 - **broker-agnostic promise нет**
 
 Поддерживаемые proof/support артефакты для этой widened surface тоже фиксированы:
@@ -144,7 +145,7 @@ Yanote сейчас нужно воспринимать как Java-first пут
 - examples, retained proof bundle, fallback release assets и maintainer-only workflow полезны для диагностики и сопровождения, но не равны по статусу опубликованной продуктовой поверхности;
 - broader OpenAPI objects `examples`, `links`, `callbacks`, `webhooks` остаются deferred и не публикуются как поддерживаемый proof surface;
 - HTTP и async surfaces по-прежнему публикуются раздельно как source-of-truth child families: сегодня есть retained combined-report surface, но нет одного blended HTTP+async denominator, нет одной merge-blocking boundary-метрики поверх обоих режимов и нет отдельного hosted dashboard surface;
-- brokers beyond Kafka and the first RabbitMQ/AMQP path remain deferred; если позже появится ActiveMQ-backed Spring JMS path, он должен войти как отдельный узкий runtime/module path с `jms` analyzer/report truth, а не как расширение `yanote-recorder-spring-amqp` или broker-agnostic async promise.
+- brokers beyond Kafka, RabbitMQ/AMQP, and the first narrow ActiveMQ Artemis-backed Spring JMS path remain deferred; generic Spring JMS/provider-agnostic widening still stays out of scope, and the proved `jms` path must not be read as an `amqp` relabel or broker-agnostic async promise.
 
 ## Fallback-границы
 

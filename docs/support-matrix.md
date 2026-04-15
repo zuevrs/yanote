@@ -21,6 +21,7 @@
 | `yanote-recorder-spring-webflux` | Narrow supported | Отдельный release-published WebFlux recorder module; proved compatibility floor — Spring Boot 2.7.x / Spring Framework 5.3.x и Spring Boot 3.x / Spring Framework 6.x для finite/non-streaming exchange proof only, без generic Spring HTTP promises и без замены MVC surface. |
 | `async-report` Kafka path | Narrow supported | Поддержан и сохранён как proven async path. |
 | `async-report` RabbitMQ/AMQP path | Narrow supported | Первый concrete second broker path; без broker-agnostic promises. |
+| `yanote-recorder-spring-activemq` | Narrow supported | Отдельный release-published ActiveMQ Artemis-backed Spring JMS recorder module; текущая доказанная граница — queue-only, `JmsTemplate` send + `@JmsListener` receive, bounded text/JSON payload capture, truthful `jms` analyzer/report truth, без generic JMS promise. |
 | `combined-report` | Narrow supported | Child-attributed aggregate surface, без blended denominator. |
 | Remote `--spec` over single-document `http(s)` | Narrow opt-in | Поддерживается как узкий opt-in path, не как broad remote spec promise. |
 
@@ -32,7 +33,7 @@
 | HTTP request serialization | `path=simple`, `query=form`, `header=simple`, `cookie=form`; broader styles/content parameters не входят в supported surface. |
 | HTTP security semantics | Truthful `apiKey` query/header/cookie subset; broader security scheme coverage не обещается. |
 | Spring WebFlux recorder path | Только отдельный release-published модуль `yanote-recorder-spring-webflux`; proved compatibility floor — Spring Boot 2.7.x / Spring Framework 5.3.x и Spring Boot 3.x / Spring Framework 6.x, а текущая proof boundary — finite/non-streaming exchanges и bounded JSON payload capture, без broad WebFlux parity promise. |
-| Async semantics | Kafka + first RabbitMQ/AMQP path only today; any future ActiveMQ-backed Spring JMS path must stay a separate narrow surface with `jms` analyzer/report truth, not an `amqp` relabel, and raw retained headers/payload bodies не становятся public support intake surface. |
+| Async semantics | Kafka + first RabbitMQ/AMQP path + first narrow ActiveMQ Artemis-backed Spring JMS path today; `yanote-recorder-spring-activemq` stays a separate queue-only surface with `jms` analyzer/report truth, not an `amqp` relabel or broker-agnostic expansion, and raw retained headers/payload bodies не становятся public support intake surface. |
 
 ## Deferred / not promised yet
 
@@ -43,7 +44,7 @@
 | Deeper AsyncAPI schema-keyword coverage beyond current proof families | Deferred |
 | Broader Spring WebFlux parity (`SSE`, `application/stream+json`, long-lived/infinite streams, multipart/file-transfer paths, broad body-type parity claims) | Deferred |
 | Blended HTTP + async denominator / gate / dashboard | Deferred |
-| ActiveMQ-backed Spring JMS path | Deferred — if introduced, it lands as a separate narrow path with `jms` analyzer truth, not as an `amqp` relabel or broker-agnostic expansion |
+| ActiveMQ-backed Spring JMS path broadening beyond the first narrow proof | Deferred — current proved surface is a separate ActiveMQ Artemis-backed queue-only path with `jms` analyzer truth; topics, selectors, temporary destinations, request/reply workflow proof, synchronous `receive*`, XA/redelivery/ack semantics, and generic JMS promises remain out of scope |
 | Broker-agnostic async promise | Not promised |
 | Hosted dashboard UI | Not promised |
 
