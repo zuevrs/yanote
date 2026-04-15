@@ -28,6 +28,10 @@ const AMQP_BASIC_ASYNC_SPEC_SOURCE = {
   kind: "local-file" as const,
   reference: "test/fixtures/asyncapi/rabbitmq-amqp-basic.yaml"
 };
+const JMS_BASIC_ASYNC_SPEC_SOURCE = {
+  kind: "local-file" as const,
+  reference: "test/fixtures/asyncapi/jms-basic.yaml"
+};
 
 describe("async report", () => {
   it("builds a deterministic async report artifact without reusing the HTTP coverage surface", async () => {
@@ -287,6 +291,76 @@ describe("async report", () => {
       },
       items: []
     });
+  });
+
+  it("builds a truthful JMS async report artifact and keeps Kafka-only additive sections empty", async () => {
+    const bundle = await loadAsyncApiSemanticsBundle("test/fixtures/asyncapi/jms-basic.yaml");
+    const events = await readAsyncEventsJsonl("test/fixtures/async-events/jms-basic.fixture.jsonl");
+    const coverage = computeAsyncCoverage(bundle, events.items);
+
+    const report = buildAsyncReport(coverage, {
+      toolVersion: "test",
+      specSource: JMS_BASIC_ASYNC_SPEC_SOURCE,
+      eventTimestamps: events.items
+        .map((event) => event.ts)
+        .filter((timestamp): timestamp is number => typeof timestamp === "number"),
+      operationContractsByKey: bundle.operationContractsByKey
+    });
+
+    expect(report.protocols).toEqual(["jms"]);
+    expect(report.status).toBe("ok");
+    expect(report.summary).toEqual({
+      totalChannels: 1,
+      coveredChannels: 1,
+      channelCoveragePercent: 100,
+      totalOperations: 1,
+      coveredOperations: 1,
+      operationCoveragePercent: 100,
+      totalMessages: 1,
+      coveredMessages: 1,
+      messageCoveragePercent: 100
+    });
+    expect(report.coverage.operations.items).toEqual([
+      {
+        operationKey: "jms send orders.queue",
+        channel: "orders.queue",
+        action: "send",
+        operation: { state: "COVERED" },
+        messageContract: {
+          name: "OrderCreated",
+          selectionMode: "single",
+          state: "COVERED"
+        },
+        suites: ["suite-jms-basic"]
+      }
+    ]);
+    expect(report.bindingSupport).toEqual({
+      summary: {
+        totalOperations: 0,
+        totalBindings: 0,
+        supportedBindings: 0,
+        declaredOnlyBindings: 0,
+        deferredBindings: 0,
+        invalidBindings: 0
+      },
+      operations: []
+    });
+    expect(report.declaredSemantics.summary).toEqual({
+      totalOperations: 0,
+      operationsWithCorrelationId: 0,
+      messageCorrelationIds: 0,
+      operationsWithReply: 0
+    });
+    expect(report.runtimeSemantics.summary).toEqual({
+      totalOperations: 0,
+      satisfiedOperations: 0,
+      unsatisfiedOperations: 0,
+      totalSemantics: 0,
+      satisfiedSemantics: 0,
+      unsatisfiedSemantics: 0,
+      semanticCoveragePercent: null
+    });
+    expect(report.diagnostics.items).toEqual([]);
   });
 
   it("publishes declared correlationId and reply semantics additively without changing async coverage numerators", async () => {

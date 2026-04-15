@@ -1,0 +1,1 @@
+{"kind":"jms","ts":1711000000100,"action":"send","channel":"orders.queue","message":"OrderCreated","payload":{"orderId":"ord-jms-1","status":"created"},"headers":{"JMSCorrelationID":{"state":"captured","value":"corr-jms-1"}},"service":"orders-service","test.run_id":"run-jms-basic","test.suite":"suite-jms-basic"}

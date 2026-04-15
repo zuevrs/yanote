@@ -32,7 +32,7 @@ export type AsyncEvent = {
   testSuite: string;
 };
 
-const ASYNC_PROTOCOLS = new Set<AsyncProtocol>(["kafka", "amqp"]);
+const ASYNC_PROTOCOLS = new Set<AsyncProtocol>(["kafka", "amqp", "jms"]);
 const ASYNC_HEADER_CAPTURE_STATES = new Set<AsyncHeaderCaptureState>([
   "captured",
   "redacted",

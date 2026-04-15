@@ -2300,7 +2300,7 @@ function resolveAsyncSummaryProtocols(
   const protocols = new Set<string>();
   for (const operation of coverage?.operations.items ?? []) {
     const [protocol] = operation.operationKey.split(" ", 1);
-    if (protocol === "kafka" || protocol === "amqp") {
+    if (protocol === "kafka" || protocol === "amqp" || protocol === "jms") {
       protocols.add(protocol);
     }
   }

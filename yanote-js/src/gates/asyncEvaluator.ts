@@ -340,7 +340,7 @@ function normalizeOptionalText(value: string | undefined): string | undefined {
 
 function toSemanticFailure(
   diagnostic: AsyncCoverageDiagnostic,
-  defaultProtocol: "kafka" | "amqp" | null
+  defaultProtocol: "kafka" | "amqp" | "jms" | null
 ): GovernanceFailure {
   switch (diagnostic.kind) {
     case "unsupported-content-type":
@@ -480,8 +480,8 @@ function toSemanticFailure(
   }
 }
 
-function resolveAsyncCoverageProtocol(coverage: AsyncCoverageResult): "kafka" | "amqp" | null {
-  const protocols = new Set<"kafka" | "amqp">();
+function resolveAsyncCoverageProtocol(coverage: AsyncCoverageResult): "kafka" | "amqp" | "jms" | null {
+  const protocols = new Set<"kafka" | "amqp" | "jms">();
 
   for (const entry of coverage.operations.items) {
     if (entry.operationKey.startsWith("kafka ")) {
@@ -491,6 +491,11 @@ function resolveAsyncCoverageProtocol(coverage: AsyncCoverageResult): "kafka" | 
 
     if (entry.operationKey.startsWith("amqp ")) {
       protocols.add("amqp");
+      continue;
+    }
+
+    if (entry.operationKey.startsWith("jms ")) {
+      protocols.add("jms");
     }
   }
 
@@ -502,7 +507,7 @@ function resolveAsyncCoverageProtocol(coverage: AsyncCoverageResult): "kafka" | 
 }
 
 function formatObservedAsyncEvidence(
-  protocol: "kafka" | "amqp" | null,
+  protocol: "kafka" | "amqp" | "jms" | null,
   action: string,
   channel: string
 ): string {
@@ -510,7 +515,7 @@ function formatObservedAsyncEvidence(
 }
 
 function formatObservedAsyncOperationKey(
-  protocol: "kafka" | "amqp" | null,
+  protocol: "kafka" | "amqp" | "jms" | null,
   action: string,
   channel: string
 ): string {

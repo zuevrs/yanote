@@ -146,7 +146,7 @@ describe("readAsyncEventsJsonl", () => {
     }
   });
 
-  it("accepts AMQP evidence alongside Kafka while ignoring non-async entries", async () => {
+  it("accepts AMQP and JMS evidence alongside Kafka while ignoring non-async entries", async () => {
     const dir = await mkdtemp(path.join(os.tmpdir(), "yanote-async-mixed-"));
     const file = path.join(dir, "events.jsonl");
 
@@ -176,6 +176,24 @@ describe("readAsyncEventsJsonl", () => {
         "test.suite": "suite-amqp"
       }),
       JSON.stringify({
+        kind: "jms",
+        ts: 1710000000151,
+        action: " send ",
+        channel: " orders.queue ",
+        message: " OrderCreated ",
+        service: "orders-service",
+        payload: { orderId: "ord-1" },
+        headers: {
+          " JMSCorrelationID ": {
+            state: " captured ",
+            value: " corr-123 "
+          }
+        },
+        error: false,
+        "test.run_id": "run-jms",
+        "test.suite": "suite-jms"
+      }),
+      JSON.stringify({
         kind: "kafka",
         action: "send",
         channel: "users.created",
@@ -196,7 +214,7 @@ describe("readAsyncEventsJsonl", () => {
 
       const result = await readAsyncEventsJsonl(file);
       expect(result.invalidLines).toBe(1);
-      expect(result.invalidLineNumbers).toEqual([4]);
+      expect(result.invalidLineNumbers).toEqual([5]);
       expect(result.items).toEqual([
         {
           kind: "amqp",
@@ -222,6 +240,27 @@ describe("readAsyncEventsJsonl", () => {
           error: true,
           testRunId: "run-amqp",
           testSuite: "suite-amqp"
+        },
+        {
+          kind: "jms",
+          ts: 1710000000151,
+          action: "send",
+          channel: "orders.queue",
+          message: "OrderCreated",
+          service: "orders-service",
+          instance: undefined,
+          payload: { orderId: "ord-1" },
+          payloadState: undefined,
+          payloadReason: undefined,
+          headers: {
+            JMSCorrelationID: {
+              state: "captured",
+              value: "corr-123"
+            }
+          },
+          error: false,
+          testRunId: "run-jms",
+          testSuite: "suite-jms"
         },
         {
           kind: "kafka",

@@ -239,6 +239,65 @@ describe("cli async-report", () => {
     }
   });
 
+  it("writes protocol-aware JMS async artifacts for the shared contract fixture", async () => {
+    const fixture = await createOutDir();
+
+    try {
+      const result = await runCli([
+        "async-report",
+        "--spec",
+        "test/fixtures/asyncapi/jms-basic.yaml",
+        "--events",
+        "test/fixtures/async-events/jms-basic.fixture.jsonl",
+        "--out",
+        fixture.outDir,
+        "--profile",
+        "local"
+      ]);
+
+      expect(result.code).toBe(0);
+      expect(result.stderr).toBe("");
+      expect(result.stdout).toContain("- protocols: jms");
+      expect(result.stdout).toContain("protocols=jms");
+
+      const reportPath = path.join(fixture.outDir, "yanote-async-report.json");
+      const htmlPath = path.join(fixture.outDir, "yanote-async-report.html");
+      const [report, html] = await Promise.all([
+        readFile(reportPath, "utf8").then((content) => JSON.parse(content)),
+        readFile(htmlPath, "utf8")
+      ]);
+
+      expect(report.protocols).toEqual(["jms"]);
+      expect(report.summary).toEqual({
+        totalChannels: 1,
+        coveredChannels: 1,
+        channelCoveragePercent: 100,
+        totalOperations: 1,
+        coveredOperations: 1,
+        operationCoveragePercent: 100,
+        totalMessages: 1,
+        coveredMessages: 1,
+        messageCoveragePercent: 100
+      });
+      expect(report.bindingSupport.summary).toEqual({
+        totalOperations: 0,
+        totalBindings: 0,
+        supportedBindings: 0,
+        declaredOnlyBindings: 0,
+        deferredBindings: 0,
+        invalidBindings: 0
+      });
+      expect(result.stdout).toContain(`report=${reportPath}`);
+      expect(result.stdout).not.toContain(`report=${htmlPath}`);
+      expect(html).toContain("yanote-async-report.html");
+      expect(html).toContain("Protocols");
+      expect(html).toContain("jms");
+      expect(html).toContain("Current normalized report protocol is jms");
+    } finally {
+      await rm(fixture.dir, { recursive: true, force: true });
+    }
+  });
+
   it("surfaces declared async semantics additively while keeping JSON as the machine-facing report path", async () => {
     const fixture = await createAsyncFixture(
       DECLARED_SEMANTICS_ASYNCAPI,

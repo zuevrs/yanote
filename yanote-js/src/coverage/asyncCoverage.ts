@@ -531,11 +531,11 @@ function channelAccumulatorKey(protocol: AsyncProtocol, channel: string): string
 }
 
 function isAsyncOperationKey(value: { kind: string }): value is AsyncOperationKey {
-  return value.kind === "kafka" || value.kind === "amqp";
+  return value.kind === "kafka" || value.kind === "amqp" || value.kind === "jms";
 }
 
 function toAsyncProtocol(value: unknown): AsyncProtocol | null {
-  return value === "kafka" || value === "amqp" ? value : null;
+  return value === "kafka" || value === "amqp" || value === "jms" ? value : null;
 }
 
 function messageAccumulatorKey(operationKey: string, identity: string): string {

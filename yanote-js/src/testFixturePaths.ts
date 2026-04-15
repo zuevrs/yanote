@@ -8,3 +8,5 @@ export const HTTP_PAYLOAD_OPENAPI_FIXTURE_PATH = resolveFixturePath("openapi/htt
 export const HTTP_PAYLOAD_EVENTS_FIXTURE_PATH = resolveFixturePath("events/http-payload-valid.fixture.jsonl");
 export const AMQP_ASYNCAPI_FIXTURE_PATH = resolveFixturePath("asyncapi/rabbitmq-amqp-basic.yaml");
 export const AMQP_ASYNC_EVENTS_FIXTURE_PATH = resolveFixturePath("async-events/amqp-basic.fixture.jsonl");
+export const JMS_ASYNCAPI_FIXTURE_PATH = resolveFixturePath("asyncapi/jms-basic.yaml");
+export const JMS_ASYNC_EVENTS_FIXTURE_PATH = resolveFixturePath("async-events/jms-basic.fixture.jsonl");

@@ -379,16 +379,16 @@ function renderMessageContractCell(
 }
 
 function renderKafkaBindingSupportNote(protocols: AsyncYanoteReport["protocols"]): string {
-  if (protocols.length === 1 && protocols[0] === "amqp") {
-    return "Binding support is reported additively, stays Kafka-scoped, and remains intentionally empty for AMQP inputs.";
+  if (protocols.length === 1 && protocols[0] !== "kafka") {
+    return `Binding support is reported additively, stays Kafka-scoped, and remains intentionally empty for ${protocols[0].toUpperCase()} inputs.`;
   }
 
   return "Binding support is reported additively and stays Kafka-scoped.";
 }
 
 function renderKafkaBindingSupportEmptyMessage(protocols: AsyncYanoteReport["protocols"]): string {
-  if (protocols.length === 1 && protocols[0] === "amqp") {
-    return "Current normalized report protocol is amqp, so no retained Kafka binding declarations apply.";
+  if (protocols.length === 1 && protocols[0] !== "kafka") {
+    return `Current normalized report protocol is ${protocols[0]}, so no retained Kafka binding declarations apply.`;
   }
 
   return "No retained Kafka binding declarations were present in the normalized report.";

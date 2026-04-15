@@ -10,7 +10,9 @@ import {
   AMQP_ASYNC_EVENTS_FIXTURE_PATH,
   AMQP_ASYNCAPI_FIXTURE_PATH,
   HTTP_PAYLOAD_EVENTS_FIXTURE_PATH,
-  HTTP_PAYLOAD_OPENAPI_FIXTURE_PATH
+  HTTP_PAYLOAD_OPENAPI_FIXTURE_PATH,
+  JMS_ASYNC_EVENTS_FIXTURE_PATH,
+  JMS_ASYNCAPI_FIXTURE_PATH
 } from "../testFixturePaths.js";
 import type { AsyncYanoteReport } from "./asyncReport.js";
 import { buildAsyncReport } from "./asyncReport.js";
@@ -20,8 +22,10 @@ import { buildReport } from "./report.js";
 
 const HTTP_SPEC_PATH = HTTP_PAYLOAD_OPENAPI_FIXTURE_PATH;
 const HTTP_EVENTS_PATH = HTTP_PAYLOAD_EVENTS_FIXTURE_PATH;
-const ASYNC_SPEC_PATH = AMQP_ASYNCAPI_FIXTURE_PATH;
-const ASYNC_EVENTS_PATH = AMQP_ASYNC_EVENTS_FIXTURE_PATH;
+const AMQP_ASYNC_SPEC_PATH = AMQP_ASYNCAPI_FIXTURE_PATH;
+const AMQP_ASYNC_EVENTS_PATH = AMQP_ASYNC_EVENTS_FIXTURE_PATH;
+const JMS_ASYNC_SPEC_PATH = JMS_ASYNCAPI_FIXTURE_PATH;
+const JMS_ASYNC_EVENTS_PATH = JMS_ASYNC_EVENTS_FIXTURE_PATH;
 
 async function buildHttpFixtureReport(): Promise<YanoteReport> {
   const model = await loadOpenApiCoverageModel(HTTP_SPEC_PATH);
@@ -45,15 +49,31 @@ async function buildHttpFixtureReport(): Promise<YanoteReport> {
 }
 
 async function buildAmqpAsyncFixtureReport(): Promise<AsyncYanoteReport> {
-  const bundle = await loadAsyncApiSemanticsBundle(ASYNC_SPEC_PATH);
-  const events = await readAsyncEventsJsonl(ASYNC_EVENTS_PATH);
+  const bundle = await loadAsyncApiSemanticsBundle(AMQP_ASYNC_SPEC_PATH);
+  const events = await readAsyncEventsJsonl(AMQP_ASYNC_EVENTS_PATH);
   const coverage = computeAsyncCoverage(bundle, events.items);
 
   return buildAsyncReport(coverage, {
     toolVersion: "test",
     specSource: {
       kind: "local-file",
-      reference: ASYNC_SPEC_PATH
+      reference: AMQP_ASYNC_SPEC_PATH
+    },
+    eventTimestamps: events.items.map((event) => event.ts).filter((timestamp): timestamp is number => typeof timestamp === "number"),
+    operationContractsByKey: bundle.operationContractsByKey
+  });
+}
+
+async function buildJmsAsyncFixtureReport(): Promise<AsyncYanoteReport> {
+  const bundle = await loadAsyncApiSemanticsBundle(JMS_ASYNC_SPEC_PATH);
+  const events = await readAsyncEventsJsonl(JMS_ASYNC_EVENTS_PATH);
+  const coverage = computeAsyncCoverage(bundle, events.items);
+
+  return buildAsyncReport(coverage, {
+    toolVersion: "test",
+    specSource: {
+      kind: "local-file",
+      reference: JMS_ASYNC_SPEC_PATH
     },
     eventTimestamps: events.items.map((event) => event.ts).filter((timestamp): timestamp is number => typeof timestamp === "number"),
     operationContractsByKey: bundle.operationContractsByKey
@@ -102,6 +122,50 @@ describe("combined report builder", () => {
     expect(combined.children.async.summary.runtimeSemantics.totalOperations).toBe(0);
     expect(combined.children.async.summary.runtimeSemantics.semanticCoveragePercent).toBe(null);
     expect(combined.children.http.summary.aggregateCoveragePercent).toBe(httpReport.summary.aggregateCoveragePercent);
+    expect(Object.hasOwn(combined.children.async.summary, "aggregateCoveragePercent")).toBe(false);
+  });
+
+  it("keeps combined child attribution explicit for a JMS async child", async () => {
+    const httpReport = await buildHttpFixtureReport();
+    const asyncReport = await buildJmsAsyncFixtureReport();
+
+    const combined = buildCombinedReport({
+      toolVersion: "test",
+      http: {
+        report: httpReport,
+        reportPath: "fixtures/http/yanote-report.json"
+      },
+      async: {
+        report: asyncReport,
+        reportPath: "fixtures/async/yanote-async-report.json"
+      }
+    });
+
+    expect(combined.status).toBe(resolveCombinedReportStatus(httpReport.status, asyncReport.status));
+    expect(combined.children.async.summary.protocols).toEqual(["jms"]);
+    expect(combined.children.async.summary.bindingSupport).toEqual({
+      totalOperations: 0,
+      totalBindings: 0,
+      supportedBindings: 0,
+      declaredOnlyBindings: 0,
+      deferredBindings: 0,
+      invalidBindings: 0
+    });
+    expect(combined.children.async.summary.declaredSemantics).toEqual({
+      totalOperations: 0,
+      operationsWithCorrelationId: 0,
+      messageCorrelationIds: 0,
+      operationsWithReply: 0
+    });
+    expect(combined.children.async.summary.runtimeSemantics).toEqual({
+      totalOperations: 0,
+      satisfiedOperations: 0,
+      unsatisfiedOperations: 0,
+      totalSemantics: 0,
+      satisfiedSemantics: 0,
+      unsatisfiedSemantics: 0,
+      semanticCoveragePercent: null
+    });
     expect(Object.hasOwn(combined.children.async.summary, "aggregateCoveragePercent")).toBe(false);
   });
 

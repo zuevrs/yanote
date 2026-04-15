@@ -340,6 +340,10 @@ function parseAsyncProtocolFromOperationKey(operationKey: string): AsyncProtocol
     return "amqp";
   }
 
+  if (operationKey.startsWith("jms ")) {
+    return "jms";
+  }
+
   return null;
 }
 
