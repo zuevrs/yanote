@@ -80,7 +80,7 @@ Deferred to future release. Tracked but not in current roadmap.
 
 - **ASYNC-01**: Team can extend the proven Kafka and RabbitMQ payload/semantics proof to deeper AsyncAPI schema-keyword coverage and retained header validation
 - **ASYNC-02**: Team can produce one blended HTTP + async denominator/gate/dashboard surface without losing the current truthful split between child `report`, `async-report`, and `combined-report`
-- **ASYNC-03**: Team can support brokers beyond the proven Kafka + first RabbitMQ/AMQP paths or make a broker-agnostic async runtime promise
+- **ASYNC-03**: Team can support brokers beyond the proven Kafka + first RabbitMQ/AMQP paths without collapsing provider-specific runtime modules into a broker-agnostic promise; the next planned path is an ActiveMQ-backed Spring JMS recorder with `jms` analyzer/report truth rather than an `amqp` relabel
 
 ## Out of Scope
 
@@ -90,7 +90,7 @@ Explicitly excluded from the current public surface. Documented to prevent scope
 |---------|--------|
 | Async deeper schema-keyword coverage and retained header validation beyond the current Kafka/RabbitMQ proof families | Deferred follow-on; current public async surface proves Kafka payload drift, RabbitMQ happy-path AMQP truth, and still keeps raw retained headers out of public support intake |
 | Blended HTTP + async denominator/gate/dashboard surface | Deferred follow-on; current product keeps separate child `report`, `async-report`, and `combined-report` truth surfaces |
-| Broker-agnostic coverage beyond the proven Kafka + RabbitMQ/AMQP paths | Deferred follow-on; current public boundary keeps `broker-agnostic promise нет` |
+| Broker-agnostic coverage beyond the proven Kafka + RabbitMQ/AMQP paths | Deferred follow-on; current public boundary keeps `broker-agnostic promise нет`, and any future ActiveMQ-backed Spring JMS path must remain a separate narrow `jms` surface rather than an `amqp` relabel |
 | Non-Java service ecosystem support | Explicitly deferred until Java-first workflow is stable |
 | Web dashboard/report UI | Not required for v1 value; CLI + file reports are sufficient |
 | Built-in autonomous test generation/fuzzing | High complexity, lower priority than deterministic coverage governance |
@@ -130,4 +130,4 @@ Which phases cover which v1 requirements. Updated during roadmap creation.
 
 ---
 *Requirements defined: 2026-03-04*
-*Last updated: 2026-03-20 after M007 S04 T03 async boundary refresh*
+*Last updated: 2026-04-15 after ActiveMQ/JMS boundary planning refresh*

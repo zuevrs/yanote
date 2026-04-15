@@ -32,7 +32,7 @@
 | HTTP request serialization | `path=simple`, `query=form`, `header=simple`, `cookie=form`; broader styles/content parameters не входят в supported surface. |
 | HTTP security semantics | Truthful `apiKey` query/header/cookie subset; broader security scheme coverage не обещается. |
 | Spring WebFlux recorder path | Только отдельный release-published модуль `yanote-recorder-spring-webflux`; proved compatibility floor — Spring Boot 2.7.x / Spring Framework 5.3.x и Spring Boot 3.x / Spring Framework 6.x, а текущая proof boundary — finite/non-streaming exchanges и bounded JSON payload capture, без broad WebFlux parity promise. |
-| Async semantics | Kafka + first RabbitMQ/AMQP path only; raw retained headers/payload bodies не становятся public support intake surface. |
+| Async semantics | Kafka + first RabbitMQ/AMQP path only today; any future ActiveMQ-backed Spring JMS path must stay a separate narrow surface with `jms` analyzer/report truth, not an `amqp` relabel, and raw retained headers/payload bodies не становятся public support intake surface. |
 
 ## Deferred / not promised yet
 
@@ -43,6 +43,7 @@
 | Deeper AsyncAPI schema-keyword coverage beyond current proof families | Deferred |
 | Broader Spring WebFlux parity (`SSE`, `application/stream+json`, long-lived/infinite streams, multipart/file-transfer paths, broad body-type parity claims) | Deferred |
 | Blended HTTP + async denominator / gate / dashboard | Deferred |
+| ActiveMQ-backed Spring JMS path | Deferred — if introduced, it lands as a separate narrow path with `jms` analyzer truth, not as an `amqp` relabel or broker-agnostic expansion |
 | Broker-agnostic async promise | Not promised |
 | Hosted dashboard UI | Not promised |
 
