@@ -24,6 +24,7 @@ include(
     "yanote-recorder-spring-webflux",
     "yanote-recorder-spring-kafka",
     "yanote-recorder-spring-amqp",
+    "yanote-recorder-spring-activemq",
     "yanote-test-tags-restassured",
     "yanote-test-tags-cucumber",
     "yanote-gradle-plugin",

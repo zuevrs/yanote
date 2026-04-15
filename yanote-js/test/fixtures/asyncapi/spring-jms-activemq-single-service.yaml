@@ -1,0 +1,37 @@
+asyncapi: 3.0.0
+info:
+  title: spring jms activemq single service contract
+  version: '1.0.0'
+servers:
+  jmsLocal:
+    host: localhost
+    protocol: jms
+channels:
+  ordersQueue:
+    address: yanote.jms.integration.queue
+    messages:
+      OrderCreated:
+        contentType: application/json
+        payload:
+          type: object
+          required:
+            - orderId
+            - status
+          properties:
+            orderId:
+              type: string
+            status:
+              type: string
+operations:
+  sendOrderCreated:
+    action: send
+    channel:
+      $ref: '#/channels/ordersQueue'
+    messages:
+      - $ref: '#/channels/ordersQueue/messages/OrderCreated'
+  receiveOrderCreated:
+    action: receive
+    channel:
+      $ref: '#/channels/ordersQueue'
+    messages:
+      - $ref: '#/channels/ordersQueue/messages/OrderCreated'
