@@ -77,6 +77,7 @@ EXPECTED_STAGING_PUBLICATIONS=(
   "build/staging-deploy/io/github/zuevrs/yanote-recorder-spring-webflux/${RELEASE_VERSION}/yanote-recorder-spring-webflux-${RELEASE_VERSION}.pom"
   "build/staging-deploy/io/github/zuevrs/yanote-recorder-spring-kafka/${RELEASE_VERSION}/yanote-recorder-spring-kafka-${RELEASE_VERSION}.pom"
   "build/staging-deploy/io/github/zuevrs/yanote-recorder-spring-amqp/${RELEASE_VERSION}/yanote-recorder-spring-amqp-${RELEASE_VERSION}.pom"
+  "build/staging-deploy/io/github/zuevrs/yanote-recorder-spring-activemq/${RELEASE_VERSION}/yanote-recorder-spring-activemq-${RELEASE_VERSION}.pom"
   "build/staging-deploy/io/github/zuevrs/yanote-test-tags-restassured/${RELEASE_VERSION}/yanote-test-tags-restassured-${RELEASE_VERSION}.pom"
   "build/staging-deploy/io/github/zuevrs/yanote-test-tags-cucumber/${RELEASE_VERSION}/yanote-test-tags-cucumber-${RELEASE_VERSION}.pom"
   "build/staging-deploy/io/github/zuevrs/yanote-gradle-plugin/${RELEASE_VERSION}/yanote-gradle-plugin-${RELEASE_VERSION}.pom"
@@ -295,6 +296,7 @@ reset_release_outputs() {
   rm -f \
     "${ANALYZER_ARCHIVE_PATH}" \
     "${RELEASE_NOTES_PATH}"
+  mkdir -p "${BUILD_ROOT}"
 }
 
 restore_preflight_fixture() {

@@ -16,6 +16,8 @@ test("release pipeline verifier keeps a stable retained proof root and signed-ta
   assert.match(source, /RELEASE_TAG="\$\{YANOTE_RELEASE_PROOF_TAG:-v1\.2\.3\}"/);
   assert.match(source, /PREVIOUS_RELEASE_TAG="\$\{YANOTE_RELEASE_PROOF_PREVIOUS_TAG:-v1\.2\.2\}"/);
   assert.match(source, /FIXTURE_ARCHIVE_PATH="\$\{ROOT_DIR\}\/scripts\/release\/fixtures\/preflight-runtime\/preflight-signed-main\.tar\.gz\.base64"/);
+  assert.match(source, /reset_release_outputs\(\) \{/);
+  assert.match(source, /mkdir -p "\$\{BUILD_ROOT\}"/);
   assert.match(source, /FIXTURE_PUBLIC_KEY_PATH="\$\{ROOT_DIR\}\/scripts\/release\/fixtures\/test-release-signing-public\.asc"/);
   assert.match(source, /GENERATED_SIGNING_HOME=""/);
   assert.match(source, /GENERATED_PRIVATE_KEY_PATH="\$\{FIXTURE_ROOT\}\/generated-signing-private\.asc"/);
@@ -58,6 +60,7 @@ test("release pipeline verifier mirrors the workflow's local release-candidate t
   assert.match(source, /yanote-recorder-spring-webflux-\$\{RELEASE_VERSION\}\.pom/);
   assert.match(source, /yanote-recorder-spring-kafka-\$\{RELEASE_VERSION\}\.pom/);
   assert.match(source, /yanote-recorder-spring-amqp-\$\{RELEASE_VERSION\}\.pom/);
+  assert.match(source, /yanote-recorder-spring-activemq-\$\{RELEASE_VERSION\}\.pom/);
   assert.match(source, /yanote-test-tags-restassured-\$\{RELEASE_VERSION\}\.pom/);
   assert.match(source, /yanote-test-tags-cucumber-\$\{RELEASE_VERSION\}\.pom/);
   assert.match(source, /yanote-gradle-plugin-\$\{RELEASE_VERSION\}\.pom/);
